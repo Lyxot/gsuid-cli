@@ -96,6 +96,15 @@ Be honest, direct, and constructive.
 
 ## Development Workflow
 
+### 0. Python environment
+
+Use the repository-local Python virtual environment at `.venv`.
+
+- Create it with `python3 -m venv .venv` if it is missing.
+- Activate it with `source .venv/bin/activate` for interactive work.
+- Prefer `.venv/bin/python -m ...` and `.venv/bin/<tool>` in scripts or non-interactive commands.
+- Do not commit `.venv`; it is local machine state and must remain ignored.
+
 ### 1. Version control discipline
 
 Use git throughout the entire porting process.
@@ -149,10 +158,3 @@ Maintain `PLAN.md` as the persistent project plan and progress log.
 - Update `PLAN.md` again after each completed stage, including status, verification, and the next intended stage.
 - If a stage is blocked, record the blocker and the smallest useful next action.
 - Keep `PLAN.md` concise; it is a roadmap and progress ledger, not a work diary.
-
-## PLAN.md Protocol
-
-- Update `PLAN.md` before starting each meaningful stage.
-- Update `PLAN.md` after completing each stage: record status, verification result, and next stage.
-- For completed stages, keep only a one-line summary. Full detail lives only in the current stage.
-- Keep `PLAN.md` concise — it is a roadmap and progress ledger, not a work diary.
