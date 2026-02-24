@@ -629,21 +629,22 @@ tests/
 ## Staged Roadmap
 
 ### Stage 0: Repository Bootstrap — completed.
-### Stage 1: Specification Plan
-
-- Status: completed when this file is committed.
-- Goal: define command contracts, return formats, architecture, and long-running implementation sequence.
-- Verification: `git diff --check` and review that each planned command has a stable name, auth expectation, and output shape.
-- Commit: `docs: add cli implementation plan`.
-
+### Stage 1: Specification Plan — completed.
 ### Stage 2: Project Skeleton
 
-- Add `pyproject.toml`, package layout, `gsuid` console script, ruff, pytest.
-- Set an explicit supported Python range before adding dependencies.
-- Implement `meta version`, `meta paths`, and `meta capabilities` with static data.
-- Implement JSON success/error envelope and exit-code handling.
-- Tests: CLI parser snapshots, envelope snapshots, exit-code tests.
-- Verification: `python -m gsuid_cli meta version`, `python -m pytest`, `ruff check`.
+- Status: completed.
+- Result: added `pyproject.toml`, `src/gsuid_cli`, `python -m gsuid_cli`,
+  `gsuid`, argparse command skeleton, JSON success/error envelope, exit-code
+  handling, `meta version`, `meta paths`, `meta capabilities`, ruff config,
+  pytest tests, and a README stub.
+- Supported Python range: `>=3.11,<3.15`.
+- Verification:
+  - `.venv/bin/python -m gsuid_cli meta version`
+  - `.venv/bin/python -m gsuid_cli meta paths`
+  - `.venv/bin/python -m gsuid_cli meta capabilities`
+  - `.venv/bin/gsuid meta version`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/ruff check .`
 - Commit: `feat: add cli skeleton`.
 
 ### Stage 3: State, Profiles, Accounts, And Secrets
