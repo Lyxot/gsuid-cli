@@ -630,32 +630,25 @@ tests/
 
 ### Stage 0: Repository Bootstrap — completed.
 ### Stage 1: Specification Plan — completed.
-### Stage 2: Project Skeleton
-
-- Status: completed.
-- Result: added `pyproject.toml`, `src/gsuid_cli`, `python -m gsuid_cli`,
-  `gsuid`, argparse command skeleton, JSON success/error envelope, exit-code
-  handling, `meta version`, `meta paths`, `meta capabilities`, ruff config,
-  pytest tests, and a README stub.
-- Supported Python range: `>=3.11,<3.15`.
-- Verification:
-  - `.venv/bin/python -m gsuid_cli meta version`
-  - `.venv/bin/python -m gsuid_cli meta paths`
-  - `.venv/bin/python -m gsuid_cli meta capabilities`
-  - `.venv/bin/gsuid meta version`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/ruff check .`
-- Commit: `feat: add cli skeleton`.
-
+### Stage 2: Project Skeleton — completed.
 ### Stage 3: State, Profiles, Accounts, And Secrets
 
-- Implement `$GSUID_HOME` resolution.
-- Implement SQLite state initialization and migrations.
-- Implement profile/account commands.
-- Implement mandatory keyring-backed secret backend.
-- Implement credential redaction utilities.
-- Tests: isolated temp home, account CRUD, profile defaults, secret redaction, file permission checks where supported.
-- Verification: account/auth commands work without network using temp home.
+- Status: completed.
+- Result: implemented `$GSUID_HOME` resolution, SQLite state initialization and
+  migrations, profile/account CRUD, profile/account defaults, mandatory
+  keyring-backed credential storage, env one-shot credential reads, auth
+  set/test/delete commands, credential redaction, and account credential
+  availability booleans.
+- Tests: isolated temp home, account CRUD, profile defaults, secret redaction,
+  keyring lifecycle with an isolated in-memory backend, env credential priority,
+  and file permission checks where supported.
+- Verification:
+  - `.venv/bin/python -m pytest tests/test_auth_secrets.py tests/test_profile_account_state.py`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - Temp-home CLI smoke: `profile init`, `account add --default`, and
+    `GSUID_COOKIE=... auth cookie test`.
 - Commit: `feat: add account state management`.
 
 ### Stage 4: Provider Foundation

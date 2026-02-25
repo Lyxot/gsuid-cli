@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from typing import TextIO
 
 from gsuid_cli import __version__
-from gsuid_cli.commands import meta
+from gsuid_cli.commands import account, auth, meta, profile
 from gsuid_cli.core.envelope import error_envelope, success_envelope
 from gsuid_cli.core.errors import (
     EXIT_INTERNAL_BUG,
@@ -67,6 +67,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     groups = parser.add_subparsers(dest="group", required=True, metavar="<group>")
     meta.register(groups)
+    profile.register(groups)
+    account.register(groups)
+    auth.register(groups)
     return parser
 
 
@@ -99,7 +102,7 @@ def run(
     except SystemExit as exc:
         return _system_exit_code(exc)
     except CliError as exc:
-        context = _error_context(args_list)
+        context = _context_from_args(args) if "args" in locals() else _error_context(args_list)
         payload = error_envelope(
             command=context["command"],
             request_id=context["request_id"],
@@ -198,6 +201,16 @@ def _error_context(argv: Sequence[str]) -> dict[str, object]:
         or _valid_env("GSUID_FORMAT", OUTPUT_FORMATS, "json"),
         "region": _option_value(argv, "--region") or _valid_env("GSUID_REGION", {"cn", "os"}, "cn"),
         "debug": "--debug" in argv,
+    }
+
+
+def _context_from_args(args: argparse.Namespace) -> dict[str, object]:
+    return {
+        "command": args.command_name,
+        "request_id": args.request_id or str(uuid.uuid4()),
+        "format": args.format,
+        "region": args.region,
+        "debug": args.debug,
     }
 
 
