@@ -631,33 +631,24 @@ tests/
 ### Stage 0: Repository Bootstrap — completed.
 ### Stage 1: Specification Plan — completed.
 ### Stage 2: Project Skeleton — completed.
-### Stage 3: State, Profiles, Accounts, And Secrets
+### Stage 3: State, Profiles, Accounts, And Secrets — completed.
+### Stage 4: Provider Foundation
 
 - Status: completed.
-- Result: implemented `$GSUID_HOME` resolution, SQLite state initialization and
-  migrations, profile/account CRUD, profile/account defaults, mandatory
-  keyring-backed credential storage, env one-shot credential reads, auth
-  set/test/delete commands, credential redaction, and account credential
-  availability booleans.
-- Tests: isolated temp home, account CRUD, profile defaults, secret redaction,
-  keyring lifecycle with an isolated in-memory backend, env credential priority,
-  and file permission checks where supported.
+- Result: implemented a sync `httpx` provider wrapper, GET cache policy,
+  sanitized cache keys, provider/network/upstream error mapping, debug-only
+  response previews, CN region helpers, provider selection, and MYS-backed
+  `auth cookie test`.
+- Tests: mocked cookie success, auth failure, timeout mapping, non-JSON upstream
+  response, GET cache reuse, cache key secret exclusion, env/keyring command
+  wiring, and an optional live cookie test gated by `GSUID_LIVE_TESTS=1`.
 - Verification:
-  - `.venv/bin/python -m pytest tests/test_auth_secrets.py tests/test_profile_account_state.py`
+  - `.venv/bin/python -m pytest tests/test_provider_foundation.py tests/test_auth_secrets.py`
   - `.venv/bin/python -m pytest`
   - `.venv/bin/ruff check .`
   - `.venv/bin/ruff format --check .`
-  - Temp-home CLI smoke: `profile init`, `account add --default`, and
-    `GSUID_COOKIE=... auth cookie test`.
-- Commit: `feat: add account state management`.
-
-### Stage 4: Provider Foundation
-
-- Implement HTTP client wrapper, cache policy, provider error mapping, sanitized debug details.
-- Implement region inference and provider selection.
-- Implement `auth cookie test` with mocked and real-network optional tests.
-- Tests: timeout mapping, non-JSON upstream response, auth failure, cache key excludes secrets.
-- Verification: mocked provider suite passes; optional live command can be run manually.
+  - Temp-home CLI smoke: `auth cookie test --uid 100000001` returns
+    `AUTH_REQUIRED` without a stored/env cookie.
 - Commit: `feat: add provider foundation`.
 
 ### Stage 5: Public Data MVP

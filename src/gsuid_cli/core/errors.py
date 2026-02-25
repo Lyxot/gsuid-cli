@@ -18,6 +18,7 @@ class CliError(Exception):
         exit_code: int,
         details: dict[str, object] | None = None,
         retryable: bool = False,
+        source: dict[str, object] | None = None,
     ) -> None:
         super().__init__(message)
         self.code = code
@@ -25,3 +26,4 @@ class CliError(Exception):
         self.exit_code = exit_code
         self.details = details or {}
         self.retryable = retryable
+        self.source = source

@@ -18,6 +18,7 @@ from gsuid_cli.core.errors import (
     EXIT_INVALID_INPUT,
     CliError,
 )
+from gsuid_cli.core.models import CommandResult
 
 GLOBAL_VALUE_OPTIONS = {
     "--profile",
@@ -89,13 +90,19 @@ def run(
         _validate_runtime_defaults(args)
         command = args.command_name
         request_id = args.request_id or str(uuid.uuid4())
-        data = args.handler(args)
+        result = args.handler(args)
+        if not isinstance(result, CommandResult):
+            result = CommandResult(data=result)
         payload = success_envelope(
             command=command,
             request_id=request_id,
             duration_ms=_duration_ms(started),
-            data=data,
+            data=result.data,
             region=args.region,
+            warnings=result.warnings,
+            artifacts=result.artifacts,
+            source=result.source,
+            pagination=result.pagination,
         )
         _write_payload(payload, args.format, stdout, stderr)
         return 0

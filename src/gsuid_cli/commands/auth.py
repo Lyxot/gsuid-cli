@@ -6,7 +6,11 @@ from pathlib import Path
 
 from gsuid_cli.commands.account import _validate_uid
 from gsuid_cli.core.errors import EXIT_AUTH, EXIT_INVALID_INPUT, CliError
+from gsuid_cli.core.http import HttpClient
+from gsuid_cli.core.region import resolve_profile_region, resolve_profile_uid
 from gsuid_cli.core.secrets import CREDENTIALS, SecretStore, env_secret, redact_secret
+from gsuid_cli.core.state import state_db
+from gsuid_cli.providers import provider_for_region
 
 CAPABILITIES = [
     {
@@ -19,7 +23,7 @@ CAPABILITIES = [
     },
     {
         "command": "auth.cookie.test",
-        "description": "Check local cookie availability without provider validation.",
+        "description": "Validate cookie availability against the CN provider.",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data"],
@@ -108,32 +112,29 @@ def set_command(args: argparse.Namespace) -> dict[str, object]:
 
 
 def test_command(args: argparse.Namespace) -> dict[str, object]:
-    uid = _uid(args)
-    env_value = env_secret(args.credential_kind)
-    if env_value:
-        return _credential_data(
+    uid, region = _uid_and_region(args)
+    value, source, storage_backend = _credential(args, uid)
+    if args.credential_kind == "cookie":
+        http_client = HttpClient(
+            timeout=args.timeout,
+            cache_policy="off",
+            output_dir=args.output_dir,
+            debug=args.debug,
+        )
+        provider = provider_for_region(region, http_client)
+        return provider.validate_cookie(
             uid=uid,
-            kind=args.credential_kind,
-            source="environment",
-            storage_backend=None,
-            validity_status="available",
-            value=env_value,
+            cookie=value,
+            region=region,
+            credential_source=source,
+            storage_backend=storage_backend,
         )
 
-    store = SecretStore()
-    value = store.get_secret(args.credential_kind, uid)
-    if value is None:
-        raise CliError(
-            "AUTH_REQUIRED",
-            f"No {CREDENTIALS[args.credential_kind].label} is available for this UID.",
-            EXIT_AUTH,
-            {"uid": uid, "credential_type": args.credential_kind},
-        )
     return _credential_data(
         uid=uid,
         kind=args.credential_kind,
-        source="keyring",
-        storage_backend=store.backend_name(),
+        source=source,
+        storage_backend=storage_backend,
         validity_status="available",
         value=value,
     )
@@ -192,12 +193,59 @@ def _register_credential(
 
 
 def _uid(args: argparse.Namespace) -> str:
+    uid, _region = _uid_and_region(args)
+    return uid
+
+
+def _uid_and_region(args: argparse.Namespace) -> tuple[str, str]:
     command_uid = getattr(args, "command_uid", None)
     if command_uid:
-        return _validate_uid(command_uid)
-    if args.uid:
-        return _validate_uid(args.uid)
-    raise CliError("INVALID_ARGUMENT", "uid is required", EXIT_INVALID_INPUT)
+        uid = _validate_uid(command_uid)
+    elif args.uid:
+        uid = _validate_uid(args.uid)
+    else:
+        with state_db(args.output_dir) as conn:
+            uid = resolve_profile_uid(conn, args.profile)
+            if uid is None:
+                raise CliError(
+                    "INVALID_ARGUMENT",
+                    "uid is required when the selected profile has no default account",
+                    EXIT_INVALID_INPUT,
+                    {"profile": args.profile},
+                )
+            region = resolve_profile_region(
+                conn,
+                profile_name=args.profile,
+                uid=uid,
+                requested_region=args.region,
+            )
+            return uid, region
+
+    with state_db(args.output_dir) as conn:
+        region = resolve_profile_region(
+            conn,
+            profile_name=args.profile,
+            uid=uid,
+            requested_region=args.region,
+        )
+    return uid, region
+
+
+def _credential(args: argparse.Namespace, uid: str) -> tuple[str, str, str | None]:
+    env_value = env_secret(args.credential_kind)
+    if env_value:
+        return env_value, "environment", None
+
+    store = SecretStore()
+    value = store.get_secret(args.credential_kind, uid)
+    if value is None:
+        raise CliError(
+            "AUTH_REQUIRED",
+            f"No {CREDENTIALS[args.credential_kind].label} is available for this UID.",
+            EXIT_AUTH,
+            {"uid": uid, "credential_type": args.credential_kind},
+        )
+    return value, "keyring", store.backend_name()
 
 
 def _read_value(args: argparse.Namespace) -> str:

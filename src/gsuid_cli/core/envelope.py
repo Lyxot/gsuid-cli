@@ -15,6 +15,8 @@ def success_envelope(
     region: str,
     warnings: list[str] | None = None,
     artifacts: list[dict[str, object]] | None = None,
+    source: dict[str, object] | None = None,
+    pagination: dict[str, object] | None = None,
     generated_at: str | None = None,
 ) -> dict[str, object]:
     generated_at = generated_at or utc_now()
@@ -28,8 +30,8 @@ def success_envelope(
         "warnings": warnings or [],
         "data": data,
         "artifacts": artifacts or [],
-        "source": _source(region=region, fetched_at=generated_at),
-        "pagination": None,
+        "source": source or _source(region=region, fetched_at=generated_at),
+        "pagination": pagination,
     }
 
 
@@ -58,7 +60,7 @@ def error_envelope(
             "retryable": error.retryable,
         },
         "artifacts": [],
-        "source": _source(region=region, fetched_at=None),
+        "source": error.source or _source(region=region, fetched_at=None),
     }
 
 

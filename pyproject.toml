@@ -11,6 +11,7 @@ requires-python = ">=3.11,<3.15"
 license = "AGPL-3.0-only"
 authors = [{ name = "Lyxot" }]
 dependencies = [
+  "httpx>=0.28",
   "keyring>=25.0",
 ]
 
