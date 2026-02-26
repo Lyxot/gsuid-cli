@@ -55,6 +55,60 @@ def test_env_cookie_takes_priority_without_stored_secret(monkeypatch, tmp_path) 
     assert payload["data"]["storage_backend"] is None
 
 
+def test_qrcode_start_can_render_artifact(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _qrcode_provider())
+
+    code, payload = _run_json(
+        [
+            "--request-id",
+            "req-qrcode",
+            "--render",
+            "image",
+            "auth",
+            "qrcode",
+            "start",
+        ]
+    )
+
+    assert code == 0
+    assert payload["command"] == "auth.qrcode.start"
+    assert payload["data"]["ticket"] == "ticket-1"
+    assert payload["artifacts"][0]["name"] == "qrcode_login"
+    assert payload["artifacts"][0]["media_type"] == "image/png"
+    assert (tmp_path / "home" / "artifacts").exists()
+
+
+def test_qrcode_complete_stores_credentials_without_printing_secrets(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _qrcode_provider())
+
+    code, payload = _run_json(
+        [
+            "auth",
+            "qrcode",
+            "complete",
+            "--uid",
+            "100000001",
+            "--ticket",
+            "ticket-1",
+            "--device",
+            "device-1",
+        ]
+    )
+
+    assert code == 0
+    assert payload["data"]["stored"] is True
+    raw_payload = json.dumps(payload, ensure_ascii=False)
+    assert "cookie-secret" not in raw_payload
+    assert "stoken-secret" not in raw_payload
+
+    code, payload = _run_json(["auth", "stoken", "test", "--uid", "100000001"])
+
+    assert code == 0
+    assert payload["data"]["validity_status"] == "available"
+
+
 def test_redact_secret_never_returns_short_secret() -> None:
     assert redact_secret("short") == "[REDACTED]"
     assert redact_secret("123456789") == "1234...6789"
@@ -91,6 +145,64 @@ def _provider(status: str):
                     "validity_status": status,
                     "redacted": redact_secret(cookie),
                     "provider_response": {"retcode": 0, "message": "OK"},
+                },
+                source={
+                    "provider": "mys",
+                    "region": region,
+                    "cached": False,
+                    "fetched_at": "2026-04-29T10:30:00Z",
+                },
+            )
+
+    def provider_for_region(_region: str, http_client) -> FakeProvider:
+        return FakeProvider(http_client)
+
+    return provider_for_region
+
+
+def _qrcode_provider():
+    class FakeProvider:
+        def __init__(self, _http_client) -> None:
+            pass
+
+        def create_qrcode_session(self, *, region: str) -> CommandResult:
+            return CommandResult(
+                data={
+                    "app_id": "2",
+                    "ticket": "ticket-1",
+                    "device": "device-1",
+                    "url": "https://example.test/login?ticket=ticket-1",
+                    "status": "created",
+                },
+                source={
+                    "provider": "mys",
+                    "region": region,
+                    "cached": False,
+                    "fetched_at": "2026-04-29T10:30:00Z",
+                },
+            )
+
+        def complete_qrcode_login(
+            self,
+            *,
+            app_id: str,
+            ticket: str,
+            device: str,
+            uid: str,
+            region: str,
+        ) -> CommandResult:
+            return CommandResult(
+                data={
+                    "uid": uid,
+                    "account_id": "123456",
+                    "status": "stored",
+                    "credential_types": ["cookie", "stoken"],
+                    "cookie": "account_id=123456;cookie_token=cookie-secret",
+                    "stoken": "stuid=123456;stoken=stoken-secret;mid=mid-secret",
+                    "redacted": {
+                        "cookie": "acco...cret",
+                        "stoken": "stui...cret",
+                    },
                 },
                 source={
                     "provider": "mys",

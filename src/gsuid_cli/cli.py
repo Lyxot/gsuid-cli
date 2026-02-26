@@ -90,6 +90,7 @@ def run(
         _validate_runtime_defaults(args)
         command = args.command_name
         request_id = args.request_id or str(uuid.uuid4())
+        args.request_id = request_id
         result = args.handler(args)
         if not isinstance(result, CommandResult):
             result = CommandResult(data=result)

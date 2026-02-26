@@ -13,7 +13,9 @@ SECRET_QUERY_KEYS = {
     "authkey",
     "cookie",
     "login_ticket",
+    "game_token",
     "stoken",
+    "ticket",
     "token",
 }
 

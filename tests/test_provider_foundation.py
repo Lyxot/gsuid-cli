@@ -140,6 +140,131 @@ def test_get_cache_policy_uses_cached_payload(monkeypatch, tmp_path) -> None:
     assert calls == 1
 
 
+def test_qrcode_start_returns_session() -> None:
+    provider = MysProvider(
+        _client(
+            _json_response(
+                {
+                    "retcode": 0,
+                    "message": "OK",
+                    "data": {"url": "https://example.test/login?ticket=ticket-1"},
+                }
+            )
+        )
+    )
+
+    result = provider.create_qrcode_session(region="cn")
+
+    assert result.data["app_id"] == "2"
+    assert result.data["ticket"] == "ticket-1"
+    assert result.data["url"] == "https://example.test/login?ticket=ticket-1"
+
+
+def test_qrcode_poll_confirmed_does_not_return_game_token() -> None:
+    provider = MysProvider(
+        _client(
+            _json_response(
+                {
+                    "retcode": 0,
+                    "message": "OK",
+                    "data": {
+                        "stat": "Confirmed",
+                        "payload": {"raw": json.dumps({"uid": "123456", "token": "game-secret"})},
+                    },
+                }
+            )
+        )
+    )
+
+    result = provider.poll_qrcode_session(
+        app_id="2",
+        ticket="ticket-1",
+        device="device-1",
+        region="cn",
+    )
+
+    assert result.data["status"] == "confirmed"
+    assert result.data["account_id"] == "123456"
+    assert "game-secret" not in json.dumps(result.data)
+
+
+def test_qrcode_complete_exchanges_tokens() -> None:
+    provider = MysProvider(
+        _sequence_client(
+            [
+                _json_response(
+                    {
+                        "retcode": 0,
+                        "message": "OK",
+                        "data": {
+                            "stat": "Confirmed",
+                            "payload": {
+                                "raw": json.dumps({"uid": "123456", "token": "game-secret"})
+                            },
+                        },
+                    }
+                ),
+                _json_response(
+                    {
+                        "retcode": 0,
+                        "message": "OK",
+                        "data": {
+                            "token": {"token": "stoken-secret"},
+                            "user_info": {"aid": "123456", "mid": "mid-secret"},
+                        },
+                    }
+                ),
+                _json_response(
+                    {
+                        "retcode": 0,
+                        "message": "OK",
+                        "data": {"cookie_token": "cookie-secret"},
+                    }
+                ),
+            ]
+        )
+    )
+
+    result = provider.complete_qrcode_login(
+        app_id="2",
+        ticket="ticket-1",
+        device="device-1",
+        uid="100000001",
+        region="cn",
+    )
+
+    assert result.data["uid"] == "100000001"
+    assert result.data["account_id"] == "123456"
+    assert result.data["cookie"] == "account_id=123456;cookie_token=cookie-secret"
+    assert result.data["stoken"] == "stuid=123456;stoken=stoken-secret;mid=mid-secret"
+
+
+def test_qrcode_complete_requires_confirmed_status() -> None:
+    provider = MysProvider(
+        _client(
+            _json_response(
+                {
+                    "retcode": 0,
+                    "message": "OK",
+                    "data": {"stat": "Scanned", "payload": {"raw": ""}},
+                }
+            )
+        )
+    )
+
+    with pytest.raises(CliError) as exc:
+        provider.complete_qrcode_login(
+            app_id="2",
+            ticket="ticket-1",
+            device="device-1",
+            uid="100000001",
+            region="cn",
+        )
+
+    assert exc.value.code == "QR_NOT_CONFIRMED"
+    assert exc.value.exit_code == 6
+
+
 @pytest.mark.skipif(
     os.environ.get("GSUID_LIVE_TESTS") != "1"
     or not os.environ.get("GSUID_COOKIE")
@@ -167,6 +292,19 @@ def _client(response: httpx.Response, *, debug: bool = False) -> HttpClient:
         cache_policy="off",
         debug=debug,
         transport=httpx.MockTransport(lambda _request: response),
+    )
+
+
+def _sequence_client(responses: list[httpx.Response]) -> HttpClient:
+    remaining = list(responses)
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return remaining.pop(0)
+
+    return HttpClient(
+        timeout=1,
+        cache_policy="off",
+        transport=httpx.MockTransport(handler),
     )
 
 
