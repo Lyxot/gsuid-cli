@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import io
 import sys
+import time
 from pathlib import Path
 
 import qrcode
@@ -10,7 +11,7 @@ from qrcode.constants import ERROR_CORRECT_L
 
 from gsuid_cli.commands.account import _validate_uid
 from gsuid_cli.core.artifacts import ArtifactManager
-from gsuid_cli.core.errors import EXIT_AUTH, EXIT_INVALID_INPUT, CliError
+from gsuid_cli.core.errors import EXIT_AUTH, EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import resolve_profile_region, resolve_profile_uid
@@ -110,6 +111,14 @@ CAPABILITIES = [
     {
         "command": "auth.qrcode.complete",
         "description": "Complete a confirmed QR login and store credentials.",
+        "auth": "keyring",
+        "regions": ["cn"],
+        "render": ["data"],
+        "cache": "off",
+    },
+    {
+        "command": "auth.qrcode.login",
+        "description": "Run interactive QR login and store credentials.",
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data"],
@@ -225,6 +234,60 @@ def qrcode_complete_command(args: argparse.Namespace) -> CommandResult:
         uid=uid,
         region=args.region,
     )
+    return _store_qrcode_credentials(uid, result)
+
+
+def qrcode_login_command(args: argparse.Namespace) -> CommandResult:
+    uid = _validate_uid(args.command_uid)
+    _validate_qrcode_login_timing(args)
+    provider = provider_for_region(args.region, _http_client(args))
+    session = provider.create_qrcode_session(region=args.region)
+    app_id = str(session.data["app_id"])
+    ticket = str(session.data["ticket"])
+    device = str(session.data["device"])
+    url = str(session.data["url"])
+
+    _write_interactive(args, "Scan this QR code with the MiHoYo app:")
+    _write_interactive(args, _qrcode_terminal(url))
+    _write_interactive(args, "Waiting for scan confirmation...")
+
+    deadline = time.monotonic() + args.login_timeout
+    last_status: str | None = None
+    last_result = session
+
+    while time.monotonic() < deadline:
+        poll_result = provider.poll_qrcode_session(
+            app_id=app_id,
+            ticket=ticket,
+            device=device,
+            region=args.region,
+        )
+        last_result = poll_result
+        status = str(poll_result.data["status"])
+        if status != last_status:
+            _write_interactive(args, f"QR login status: {status}")
+            last_status = status
+        if status == "confirmed":
+            result = provider.complete_qrcode_login(
+                app_id=app_id,
+                ticket=ticket,
+                device=device,
+                uid=uid,
+                region=args.region,
+            )
+            return _store_qrcode_credentials(uid, result)
+        time.sleep(args.poll_interval)
+
+    raise CliError(
+        "QR_LOGIN_TIMEOUT",
+        "QR login timed out before confirmation.",
+        EXIT_NO_RESULT,
+        {"timeout_seconds": args.login_timeout},
+        source=last_result.source,
+    )
+
+
+def _store_qrcode_credentials(uid: str, result: CommandResult) -> CommandResult:
     cookie = str(result.data.pop("cookie"))
     stoken = str(result.data.pop("stoken"))
 
@@ -300,6 +363,12 @@ def _register_qrcode(
     _add_qrcode_session_args(complete)
     complete.add_argument("--uid", required=True, dest="command_uid")
     complete.set_defaults(handler=qrcode_complete_command, command_name="auth.qrcode.complete")
+
+    login = actions.add_parser("login", help="Run interactive QR login.")
+    login.add_argument("--uid", required=True, dest="command_uid")
+    login.add_argument("--poll-interval", type=float, default=2.0)
+    login.add_argument("--login-timeout", type=float, default=120.0)
+    login.set_defaults(handler=qrcode_login_command, command_name="auth.qrcode.login")
 
 
 def _add_qrcode_session_args(parser: argparse.ArgumentParser) -> None:
@@ -426,3 +495,39 @@ def _qrcode_png(url: str) -> bytes:
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     return buffer.getvalue()
+
+
+def _qrcode_terminal(url: str) -> str:
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=ERROR_CORRECT_L,
+        border=2,
+    )
+    qr.add_data(url)
+    qr.make(fit=True)
+    buffer = io.StringIO()
+    qr.print_ascii(out=buffer, invert=True)
+    return buffer.getvalue().rstrip("\n")
+
+
+def _validate_qrcode_login_timing(args: argparse.Namespace) -> None:
+    if args.poll_interval <= 0:
+        raise CliError(
+            "INVALID_ARGUMENT",
+            "poll interval must be greater than 0",
+            EXIT_INVALID_INPUT,
+            {"poll_interval": args.poll_interval},
+        )
+    if args.login_timeout <= 0:
+        raise CliError(
+            "INVALID_ARGUMENT",
+            "login timeout must be greater than 0",
+            EXIT_INVALID_INPUT,
+            {"login_timeout": args.login_timeout},
+        )
+
+
+def _write_interactive(args: argparse.Namespace, message: str) -> None:
+    if args.quiet:
+        return
+    args.stderr.write(f"{message}\n")

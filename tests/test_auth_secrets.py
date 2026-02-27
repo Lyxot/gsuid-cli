@@ -109,6 +109,41 @@ def test_qrcode_complete_stores_credentials_without_printing_secrets(monkeypatch
     assert payload["data"]["validity_status"] == "available"
 
 
+def test_qrcode_login_shows_terminal_code_and_stores_credentials(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _qrcode_provider())
+
+    code, payload, stderr = _run_json_with_stderr(
+        [
+            "auth",
+            "qrcode",
+            "login",
+            "--uid",
+            "100000001",
+            "--poll-interval",
+            "0.01",
+            "--login-timeout",
+            "1",
+        ]
+    )
+
+    assert code == 0
+    assert payload["command"] == "auth.qrcode.login"
+    assert payload["data"]["stored"] is True
+    assert "Scan this QR code" in stderr
+    assert "QR login status: confirmed" in stderr
+    assert "█" in stderr
+
+    raw_payload = json.dumps(payload, ensure_ascii=False)
+    assert "cookie-secret" not in raw_payload
+    assert "stoken-secret" not in raw_payload
+
+    code, payload = _run_json(["auth", "stoken", "test", "--uid", "100000001"])
+
+    assert code == 0
+    assert payload["data"]["validity_status"] == "available"
+
+
 def test_redact_secret_never_returns_short_secret() -> None:
     assert redact_secret("short") == "[REDACTED]"
     assert redact_secret("123456789") == "1234...6789"
@@ -120,6 +155,13 @@ def _run_json(argv: list[str]) -> tuple[int, dict[str, object]]:
     code = run(argv, stdout=stdout, stderr=stderr)
     assert stderr.getvalue() == ""
     return code, json.loads(stdout.getvalue())
+
+
+def _run_json_with_stderr(argv: list[str]) -> tuple[int, dict[str, object], str]:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = run(argv, stdout=stdout, stderr=stderr)
+    return code, json.loads(stdout.getvalue()), stderr.getvalue()
 
 
 def _provider(status: str):
@@ -163,7 +205,7 @@ def _provider(status: str):
 def _qrcode_provider():
     class FakeProvider:
         def __init__(self, _http_client) -> None:
-            pass
+            self.poll_count = 0
 
         def create_qrcode_session(self, *, region: str) -> CommandResult:
             return CommandResult(
@@ -173,6 +215,33 @@ def _qrcode_provider():
                     "device": "device-1",
                     "url": "https://example.test/login?ticket=ticket-1",
                     "status": "created",
+                },
+                source={
+                    "provider": "mys",
+                    "region": region,
+                    "cached": False,
+                    "fetched_at": "2026-04-29T10:30:00Z",
+                },
+            )
+
+        def poll_qrcode_session(
+            self,
+            *,
+            app_id: str,
+            ticket: str,
+            device: str,
+            region: str,
+        ) -> CommandResult:
+            self.poll_count += 1
+            status = ("init", "scanned", "confirmed")[min(self.poll_count - 1, 2)]
+            return CommandResult(
+                data={
+                    "app_id": app_id,
+                    "ticket": ticket,
+                    "device": device,
+                    "status": status,
+                    "account_id": "123456" if status == "confirmed" else None,
+                    "confirmed": status == "confirmed",
                 },
                 source={
                     "provider": "mys",

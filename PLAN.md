@@ -633,29 +633,25 @@ tests/
 ### Stage 2: Project Skeleton — completed.
 ### Stage 3: State, Profiles, Accounts, And Secrets — completed.
 ### Stage 4: Provider Foundation — completed.
-### Stage 4.5: QR Login
+### Stage 4.5: QR Login — completed.
+### Stage 4.6: Interactive QR Login
 
 - Status: completed.
-- Result: ported GenshinUID/gsuid_core `扫码登录` into typed,
-  non-interactive CLI commands for agent-friendly credential onboarding.
-- Reference: `~/Github/gsuid_core/gsuid_core/utils/cookie_manager/qrlogin.py`
-  and `utils/api/mys/account_request.py`, GPLv3-compatible with this AGPLv3
-  project.
-- Commands:
-  - `auth qrcode start`
-  - `auth qrcode poll --ticket TICKET --device DEVICE [--app-id APP_ID]`
-  - `auth qrcode complete --uid UID --ticket TICKET --device DEVICE [--app-id APP_ID]`
-- Behavior: create QR login sessions, optionally render a QR artifact,
-  poll scan status, exchange confirmed game tokens for stoken/cookie_token, store
-  cookie and stoken in OS keyring, and never print raw credential values.
+- Result: added a human-friendly QR login workflow that starts a session,
+  renders the QR code in the terminal, polls automatically, completes confirmed
+  login, and stores credentials without printing secrets.
+- Command:
+  - `auth qrcode login --uid UID [--poll-interval SECONDS] [--login-timeout SECONDS]`
+- Output: QR/status progress goes to stderr; stdout remains the final JSON
+  envelope for automation.
 - Verification:
-  - `.venv/bin/python -m pytest tests/test_auth_secrets.py tests/test_provider_foundation.py`
+  - `.venv/bin/python -m pytest tests/test_auth_secrets.py tests/test_meta_commands.py`
   - `.venv/bin/python -m pytest`
   - `.venv/bin/ruff check .`
   - `.venv/bin/ruff format --check .`
   - `.venv/bin/python -m gsuid_cli auth qrcode --help`
   - `.venv/bin/python -m gsuid_cli meta capabilities`
-- Commit: `feat: add qrcode login`.
+- Commit: `feat: add interactive qrcode login`.
 
 ### Stage 5: Public Data MVP
 

@@ -91,6 +91,8 @@ def run(
         command = args.command_name
         request_id = args.request_id or str(uuid.uuid4())
         args.request_id = request_id
+        args.stdout = stdout
+        args.stderr = stderr
         result = args.handler(args)
         if not isinstance(result, CommandResult):
             result = CommandResult(data=result)
