@@ -6,8 +6,9 @@ import random
 import string
 import time
 import uuid
+from http.cookies import CookieError, SimpleCookie
 
-from gsuid_cli.core.errors import EXIT_NO_RESULT, EXIT_UPSTREAM, CliError
+from gsuid_cli.core.errors import EXIT_AUTH, EXIT_NO_RESULT, EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient, raise_for_retcode
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
@@ -18,12 +19,19 @@ RECORD_BASE_CN = "https://api-takumi-record.mihoyo.com"
 PASSPORT_BASE_CN = "https://passport-api.mihoyo.com"
 HK4_SDK_BASE_CN = "https://hk4e-sdk.mihoyo.com"
 INDEX_PATH = "/game_record/app/genshin/api/index"
+CARD_PATH = "/game_record/card/wapi/getGameRecordCard"
 CREATE_QRCODE_PATH = "/hk4e_cn/combo/panda/qrcode/fetch"
 CHECK_QRCODE_PATH = "/hk4e_cn/combo/panda/qrcode/query"
 GET_STOKEN_BY_GAME_TOKEN_PATH = "/account/ma-cn-session/app/getTokenByGameToken"
 GET_COOKIE_TOKEN_BY_STOKEN_PATH = "/account/auth/api/getCookieAccountInfoBySToken"
-APP_VERSION = "2.71.1"
+APP_VERSION = "2.102.1"
+RECORD_SALT = "xV8v4Qu54lUKrEYFZkJhB8cuOh9Asafs"
 PASSPORT_SALT = "JwYDpKvLj6MrMqqYU6jTKF17KNO2PXoS"
+USER_AGENT = (
+    "Mozilla/5.0 (Linux; Android 13; PHK110 Build/SKQ1.221119.001; wv)"
+    "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/"
+    f"126.0.6478.133 Mobile Safari/537.36 miHoYoBBS/{APP_VERSION}"
+)
 
 SERVER_BY_UID_PREFIX = {
     "1": "cn_gf01",
@@ -46,15 +54,45 @@ class MysProvider:
         storage_backend: str | None,
     ) -> CommandResult:
         ensure_supported_region(region)
+        account_id = _account_id_from_cookie(cookie)
+        if account_id:
+            return self._validate_account_cookie(
+                uid=uid,
+                account_id=account_id,
+                cookie=_account_cookie(cookie, account_id),
+                region=region,
+                credential_source=credential_source,
+                storage_backend=storage_backend,
+                redacted_cookie=redact_secret(cookie),
+            )
+
+        return self._validate_role_cookie(
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+        )
+
+    def _validate_role_cookie(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+    ) -> CommandResult:
         server = server_for_uid(uid)
+        params = {"role_id": uid, "server": server}
         response = self.http.request_json(
             "GET",
             f"{RECORD_BASE_CN}{INDEX_PATH}",
             provider=PROVIDER,
             region=region,
             category="auth.cookie.test",
-            params={"server": server, "role_id": uid},
-            headers=_headers(cookie),
+            params=params,
+            headers=_record_headers(cookie, _query_string(params)),
         )
         raise_for_retcode(
             response.payload,
@@ -85,6 +123,85 @@ class MysProvider:
                     "retcode": response.payload.get("retcode"),
                     "message": response.payload.get("message"),
                     "role": role,
+                },
+            },
+            source=response.source,
+        )
+
+    def _validate_account_cookie(
+        self,
+        *,
+        uid: str,
+        account_id: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+        redacted_cookie: str,
+    ) -> CommandResult:
+        params = {"uid": account_id}
+        response = self.http.request_json(
+            "GET",
+            f"{RECORD_BASE_CN}{CARD_PATH}",
+            provider=PROVIDER,
+            region=region,
+            category="auth.cookie.test",
+            params=params,
+            headers=_record_headers(cookie, _query_string(params)),
+        )
+        raise_for_retcode(
+            response.payload,
+            provider=PROVIDER,
+            region=region,
+            category="auth.cookie.test",
+            source=response.source,
+            debug=self.http.debug,
+        )
+        data = response.payload.get("data")
+        roles_value = data.get("list") if isinstance(data, dict) else []
+        if not isinstance(roles_value, list):
+            roles_value = []
+        roles = [role for role in roles_value if isinstance(role, dict)]
+        linked_roles = [_linked_role(role) for role in roles]
+        role = next(
+            (
+                linked_role
+                for linked_role in linked_roles
+                if linked_role["game_id"] == "2" and linked_role["game_role_id"] == uid
+            ),
+            None,
+        )
+        if role is None:
+            raise CliError(
+                "AUTH_UID_MISMATCH",
+                "The cookie is valid but is not linked to this UID.",
+                EXIT_AUTH,
+                {
+                    "uid": uid,
+                    "account_id": account_id,
+                    "linked_game_uids": [
+                        linked_role["game_role_id"]
+                        for linked_role in linked_roles
+                        if linked_role["game_role_id"]
+                    ],
+                },
+                source=response.source,
+            )
+
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_type": "cookie",
+                "source": credential_source,
+                "storage_backend": storage_backend,
+                "validity_status": "valid",
+                "redacted": redacted_cookie,
+                "provider_response": {
+                    "retcode": response.payload.get("retcode"),
+                    "message": response.payload.get("message"),
+                    "account_id": account_id,
+                    "role": role,
+                    "linked_roles": linked_roles,
                 },
             },
             source=response.source,
@@ -379,15 +496,69 @@ def server_for_uid(uid: str) -> str:
     return SERVER_BY_UID_PREFIX.get(uid[0], "cn_gf01")
 
 
+def _account_id_from_cookie(cookie: str) -> str | None:
+    parsed = SimpleCookie()
+    try:
+        parsed.load(cookie)
+    except CookieError:
+        return None
+
+    for key in ("account_id", "ltuid", "ltuid_v2", "stuid", "login_uid"):
+        morsel = parsed.get(key)
+        if morsel and morsel.value:
+            return morsel.value
+    return None
+
+
+def _account_cookie(cookie: str, account_id: str) -> str:
+    if "account_id=" in cookie:
+        return cookie
+    return f"{cookie};account_id={account_id}"
+
+
+def _linked_role(role: dict[str, object]) -> dict[str, object]:
+    return {
+        "game_id": str(role.get("game_id") or ""),
+        "game_role_id": str(role.get("game_role_id") or ""),
+        "nickname": role.get("nickname"),
+        "level": role.get("level"),
+        "region": role.get("region"),
+        "region_name": role.get("region_name"),
+    }
+
+
 def _headers(cookie: str) -> dict[str, str]:
     return {
         "Cookie": cookie,
-        "User-Agent": f"Mozilla/5.0 miHoYoBBS/{APP_VERSION}",
+        "User-Agent": USER_AGENT,
         "Referer": "https://webstatic.mihoyo.com/",
+        "Origin": "https://webstatic.mihoyo.com/",
+        "X-Requested-With": "com.mihoyo.hyperion",
         "x-rpc-app_version": APP_VERSION,
         "x-rpc-client_type": "5",
         "x-rpc-language": "zh-cn",
     }
+
+
+def _record_headers(cookie: str, query: str) -> dict[str, str]:
+    return {
+        **_headers(cookie),
+        "DS": _record_ds(query),
+    }
+
+
+def _record_ds(query: str) -> str:
+    # Ported from gsuid_core.utils.api.mys.tools.get_ds_token.
+    timestamp = str(int(time.time()))
+    random_number = str(random.randint(100000, 200000))
+    digest = hashlib.md5(
+        f"salt={RECORD_SALT}&t={timestamp}&r={random_number}&b=&q={query}".encode()
+    ).hexdigest()
+    return f"{timestamp},{random_number},{digest}"
+
+
+def _query_string(params: dict[str, object]) -> str:
+    return "&".join(f"{key}={value}" for key, value in params.items())
 
 
 def _payload_data(

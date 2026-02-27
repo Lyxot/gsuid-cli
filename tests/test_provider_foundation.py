@@ -13,7 +13,84 @@ from gsuid_cli.providers.mys import MysProvider
 
 
 def test_mys_cookie_validation_success() -> None:
-    provider = MysProvider(_client(_json_response({"retcode": 0, "message": "OK", "data": {}})))
+    provider = MysProvider(_client(_account_card_response()))
+
+    result = provider.validate_cookie(
+        uid="100000001",
+        cookie="account_id=1;cookie_token=secret-token",
+        region="cn",
+        credential_source="environment",
+        storage_backend=None,
+    )
+
+    assert result.data["validity_status"] == "valid"
+    assert result.data["provider_response"]["retcode"] == 0
+    assert result.data["provider_response"]["role"]["game_role_id"] == "100000001"
+    assert result.source["provider"] == "mys"
+
+
+def test_mys_cookie_validation_uses_record_headers() -> None:
+    captured: dict[str, httpx.Request] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["request"] = request
+        return _account_card_response()
+
+    provider = MysProvider(
+        HttpClient(
+            timeout=1,
+            cache_policy="off",
+            transport=httpx.MockTransport(handler),
+        )
+    )
+
+    provider.validate_cookie(
+        uid="100000001",
+        cookie="account_id=1;cookie_token=secret-token",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="test",
+    )
+
+    request = captured["request"]
+    assert str(request.url).endswith("/game_record/card/wapi/getGameRecordCard?uid=1")
+    assert request.headers["x-rpc-app_version"] == "2.102.1"
+    assert request.headers["x-rpc-client_type"] == "5"
+    assert request.headers["x-requested-with"] == "com.mihoyo.hyperion"
+    assert request.headers["ds"].count(",") == 2
+
+
+def test_mys_cookie_validation_rejects_unlinked_uid() -> None:
+    provider = MysProvider(_client(_account_card_response(game_role_id="100000002")))
+
+    with pytest.raises(CliError) as exc:
+        provider.validate_cookie(
+            uid="100000001",
+            cookie="account_id=1;cookie_token=secret-token",
+            region="cn",
+            credential_source="environment",
+            storage_backend=None,
+        )
+
+    assert exc.value.code == "AUTH_UID_MISMATCH"
+    assert exc.value.exit_code == 2
+    assert exc.value.details["linked_game_uids"] == ["100000002"]
+
+
+def test_mys_cookie_validation_falls_back_without_account_id() -> None:
+    captured: dict[str, httpx.Request] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["request"] = request
+        return _json_response({"retcode": 0, "message": "OK", "data": {}})
+
+    provider = MysProvider(
+        HttpClient(
+            timeout=1,
+            cache_policy="off",
+            transport=httpx.MockTransport(handler),
+        )
+    )
 
     result = provider.validate_cookie(
         uid="100000001",
@@ -24,8 +101,9 @@ def test_mys_cookie_validation_success() -> None:
     )
 
     assert result.data["validity_status"] == "valid"
-    assert result.data["provider_response"]["retcode"] == 0
-    assert result.source["provider"] == "mys"
+    assert str(captured["request"].url).endswith(
+        "/game_record/app/genshin/api/index?role_id=100000001&server=cn_gf01"
+    )
 
 
 def test_mys_cookie_auth_failure_is_sanitized() -> None:
@@ -310,3 +388,24 @@ def _sequence_client(responses: list[httpx.Response]) -> HttpClient:
 
 def _json_response(payload: dict[str, object]) -> httpx.Response:
     return httpx.Response(200, json=payload)
+
+
+def _account_card_response(*, game_role_id: str = "100000001") -> httpx.Response:
+    return _json_response(
+        {
+            "retcode": 0,
+            "message": "OK",
+            "data": {
+                "list": [
+                    {
+                        "game_id": 2,
+                        "game_role_id": game_role_id,
+                        "nickname": "Traveler",
+                        "level": 60,
+                        "region": "cn_gf01",
+                        "region_name": "天空岛",
+                    }
+                ]
+            },
+        }
+    )

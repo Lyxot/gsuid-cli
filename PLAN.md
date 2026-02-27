@@ -634,24 +634,23 @@ tests/
 ### Stage 3: State, Profiles, Accounts, And Secrets — completed.
 ### Stage 4: Provider Foundation — completed.
 ### Stage 4.5: QR Login — completed.
-### Stage 4.6: Interactive QR Login
+### Stage 4.6: Interactive QR Login — completed.
+### Stage 4.7: Live Auth Validation Fixes
 
 - Status: completed.
-- Result: added a human-friendly QR login workflow that starts a session,
-  renders the QR code in the terminal, polls automatically, completes confirmed
-  login, and stores credentials without printing secrets.
-- Command:
-  - `auth qrcode login --uid UID [--poll-interval SECONDS] [--login-timeout SECONDS]`
-- Output: QR/status progress goes to stderr; stdout remains the final JSON
-  envelope for automation.
+- Result: live `auth cookie test` works with QR-issued credentials and the
+  local proxy environment. Account-id cookies now validate through the MYS
+  account-card endpoint and confirm the requested Genshin UID is linked; cookies
+  without an account id still fall back to the role-index validation path.
 - Verification:
-  - `.venv/bin/python -m pytest tests/test_auth_secrets.py tests/test_meta_commands.py`
+  - `.venv/bin/python -m pip install -e '.[dev]'`
+  - `.venv/bin/python -m pytest tests/test_provider_foundation.py::test_mys_cookie_validation_success tests/test_provider_foundation.py::test_mys_cookie_validation_uses_record_headers tests/test_provider_foundation.py::test_mys_cookie_validation_rejects_unlinked_uid tests/test_provider_foundation.py::test_mys_cookie_validation_falls_back_without_account_id`
+  - `.venv/bin/python -m gsuid_cli auth cookie test --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli auth stoken test --uid <UID>`
   - `.venv/bin/python -m pytest`
   - `.venv/bin/ruff check .`
   - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python -m gsuid_cli auth qrcode --help`
-  - `.venv/bin/python -m gsuid_cli meta capabilities`
-- Commit: `feat: add interactive qrcode login`.
+- Commit: `fix: validate qrcode cookies against account roles`.
 
 ### Stage 5: Public Data MVP
 
