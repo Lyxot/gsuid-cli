@@ -42,6 +42,7 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert {"meta.version", "meta.paths", "meta.capabilities"}.issubset(commands)
     assert {"profile.init", "account.add", "auth.cookie.set"}.issubset(commands)
     assert "auth.qrcode.login" in commands
+    assert {"wiki.character", "events.list", "codes.list", "daily.materials"}.issubset(commands)
     assert payload["data"]["regions"] == ["cn"]
 
 

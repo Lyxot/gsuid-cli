@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from typing import TextIO
 
 from gsuid_cli import __version__
-from gsuid_cli.commands import account, auth, meta, profile
+from gsuid_cli.commands import account, auth, meta, profile, public_data
 from gsuid_cli.core.envelope import error_envelope, success_envelope
 from gsuid_cli.core.errors import (
     EXIT_INTERNAL_BUG,
@@ -71,6 +71,7 @@ def build_parser() -> argparse.ArgumentParser:
     profile.register(groups)
     account.register(groups)
     auth.register(groups)
+    public_data.register(groups)
     return parser
 
 

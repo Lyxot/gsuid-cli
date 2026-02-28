@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 
 from gsuid_cli import __version__
-from gsuid_cli.commands import account, auth, profile
+from gsuid_cli.commands import account, auth, profile, public_data
 from gsuid_cli.core.config import resolve_paths
 from gsuid_cli.core.envelope import SCHEMA
 
@@ -68,7 +68,11 @@ def paths_command(args: argparse.Namespace) -> dict[str, str]:
 
 def capabilities_command(_args: argparse.Namespace) -> dict[str, object]:
     command_capabilities = (
-        CAPABILITIES + profile.CAPABILITIES + account.CAPABILITIES + auth.CAPABILITIES
+        CAPABILITIES
+        + profile.CAPABILITIES
+        + account.CAPABILITIES
+        + auth.CAPABILITIES
+        + public_data.CAPABILITIES
     )
     commands = [dict(command, implemented=True) for command in command_capabilities]
     return {

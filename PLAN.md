@@ -635,31 +635,39 @@ tests/
 ### Stage 4: Provider Foundation — completed.
 ### Stage 4.5: QR Login — completed.
 ### Stage 4.6: Interactive QR Login — completed.
-### Stage 4.7: Live Auth Validation Fixes
+### Stage 4.7: Live Auth Validation Fixes — completed.
+### Stage 5: Public Data MVP
 
 - Status: completed.
-- Result: live `auth cookie test` works with QR-issued credentials and the
-  local proxy environment. Account-id cookies now validate through the MYS
-  account-card endpoint and confirm the requested Genshin UID is linked; cookies
-  without an account id still fall back to the role-index validation path.
+- Result: implemented public-data commands using Project Amber structured JSON
+  for wiki/events/daily material data and the Fandom Promotional Code wikitext
+  API for active redeem-code rows. No credentials are required.
+- Commands:
+  - `wiki character --name NAME [--level N]`
+  - `wiki weapon --name NAME [--level N]`
+  - `wiki artifact --name NAME`
+  - `wiki enemy --name NAME`
+  - `events list [--all] [--limit N]`
+  - `events banners [--all] [--limit N]`
+  - `codes list`
+  - `daily materials [--date YYYY-MM-DD] [--day WEEKDAY]`
+- Tests: mocked command envelopes, Project Amber alias lookup, no-result
+  behavior/source attribution, Fandom active-code parsing, wish-banner
+  filtering, unsupported-region rejection, and capabilities metadata.
 - Verification:
-  - `.venv/bin/python -m pip install -e '.[dev]'`
-  - `.venv/bin/python -m pytest tests/test_provider_foundation.py::test_mys_cookie_validation_success tests/test_provider_foundation.py::test_mys_cookie_validation_uses_record_headers tests/test_provider_foundation.py::test_mys_cookie_validation_rejects_unlinked_uid tests/test_provider_foundation.py::test_mys_cookie_validation_falls_back_without_account_id`
-  - `.venv/bin/python -m gsuid_cli auth cookie test --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli auth stoken test --uid <UID>`
+  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_meta_commands.py`
+  - `.venv/bin/python -m gsuid_cli wiki character --name Amber`
+  - `.venv/bin/python -m gsuid_cli wiki weapon --name "Dull Blade"`
+  - `.venv/bin/python -m gsuid_cli wiki artifact --name "Resolution of Sojourner"`
+  - `.venv/bin/python -m gsuid_cli wiki enemy --name slime`
+  - `.venv/bin/python -m gsuid_cli events list --limit 3`
+  - `.venv/bin/python -m gsuid_cli events banners --limit 2`
+  - `.venv/bin/python -m gsuid_cli codes list`
+  - `.venv/bin/python -m gsuid_cli daily materials --date 2026-04-29`
+  - `.venv/bin/python -m gsuid_cli meta capabilities`
   - `.venv/bin/python -m pytest`
   - `.venv/bin/ruff check .`
   - `.venv/bin/ruff format --check .`
-- Commit: `fix: validate qrcode cookies against account roles`.
-
-### Stage 5: Public Data MVP
-
-- Implement wiki lookup foundation and alias matching.
-- Implement `wiki character`, `wiki weapon`, `wiki artifact`, `wiki enemy`.
-- Implement `events list`, `events banners`, `codes list`, and `daily materials`.
-- Prefer structured provider data. If a source is image-only, return a clear `NOT_IMPLEMENTED_STRUCTURED_DATA` error until renderer stage.
-- Tests: mocked HTTP, alias tests, no-result behavior, JSON schema snapshots.
-- Verification: all public commands return JSON without credentials.
 - Commit: `feat: add public data commands`.
 
 ### Stage 6: Authenticated Daily And Player Data
