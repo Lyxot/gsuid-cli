@@ -8,7 +8,7 @@ import pytest
 
 from gsuid_cli.core.cache import cache_key, sanitized_url
 from gsuid_cli.core.errors import CliError
-from gsuid_cli.core.http import HttpClient
+from gsuid_cli.core.http import HttpClient, raise_for_retcode
 from gsuid_cli.providers.mys import MysProvider
 
 
@@ -124,6 +124,25 @@ def test_mys_cookie_auth_failure_is_sanitized() -> None:
     assert exc.value.exit_code == 2
     assert "secret-token" not in json.dumps(exc.value.details, ensure_ascii=False)
     assert exc.value.source["provider"] == "mys"
+
+
+def test_verification_retcode_uses_actionable_error() -> None:
+    with pytest.raises(CliError) as exc:
+        raise_for_retcode(
+            {"retcode": 1034, "message": ""},
+            provider="mys",
+            region="cn",
+            category="daily.note",
+            source={
+                "provider": "mys",
+                "region": "cn",
+                "cached": False,
+                "fetched_at": "2026-04-29T10:30:00Z",
+            },
+        )
+
+    assert exc.value.code == "UPSTREAM_VERIFICATION_REQUIRED"
+    assert exc.value.exit_code == 3
 
 
 def test_non_json_provider_response_maps_to_upstream_error() -> None:

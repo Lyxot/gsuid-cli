@@ -3,12 +3,20 @@ from __future__ import annotations
 import hashlib
 import json
 import random
+import re
 import string
 import time
 import uuid
+from datetime import UTC, datetime
 from http.cookies import CookieError, SimpleCookie
 
-from gsuid_cli.core.errors import EXIT_AUTH, EXIT_NO_RESULT, EXIT_UPSTREAM, CliError
+from gsuid_cli.core.errors import (
+    EXIT_AUTH,
+    EXIT_INVALID_INPUT,
+    EXIT_NO_RESULT,
+    EXIT_UPSTREAM,
+    CliError,
+)
 from gsuid_cli.core.http import HttpClient, raise_for_retcode
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
@@ -16,17 +24,27 @@ from gsuid_cli.core.secrets import redact_secret
 
 PROVIDER = "mys"
 RECORD_BASE_CN = "https://api-takumi-record.mihoyo.com"
+GS_BASE_CN = "https://api-takumi.mihoyo.com"
+HK4_API_BASE_CN = "https://hk4e-api.mihoyo.com"
 PASSPORT_BASE_CN = "https://passport-api.mihoyo.com"
 HK4_SDK_BASE_CN = "https://hk4e-sdk.mihoyo.com"
+GET_FP_URL = "https://public-data-api.mihoyo.com/device-fp/api/getFp"
 INDEX_PATH = "/game_record/app/genshin/api/index"
 CARD_PATH = "/game_record/card/wapi/getGameRecordCard"
+DAILY_NOTE_PATH = "/game_record/app/genshin/api/dailyNote"
+CHARACTER_LIST_PATH = "/game_record/app/genshin/api/character/list"
+MONTHLY_AWARD_PATH = "/event/ys_ledger/monthInfo"
+SIGN_INFO_PATH = "/event/luna/info"
+SIGN_PATH = "/event/luna/sign"
 CREATE_QRCODE_PATH = "/hk4e_cn/combo/panda/qrcode/fetch"
 CHECK_QRCODE_PATH = "/hk4e_cn/combo/panda/qrcode/query"
 GET_STOKEN_BY_GAME_TOKEN_PATH = "/account/ma-cn-session/app/getTokenByGameToken"
 GET_COOKIE_TOKEN_BY_STOKEN_PATH = "/account/auth/api/getCookieAccountInfoBySToken"
 APP_VERSION = "2.102.1"
 RECORD_SALT = "xV8v4Qu54lUKrEYFZkJhB8cuOh9Asafs"
+WEB_SALT = "yBh10ikxtLPoIhgwgPZSv5dmfaOTSJ6a"
 PASSPORT_SALT = "JwYDpKvLj6MrMqqYU6jTKF17KNO2PXoS"
+SIGN_ACT_ID = "e202311201442471"
 USER_AGENT = (
     "Mozilla/5.0 (Linux; Android 13; PHK110 Build/SKQ1.221119.001; wv)"
     "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/"
@@ -43,6 +61,7 @@ SERVER_BY_UID_PREFIX = {
 class MysProvider:
     def __init__(self, http_client: HttpClient) -> None:
         self.http = http_client
+        self._device_headers_by_uid: dict[str, dict[str, str]] = {}
 
     def validate_cookie(
         self,
@@ -203,6 +222,274 @@ class MysProvider:
                     "role": role,
                     "linked_roles": linked_roles,
                 },
+            },
+            source=response.source,
+        )
+
+    def daily_note(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+    ) -> CommandResult:
+        data, source = self._record_get(
+            path=DAILY_NOTE_PATH,
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            category="daily.note",
+        )
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_source": credential_source,
+                "storage_backend": storage_backend,
+                "note": _daily_note(data),
+            },
+            source=source,
+        )
+
+    def daily_signin(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+    ) -> CommandResult:
+        sign_info, source, info_message = self._sign_info(uid=uid, cookie=cookie, region=region)
+        if sign_info.get("is_sign") is True:
+            return CommandResult(
+                data={
+                    **_signin_data(
+                        uid=uid,
+                        credential_source=credential_source,
+                        storage_backend=storage_backend,
+                        already_signed=True,
+                        signed=False,
+                        sign_info=sign_info,
+                        provider_message=info_message,
+                    ),
+                },
+                source=source,
+            )
+
+        server = server_for_uid(uid)
+        body = {
+            "act_id": SIGN_ACT_ID,
+            "lang": "zh-cn",
+            "uid": uid,
+            "region": server,
+        }
+        response = self.http.request_json(
+            "POST",
+            f"{GS_BASE_CN}{SIGN_PATH}",
+            provider=PROVIDER,
+            region=region,
+            category="daily.signin",
+            headers=_sign_headers(cookie),
+            json_body=body,
+        )
+        if _already_signed(response.payload):
+            return CommandResult(
+                data={
+                    **_signin_data(
+                        uid=uid,
+                        credential_source=credential_source,
+                        storage_backend=storage_backend,
+                        already_signed=True,
+                        signed=False,
+                        sign_info=sign_info,
+                        provider_message=str(response.payload.get("message") or "Already signed"),
+                    ),
+                    "provider_response": {
+                        "retcode": response.payload.get("retcode"),
+                        "message": response.payload.get("message"),
+                    },
+                },
+                source=response.source,
+            )
+        raise_for_retcode(
+            response.payload,
+            provider=PROVIDER,
+            region=region,
+            category="daily.signin",
+            source=response.source,
+            debug=self.http.debug,
+        )
+        data = response.payload.get("data")
+        if not isinstance(data, dict):
+            data = {}
+        return CommandResult(
+            data={
+                **_signin_data(
+                    uid=uid,
+                    credential_source=credential_source,
+                    storage_backend=storage_backend,
+                    already_signed=False,
+                    signed=True,
+                    sign_info=sign_info,
+                    provider_message=str(response.payload.get("message") or "OK"),
+                ),
+                "provider_response": {
+                    "retcode": response.payload.get("retcode"),
+                    "message": response.payload.get("message"),
+                    "data": data,
+                },
+            },
+            source=response.source,
+        )
+
+    def player_summary(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+    ) -> CommandResult:
+        data, source = self._record_get(
+            path=INDEX_PATH,
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            category="player.summary",
+        )
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_source": credential_source,
+                "storage_backend": storage_backend,
+                "summary": _player_summary(data),
+            },
+            source=source,
+        )
+
+    def player_characters(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+    ) -> CommandResult:
+        index_data, index_source = self._record_get(
+            path=INDEX_PATH,
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            category="player.characters.index",
+        )
+        avatars = index_data.get("avatars")
+        character_ids = []
+        if isinstance(avatars, list):
+            character_ids = [
+                int(avatar["id"])
+                for avatar in avatars
+                if isinstance(avatar, dict) and avatar.get("id")
+            ]
+        if not character_ids:
+            return CommandResult(
+                data={
+                    "uid": uid,
+                    "credential_source": credential_source,
+                    "storage_backend": storage_backend,
+                    "characters": [],
+                    "count": 0,
+                },
+                source=index_source,
+            )
+
+        server = server_for_uid(uid)
+        body = {"character_ids": character_ids, "role_id": uid, "server": server}
+        response = self.http.request_json(
+            "POST",
+            f"{RECORD_BASE_CN}{CHARACTER_LIST_PATH}",
+            provider=PROVIDER,
+            region=region,
+            category="player.characters",
+            headers=self._record_headers_for_uid(uid, cookie, body=body),
+            json_body=body,
+        )
+        raise_for_retcode(
+            response.payload,
+            provider=PROVIDER,
+            region=region,
+            category="player.characters",
+            source=response.source,
+            debug=self.http.debug,
+        )
+        data = _payload_data(response.payload, "player.characters", response.source)
+        characters_value = data.get("list")
+        if not isinstance(characters_value, list):
+            characters_value = []
+        characters = [
+            _character(character) for character in characters_value if isinstance(character, dict)
+        ]
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_source": credential_source,
+                "storage_backend": storage_backend,
+                "characters": characters,
+                "count": len(characters),
+            },
+            source=response.source,
+        )
+
+    def player_diary(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+        month: str | None = None,
+    ) -> CommandResult:
+        server = server_for_uid(uid)
+        params = {
+            "act_id": "e202009291139501",
+            "bind_region": server,
+            "bind_uid": uid,
+            "month": _diary_month(month),
+            "bbs_presentation_style": "fullscreen",
+            "bbs_auth_required": "true",
+            "utm_source": "bbs",
+            "utm_medium": "mys",
+            "utm_campaign": "icon",
+        }
+        response = self.http.request_json(
+            "GET",
+            f"{HK4_API_BASE_CN}{MONTHLY_AWARD_PATH}",
+            provider=PROVIDER,
+            region=region,
+            category="player.diary",
+            params=params,
+            headers={**_headers(cookie), "DS": _web_ds(), "x-rpc-device_id": uuid.uuid4().hex},
+        )
+        raise_for_retcode(
+            response.payload,
+            provider=PROVIDER,
+            region=region,
+            category="player.diary",
+            source=response.source,
+            debug=self.http.debug,
+        )
+        data = _payload_data(response.payload, "player.diary", response.source)
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_source": credential_source,
+                "storage_backend": storage_backend,
+                "requested_month": month,
+                "diary": _diary(data),
             },
             source=response.source,
         )
@@ -431,6 +718,115 @@ class MysProvider:
             "source": response.source,
         }
 
+    def _record_get(
+        self,
+        *,
+        path: str,
+        uid: str,
+        cookie: str,
+        region: str,
+        category: str,
+    ) -> tuple[dict[str, object], dict[str, object], str]:
+        ensure_supported_region(region)
+        server = server_for_uid(uid)
+        params = {"role_id": uid, "server": server}
+        response = self.http.request_json(
+            "GET",
+            f"{RECORD_BASE_CN}{path}",
+            provider=PROVIDER,
+            region=region,
+            category=category,
+            params=params,
+            headers=self._record_headers_for_uid(uid, cookie, _query_string(params)),
+        )
+        raise_for_retcode(
+            response.payload,
+            provider=PROVIDER,
+            region=region,
+            category=category,
+            source=response.source,
+            debug=self.http.debug,
+        )
+        return _payload_data(response.payload, category, response.source), response.source
+
+    def _record_headers_for_uid(
+        self,
+        uid: str,
+        cookie: str,
+        query: str = "",
+        body: dict[str, object] | None = None,
+    ) -> dict[str, str]:
+        return {
+            **_record_headers(cookie, query, body),
+            **self._device_headers(uid),
+        }
+
+    def _device_headers(self, uid: str) -> dict[str, str]:
+        headers = self._device_headers_by_uid.get(uid)
+        if headers is None:
+            device_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"gsuid-cli:mys:{uid}")).lower()
+            seed_id = str(uuid.uuid4()).lower()
+            seed_time = str(int(time.time() * 1000))
+            headers = {
+                "x-rpc-device_id": device_id,
+                "x-rpc-device_fp": self._generate_device_fp(device_id, seed_id, seed_time),
+            }
+            self._device_headers_by_uid[uid] = headers
+        return dict(headers)
+
+    def _generate_device_fp(self, device_id: str, seed_id: str, seed_time: str) -> str:
+        response = self.http.request_json(
+            "POST",
+            GET_FP_URL,
+            provider=PROVIDER,
+            region="cn",
+            category="device.fp",
+            headers=_fp_headers(),
+            json_body=_device_fp_body(device_id, seed_id, seed_time),
+        )
+        data = response.payload.get("data")
+        if isinstance(data, dict) and data.get("device_fp"):
+            return str(data["device_fp"])
+        return _random_fp()
+
+    def _sign_info(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+    ) -> tuple[dict[str, object], dict[str, object]]:
+        ensure_supported_region(region)
+        server = server_for_uid(uid)
+        params = {
+            "act_id": SIGN_ACT_ID,
+            "lang": "zh-cn",
+            "region": server,
+            "uid": uid,
+        }
+        response = self.http.request_json(
+            "GET",
+            f"{GS_BASE_CN}{SIGN_INFO_PATH}",
+            provider=PROVIDER,
+            region=region,
+            category="daily.signin.info",
+            params=params,
+            headers={**_headers(cookie), "x-rpc-signgame": "hk4e"},
+        )
+        raise_for_retcode(
+            response.payload,
+            provider=PROVIDER,
+            region=region,
+            category="daily.signin.info",
+            source=response.source,
+            debug=self.http.debug,
+        )
+        return (
+            _payload_data(response.payload, "daily.signin.info", response.source),
+            response.source,
+            str(response.payload.get("message") or "OK"),
+        )
+
     def _stoken_by_game_token(
         self,
         *,
@@ -540,19 +936,24 @@ def _headers(cookie: str) -> dict[str, str]:
     }
 
 
-def _record_headers(cookie: str, query: str) -> dict[str, str]:
+def _record_headers(
+    cookie: str,
+    query: str = "",
+    body: dict[str, object] | None = None,
+) -> dict[str, str]:
     return {
         **_headers(cookie),
-        "DS": _record_ds(query),
+        "DS": _record_ds(query, body),
     }
 
 
-def _record_ds(query: str) -> str:
+def _record_ds(query: str = "", body: dict[str, object] | None = None) -> str:
     # Ported from gsuid_core.utils.api.mys.tools.get_ds_token.
     timestamp = str(int(time.time()))
     random_number = str(random.randint(100000, 200000))
+    body_text = _signed_body_text(body)
     digest = hashlib.md5(
-        f"salt={RECORD_SALT}&t={timestamp}&r={random_number}&b=&q={query}".encode()
+        f"salt={RECORD_SALT}&t={timestamp}&r={random_number}&b={body_text}&q={query}".encode()
     ).hexdigest()
     return f"{timestamp},{random_number},{digest}"
 
@@ -578,6 +979,259 @@ def _payload_data(
     return data
 
 
+def _daily_note(data: dict[str, object]) -> dict[str, object]:
+    keys = (
+        "current_resin",
+        "max_resin",
+        "resin_recovery_time",
+        "finished_task_num",
+        "total_task_num",
+        "is_extra_task_reward_received",
+        "remain_resin_discount_num",
+        "resin_discount_num_limit",
+        "current_expedition_num",
+        "max_expedition_num",
+        "expeditions",
+        "current_home_coin",
+        "max_home_coin",
+        "home_coin_recovery_time",
+        "transformer",
+        "daily_task",
+        "archon_quest_progress",
+    )
+    return {key: data.get(key) for key in keys}
+
+
+def _player_summary(data: dict[str, object]) -> dict[str, object]:
+    stats = data.get("stats")
+    avatars = data.get("avatars")
+    explorations = data.get("world_explorations")
+    homes = data.get("homes")
+    if not isinstance(stats, dict):
+        stats = {}
+    if not isinstance(avatars, list):
+        avatars = []
+    if not isinstance(explorations, list):
+        explorations = []
+    if not isinstance(homes, list):
+        homes = []
+
+    return {
+        "role": {
+            "nickname": data.get("nickname"),
+            "level": data.get("level"),
+            "region": data.get("region"),
+            "region_name": data.get("region_name"),
+            "avatar_icon": data.get("avatar_icon"),
+        },
+        "stats": stats,
+        "avatars": [_avatar_summary(avatar) for avatar in avatars if isinstance(avatar, dict)],
+        "avatar_count": len([avatar for avatar in avatars if isinstance(avatar, dict)]),
+        "world_explorations": [
+            exploration for exploration in explorations if isinstance(exploration, dict)
+        ],
+        "homes": [home for home in homes if isinstance(home, dict)],
+    }
+
+
+def _avatar_summary(avatar: dict[str, object]) -> dict[str, object]:
+    return {
+        "id": avatar.get("id"),
+        "name": avatar.get("name"),
+        "element": avatar.get("element"),
+        "level": avatar.get("level"),
+        "rarity": avatar.get("rarity"),
+        "icon": avatar.get("icon"),
+    }
+
+
+def _character(character: dict[str, object]) -> dict[str, object]:
+    weapon = character.get("weapon")
+    reliquaries = character.get("reliquaries")
+    constellations = character.get("constellations")
+    costumes = character.get("costumes")
+    if not isinstance(weapon, dict):
+        weapon = {}
+    if not isinstance(reliquaries, list):
+        reliquaries = []
+    if not isinstance(constellations, list):
+        constellations = []
+    if not isinstance(costumes, list):
+        costumes = []
+
+    return {
+        "id": character.get("id"),
+        "name": character.get("name"),
+        "element": character.get("element"),
+        "level": character.get("level"),
+        "rarity": character.get("rarity"),
+        "fetter": character.get("fetter"),
+        "actived_constellation_num": character.get("actived_constellation_num"),
+        "image": character.get("image"),
+        "icon": character.get("icon"),
+        "weapon": {
+            "id": weapon.get("id"),
+            "name": weapon.get("name"),
+            "type": weapon.get("type"),
+            "rarity": weapon.get("rarity"),
+            "level": weapon.get("level"),
+            "promote_level": weapon.get("promote_level"),
+            "affix_level": weapon.get("affix_level"),
+            "icon": weapon.get("icon"),
+        },
+        "reliquaries": [item for item in reliquaries if isinstance(item, dict)],
+        "constellations": [item for item in constellations if isinstance(item, dict)],
+        "costumes": [item for item in costumes if isinstance(item, dict)],
+    }
+
+
+def _diary(data: dict[str, object]) -> dict[str, object]:
+    day_data = data.get("day_data")
+    month_data = data.get("month_data")
+    optional_month = data.get("optional_month")
+    lantern = data.get("lantern")
+    if not isinstance(day_data, dict):
+        day_data = {}
+    if not isinstance(month_data, dict):
+        month_data = {}
+    if not isinstance(optional_month, list):
+        optional_month = []
+    if not isinstance(lantern, dict):
+        lantern = {}
+
+    return {
+        "uid": data.get("uid"),
+        "region": data.get("region"),
+        "account_id": data.get("account_id"),
+        "nickname": data.get("nickname"),
+        "date": data.get("date"),
+        "month": data.get("month"),
+        "data_month": data.get("data_month"),
+        "data_last_month": data.get("data_last_month"),
+        "day_data": day_data,
+        "month_data": month_data,
+        "optional_month": [item for item in optional_month if isinstance(item, dict)],
+        "lantern": lantern,
+    }
+
+
+def _diary_month(month: str | None) -> str:
+    if month is None:
+        return "0"
+    if not re.fullmatch(r"\d{4}-\d{2}", month):
+        raise CliError(
+            "INVALID_ARGUMENT",
+            "month must use YYYY-MM format",
+            EXIT_INVALID_INPUT,
+            {"month": month},
+        )
+    year = int(month.split("-", 1)[0])
+    current_year = datetime.now(UTC).year
+    if year != current_year:
+        raise CliError(
+            "INVALID_ARGUMENT",
+            "month must be in the current ledger year",
+            EXIT_INVALID_INPUT,
+            {"month": month, "supported_year": current_year},
+        )
+    month_number = int(month.split("-", 1)[1])
+    if month_number < 1 or month_number > 12:
+        raise CliError(
+            "INVALID_ARGUMENT",
+            "month must use a month from 01 to 12",
+            EXIT_INVALID_INPUT,
+            {"month": month},
+        )
+    return str(month_number)
+
+
+def _signin_data(
+    *,
+    uid: str,
+    credential_source: str,
+    storage_backend: str | None,
+    already_signed: bool,
+    signed: bool,
+    sign_info: dict[str, object],
+    provider_message: str,
+) -> dict[str, object]:
+    day_number = _signin_day_number(sign_info, signed=signed)
+    return {
+        "uid": uid,
+        "credential_source": credential_source,
+        "storage_backend": storage_backend,
+        "already_signed": already_signed,
+        "signed": signed,
+        "day_number": day_number,
+        "reward": _signin_reward(sign_info, day_number),
+        "provider_message": provider_message,
+        "sign_info": sign_info,
+    }
+
+
+def _signin_day_number(sign_info: dict[str, object], *, signed: bool) -> int | None:
+    total = sign_info.get("total_sign_day")
+    try:
+        value = int(total)
+    except (TypeError, ValueError):
+        return None
+    if signed:
+        return value + 1
+    return value
+
+
+def _signin_reward(
+    sign_info: dict[str, object], day_number: int | None
+) -> dict[str, object] | None:
+    awards = sign_info.get("awards")
+    if day_number is None or not isinstance(awards, list):
+        return None
+    for award in awards:
+        if isinstance(award, dict) and award.get("day") == day_number:
+            return _signin_award(award)
+    if 0 < day_number <= len(awards):
+        award = awards[day_number - 1]
+        if isinstance(award, dict):
+            return _signin_award(award)
+    return None
+
+
+def _signin_award(award: dict[str, object]) -> dict[str, object]:
+    return {
+        "name": award.get("name"),
+        "count": award.get("cnt"),
+        "icon": award.get("icon"),
+    }
+
+
+def _sign_headers(cookie: str) -> dict[str, str]:
+    return {
+        **_headers(cookie),
+        "DS": _web_ds(),
+        "x-rpc-signgame": "hk4e",
+        "x-rpc-device_id": uuid.uuid4().hex,
+        "x-rpc-client_type": "5",
+    }
+
+
+def _web_ds() -> str:
+    # Ported from gsuid_core.utils.api.mys.tools.get_web_ds_token.
+    timestamp = str(int(time.time()))
+    random_text = "".join(random.sample(string.ascii_lowercase + string.digits, 6))
+    digest = hashlib.md5(f"salt={WEB_SALT}&t={timestamp}&r={random_text}".encode()).hexdigest()
+    return f"{timestamp},{random_text},{digest}"
+
+
+def _already_signed(payload: dict[str, object]) -> bool:
+    return payload.get("retcode") in {-5003, "-5003"}
+
+
+def _signed_body_text(body: dict[str, object] | None) -> str:
+    if not body:
+        return ""
+    return json.dumps(body, ensure_ascii=False, separators=(",", ":"))
+
+
 def _ticket_from_url(url: str) -> str:
     marker = "ticket="
     if marker not in url:
@@ -587,6 +1241,102 @@ def _ticket_from_url(url: str) -> str:
 
 def _random_device_id() -> str:
     return "".join(random.choices(string.ascii_letters + string.digits, k=64))
+
+
+def _fp_headers() -> dict[str, str]:
+    headers = _headers("")
+    del headers["Cookie"]
+    return headers
+
+
+def _device_fp_body(device_id: str, seed_id: str, seed_time: str) -> dict[str, object]:
+    # Ported from gsuid_core.utils.api.mys.base_request.generate_fake_fp.
+    model_name = "PHK110"
+    device = "PHK110"
+    device_type = "OP5913L1"
+    board = "taro"
+    device_info = "OnePlus/PHK110/OP5913L1:13/SKQ1.221119.001/T.1328291_b9_41:user/release-keys"
+    device_brand = device_info.split("/")[0]
+    random_data = random.randint(400000, 600000)
+    random_data2 = random.randint(150000, 300000)
+    now_ms = int(time.time() * 1000)
+    ext_fields = {
+        "proxyStatus": 0,
+        "isRoot": 1,
+        "romCapacity": "512",
+        "deviceName": "PrivatePhone",
+        "productName": device,
+        "romRemain": "491",
+        "hostname": "dg02-pool06-kvm82",
+        "screenSize": "1264x2640",
+        "isTablet": 0,
+        "aaid": _generate_id(),
+        "model": model_name,
+        "brand": device_brand,
+        "hardware": "qcom",
+        "deviceType": device_type,
+        "devId": "REL",
+        "serialNumber": "unknown",
+        "sdCapacity": random_data,
+        "buildTime": "1717740969000",
+        "buildUser": "root",
+        "simState": 5,
+        "ramRemain": str(random_data2),
+        "appUpdateTimeDiff": now_ms,
+        "deviceInfo": device_info,
+        "vaid": _generate_id(),
+        "buildType": "user",
+        "sdkVersion": "34",
+        "ui_mode": "UI_MODE_TYPE_NORMAL",
+        "isMockLocation": 0,
+        "cpuType": "arm64-v8a",
+        "isAirMode": 0,
+        "ringMode": 1,
+        "chargeStatus": 1,
+        "manufacturer": device_brand,
+        "emulatorStatus": 0,
+        "appMemory": "512",
+        "osVersion": "14",
+        "vendor": "ChinaUnicom",
+        "accelerometer": "-1.3004991x6.38764x7.19103",
+        "sdRemain": random_data2,
+        "buildTags": "release-keys",
+        "packageName": "com.mihoyo.hyperion",
+        "networkType": "WiFi",
+        "oaid": "1f1971b188c472f0",
+        "debugStatus": 1,
+        "ramCapacity": str(random_data),
+        "magnetometer": "27.1084x-48.5804x-24.8758",
+        "display": f"{model_name}_14.0.0.810(CN01)",
+        "appInstallTimeDiff": str(now_ms),
+        "packageVersion": "2.20.2",
+        "gyroscope": "-0.02543317x0.005725792x0.003195791",
+        "batteryStatus": 50,
+        "hasKeyboard": 0,
+        "board": board,
+    }
+    return {
+        "device_id": _generate_seed(16),
+        "seed_id": seed_id,
+        "platform": "2",
+        "seed_time": seed_time,
+        "ext_fields": json.dumps(ext_fields, separators=(",", ":")),
+        "app_name": "bbs_cn",
+        "bbs_device_id": device_id,
+        "device_fp": _random_fp(),
+    }
+
+
+def _generate_id(length: int = 64) -> str:
+    return "".join(random.choices(string.digits + string.ascii_uppercase, k=length))
+
+
+def _generate_seed(length: int) -> str:
+    return "".join(random.choices(string.digits + "abcdef", k=length))
+
+
+def _random_fp(length: int = 13) -> str:
+    return _generate_seed(length)
 
 
 def _passport_headers(body: dict[str, object]) -> dict[str, str]:
@@ -616,7 +1366,7 @@ def _passport_ds(
 ) -> str:
     timestamp = str(int(time.time()))
     random_text = "".join(random.sample(string.ascii_letters, 6))
-    body_text = json.dumps(body) if body else ""
+    body_text = _signed_body_text(body)
     digest = hashlib.md5(
         f"salt={PASSPORT_SALT}&t={timestamp}&r={random_text}&b={body_text}&q={query}".encode()
     ).hexdigest()

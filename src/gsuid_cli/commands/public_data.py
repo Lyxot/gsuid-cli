@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import argparse
 
+from gsuid_cli.commands.auth import _credential, _uid_and_region
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
+from gsuid_cli.providers import provider_for_region
 from gsuid_cli.providers.public import DAY_NAMES, PublicDataProvider
 
 CAPABILITIES = [
@@ -73,6 +75,22 @@ CAPABILITIES = [
         "render": ["data"],
         "cache": "use",
     },
+    {
+        "command": "daily.note",
+        "description": "Show current resin, commissions, expeditions, and teapot status.",
+        "auth": "cookie",
+        "regions": ["cn"],
+        "render": ["data"],
+        "cache": "off",
+    },
+    {
+        "command": "daily.signin",
+        "description": "Claim or report the MYS daily sign-in status.",
+        "auth": "cookie",
+        "regions": ["cn"],
+        "render": ["data"],
+        "cache": "off",
+    },
 ]
 
 
@@ -105,6 +123,28 @@ def codes_list_command(args: argparse.Namespace) -> CommandResult:
 
 def daily_materials_command(args: argparse.Namespace) -> CommandResult:
     return _provider(args).daily_materials(day=args.day, date=args.date)
+
+
+def daily_note_command(args: argparse.Namespace) -> CommandResult:
+    uid, region, cookie, credential_source, storage_backend = _cookie_context(args)
+    return _auth_provider(args, region).daily_note(
+        uid=uid,
+        cookie=cookie,
+        region=region,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
+    )
+
+
+def daily_signin_command(args: argparse.Namespace) -> CommandResult:
+    uid, region, cookie, credential_source, storage_backend = _cookie_context(args)
+    return _auth_provider(args, region).daily_signin(
+        uid=uid,
+        cookie=cookie,
+        region=region,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
+    )
 
 
 def _register_wiki(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -140,8 +180,17 @@ def _register_codes(groups: argparse._SubParsersAction[argparse.ArgumentParser])
 
 
 def _register_daily(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    daily = groups.add_parser("daily", help="Show daily public data.")
+    daily = groups.add_parser("daily", help="Show daily data.")
     commands = daily.add_subparsers(dest="daily_command", required=True, metavar="<command>")
+
+    note = commands.add_parser("note", help="Show current daily account status.")
+    note.add_argument("--uid", dest="command_uid")
+    note.set_defaults(handler=daily_note_command, command_name="daily.note")
+
+    signin = commands.add_parser("signin", help="Claim or report MYS daily sign-in status.")
+    signin.add_argument("--uid", dest="command_uid")
+    signin.set_defaults(handler=daily_signin_command, command_name="daily.signin")
+
     materials = commands.add_parser("materials", help="List daily material domains.")
     selectors = materials.add_mutually_exclusive_group()
     selectors.add_argument("--date")
@@ -187,3 +236,23 @@ def _provider(args: argparse.Namespace) -> PublicDataProvider:
             debug=args.debug,
         )
     )
+
+
+def _auth_provider(args: argparse.Namespace, region: str):
+    return provider_for_region(
+        region,
+        HttpClient(
+            timeout=args.timeout,
+            cache_policy="off",
+            output_dir=args.output_dir,
+            debug=args.debug,
+        ),
+    )
+
+
+def _cookie_context(args: argparse.Namespace) -> tuple[str, str, str, str, str | None]:
+    uid, region = _uid_and_region(args)
+    ensure_supported_region(region)
+    args.credential_kind = "cookie"
+    cookie, credential_source, storage_backend = _credential(args, uid)
+    return uid, region, cookie, credential_source, storage_backend

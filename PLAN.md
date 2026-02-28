@@ -636,47 +636,35 @@ tests/
 ### Stage 4.5: QR Login — completed.
 ### Stage 4.6: Interactive QR Login — completed.
 ### Stage 4.7: Live Auth Validation Fixes — completed.
-### Stage 5: Public Data MVP
+### Stage 5: Public Data MVP — completed.
+### Stage 6: Authenticated Daily And Player Data
 
 - Status: completed.
-- Result: implemented public-data commands using Project Amber structured JSON
-  for wiki/events/daily material data and the Fandom Promotional Code wikitext
-  API for active redeem-code rows. No credentials are required.
-- Commands:
-  - `wiki character --name NAME [--level N]`
-  - `wiki weapon --name NAME [--level N]`
-  - `wiki artifact --name NAME`
-  - `wiki enemy --name NAME`
-  - `events list [--all] [--limit N]`
-  - `events banners [--all] [--limit N]`
-  - `codes list`
-  - `daily materials [--date YYYY-MM-DD] [--day WEEKDAY]`
-- Tests: mocked command envelopes, Project Amber alias lookup, no-result
-  behavior/source attribution, Fandom active-code parsing, wish-banner
-  filtering, unsupported-region rejection, and capabilities metadata.
+- Result: implemented structured-data authenticated commands for `daily note`,
+  `daily signin`, `player summary`, `player characters`, and `player diary`.
+  Commands resolve UID/profile, require a cookie from env or keyring, use
+  cache-off authenticated provider calls, and preserve JSON envelope behavior.
+- Provider notes: MYS game-record calls now include a generated device
+  fingerprint request ported from GenshinUID behavior. MYS anti-abuse retcodes
+  `10035`, `5003`, `10041`, and `1034` map to
+  `UPSTREAM_VERIFICATION_REQUIRED` instead of a generic provider rejection.
+- Diary month selection accepts `YYYY-MM` for the current ledger year only,
+  because the MYS endpoint takes a month number rather than an arbitrary year.
+- Tests: cookie missing, expired cookie propagation, mocked daily/player
+  success payloads, character detail request body/DS headers, diary month
+  validation, and sign-in idempotency behavior.
 - Verification:
-  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_meta_commands.py`
-  - `.venv/bin/python -m gsuid_cli wiki character --name Amber`
-  - `.venv/bin/python -m gsuid_cli wiki weapon --name "Dull Blade"`
-  - `.venv/bin/python -m gsuid_cli wiki artifact --name "Resolution of Sojourner"`
-  - `.venv/bin/python -m gsuid_cli wiki enemy --name slime`
-  - `.venv/bin/python -m gsuid_cli events list --limit 3`
-  - `.venv/bin/python -m gsuid_cli events banners --limit 2`
-  - `.venv/bin/python -m gsuid_cli codes list`
-  - `.venv/bin/python -m gsuid_cli daily materials --date 2026-04-29`
-  - `.venv/bin/python -m gsuid_cli meta capabilities`
+  - `.venv/bin/python -m pytest tests/test_daily_player_data.py tests/test_provider_foundation.py tests/test_meta_commands.py`
   - `.venv/bin/python -m pytest`
   - `.venv/bin/ruff check .`
   - `.venv/bin/ruff format --check .`
-- Commit: `feat: add public data commands`.
-
-### Stage 6: Authenticated Daily And Player Data
-
-- Implement `daily note`, `daily signin`, `player summary`, `player characters`, `player diary`.
-- Add cookie requirement detection and `AUTH_REQUIRED` errors.
-- Add `--render image` only for commands whose renderer is implemented; otherwise return structured data.
-- Tests: cookie missing, cookie expired, mocked success payloads, sign-in idempotency behavior.
-- Verification: mocked auth suite passes; optional live check with user-provided cookie.
+  - `.venv/bin/python -m gsuid_cli player diary --uid <UID>`
+  - standalone review agent before commit; follow-up review passed with no
+    findings after fixes.
+- Live notes: `player diary` succeeds with the stored QR credential. `daily
+  note`, `player summary`, and `player characters` currently return MYS
+  retcode `1034`, surfaced as `UPSTREAM_VERIFICATION_REQUIRED`; `daily signin`
+  was not run live because it can mutate account state.
 - Commit: `feat: add daily player commands`.
 
 ### Stage 7: Progress And Challenge Data

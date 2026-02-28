@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -16,6 +17,7 @@ from gsuid_cli.core.errors import (
 from gsuid_cli.core.time import utc_now
 
 AUTH_RETCODES = {-100, 10001, 10102}
+VERIFICATION_RETCODES = {10035, 5003, 10041, 1034}
 
 
 @dataclass(frozen=True)
@@ -74,12 +76,15 @@ class HttpClient:
 
         try:
             with httpx.Client(timeout=self.timeout, transport=self.transport) as client:
+                request_headers = dict(headers or {})
+                if json_body is not None:
+                    request_headers.setdefault("Content-Type", "application/json")
                 response = client.request(
                     method,
                     url,
                     params=params,
-                    headers=headers,
-                    json=json_body,
+                    headers=request_headers,
+                    content=_json_body_content(json_body) if json_body is not None else None,
                 )
         except httpx.TimeoutException as exc:
             raise _network_error(
@@ -206,6 +211,16 @@ def raise_for_retcode(
             source=source,
         )
 
+    if _is_verification_retcode(retcode):
+        raise CliError(
+            "UPSTREAM_VERIFICATION_REQUIRED",
+            "Provider requires device or challenge verification before returning this data.",
+            EXIT_UPSTREAM,
+            details,
+            retryable=False,
+            source=source,
+        )
+
     raise CliError(
         "UPSTREAM_REJECTED",
         "Provider rejected the request.",
@@ -298,3 +313,14 @@ def _is_auth_retcode(retcode: Any) -> bool:
         return int(retcode) in AUTH_RETCODES
     except (TypeError, ValueError):
         return False
+
+
+def _is_verification_retcode(retcode: Any) -> bool:
+    try:
+        return int(retcode) in VERIFICATION_RETCODES
+    except (TypeError, ValueError):
+        return False
+
+
+def _json_body_content(body: dict[str, object]) -> bytes:
+    return json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
