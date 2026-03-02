@@ -167,7 +167,7 @@ Even on failure, JSON mode writes the error envelope to stdout and exits non-zer
     "code": "AUTH_EXPIRED",
     "message": "The stored cookie is expired or rejected by the provider.",
     "details": {
-      "uid": "100740568",
+      "uid": "<UID>",
       "region": "cn"
     },
     "retryable": false
@@ -516,7 +516,7 @@ gsuid monitor once [--uid UID] [--checks resin,expedition,transformer,daily,even
 Batch input line format:
 
 ```json
-{"command":"daily.note","args":{"uid":"100740568"},"request_id":"req-1"}
+{"command":"daily.note","args":{"uid":"<UID>"},"request_id":"req-1"}
 ```
 
 Batch output:
@@ -637,43 +637,32 @@ tests/
 ### Stage 4.6: Interactive QR Login — completed.
 ### Stage 4.7: Live Auth Validation Fixes — completed.
 ### Stage 5: Public Data MVP — completed.
-### Stage 6: Authenticated Daily And Player Data
+### Stage 6: Authenticated Daily And Player Data — completed.
+### Stage 7: Progress And Challenge Data
 
 - Status: completed.
-- Result: implemented structured-data authenticated commands for `daily note`,
-  `daily signin`, `player summary`, `player characters`, and `player diary`.
-  Commands resolve UID/profile, require a cookie from env or keyring, use
-  cache-off authenticated provider calls, and preserve JSON envelope behavior.
-- Provider notes: MYS game-record calls now include a generated device
-  fingerprint request ported from GenshinUID behavior. MYS anti-abuse retcodes
-  `10035`, `5003`, `10041`, and `1034` map to
-  `UPSTREAM_VERIFICATION_REQUIRED` instead of a generic provider rejection.
-- Diary month selection accepts `YYYY-MM` for the current ledger year only,
-  because the MYS endpoint takes a month number rather than an arbitrary year.
-- Tests: cookie missing, expired cookie propagation, mocked daily/player
-  success payloads, character detail request body/DS headers, diary month
-  validation, and sign-in idempotency behavior.
+- Result: implemented MYS-backed structured-data commands for `challenge
+  abyss`, `challenge theater`, `challenge hard`, `progress completion`,
+  `progress exploration`, `progress collection`, `progress achievements`, and
+  `progress gcg`.
+- Source notes: abyss, theater, achievements, and GCG use stable MYS CN record
+  endpoints already referenced by GenshinUID. Completion, exploration,
+  collection, and hard challenge derive from the authenticated player index
+  response. Achievement and commission guide lookups were not added because no
+  stable provider-backed guide source was identified in this stage.
+- Tests: missing cookie, floor validation before auth, mocked command
+  envelopes, abyss season/floor parsing, achievement POST body/DS signing, GCG
+  multi-request behavior, and capabilities metadata.
 - Verification:
-  - `.venv/bin/python -m pytest tests/test_daily_player_data.py tests/test_provider_foundation.py tests/test_meta_commands.py`
+  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py tests/test_meta_commands.py`
   - `.venv/bin/python -m pytest`
   - `.venv/bin/ruff check .`
   - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python -m gsuid_cli player diary --uid <UID>`
-  - standalone review agent before commit; follow-up review passed with no
-    findings after fixes.
-- Live notes: `player diary` succeeds with the stored QR credential. `daily
-  note`, `player summary`, and `player characters` currently return MYS
-  retcode `1034`, surfaced as `UPSTREAM_VERIFICATION_REQUIRED`; `daily signin`
-  was not run live because it can mutate account state.
-- Commit: `feat: add daily player commands`.
-
-### Stage 7: Progress And Challenge Data
-
-- Implement `challenge abyss`, `challenge theater`, `challenge hard`.
-- Implement `progress completion`, `progress exploration`, `progress collection`, `progress achievements`, `progress gcg`.
-- Implement guide lookups for achievements and commissions if source data is locally available or provider-backed.
-- Tests: current/previous season parsing, floor validation, no-data accounts, schema snapshots.
-- Verification: mocked challenge/progress suites pass.
+  - `.venv/bin/python -m gsuid_cli challenge theater --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli progress achievements --uid <UID>`
+- Live notes: `challenge theater` and `progress achievements` succeed with the
+  stored QR credential. `challenge abyss` and `progress gcg` currently return
+  MYS retcode `1034`, surfaced as `UPSTREAM_VERIFICATION_REQUIRED`.
 - Commit: `feat: add progress challenge commands`.
 
 ### Stage 8: Gacha Log

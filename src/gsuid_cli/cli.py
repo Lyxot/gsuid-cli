@@ -10,7 +10,16 @@ from collections.abc import Sequence
 from typing import TextIO
 
 from gsuid_cli import __version__
-from gsuid_cli.commands import account, auth, meta, player, profile, public_data
+from gsuid_cli.commands import (
+    account,
+    auth,
+    challenge,
+    meta,
+    player,
+    profile,
+    progress,
+    public_data,
+)
 from gsuid_cli.core.envelope import error_envelope, success_envelope
 from gsuid_cli.core.errors import (
     EXIT_INTERNAL_BUG,
@@ -73,6 +82,8 @@ def build_parser() -> argparse.ArgumentParser:
     auth.register(groups)
     public_data.register(groups)
     player.register(groups)
+    challenge.register(groups)
+    progress.register(groups)
     return parser
 
 

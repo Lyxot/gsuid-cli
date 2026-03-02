@@ -32,6 +32,11 @@ GET_FP_URL = "https://public-data-api.mihoyo.com/device-fp/api/getFp"
 INDEX_PATH = "/game_record/app/genshin/api/index"
 CARD_PATH = "/game_record/card/wapi/getGameRecordCard"
 DAILY_NOTE_PATH = "/game_record/app/genshin/api/dailyNote"
+ABYSS_PATH = "/game_record/app/genshin/api/spiralAbyss"
+ROLE_COMBAT_PATH = "/game_record/app/genshin/api/role_combat"
+ACHIEVEMENT_PATH = "/game_record/app/genshin/api/achievement"
+GCG_BASIC_PATH = "/game_record/app/genshin/api/gcg/basicInfo"
+GCG_DECK_PATH = "/game_record/app/genshin/api/gcg/deckList"
 CHARACTER_LIST_PATH = "/game_record/app/genshin/api/character/list"
 MONTHLY_AWARD_PATH = "/event/ys_ledger/monthInfo"
 SIGN_INFO_PATH = "/event/luna/info"
@@ -494,6 +499,272 @@ class MysProvider:
             source=response.source,
         )
 
+    def challenge_abyss(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+        season: str,
+        floor: int | None = None,
+    ) -> CommandResult:
+        server = server_for_uid(uid)
+        schedule_type = _schedule_type(season)
+        data, source = self._record_get(
+            path=ABYSS_PATH,
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            category="challenge.abyss",
+            params={
+                "role_id": uid,
+                "schedule_type": schedule_type,
+                "server": server,
+            },
+        )
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_source": credential_source,
+                "storage_backend": storage_backend,
+                "season": season,
+                "schedule_type": schedule_type,
+                "floor": floor,
+                "abyss": _abyss(data, floor),
+            },
+            source=source,
+        )
+
+    def challenge_theater(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+        season: str,
+    ) -> CommandResult:
+        warnings = []
+        if season != "current":
+            warnings.append("theater season selection is not exposed by the provider")
+        server = server_for_uid(uid)
+        data, source = self._record_get(
+            path=ROLE_COMBAT_PATH,
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            category="challenge.theater",
+            params={
+                "server": server,
+                "role_id": uid,
+                "need_detail": "true",
+            },
+        )
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_source": credential_source,
+                "storage_backend": storage_backend,
+                "season": season,
+                "effective_season": "current",
+                "theater": _theater(data, season),
+            },
+            source=source,
+            warnings=warnings,
+        )
+
+    def challenge_hard(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+        season: str,
+    ) -> CommandResult:
+        data, source = self._record_get(
+            path=INDEX_PATH,
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            category="challenge.hard",
+        )
+        warnings = []
+        if season != "current":
+            warnings.append("hard challenge season selection is not exposed by the provider")
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_source": credential_source,
+                "storage_backend": storage_backend,
+                "season": season,
+                "effective_season": "current",
+                "hard": _hard_challenge(data),
+            },
+            source=source,
+            warnings=warnings,
+        )
+
+    def progress_completion(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+    ) -> CommandResult:
+        data, source = self._record_get(
+            path=INDEX_PATH,
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            category="progress.completion",
+        )
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_source": credential_source,
+                "storage_backend": storage_backend,
+                "completion": _completion(data),
+            },
+            source=source,
+        )
+
+    def progress_exploration(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+    ) -> CommandResult:
+        data, source = self._record_get(
+            path=INDEX_PATH,
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            category="progress.exploration",
+        )
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_source": credential_source,
+                "storage_backend": storage_backend,
+                "exploration": _exploration(data),
+            },
+            source=source,
+        )
+
+    def progress_collection(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+    ) -> CommandResult:
+        data, source = self._record_get(
+            path=INDEX_PATH,
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            category="progress.collection",
+        )
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_source": credential_source,
+                "storage_backend": storage_backend,
+                "collection": _collection(data),
+            },
+            source=source,
+        )
+
+    def progress_achievements(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+    ) -> CommandResult:
+        ensure_supported_region(region)
+        server = server_for_uid(uid)
+        body = {"role_id": uid, "server": server}
+        response = self.http.request_json(
+            "POST",
+            f"{RECORD_BASE_CN}{ACHIEVEMENT_PATH}",
+            provider=PROVIDER,
+            region=region,
+            category="progress.achievements",
+            headers=self._record_headers_for_uid(uid, cookie, body=body),
+            json_body=body,
+        )
+        raise_for_retcode(
+            response.payload,
+            provider=PROVIDER,
+            region=region,
+            category="progress.achievements",
+            source=response.source,
+            debug=self.http.debug,
+        )
+        data = _payload_data(response.payload, "progress.achievements", response.source)
+        achievements = data.get("list")
+        if not isinstance(achievements, list):
+            achievements = []
+        normalized = [item for item in achievements if isinstance(item, dict)]
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_source": credential_source,
+                "storage_backend": storage_backend,
+                "achievements": normalized,
+                "count": len(normalized),
+            },
+            source=response.source,
+        )
+
+    def progress_gcg(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+    ) -> CommandResult:
+        basic, basic_source = self._record_get(
+            path=GCG_BASIC_PATH,
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            category="progress.gcg.basic",
+        )
+        decks, deck_source = self._record_get(
+            path=GCG_DECK_PATH,
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            category="progress.gcg.decks",
+        )
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_source": credential_source,
+                "storage_backend": storage_backend,
+                "gcg": _gcg(basic, decks),
+            },
+            source=deck_source or basic_source,
+        )
+
     def create_qrcode_session(self, *, region: str) -> CommandResult:
         ensure_supported_region(region)
         device = _random_device_id()
@@ -726,10 +997,12 @@ class MysProvider:
         cookie: str,
         region: str,
         category: str,
-    ) -> tuple[dict[str, object], dict[str, object], str]:
+        params: dict[str, object] | None = None,
+    ) -> tuple[dict[str, object], dict[str, object]]:
         ensure_supported_region(region)
         server = server_for_uid(uid)
-        params = {"role_id": uid, "server": server}
+        if params is None:
+            params = {"role_id": uid, "server": server}
         response = self.http.request_json(
             "GET",
             f"{RECORD_BASE_CN}{path}",
@@ -1113,6 +1386,146 @@ def _diary(data: dict[str, object]) -> dict[str, object]:
         "optional_month": [item for item in optional_month if isinstance(item, dict)],
         "lantern": lantern,
     }
+
+
+def _abyss(data: dict[str, object], floor: int | None) -> dict[str, object]:
+    floors_value = data.get("floors")
+    if not isinstance(floors_value, list):
+        floors_value = []
+    floors = [item for item in floors_value if isinstance(item, dict)]
+    if floor is not None:
+        floors = [item for item in floors if _floor_index(item) == floor]
+
+    return {
+        "schedule_id": data.get("schedule_id"),
+        "start_time": data.get("start_time"),
+        "end_time": data.get("end_time"),
+        "total_battle_times": data.get("total_battle_times"),
+        "total_win_times": data.get("total_win_times"),
+        "max_floor": data.get("max_floor"),
+        "total_star": data.get("total_star"),
+        "is_unlock": data.get("is_unlock"),
+        "rankings": _abyss_rankings(data),
+        "floors": floors,
+        "floor_count": len(floors),
+    }
+
+
+def _floor_index(floor: dict[str, object]) -> int | None:
+    value = floor.get("index")
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _abyss_rankings(data: dict[str, object]) -> dict[str, list[dict[str, object]]]:
+    rankings = {}
+    for key in (
+        "reveal_rank",
+        "defeat_rank",
+        "damage_rank",
+        "take_damage_rank",
+        "normal_skill_rank",
+        "energy_skill_rank",
+    ):
+        value = data.get(key)
+        rankings[key] = (
+            [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+        )
+    return rankings
+
+
+def _theater(data: dict[str, object], _season: str) -> dict[str, object]:
+    sessions_value = data.get("data")
+    if not isinstance(sessions_value, list):
+        sessions_value = []
+    sessions = [item for item in sessions_value if isinstance(item, dict)]
+    selected = sessions[0] if sessions else None
+    links = data.get("links")
+    if not isinstance(links, dict):
+        links = {}
+    return {
+        "selected": selected,
+        "sessions": sessions,
+        "count": len(sessions),
+        "links": links,
+    }
+
+
+def _hard_challenge(data: dict[str, object]) -> dict[str, object]:
+    hard = data.get("hard_challenge")
+    role_combat = data.get("role_combat")
+    return {
+        "hard_challenge": hard if isinstance(hard, dict) else {},
+        "role_combat": role_combat if isinstance(role_combat, dict) else {},
+    }
+
+
+def _completion(data: dict[str, object]) -> dict[str, object]:
+    stats = data.get("stats")
+    explorations = data.get("world_explorations")
+    if not isinstance(stats, dict):
+        stats = {}
+    if not isinstance(explorations, list):
+        explorations = []
+    return {
+        "role": {
+            "nickname": data.get("nickname"),
+            "level": data.get("level"),
+            "region": data.get("region"),
+            "region_name": data.get("region_name"),
+        },
+        "stats": stats,
+        "exploration_count": len([item for item in explorations if isinstance(item, dict)]),
+        "world_explorations": [item for item in explorations if isinstance(item, dict)],
+        "challenge": _hard_challenge(data),
+    }
+
+
+def _exploration(data: dict[str, object]) -> dict[str, object]:
+    explorations = data.get("world_explorations")
+    homes = data.get("homes")
+    if not isinstance(explorations, list):
+        explorations = []
+    if not isinstance(homes, list):
+        homes = []
+    return {
+        "world_explorations": [item for item in explorations if isinstance(item, dict)],
+        "homes": [item for item in homes if isinstance(item, dict)],
+    }
+
+
+def _collection(data: dict[str, object]) -> dict[str, object]:
+    stats = data.get("stats")
+    if not isinstance(stats, dict):
+        stats = {}
+    return {
+        "avatars": stats.get("avatar_number"),
+        "achievements": stats.get("achievement_number"),
+        "spiral_abyss": stats.get("spiral_abyss"),
+        "oculi": {key: value for key, value in stats.items() if "oculus" in key},
+        "chests": {key: value for key, value in stats.items() if key.endswith("_chest_number")},
+        "waypoints": stats.get("way_point_number"),
+        "domains": stats.get("domain_number"),
+        "raw_stats": stats,
+    }
+
+
+def _gcg(basic: dict[str, object], decks: dict[str, object]) -> dict[str, object]:
+    deck_list = decks.get("card_list") or decks.get("list") or decks.get("decks")
+    if not isinstance(deck_list, list):
+        deck_list = []
+    return {
+        "basic": basic,
+        "deck_data": decks,
+        "decks": [item for item in deck_list if isinstance(item, dict)],
+        "deck_count": len([item for item in deck_list if isinstance(item, dict)]),
+    }
+
+
+def _schedule_type(season: str) -> str:
+    return "2" if season == "previous" else "1"
 
 
 def _diary_month(month: str | None) -> str:
