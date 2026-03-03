@@ -14,6 +14,7 @@ from gsuid_cli.commands import (
     account,
     auth,
     challenge,
+    gacha,
     meta,
     player,
     profile,
@@ -84,6 +85,7 @@ def build_parser() -> argparse.ArgumentParser:
     player.register(groups)
     challenge.register(groups)
     progress.register(groups)
+    gacha.register(groups)
     return parser
 
 
@@ -220,9 +222,10 @@ def _error_context(argv: Sequence[str]) -> dict[str, object]:
     return {
         "command": _guess_command(argv),
         "request_id": _option_value(argv, "--request-id") or str(uuid.uuid4()),
-        "format": _option_value(argv, "--format")
+        "format": _global_option_value(argv, "--format")
         or _valid_env("GSUID_FORMAT", OUTPUT_FORMATS, "json"),
-        "region": _option_value(argv, "--region") or _valid_env("GSUID_REGION", {"cn", "os"}, "cn"),
+        "region": _global_option_value(argv, "--region")
+        or _valid_env("GSUID_REGION", {"cn", "os"}, "cn"),
         "debug": "--debug" in argv,
     }
 
@@ -248,6 +251,24 @@ def _option_value(argv: Sequence[str], option: str) -> str | None:
     for index, token in enumerate(argv):
         if token == option and index + 1 < len(argv):
             return argv[index + 1]
+    return None
+
+
+def _global_option_value(argv: Sequence[str], option: str) -> str | None:
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        if token == option and index + 1 < len(argv):
+            return argv[index + 1]
+        if token in GLOBAL_VALUE_OPTIONS:
+            index += 2
+            continue
+        if token in GLOBAL_FLAG_OPTIONS:
+            index += 1
+            continue
+        if not token.startswith("-"):
+            return None
+        index += 1
     return None
 
 

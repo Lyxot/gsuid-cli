@@ -9,6 +9,7 @@ import time
 import uuid
 from datetime import UTC, datetime
 from http.cookies import CookieError, SimpleCookie
+from urllib.parse import parse_qsl, urlsplit, urlunsplit
 
 from gsuid_cli.core.errors import (
     EXIT_AUTH,
@@ -29,6 +30,7 @@ HK4_API_BASE_CN = "https://hk4e-api.mihoyo.com"
 PASSPORT_BASE_CN = "https://passport-api.mihoyo.com"
 HK4_SDK_BASE_CN = "https://hk4e-sdk.mihoyo.com"
 GET_FP_URL = "https://public-data-api.mihoyo.com/device-fp/api/getFp"
+GACHA_LOG_URL = "https://public-operation-hk4e.mihoyo.com/gacha_info/api/getGachaLog"
 INDEX_PATH = "/game_record/app/genshin/api/index"
 CARD_PATH = "/game_record/card/wapi/getGameRecordCard"
 DAILY_NOTE_PATH = "/game_record/app/genshin/api/dailyNote"
@@ -764,6 +766,54 @@ class MysProvider:
             },
             source=deck_source or basic_source,
         )
+
+    def gacha_log_page(
+        self,
+        *,
+        uid: str,
+        authkey_url: str,
+        region: str,
+        gacha_type: str,
+        page: int,
+        end_id: str,
+    ) -> CommandResult:
+        ensure_supported_region(region)
+        base_url, params = _gacha_request(authkey_url)
+        server = server_for_uid(uid)
+        params.update(
+            {
+                "init_type": gacha_type,
+                "gacha_type": gacha_type,
+                "page": page,
+                "size": "20",
+                "end_id": end_id,
+                "timestamp": str(int(time.time())),
+                "lang": params.get("lang") or "zh-cn",
+                "region": params.get("region") or server,
+                "game_biz": params.get("game_biz") or "hk4e_cn",
+                "auth_appid": params.get("auth_appid") or "webview_gacha",
+                "authkey_ver": params.get("authkey_ver") or "1",
+                "sign_type": params.get("sign_type") or "2",
+            }
+        )
+        response = self.http.request_json(
+            "GET",
+            base_url,
+            provider=PROVIDER,
+            region=region,
+            category="gacha.refresh",
+            params=params,
+        )
+        raise_for_retcode(
+            response.payload,
+            provider=PROVIDER,
+            region=region,
+            category="gacha.refresh",
+            source=response.source,
+            debug=self.http.debug,
+        )
+        data = _payload_data(response.payload, "gacha.refresh", response.source)
+        return CommandResult(data=data, source=response.source)
 
     def create_qrcode_session(self, *, region: str) -> CommandResult:
         ensure_supported_region(region)
@@ -1526,6 +1576,28 @@ def _gcg(basic: dict[str, object], decks: dict[str, object]) -> dict[str, object
 
 def _schedule_type(season: str) -> str:
     return "2" if season == "previous" else "1"
+
+
+def _gacha_request(authkey_url: str) -> tuple[str, dict[str, object]]:
+    parsed = urlsplit(authkey_url)
+    if not parsed.scheme or not parsed.netloc:
+        raise CliError(
+            "INVALID_ARGUMENT",
+            "gacha authkey URL is invalid",
+            EXIT_INVALID_INPUT,
+            {"credential_type": "gacha_url"},
+        )
+    params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    if not params.get("authkey"):
+        raise CliError(
+            "INVALID_ARGUMENT",
+            "gacha authkey URL is missing authkey",
+            EXIT_INVALID_INPUT,
+            {"credential_type": "gacha_url"},
+        )
+    api = urlsplit(GACHA_LOG_URL)
+    base_url = urlunsplit((api.scheme, api.netloc, api.path, "", ""))
+    return base_url, params
 
 
 def _diary_month(month: str | None) -> str:

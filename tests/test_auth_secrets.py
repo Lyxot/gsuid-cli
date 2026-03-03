@@ -144,6 +144,27 @@ def test_qrcode_login_shows_terminal_code_and_stores_credentials(monkeypatch, tm
     assert payload["data"]["validity_status"] == "available"
 
 
+def test_gacha_url_auth_commands_fully_redact_url(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    secret = "https://example.test/getGachaLog?authkey=expired-secret"
+
+    code, payload = _run_json(["auth", "gacha-url", "set", "--uid", "100000001", "--url", secret])
+
+    assert code == 0
+    raw = json.dumps(payload, ensure_ascii=False)
+    assert payload["data"]["redacted"] == "[REDACTED_URL]"
+    assert "expired-secret" not in raw
+    assert "cret" not in raw
+
+    code, payload = _run_json(["auth", "gacha-url", "test", "--uid", "100000001"])
+
+    assert code == 0
+    raw = json.dumps(payload, ensure_ascii=False)
+    assert payload["data"]["redacted"] == "[REDACTED_URL]"
+    assert "expired-secret" not in raw
+    assert "cret" not in raw
+
+
 def test_redact_secret_never_returns_short_secret() -> None:
     assert redact_secret("short") == "[REDACTED]"
     assert redact_secret("123456789") == "1234...6789"

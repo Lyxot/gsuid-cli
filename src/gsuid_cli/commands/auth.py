@@ -469,8 +469,14 @@ def _credential_data(
         "source": source,
         "storage_backend": storage_backend,
         "validity_status": validity_status,
-        "redacted": redact_secret(value),
+        "redacted": _redacted_credential(kind, value),
     }
+
+
+def _redacted_credential(kind: str, value: str) -> str:
+    if kind == "gacha_url":
+        return "[REDACTED_URL]"
+    return redact_secret(value)
 
 
 def _http_client(args: argparse.Namespace) -> HttpClient:

@@ -638,42 +638,27 @@ tests/
 ### Stage 4.7: Live Auth Validation Fixes — completed.
 ### Stage 5: Public Data MVP — completed.
 ### Stage 6: Authenticated Daily And Player Data — completed.
-### Stage 7: Progress And Challenge Data
+### Stage 7: Progress And Challenge Data — completed.
+### Stage 8: Gacha Log
 
 - Status: completed.
-- Result: implemented MYS-backed structured-data commands for `challenge
-  abyss`, `challenge theater`, `challenge hard`, `progress completion`,
-  `progress exploration`, `progress collection`, `progress achievements`, and
-  `progress gcg`.
-- Source notes: abyss, theater, achievements, and GCG use stable MYS CN record
-  endpoints already referenced by GenshinUID. Completion, exploration,
-  collection, and hard challenge derive from the authenticated player index
-  response. Achievement and commission guide lookups were not added because no
-  stable provider-backed guide source was identified in this stage.
-- Tests: missing cookie, floor validation before auth, mocked command
-  envelopes, abyss season/floor parsing, achievement POST body/DS signing, GCG
-  multi-request behavior, and capabilities metadata.
+- Result: implemented normalized SQLite gacha storage, `gacha refresh`,
+  `gacha summary`, `gacha import`, `gacha export`, and `gacha authkey`.
+  Refresh uses the existing keyring/env `gacha_url` credential path and never
+  returns the raw authkey URL.
+- Format support: UIGF v4 export/import is the default; UIGF v2 flat-list
+  import/export is also supported for compatibility.
+- Tests: duplicate detection, UIGF v4 import/export round trip, UIGF v2 import,
+  invalid UIGF rejection, mocked refresh, expired authkey sanitization, and
+  banner-filtered summaries. Imports validate required item fields and reject
+  conflicting duplicate IDs.
 - Verification:
-  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py tests/test_meta_commands.py`
+  - `.venv/bin/python -m pytest tests/test_gacha_log.py tests/test_meta_commands.py tests/test_profile_account_state.py`
   - `.venv/bin/python -m pytest`
   - `.venv/bin/ruff check .`
   - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python -m gsuid_cli challenge theater --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli progress achievements --uid <UID>`
-- Live notes: `challenge theater` and `progress achievements` succeed with the
-  stored QR credential. `challenge abyss` and `progress gcg` currently return
-  MYS retcode `1034`, surfaced as `UPSTREAM_VERIFICATION_REQUIRED`.
-- Commit: `feat: add progress challenge commands`.
-
-### Stage 8: Gacha Log
-
-- Implement gacha URL secret storage and validation.
-- Implement normalized gacha SQLite tables.
-- Implement `gacha refresh`, `gacha summary`, `gacha import`, `gacha export`.
-- Support UIGF v4 first, UIGF v2 second.
-- Never print raw authkey by default.
-- Tests: duplicate detection, import/export round trip, invalid UIGF, expired authkey, banner filtering.
-- Verification: import/export round trip passes with fixtures.
+- Live notes: provider refresh was not run live because no gacha authkey URL was
+  assumed; refresh behavior is covered by mocked provider tests.
 - Commit: `feat: add gacha log management`.
 
 ### Stage 9: Enka Panels And Ranking

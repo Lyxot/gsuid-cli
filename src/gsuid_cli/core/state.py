@@ -10,7 +10,7 @@ from pathlib import Path
 from gsuid_cli.core.config import RuntimePaths, resolve_paths
 from gsuid_cli.core.errors import EXIT_INTERNAL_BUG, CliError
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 @contextmanager
@@ -71,7 +71,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
         return
-    if version != 0:
+    if version not in {0, 1}:
         raise CliError(
             "STATE_SCHEMA_UNSUPPORTED",
             f"Unsupported state schema version: {version}",
@@ -79,31 +79,69 @@ def _migrate(conn: sqlite3.Connection) -> None:
             {"schema_version": version},
         )
 
+    if version == 0:
+        conn.executescript(
+            """
+            CREATE TABLE profiles (
+                name TEXT PRIMARY KEY,
+                default_uid TEXT,
+                default_region TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE accounts (
+                uid TEXT PRIMARY KEY,
+                region TEXT NOT NULL,
+                label TEXT,
+                is_default INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+            """
+        )
+
+    _migrate_gacha(conn)
+    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+
+
+def _migrate_gacha(conn: sqlite3.Connection) -> None:
     conn.executescript(
         """
-        CREATE TABLE profiles (
-            name TEXT PRIMARY KEY,
-            default_uid TEXT,
-            default_region TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
+        CREATE TABLE IF NOT EXISTS gacha_items (
+            uid TEXT NOT NULL,
+            id TEXT NOT NULL,
+            gacha_type TEXT NOT NULL,
+            uigf_gacha_type TEXT,
+            item_id TEXT,
+            count INTEGER NOT NULL DEFAULT 1,
+            time TEXT NOT NULL,
+            name TEXT NOT NULL,
+            lang TEXT,
+            item_type TEXT,
+            rank_type TEXT,
+            imported_at TEXT NOT NULL,
+            PRIMARY KEY(uid, id)
         );
 
-        CREATE TABLE accounts (
-            uid TEXT PRIMARY KEY,
-            region TEXT NOT NULL,
-            label TEXT,
-            is_default INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        );
+        CREATE INDEX IF NOT EXISTS idx_gacha_items_uid_time
+        ON gacha_items(uid, time);
 
-        CREATE TABLE settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
+        CREATE INDEX IF NOT EXISTS idx_gacha_items_uid_gacha_type
+        ON gacha_items(uid, gacha_type);
 
-        PRAGMA user_version = 1;
+        CREATE TABLE IF NOT EXISTS gacha_sync (
+            uid TEXT NOT NULL,
+            gacha_type TEXT NOT NULL,
+            last_id TEXT,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY(uid, gacha_type)
+        );
         """
     )
 
