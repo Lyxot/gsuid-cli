@@ -639,36 +639,45 @@ tests/
 ### Stage 5: Public Data MVP — completed.
 ### Stage 6: Authenticated Daily And Player Data — completed.
 ### Stage 7: Progress And Challenge Data — completed.
-### Stage 8: Gacha Log
+### Stage 8: Gacha Log — completed.
+### Stage 9: Enka Panels And Ranking
 
 - Status: completed.
-- Result: implemented normalized SQLite gacha storage, `gacha refresh`,
-  `gacha summary`, `gacha import`, `gacha export`, and `gacha authkey`.
-  Refresh uses the existing keyring/env `gacha_url` credential path and never
-  returns the raw authkey URL.
-- Format support: UIGF v4 export/import is the default; UIGF v2 flat-list
-  import/export is also supported for compatibility.
-- Tests: duplicate detection, UIGF v4 import/export round trip, UIGF v2 import,
-  invalid UIGF rejection, mocked refresh, expired authkey sanitization, and
-  banner-filtered summaries. Imports validate required item fields and reject
-  conflicting duplicate IDs.
+- Result: implemented Enka-backed panel refresh, SQLite `panel_cache`, cached
+  panel list/show/showcase/compare/save commands, and local cache-based
+  rank summary/list/character/artifact commands.
+- Source plan: Enka.Network UID showcase API is the panel source. Missing
+  avatar names are enriched from the existing Project Amber public character
+  index when available. Ranking commands use local cached panel data only; no
+  stable external/global ranking provider was added in this stage.
+- Data limits: weapon/artifact display names can be empty for raw Enka payloads
+  because this stage does not yet resolve Enka text-map hashes. Typed panel
+  mutation options are accepted and recorded but not applied. Enka fight-prop
+  fractions are normalized to display percentages in panel output.
+- Cache behavior: `panel refresh` fetches fresh provider data by default and
+  then updates the local SQLite cache; `--cache only` remains available for
+  explicitly replaying the HTTP cache.
+- Tests: panel cache fixtures, v2-to-v3 state migration, character alias
+  matching, compare deltas, save artifacts, artifact sort keys, Enka provider
+  canonical endpoint, percent fight-prop normalization, refresh cache policy,
+  invalid build specs, missing cache, and capabilities metadata.
 - Verification:
-  - `.venv/bin/python -m pytest tests/test_gacha_log.py tests/test_meta_commands.py tests/test_profile_account_state.py`
+  - `.venv/bin/python -m pytest tests/test_panel_rank.py tests/test_meta_commands.py`
   - `.venv/bin/python -m pytest`
   - `.venv/bin/ruff check .`
   - `.venv/bin/ruff format --check .`
-- Live notes: provider refresh was not run live because no gacha authkey URL was
-  assumed; refresh behavior is covered by mocked provider tests.
-- Commit: `feat: add gacha log management`.
-
-### Stage 9: Enka Panels And Ranking
-
-- Implement Enka provider and local panel cache.
-- Implement `panel refresh`, `panel list`, `panel show`, `panel compare`, `panel save`.
-- Implement `rank summary`, `rank list`, `rank character`, `rank artifact` if provider access is stable.
-- Keep typed panel mutation options; do not implement free-form chat parser yet.
-- Tests: panel cache fixtures, character alias matching, compare deltas, invalid build specs.
-- Verification: fixture-based panel commands pass; optional live Enka command.
+  - `.venv/bin/python -m gsuid_cli meta capabilities`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 panel refresh --uid <UID> --source enka --force`
+  - `.venv/bin/python -m gsuid_cli panel list --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli panel show --uid <UID> --character 温迪`
+  - `.venv/bin/python -m gsuid_cli rank summary --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli rank artifact --uid <UID> --character 温迪 --sort crit`
+  - standalone review agent before commit; follow-up review passed with no
+    findings after fixes.
+- Live notes: Enka refresh succeeded for UID `<UID>`, caching 12 showcased
+  characters with Project Amber character-name enrichment. An initial smoke
+  command with `--timeout` after the subcommand failed as expected because
+  global options must precede the command group.
 - Commit: `feat: add panel rank commands`.
 
 ### Stage 10: Rendering And Artifacts

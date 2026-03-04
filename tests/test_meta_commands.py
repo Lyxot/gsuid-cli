@@ -47,6 +47,8 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert {"challenge.abyss", "challenge.theater", "challenge.hard"}.issubset(commands)
     assert {"progress.completion", "progress.exploration", "progress.gcg"}.issubset(commands)
     assert {"gacha.refresh", "gacha.summary", "gacha.import", "gacha.export"}.issubset(commands)
+    assert {"panel.refresh", "panel.list", "panel.show", "panel.compare"}.issubset(commands)
+    assert {"rank.summary", "rank.list", "rank.character", "rank.artifact"}.issubset(commands)
     assert payload["data"]["regions"] == ["cn"]
 
 

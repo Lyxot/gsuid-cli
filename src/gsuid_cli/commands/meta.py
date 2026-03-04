@@ -11,10 +11,12 @@ from gsuid_cli.commands import (
     auth,
     challenge,
     gacha,
+    panel,
     player,
     profile,
     progress,
     public_data,
+    rank,
 )
 from gsuid_cli.core.config import resolve_paths
 from gsuid_cli.core.envelope import SCHEMA
@@ -86,6 +88,8 @@ def capabilities_command(_args: argparse.Namespace) -> dict[str, object]:
         + challenge.CAPABILITIES
         + progress.CAPABILITIES
         + gacha.CAPABILITIES
+        + panel.CAPABILITIES
+        + rank.CAPABILITIES
     )
     commands = [dict(command, implemented=True) for command in command_capabilities]
     return {

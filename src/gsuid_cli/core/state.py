@@ -10,7 +10,7 @@ from pathlib import Path
 from gsuid_cli.core.config import RuntimePaths, resolve_paths
 from gsuid_cli.core.errors import EXIT_INTERNAL_BUG, CliError
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 @contextmanager
@@ -71,7 +71,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
         return
-    if version not in {0, 1}:
+    if version not in {0, 1, 2}:
         raise CliError(
             "STATE_SCHEMA_UNSUPPORTED",
             f"Unsupported state schema version: {version}",
@@ -106,7 +106,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
             """
         )
 
-    _migrate_gacha(conn)
+    if version < 2:
+        _migrate_gacha(conn)
+    if version < 3:
+        _migrate_panels(conn)
     conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
 
@@ -142,6 +145,25 @@ def _migrate_gacha(conn: sqlite3.Connection) -> None:
             updated_at TEXT NOT NULL,
             PRIMARY KEY(uid, gacha_type)
         );
+        """
+    )
+
+
+def _migrate_panels(conn: sqlite3.Connection) -> None:
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS panel_cache (
+            uid TEXT PRIMARY KEY,
+            source_provider TEXT NOT NULL,
+            fetched_at TEXT NOT NULL,
+            ttl INTEGER,
+            player_info_json TEXT NOT NULL,
+            avatar_info_json TEXT NOT NULL,
+            raw_json TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_panel_cache_fetched_at
+        ON panel_cache(fetched_at);
         """
     )
 

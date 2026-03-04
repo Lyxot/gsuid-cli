@@ -16,10 +16,12 @@ from gsuid_cli.commands import (
     challenge,
     gacha,
     meta,
+    panel,
     player,
     profile,
     progress,
     public_data,
+    rank,
 )
 from gsuid_cli.core.envelope import error_envelope, success_envelope
 from gsuid_cli.core.errors import (
@@ -86,6 +88,8 @@ def build_parser() -> argparse.ArgumentParser:
     challenge.register(groups)
     progress.register(groups)
     gacha.register(groups)
+    panel.register(groups)
+    rank.register(groups)
     return parser
 
 
