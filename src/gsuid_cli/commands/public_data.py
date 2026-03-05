@@ -3,12 +3,14 @@ from __future__ import annotations
 import argparse
 
 from gsuid_cli.commands.auth import _credential, _uid_and_region
+from gsuid_cli.commands.rendering import maybe_render_image
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
 from gsuid_cli.providers import provider_for_region
 from gsuid_cli.providers.public import DAY_NAMES, PublicDataProvider
+from gsuid_cli.renderers.cards import render_daily_note
 
 CAPABILITIES = [
     {
@@ -80,7 +82,7 @@ CAPABILITIES = [
         "description": "Show current resin, commissions, expeditions, and teapot status.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "off",
     },
     {
@@ -127,12 +129,20 @@ def daily_materials_command(args: argparse.Namespace) -> CommandResult:
 
 def daily_note_command(args: argparse.Namespace) -> CommandResult:
     uid, region, cookie, credential_source, storage_backend = _cookie_context(args)
-    return _auth_provider(args, region).daily_note(
+    result = _auth_provider(args, region).daily_note(
         uid=uid,
         cookie=cookie,
         region=region,
         credential_source=credential_source,
         storage_backend=storage_backend,
+    )
+    return maybe_render_image(
+        args,
+        result,
+        renderer=render_daily_note,
+        name="daily_note",
+        filename=f"daily_note_{uid}.png",
+        description="Rendered daily note card",
     )
 
 

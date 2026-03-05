@@ -640,53 +640,37 @@ tests/
 ### Stage 6: Authenticated Daily And Player Data — completed.
 ### Stage 7: Progress And Challenge Data — completed.
 ### Stage 8: Gacha Log — completed.
-### Stage 9: Enka Panels And Ranking
+### Stage 9: Enka Panels And Ranking — completed.
+### Stage 10: Rendering And Artifacts
 
 - Status: completed.
-- Result: implemented Enka-backed panel refresh, SQLite `panel_cache`, cached
-  panel list/show/showcase/compare/save commands, and local cache-based
-  rank summary/list/character/artifact commands.
-- Source plan: Enka.Network UID showcase API is the panel source. Missing
-  avatar names are enriched from the existing Project Amber public character
-  index when available. Ranking commands use local cached panel data only; no
-  stable external/global ranking provider was added in this stage.
-- Data limits: weapon/artifact display names can be empty for raw Enka payloads
-  because this stage does not yet resolve Enka text-map hashes. Typed panel
-  mutation options are accepted and recorded but not applied. Enka fight-prop
-  fractions are normalized to display percentages in panel output.
-- Cache behavior: `panel refresh` fetches fresh provider data by default and
-  then updates the local SQLite cache; `--cache only` remains available for
-  explicitly replaying the HTTP cache.
-- Tests: panel cache fixtures, v2-to-v3 state migration, character alias
-  matching, compare deltas, save artifacts, artifact sort keys, Enka provider
-  canonical endpoint, percent fight-prop normalization, refresh cache policy,
-  invalid build specs, missing cache, and capabilities metadata.
+- Result: added deterministic PNG card rendering for `daily.note`,
+  `challenge.abyss`, and `panel.show`, attached through the existing artifact
+  manager when `--render image` or `--render both` is requested.
+- Scope note: `map.find` rendering is deferred until the map command exists in
+  Stage 11.
+- Render metadata: capabilities now advertise image rendering for the three
+  implemented commands. Artifact envelopes include absolute path, byte count,
+  media type, sha256, kind, name, and description.
+- Data limits: cards are first-pass data-dense summaries. Full GenshinUID visual
+  parity and Enka weapon/artifact text-map resolution are deferred to later
+  resource/renderer polish.
+- Tests: daily note, abyss, and panel render command smokes verify PNG artifact
+  metadata and image dimensions; meta tests verify image capabilities.
 - Verification:
-  - `.venv/bin/python -m pytest tests/test_panel_rank.py tests/test_meta_commands.py`
+  - `.venv/bin/python -m pytest tests/test_rendering_artifacts.py tests/test_meta_commands.py`
   - `.venv/bin/python -m pytest`
   - `.venv/bin/ruff check .`
   - `.venv/bin/ruff format --check .`
   - `.venv/bin/python -m gsuid_cli meta capabilities`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 panel refresh --uid <UID> --source enka --force`
-  - `.venv/bin/python -m gsuid_cli panel list --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli panel show --uid <UID> --character 温迪`
-  - `.venv/bin/python -m gsuid_cli rank summary --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli rank artifact --uid <UID> --character 温迪 --sort crit`
+  - `.venv/bin/python -m gsuid_cli --request-id stage10-panel --render image panel show --uid <UID> --character 温迪`
   - standalone review agent before commit; follow-up review passed with no
     findings after fixes.
-- Live notes: Enka refresh succeeded for UID `<UID>`, caching 12 showcased
-  characters with Project Amber character-name enrichment. An initial smoke
-  command with `--timeout` after the subcommand failed as expected because
-  global options must precede the command group.
-- Commit: `feat: add panel rank commands`.
-
-### Stage 10: Rendering And Artifacts
-
-- Implement artifact manager and image renderers incrementally.
-- Start with daily note, abyss summary, panel show, and map find.
-- Each renderer must have deterministic output paths and artifact metadata.
-- Tests: artifact path generation, sha256, image dimensions, render smoke tests.
-- Verification: `--render image` and `--render both` work for implemented commands.
+- Live notes: panel render succeeded against the Stage 9 Enka cache and produced
+  a nonblank `1080x720` PNG artifact. Live `daily.note` and `challenge.abyss`
+  rendering were not run because live MYS game-record calls have previously hit
+  provider verification retcode `1034`; mocked command tests cover those render
+  paths.
 - Commit: `feat: add rendered artifacts`.
 
 ### Stage 11: Guides, Maps, And Rich Public Data

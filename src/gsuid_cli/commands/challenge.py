@@ -3,11 +3,13 @@ from __future__ import annotations
 import argparse
 
 from gsuid_cli.commands.auth import _credential, _uid_and_region
+from gsuid_cli.commands.rendering import maybe_render_image
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
 from gsuid_cli.providers import provider_for_region
+from gsuid_cli.renderers.cards import render_abyss_summary
 
 CAPABILITIES = [
     {
@@ -15,7 +17,7 @@ CAPABILITIES = [
         "description": "Show authenticated Spiral Abyss data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "off",
     },
     {
@@ -63,7 +65,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 def abyss_command(args: argparse.Namespace) -> CommandResult:
     _validate_floor(args.floor)
     uid, region, cookie, credential_source, storage_backend = _cookie_context(args)
-    return _provider(args, region).challenge_abyss(
+    result = _provider(args, region).challenge_abyss(
         uid=uid,
         cookie=cookie,
         region=region,
@@ -71,6 +73,14 @@ def abyss_command(args: argparse.Namespace) -> CommandResult:
         storage_backend=storage_backend,
         season=args.season,
         floor=args.floor,
+    )
+    return maybe_render_image(
+        args,
+        result,
+        renderer=render_abyss_summary,
+        name="abyss_summary",
+        filename=f"abyss_{uid}_{args.season}.png",
+        description="Rendered Spiral Abyss summary card",
     )
 
 

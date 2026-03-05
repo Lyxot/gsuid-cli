@@ -16,6 +16,7 @@ from gsuid_cli.commands.panel_cache import (
     player_summary,
     save_panel_cache,
 )
+from gsuid_cli.commands.rendering import maybe_render_image
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.config import resolve_paths
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
@@ -24,6 +25,7 @@ from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.state import state_db
 from gsuid_cli.providers.enka import EnkaProvider
 from gsuid_cli.providers.public import AMBR_BASE_URL
+from gsuid_cli.renderers.cards import render_panel
 
 CAPABILITIES = [
     {
@@ -47,7 +49,7 @@ CAPABILITIES = [
         "description": "Show one cached character panel.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "off",
     },
     {
@@ -184,7 +186,15 @@ def show_command(args: argparse.Namespace) -> CommandResult:
     overrides = _requested_overrides(args)
     if overrides:
         data["requested_overrides"] = overrides
-    return CommandResult(data=data, warnings=warnings, source=cache_source(cache))
+    result = CommandResult(data=data, warnings=warnings, source=cache_source(cache))
+    return maybe_render_image(
+        args,
+        result,
+        renderer=render_panel,
+        name="panel",
+        filename=f"panel_{uid}_{_safe_filename(args.character)}.png",
+        description="Rendered character panel card",
+    )
 
 
 def compare_command(args: argparse.Namespace) -> CommandResult:
