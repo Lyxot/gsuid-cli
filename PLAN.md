@@ -510,20 +510,24 @@ Return data:
 ```text
 gsuid batch run --file commands.jsonl
 gsuid batch plan --file commands.jsonl
-gsuid monitor once [--uid UID] [--checks resin,expedition,transformer,daily,events]
+gsuid monitor once [--min-free-mb N] [--max-http-cache-files N] [--max-artifact-files N]
 ```
 
-Batch input line format:
+Batch input line formats:
 
 ```json
-{"command":"daily.note","args":{"uid":"<UID>"},"request_id":"req-1"}
+{"argv":["daily","note","--uid","<UID>"],"request_id":"req-1"}
+{"command":"meta version","request_id":"req-2"}
 ```
 
 Batch output:
 
-- Default output is NDJSON, one JSON envelope per input line.
+- `batch run` returns one aggregate JSON envelope containing one nested JSON
+  envelope per input line. Nested request ids are deterministic when omitted.
 - `batch plan` validates commands without executing provider calls.
-- `monitor once` evaluates notification conditions and returns structured reminders. It does not send chat messages.
+- Batch commands cannot be nested inside batch input.
+- `monitor once` evaluates local health thresholds and returns structured
+  `ok`/`warn` checks. It does not send chat messages.
 
 Daemon support is deferred until one-shot monitoring is stable.
 
@@ -642,60 +646,43 @@ tests/
 ### Stage 8: Gacha Log — completed.
 ### Stage 9: Enka Panels And Ranking — completed.
 ### Stage 10: Rendering And Artifacts — completed.
-### Stage 11: Guides, Maps, And Rich Public Data
+### Stage 11: Guides, Maps, And Rich Public Data — completed.
+### Stage 12: Batch And Agent Hardening
 
 - Status: completed.
-- Result: added richer public-data command surfaces backed by stable sources
-  already used in the project: Project Amber for entity facts/materials/events,
-  Fandom for codes, MiniGG-compatible map image artifacts, and a metadata
-  cache-warming `resources sync` command.
-- Commands: `wiki food`, `wiki talent`, `wiki constellation`,
-  `wiki character-materials`, `wiki weapon-materials`, `guide character`,
-  `guide reference-panel`, `guide route`, `guide abyss`, `guide theater`,
-  `recommend build`, `recommend holder`, `announcements list`,
-  `announcements show`, `map find`, `rerun list`, `misc primogems-plan`, and
-  `resources sync`.
-- Data limits: curated build recommendations, holder recommendations,
-  reference-panel targets, abyss/theater guide rotations, MiniGG marker
-  coordinates, and primogem estimates return explicit source-limitation metadata
-  instead of fabricated data.
-- Tests: parser coverage for new public commands, Project Amber talent/material
-  normalization, MiniGG map artifact metadata, resource sync cache warming,
-  invalid index validation, future-banner rerun filtering, non-image MiniGG
-  rejection, and capability metadata.
+- Result: added agent-hardening commands and metadata: `batch run`,
+  `batch plan`, `monitor once`, `meta schema`, and `meta errors`.
+- Batch contract: batch input is JSONL with `argv` string arrays or `command`
+  strings. `batch run` executes through the normal CLI parser/envelope boundary,
+  forces nested JSON envelopes, assigns deterministic request ids, and returns
+  mixed success/failure results in a successful batch envelope.
+- Schema contract: `meta schema` exports stable success-envelope schemas for
+  every implemented command and a shared error-envelope schema. Per-command
+  `data` fields remain open objects until provider data models are stable.
+- Error catalog: `meta errors` exports stable error codes, exit codes,
+  retryability defaults, and descriptions for agent callers.
+- Monitor contract: `monitor once` performs local threshold checks for storage,
+  HTTP cache files, and artifact files, returning `ok`/`warn` status without
+  daemon behavior.
+- Tests: JSONL batch mixed success/failure, validation-only planning, monitor
+  threshold warnings, schema export, error catalog, and capability metadata.
 - Verification:
-  - `.venv/bin/python -m pytest tests/test_rich_public_data.py tests/test_public_data.py tests/test_meta_commands.py`
+  - `.venv/bin/python -m pytest tests/test_agent_hardening.py tests/test_meta_commands.py`
   - `.venv/bin/python -m pytest`
   - `.venv/bin/ruff check .`
   - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python -m gsuid_cli --request-id stage11-wiki wiki talent --character Amber --talent 1`
-  - `.venv/bin/python -m gsuid_cli --request-id stage11-guide guide character --name Amber`
-  - `.venv/bin/python -m gsuid_cli --request-id stage11-ref guide reference-panel --character Amber`
-  - `.venv/bin/python -m gsuid_cli --request-id stage11-rerun rerun list --limit 2`
-  - `.venv/bin/python -m gsuid_cli --request-id stage11-rerun-fixed rerun list --limit 2`
-  - `.venv/bin/python -m gsuid_cli --request-id stage11-ann announcements list --limit 2`
-  - `.venv/bin/python -m gsuid_cli --request-id stage11-resources resources sync --scope maps`
-  - `.venv/bin/python -m gsuid_cli --request-id stage11-sync-wiki --timeout 15 resources sync --scope wiki`
-  - `.venv/bin/python -m gsuid_cli --request-id stage11-caps meta capabilities`
-  - `.venv/bin/python -m gsuid_cli --debug --request-id stage11-route-category --cache only guide route --material 甜甜花`
-  - standalone review agent before commit; rerun/category/media-type/test-note
-    findings were fixed and reverified.
-- Live notes: Project Amber public-data and resource-sync smokes succeeded
-  without credentials. MiniGG map live smoke used the same endpoint/parameters
-  as `gsuid_core` but failed from this machine with proxy/TLS connection errors;
-  mocked provider tests cover successful image artifact output and non-image
-  rejection. `guide route --cache only` now bypasses JSON cache and reports
-  MiniGG failures under the `guide.route` provider category.
-- Commit: `feat: add guide map commands`.
-
-### Stage 12: Batch And Agent Hardening
-
-- Implement `batch run`, `batch plan`, and `monitor once`.
-- Add JSON schema export for every command.
-- Add stable machine-readable error catalog.
-- Add command capability metadata with auth/render/cache requirements.
-- Tests: JSONL batch success/failure mixing, validation-only mode, monitor thresholds.
-- Verification: batch can execute mixed public/auth commands with deterministic envelopes.
+  - `.venv/bin/python -m gsuid_cli --request-id stage12-schema meta schema --command meta.version`
+  - `.venv/bin/python -m gsuid_cli --request-id stage12-errors meta errors`
+  - `.venv/bin/python -m gsuid_cli --request-id stage12-monitor monitor once --max-http-cache-files 1000000`
+  - `printf ... | .venv/bin/python -m gsuid_cli --request-id stage12-batch batch run --file -`
+  - `printf ... | .venv/bin/python -m gsuid_cli --request-id stage12-plan batch plan --file -`
+  - `.venv/bin/python -m gsuid_cli --request-id stage12-caps meta capabilities`
+  - `.venv/bin/python -m gsuid_cli --request-id stage12-errors-fix meta errors`
+  - `printf ... | .venv/bin/python -m gsuid_cli --request-id stage12-batch-fix batch run --file -`
+  - `.venv/bin/python -m gsuid_cli --request-id stage12-missing-batch batch plan --file /tmp/gsuid-cli-missing.jsonl`
+  - standalone review agent before commit; error-catalog, batch-format,
+    nested-batch, invalid UTF-8 batch input, and stale-plan findings were fixed
+    and reverified.
 - Commit: `feat: add agent batch mode`.
 
 ### Stage 13: Documentation, CI, And Release

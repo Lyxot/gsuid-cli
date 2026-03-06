@@ -13,9 +13,11 @@ from gsuid_cli import __version__
 from gsuid_cli.commands import (
     account,
     auth,
+    batch,
     challenge,
     gacha,
     meta,
+    monitor,
     panel,
     player,
     profile,
@@ -84,8 +86,10 @@ def build_parser() -> argparse.ArgumentParser:
     profile.register(groups)
     account.register(groups)
     auth.register(groups)
+    batch.register(groups)
     public_data.register(groups)
     resources.register(groups)
+    monitor.register(groups)
     player.register(groups)
     challenge.register(groups)
     progress.register(groups)
