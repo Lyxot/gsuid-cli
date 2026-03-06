@@ -43,6 +43,16 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert {"profile.init", "account.add", "auth.cookie.set"}.issubset(commands)
     assert "auth.qrcode.login" in commands
     assert {"wiki.character", "events.list", "codes.list", "daily.materials"}.issubset(commands)
+    assert {
+        "wiki.food",
+        "wiki.talent",
+        "wiki.constellation",
+        "wiki.character-materials",
+        "wiki.weapon-materials",
+    }.issubset(commands)
+    assert {"guide.character", "guide.route", "recommend.build", "map.find"}.issubset(commands)
+    assert {"announcements.list", "rerun.list", "misc.primogems-plan"}.issubset(commands)
+    assert "resources.sync" in commands
     assert {"daily.note", "daily.signin", "player.summary", "player.characters"}.issubset(commands)
     assert {"challenge.abyss", "challenge.theater", "challenge.hard"}.issubset(commands)
     assert {"progress.completion", "progress.exploration", "progress.gcg"}.issubset(commands)
@@ -53,6 +63,8 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert "image" in capability_by_command["daily.note"]["render"]
     assert "image" in capability_by_command["challenge.abyss"]["render"]
     assert "image" in capability_by_command["panel.show"]["render"]
+    assert capability_by_command["map.find"]["cache"] == "off"
+    assert "data" in capability_by_command["map.find"]["render"]
     assert payload["data"]["regions"] == ["cn"]
 
 

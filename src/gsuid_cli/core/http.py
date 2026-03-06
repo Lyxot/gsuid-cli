@@ -27,6 +27,14 @@ class ProviderResponse:
     status_code: int
 
 
+@dataclass(frozen=True)
+class ProviderBytesResponse:
+    content: bytes
+    media_type: str
+    source: dict[str, object]
+    status_code: int
+
+
 class HttpClient:
     def __init__(
         self,
@@ -172,6 +180,81 @@ class HttpClient:
 
         return ProviderResponse(
             payload=payload,
+            source=_source(provider, region, False, fetched_at),
+            status_code=response.status_code,
+        )
+
+    def request_bytes(
+        self,
+        method: str,
+        url: str,
+        *,
+        provider: str,
+        region: str,
+        category: str,
+        params: dict[str, object] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> ProviderBytesResponse:
+        method = method.upper()
+        if self.cache_policy == "only":
+            raise CliError(
+                "CACHE_MISS",
+                "No cached provider response is available for this request.",
+                EXIT_CACHE,
+                _request_details(provider, region, category, method, url, params),
+            )
+
+        try:
+            with httpx.Client(timeout=self.timeout, transport=self.transport) as client:
+                response = client.request(method, url, params=params, headers=headers)
+        except httpx.TimeoutException as exc:
+            raise _network_error(
+                code="NETWORK_TIMEOUT",
+                message="Provider request timed out.",
+                provider=provider,
+                region=region,
+                category=category,
+                method=method,
+                url=url,
+                params=params,
+                retryable=True,
+            ) from exc
+        except httpx.RequestError as exc:
+            raise _network_error(
+                code="NETWORK_ERROR",
+                message="Provider request failed.",
+                provider=provider,
+                region=region,
+                category=category,
+                method=method,
+                url=url,
+                params=params,
+                retryable=True,
+            ) from exc
+
+        fetched_at = utc_now()
+        if response.status_code >= 400:
+            raise _upstream_error(
+                code="UPSTREAM_HTTP_ERROR",
+                message="Provider returned an HTTP error.",
+                provider=provider,
+                region=region,
+                category=category,
+                method=method,
+                url=url,
+                params=params,
+                status_code=response.status_code,
+                body=response.text,
+                retryable=response.status_code >= 500,
+                debug=self.debug,
+            )
+
+        return ProviderBytesResponse(
+            content=response.content,
+            media_type=response.headers.get("content-type", "application/octet-stream")
+            .split(";")[0]
+            .strip()
+            .lower(),
             source=_source(provider, region, False, fetched_at),
             status_code=response.status_code,
         )

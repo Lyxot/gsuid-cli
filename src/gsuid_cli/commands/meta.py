@@ -17,6 +17,7 @@ from gsuid_cli.commands import (
     progress,
     public_data,
     rank,
+    resources,
 )
 from gsuid_cli.core.config import resolve_paths
 from gsuid_cli.core.envelope import SCHEMA
@@ -84,6 +85,7 @@ def capabilities_command(_args: argparse.Namespace) -> dict[str, object]:
         + account.CAPABILITIES
         + auth.CAPABILITIES
         + public_data.CAPABILITIES
+        + resources.CAPABILITIES
         + player.CAPABILITIES
         + challenge.CAPABILITIES
         + progress.CAPABILITIES

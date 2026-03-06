@@ -22,6 +22,7 @@ from gsuid_cli.commands import (
     progress,
     public_data,
     rank,
+    resources,
 )
 from gsuid_cli.core.envelope import error_envelope, success_envelope
 from gsuid_cli.core.errors import (
@@ -84,6 +85,7 @@ def build_parser() -> argparse.ArgumentParser:
     account.register(groups)
     auth.register(groups)
     public_data.register(groups)
+    resources.register(groups)
     player.register(groups)
     challenge.register(groups)
     progress.register(groups)

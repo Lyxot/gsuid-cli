@@ -641,46 +641,51 @@ tests/
 ### Stage 7: Progress And Challenge Data — completed.
 ### Stage 8: Gacha Log — completed.
 ### Stage 9: Enka Panels And Ranking — completed.
-### Stage 10: Rendering And Artifacts
+### Stage 10: Rendering And Artifacts — completed.
+### Stage 11: Guides, Maps, And Rich Public Data
 
 - Status: completed.
-- Result: added deterministic PNG card rendering for `daily.note`,
-  `challenge.abyss`, and `panel.show`, attached through the existing artifact
-  manager when `--render image` or `--render both` is requested.
-- Scope note: `map.find` rendering is deferred until the map command exists in
-  Stage 11.
-- Render metadata: capabilities now advertise image rendering for the three
-  implemented commands. Artifact envelopes include absolute path, byte count,
-  media type, sha256, kind, name, and description.
-- Data limits: cards are first-pass data-dense summaries. Full GenshinUID visual
-  parity and Enka weapon/artifact text-map resolution are deferred to later
-  resource/renderer polish.
-- Tests: daily note, abyss, and panel render command smokes verify PNG artifact
-  metadata and image dimensions; meta tests verify image capabilities.
+- Result: added richer public-data command surfaces backed by stable sources
+  already used in the project: Project Amber for entity facts/materials/events,
+  Fandom for codes, MiniGG-compatible map image artifacts, and a metadata
+  cache-warming `resources sync` command.
+- Commands: `wiki food`, `wiki talent`, `wiki constellation`,
+  `wiki character-materials`, `wiki weapon-materials`, `guide character`,
+  `guide reference-panel`, `guide route`, `guide abyss`, `guide theater`,
+  `recommend build`, `recommend holder`, `announcements list`,
+  `announcements show`, `map find`, `rerun list`, `misc primogems-plan`, and
+  `resources sync`.
+- Data limits: curated build recommendations, holder recommendations,
+  reference-panel targets, abyss/theater guide rotations, MiniGG marker
+  coordinates, and primogem estimates return explicit source-limitation metadata
+  instead of fabricated data.
+- Tests: parser coverage for new public commands, Project Amber talent/material
+  normalization, MiniGG map artifact metadata, resource sync cache warming,
+  invalid index validation, future-banner rerun filtering, non-image MiniGG
+  rejection, and capability metadata.
 - Verification:
-  - `.venv/bin/python -m pytest tests/test_rendering_artifacts.py tests/test_meta_commands.py`
+  - `.venv/bin/python -m pytest tests/test_rich_public_data.py tests/test_public_data.py tests/test_meta_commands.py`
   - `.venv/bin/python -m pytest`
   - `.venv/bin/ruff check .`
   - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python -m gsuid_cli meta capabilities`
-  - `.venv/bin/python -m gsuid_cli --request-id stage10-panel --render image panel show --uid <UID> --character 温迪`
-  - standalone review agent before commit; follow-up review passed with no
-    findings after fixes.
-- Live notes: panel render succeeded against the Stage 9 Enka cache and produced
-  a nonblank `1080x720` PNG artifact. Live `daily.note` and `challenge.abyss`
-  rendering were not run because live MYS game-record calls have previously hit
-  provider verification retcode `1034`; mocked command tests cover those render
-  paths.
-- Commit: `feat: add rendered artifacts`.
-
-### Stage 11: Guides, Maps, And Rich Public Data
-
-- Implement `guide character`, `guide reference-panel`, `guide route`, `guide abyss`, `guide theater`.
-- Implement `recommend build`, `recommend holder`.
-- Implement `map find`, `rerun list`, `misc primogems-plan`.
-- Add resource sync command for local static data.
-- Tests: resource missing, resource sync, alias match, map no-result, artifact output.
-- Verification: public guide/map commands work without credentials.
+  - `.venv/bin/python -m gsuid_cli --request-id stage11-wiki wiki talent --character Amber --talent 1`
+  - `.venv/bin/python -m gsuid_cli --request-id stage11-guide guide character --name Amber`
+  - `.venv/bin/python -m gsuid_cli --request-id stage11-ref guide reference-panel --character Amber`
+  - `.venv/bin/python -m gsuid_cli --request-id stage11-rerun rerun list --limit 2`
+  - `.venv/bin/python -m gsuid_cli --request-id stage11-rerun-fixed rerun list --limit 2`
+  - `.venv/bin/python -m gsuid_cli --request-id stage11-ann announcements list --limit 2`
+  - `.venv/bin/python -m gsuid_cli --request-id stage11-resources resources sync --scope maps`
+  - `.venv/bin/python -m gsuid_cli --request-id stage11-sync-wiki --timeout 15 resources sync --scope wiki`
+  - `.venv/bin/python -m gsuid_cli --request-id stage11-caps meta capabilities`
+  - `.venv/bin/python -m gsuid_cli --debug --request-id stage11-route-category --cache only guide route --material 甜甜花`
+  - standalone review agent before commit; rerun/category/media-type/test-note
+    findings were fixed and reverified.
+- Live notes: Project Amber public-data and resource-sync smokes succeeded
+  without credentials. MiniGG map live smoke used the same endpoint/parameters
+  as `gsuid_core` but failed from this machine with proxy/TLS connection errors;
+  mocked provider tests cover successful image artifact output and non-image
+  rejection. `guide route --cache only` now bypasses JSON cache and reports
+  MiniGG failures under the `guide.route` provider category.
 - Commit: `feat: add guide map commands`.
 
 ### Stage 12: Batch And Agent Hardening
