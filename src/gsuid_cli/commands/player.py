@@ -29,9 +29,33 @@ CAPABILITIES = [
         "cache": "off",
     },
     {
+        "command": "player.inventory",
+        "description": "Report inventory data support status.",
+        "auth": "none",
+        "regions": ["cn"],
+        "render": ["data"],
+        "cache": "off",
+    },
+    {
+        "command": "player.calendar",
+        "description": "Report player calendar data support status.",
+        "auth": "none",
+        "regions": ["cn"],
+        "render": ["data"],
+        "cache": "off",
+    },
+    {
         "command": "player.diary",
         "description": "Show authenticated monthly traveler diary data.",
         "auth": "cookie",
+        "regions": ["cn"],
+        "render": ["data"],
+        "cache": "off",
+    },
+    {
+        "command": "player.register-time",
+        "description": "Report registration-time data support status.",
+        "auth": "none",
         "regions": ["cn"],
         "render": ["data"],
         "cache": "off",
@@ -51,10 +75,25 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     characters.add_argument("--uid", dest="command_uid")
     characters.set_defaults(handler=characters_command, command_name="player.characters")
 
+    inventory = commands.add_parser("inventory", help="Report inventory data support status.")
+    inventory.add_argument("--uid", dest="command_uid")
+    inventory.set_defaults(handler=inventory_command, command_name="player.inventory")
+
+    calendar = commands.add_parser("calendar", help="Report player calendar data support status.")
+    calendar.add_argument("--uid", dest="command_uid")
+    calendar.set_defaults(handler=calendar_command, command_name="player.calendar")
+
     diary = commands.add_parser("diary", help="Show monthly traveler diary data.")
     diary.add_argument("--uid", dest="command_uid")
     diary.add_argument("--month", help="Diary month in YYYY-MM format.")
     diary.set_defaults(handler=diary_command, command_name="player.diary")
+
+    register_time = commands.add_parser(
+        "register-time",
+        help="Report registration-time data support status.",
+    )
+    register_time.add_argument("--uid", dest="command_uid")
+    register_time.set_defaults(handler=register_time_command, command_name="player.register-time")
 
 
 def summary_command(args: argparse.Namespace) -> CommandResult:
@@ -79,6 +118,22 @@ def characters_command(args: argparse.Namespace) -> CommandResult:
     )
 
 
+def inventory_command(args: argparse.Namespace) -> CommandResult:
+    return _source_limited_player_command(
+        args,
+        field="inventory",
+        message="inventory item counts are not exposed by the configured MYS provider",
+    )
+
+
+def calendar_command(args: argparse.Namespace) -> CommandResult:
+    return _source_limited_player_command(
+        args,
+        field="calendar",
+        message="personal calendar data is not exposed by the configured MYS provider",
+    )
+
+
 def diary_command(args: argparse.Namespace) -> CommandResult:
     _validate_month_arg(args.month)
     uid, region, cookie, credential_source, storage_backend = _cookie_context(args)
@@ -89,6 +144,14 @@ def diary_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
         month=args.month,
+    )
+
+
+def register_time_command(args: argparse.Namespace) -> CommandResult:
+    return _source_limited_player_command(
+        args,
+        field="register_time",
+        message="registration time is not exposed by the configured MYS provider",
     )
 
 
@@ -110,6 +173,25 @@ def _cookie_context(args: argparse.Namespace) -> tuple[str, str, str, str, str |
     args.credential_kind = "cookie"
     cookie, credential_source, storage_backend = _credential(args, uid)
     return uid, region, cookie, credential_source, storage_backend
+
+
+def _source_limited_player_command(
+    args: argparse.Namespace,
+    *,
+    field: str,
+    message: str,
+) -> CommandResult:
+    uid, region = _uid_and_region(args)
+    ensure_supported_region(region)
+    return CommandResult(
+        data={
+            "uid": uid,
+            "available": False,
+            field: [] if field in {"inventory", "calendar"} else None,
+            "source_limitations": [message],
+        },
+        warnings=[message],
+    )
 
 
 def _validate_month_arg(month: str | None) -> None:

@@ -8,6 +8,7 @@ from pathlib import Path
 from gsuid_cli.commands.account import _validate_uid
 from gsuid_cli.commands.auth import _uid_and_region
 from gsuid_cli.commands.panel_cache import (
+    artifact_entries,
     avatar_summaries,
     cache_source,
     find_avatar,
@@ -69,8 +70,24 @@ CAPABILITIES = [
         "cache": "off",
     },
     {
+        "command": "panel.artifacts",
+        "description": "List cached artifacts for a UID.",
+        "auth": "none",
+        "regions": ["cn"],
+        "render": ["data"],
+        "cache": "off",
+    },
+    {
         "command": "panel.showcase",
         "description": "Show the cached public showcase summary.",
+        "auth": "none",
+        "regions": ["cn"],
+        "render": ["data"],
+        "cache": "off",
+    },
+    {
+        "command": "panel.graduation",
+        "description": "Summarize local cached graduation inputs.",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data"],
@@ -113,9 +130,18 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     save.add_argument("--output")
     save.set_defaults(handler=save_command, command_name="panel.save")
 
+    artifacts = commands.add_parser("artifacts", help="List cached artifacts.")
+    artifacts.add_argument("--uid", dest="command_uid")
+    artifacts.add_argument("--page", type=int, default=1)
+    artifacts.set_defaults(handler=artifacts_command, command_name="panel.artifacts")
+
     showcase = commands.add_parser("showcase", help="Show cached showcase summary.")
     showcase.add_argument("--uid", dest="command_uid")
     showcase.set_defaults(handler=showcase_command, command_name="panel.showcase")
+
+    graduation = commands.add_parser("graduation", help="Summarize local graduation inputs.")
+    graduation.add_argument("--uid", dest="command_uid")
+    graduation.set_defaults(handler=graduation_command, command_name="panel.graduation")
 
 
 def refresh_command(args: argparse.Namespace) -> CommandResult:
@@ -241,6 +267,58 @@ def save_command(args: argparse.Namespace) -> CommandResult:
             "path": artifact["path"],
         },
         artifacts=[artifact],
+        source=cache_source(cache),
+    )
+
+
+def artifacts_command(args: argparse.Namespace) -> CommandResult:
+    _validate_page(args.page)
+    uid, _region = _uid_and_region(args)
+    cache = _load(uid, args.output_dir)
+    artifacts = artifact_entries(cache)
+    page_size = 20
+    start = (args.page - 1) * page_size
+    page_items = artifacts[start : start + page_size]
+    total_pages = (len(artifacts) + page_size - 1) // page_size if artifacts else 0
+    return CommandResult(
+        data={
+            "uid": uid,
+            "page": args.page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "artifacts": page_items,
+            "count": len(page_items),
+            "total_count": len(artifacts),
+            "scoring_rule": "crit_value = crit_rate * 2 + crit_damage",
+        },
+        source=cache_source(cache),
+    )
+
+
+def graduation_command(args: argparse.Namespace) -> CommandResult:
+    uid, _region = _uid_and_region(args)
+    cache = _load(uid, args.output_dir)
+    characters = avatar_summaries(cache)
+    rows = [
+        {
+            "avatar_id": character["avatar_id"],
+            "name": character["name"],
+            "level": character["level"],
+            "artifact_score": character["artifact_score"],
+            "graduation_score": None,
+        }
+        for character in characters
+    ]
+    rows.sort(key=lambda row: _number(row["artifact_score"]), reverse=True)
+    message = "graduation scoring requires curated per-character targets not configured here"
+    return CommandResult(
+        data={
+            "uid": uid,
+            "characters": rows,
+            "count": len(rows),
+            "source_limitations": [message],
+        },
+        warnings=[message],
         source=cache_source(cache),
     )
 
@@ -415,6 +493,16 @@ def _validate_panel_overrides(args: argparse.Namespace) -> None:
             "constellation must be between 0 and 6",
             EXIT_INVALID_INPUT,
             {"constellation": args.constellation},
+        )
+
+
+def _validate_page(page: int) -> None:
+    if page < 1:
+        raise CliError(
+            "INVALID_ARGUMENT",
+            "page must be greater than 0",
+            EXIT_INVALID_INPUT,
+            {"page": page},
         )
 
 

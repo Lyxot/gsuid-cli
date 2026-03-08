@@ -767,6 +767,50 @@ class MysProvider:
             source=deck_source or basic_source,
         )
 
+    def progress_gcg_deck(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+        deck_id: int | None,
+    ) -> CommandResult:
+        decks, source = self._record_get(
+            path=GCG_DECK_PATH,
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            category="progress.gcg.deck",
+        )
+        deck_list = _gcg_decks(decks)
+        if deck_id is not None:
+            deck_list = [
+                deck
+                for deck in deck_list
+                if str(deck.get("id") or deck.get("deck_id") or "") == str(deck_id)
+            ]
+            if not deck_list:
+                raise CliError(
+                    "NO_RESULT",
+                    "No GCG deck matched the requested deck id.",
+                    EXIT_NO_RESULT,
+                    {"uid": uid, "deck_id": deck_id},
+                    source=source,
+                )
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_source": credential_source,
+                "storage_backend": storage_backend,
+                "deck_id": deck_id,
+                "decks": deck_list,
+                "count": len(deck_list),
+            },
+            source=source,
+        )
+
     def gacha_log_page(
         self,
         *,
@@ -1563,15 +1607,22 @@ def _collection(data: dict[str, object]) -> dict[str, object]:
 
 
 def _gcg(basic: dict[str, object], decks: dict[str, object]) -> dict[str, object]:
-    deck_list = decks.get("card_list") or decks.get("list") or decks.get("decks")
-    if not isinstance(deck_list, list):
-        deck_list = []
+    deck_list = _gcg_decks(decks)
     return {
         "basic": basic,
         "deck_data": decks,
-        "decks": [item for item in deck_list if isinstance(item, dict)],
-        "deck_count": len([item for item in deck_list if isinstance(item, dict)]),
+        "decks": deck_list,
+        "deck_count": len(deck_list),
     }
+
+
+def _gcg_decks(decks: dict[str, object]) -> list[dict[str, object]]:
+    deck_list = (
+        decks.get("deck_list") or decks.get("card_list") or decks.get("list") or decks.get("decks")
+    )
+    if not isinstance(deck_list, list):
+        return []
+    return [item for item in deck_list if isinstance(item, dict)]
 
 
 def _schedule_type(season: str) -> str:

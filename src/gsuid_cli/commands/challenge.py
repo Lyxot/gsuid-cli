@@ -36,6 +36,14 @@ CAPABILITIES = [
         "render": ["data"],
         "cache": "off",
     },
+    {
+        "command": "challenge.hard-rank",
+        "description": "Report hard challenge ranking support status.",
+        "auth": "none",
+        "regions": ["cn"],
+        "render": ["data"],
+        "cache": "off",
+    },
 ]
 
 
@@ -60,6 +68,12 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     _add_uid(hard)
     _add_season(hard)
     hard.set_defaults(handler=hard_command, command_name="challenge.hard")
+
+    hard_rank = commands.add_parser(
+        "hard-rank",
+        help="Report hard challenge ranking support status.",
+    )
+    hard_rank.set_defaults(handler=hard_rank_command, command_name="challenge.hard-rank")
 
 
 def abyss_command(args: argparse.Namespace) -> CommandResult:
@@ -105,6 +119,19 @@ def hard_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
         season=args.season,
+    )
+
+
+def hard_rank_command(_args: argparse.Namespace) -> CommandResult:
+    message = "hard challenge global ranking is not available from configured sources"
+    return CommandResult(
+        data={
+            "available": False,
+            "entries": [],
+            "count": 0,
+            "source_limitations": [message],
+        },
+        warnings=[message],
     )
 
 

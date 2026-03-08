@@ -249,7 +249,7 @@ def test_mys_progress_gcg_fetches_basic_and_decks() -> None:
             {
                 "retcode": 0,
                 "message": "OK",
-                "data": {"card_list": [{"id": 1, "name": "Deck"}]},
+                "data": {"deck_list": [{"id": 1, "name": "Deck"}]},
             }
         )
 
@@ -267,6 +267,42 @@ def test_mys_progress_gcg_fetches_basic_and_decks() -> None:
     assert requests[2].url.path.endswith("/gcg/deckList")
     assert result.data["gcg"]["basic"]["level"] == 10
     assert result.data["gcg"]["deck_count"] == 1
+
+
+def test_mys_progress_gcg_deck_filters_deck_list_payload() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if len(requests) == 1:
+            return _device_fp_response()
+        return _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {
+                    "deck_list": [
+                        {"id": 1, "name": "First"},
+                        {"id": 2, "name": "Second"},
+                    ]
+                },
+            }
+        )
+
+    provider = MysProvider(_mock_client(handler))
+
+    result = provider.progress_gcg_deck(
+        uid="100000001",
+        cookie="account_id=1;cookie_token=secret",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="tests.MemoryKeyring",
+        deck_id=2,
+    )
+
+    assert requests[1].url.path.endswith("/gcg/deckList")
+    assert result.data["count"] == 1
+    assert result.data["decks"][0]["name"] == "Second"
 
 
 def _run_json(argv: list[str]) -> tuple[int, dict[str, object]]:

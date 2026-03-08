@@ -136,6 +136,14 @@ CAPABILITIES = [
         "cache": "off",
     },
     {
+        "command": "daily.bbs-coin",
+        "description": "Report BBS coin task support status.",
+        "auth": "none",
+        "regions": ["cn"],
+        "render": ["data"],
+        "cache": "off",
+    },
+    {
         "command": "guide.character",
         "description": "Show public character guide facts.",
         "auth": "none",
@@ -384,6 +392,24 @@ def daily_signin_command(args: argparse.Namespace) -> CommandResult:
     )
 
 
+def daily_bbs_coin_command(args: argparse.Namespace) -> CommandResult:
+    uid, region = _uid_and_region(args)
+    ensure_supported_region(region)
+    return CommandResult(
+        data={
+            "uid": uid,
+            "available": False,
+            "tasks": [],
+            "points_received": None,
+            "failures": [],
+            "source_limitations": [
+                "BBS coin automation requires a stable MYS task provider not configured in this CLI"
+            ],
+        },
+        warnings=["daily BBS coin task data is not available from configured sources"],
+    )
+
+
 def _register_wiki(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     wiki = groups.add_parser("wiki", help="Look up public wiki data.")
     commands = wiki.add_subparsers(dest="wiki_command", required=True, metavar="<command>")
@@ -454,6 +480,10 @@ def _register_daily(groups: argparse._SubParsersAction[argparse.ArgumentParser])
     signin = commands.add_parser("signin", help="Claim or report MYS daily sign-in status.")
     signin.add_argument("--uid", dest="command_uid")
     signin.set_defaults(handler=daily_signin_command, command_name="daily.signin")
+
+    bbs_coin = commands.add_parser("bbs-coin", help="Report BBS coin task support status.")
+    bbs_coin.add_argument("--uid", dest="command_uid")
+    bbs_coin.set_defaults(handler=daily_bbs_coin_command, command_name="daily.bbs-coin")
 
     materials = commands.add_parser("materials", help="List daily material domains.")
     selectors = materials.add_mutually_exclusive_group()

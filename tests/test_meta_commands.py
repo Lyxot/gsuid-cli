@@ -47,9 +47,10 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
         "meta.capabilities",
         "meta.schema",
         "meta.errors",
+        "meta.doctor",
     }.issubset(commands)
     assert {"profile.init", "account.add", "auth.cookie.set"}.issubset(commands)
-    assert {"batch.run", "batch.plan", "monitor.once"}.issubset(commands)
+    assert {"batch.run", "batch.plan", "cache.clear", "monitor.once"}.issubset(commands)
     assert "auth.qrcode.login" in commands
     assert {"wiki.character", "events.list", "codes.list", "daily.materials"}.issubset(commands)
     assert {
@@ -63,10 +64,16 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert {"announcements.list", "rerun.list", "misc.primogems-plan"}.issubset(commands)
     assert "resources.sync" in commands
     assert {"daily.note", "daily.signin", "player.summary", "player.characters"}.issubset(commands)
+    assert {"daily.bbs-coin", "player.inventory", "player.calendar"}.issubset(commands)
+    assert "player.register-time" in commands
     assert {"challenge.abyss", "challenge.theater", "challenge.hard"}.issubset(commands)
+    assert "challenge.hard-rank" in commands
     assert {"progress.completion", "progress.exploration", "progress.gcg"}.issubset(commands)
+    assert {"progress.achievement-guide", "progress.commission-guide"}.issubset(commands)
+    assert "progress.gcg-deck" in commands
     assert {"gacha.refresh", "gacha.summary", "gacha.import", "gacha.export"}.issubset(commands)
     assert {"panel.refresh", "panel.list", "panel.show", "panel.compare"}.issubset(commands)
+    assert {"panel.artifacts", "panel.graduation"}.issubset(commands)
     assert {"rank.summary", "rank.list", "rank.character", "rank.artifact"}.issubset(commands)
     capability_by_command = {command["command"]: command for command in payload["data"]["commands"]}
     assert "image" in capability_by_command["daily.note"]["render"]

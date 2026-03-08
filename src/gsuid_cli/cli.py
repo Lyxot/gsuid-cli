@@ -14,6 +14,7 @@ from gsuid_cli.commands import (
     account,
     auth,
     batch,
+    cache,
     challenge,
     gacha,
     meta,
@@ -87,6 +88,7 @@ def build_parser() -> argparse.ArgumentParser:
     account.register(groups)
     auth.register(groups)
     batch.register(groups)
+    cache.register(groups)
     public_data.register(groups)
     resources.register(groups)
     monitor.register(groups)

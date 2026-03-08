@@ -26,10 +26,13 @@ Generated from `gsuid meta capabilities`.
 | `auth.stoken.test` | `stoken` | `data` | `off` | Check local stoken availability without provider validation. |
 | `batch.plan` | `none` | `data` | `off` | Validate JSONL batch commands without executing them. |
 | `batch.run` | `mixed` | `data` | `mixed` | Execute JSONL batch commands and return nested envelopes. |
+| `cache.clear` | `none` | `data` | `off` | Clear local cache and artifact files by scope. |
 | `challenge.abyss` | `cookie` | `data, image, both` | `off` | Show authenticated Spiral Abyss data. |
 | `challenge.hard` | `cookie` | `data` | `off` | Show authenticated hard challenge data from player index. |
+| `challenge.hard-rank` | `none` | `data` | `off` | Report hard challenge ranking support status. |
 | `challenge.theater` | `cookie` | `data` | `off` | Show authenticated Imaginarium Theater data. |
 | `codes.list` | `none` | `data` | `use` | List public active redeem-code rows. |
+| `daily.bbs-coin` | `none` | `data` | `off` | Report BBS coin task support status. |
 | `daily.materials` | `none` | `data` | `use` | List daily talent and weapon material domains. |
 | `daily.note` | `cookie` | `data, image, both` | `off` | Show current resin, commissions, expeditions, and teapot status. |
 | `daily.signin` | `cookie` | `data` | `off` | Claim or report the MYS daily sign-in status. |
@@ -47,31 +50,40 @@ Generated from `gsuid meta capabilities`.
 | `guide.theater` | `none` | `data` | `use` | Report public theater guide availability. |
 | `map.find` | `none` | `data, image, both` | `off` | Fetch a public MiniGG material map artifact. |
 | `meta.capabilities` | `none` | `data` | `off` | Show implemented command capabilities. |
+| `meta.doctor` | `none` | `data` | `off` | Run local diagnostics for storage, credentials, resources, or network. |
 | `meta.errors` | `none` | `data` | `off` | Show stable machine-readable error metadata. |
 | `meta.paths` | `none` | `data` | `off` | Show resolved local storage paths. |
 | `meta.schema` | `none` | `data` | `off` | Show JSON envelope schema metadata. |
 | `meta.version` | `none` | `data` | `off` | Show package, Python, and git version metadata. |
 | `misc.primogems-plan` | `none` | `data` | `use` | Report public primogem estimate availability. |
 | `monitor.once` | `none` | `data` | `off` | Run one local health check pass with caller thresholds. |
+| `panel.artifacts` | `none` | `data` | `off` | List cached artifacts for a UID. |
 | `panel.compare` | `none` | `data` | `off` | Compare cached panel stats for two or more builds. |
+| `panel.graduation` | `none` | `data` | `off` | Summarize local cached graduation inputs. |
 | `panel.list` | `none` | `data` | `off` | List cached character panels for a UID. |
 | `panel.refresh` | `none` | `data` | `use` | Refresh Enka showcase panel data into the local cache. |
 | `panel.save` | `none` | `data` | `off` | Save one cached panel as a JSON artifact. |
 | `panel.show` | `none` | `data, image, both` | `off` | Show one cached character panel. |
 | `panel.showcase` | `none` | `data` | `off` | Show the cached public showcase summary. |
+| `player.calendar` | `none` | `data` | `off` | Report player calendar data support status. |
 | `player.characters` | `cookie` | `data` | `off` | Show authenticated player character details. |
 | `player.diary` | `cookie` | `data` | `off` | Show authenticated monthly traveler diary data. |
+| `player.inventory` | `none` | `data` | `off` | Report inventory data support status. |
+| `player.register-time` | `none` | `data` | `off` | Report registration-time data support status. |
 | `player.summary` | `cookie` | `data` | `off` | Show authenticated player profile summary data. |
 | `profile.default` | `none` | `data` | `off` | Set the default local profile. |
 | `profile.delete` | `none` | `data` | `off` | Delete a local profile. |
 | `profile.init` | `none` | `data` | `off` | Create or update a local profile. |
 | `profile.list` | `none` | `data` | `off` | List local profiles. |
 | `profile.show` | `none` | `data` | `off` | Show one local profile. |
+| `progress.achievement-guide` | `none` | `data` | `off` | Report achievement guide lookup support status. |
 | `progress.achievements` | `cookie` | `data` | `off` | Show authenticated achievement category data. |
 | `progress.collection` | `cookie` | `data` | `off` | Show authenticated collection count data. |
+| `progress.commission-guide` | `none` | `data` | `off` | Report commission guide lookup support status. |
 | `progress.completion` | `cookie` | `data` | `off` | Show authenticated account completion summary data. |
 | `progress.exploration` | `cookie` | `data` | `off` | Show authenticated world exploration data. |
 | `progress.gcg` | `cookie` | `data` | `off` | Show authenticated Genius Invokation TCG data. |
+| `progress.gcg-deck` | `cookie` | `data` | `off` | Show authenticated Genius Invokation TCG deck data. |
 | `rank.artifact` | `none` | `data` | `off` | List local cached artifacts sorted by score. |
 | `rank.character` | `none` | `data` | `off` | Show local cached score details for one character. |
 | `rank.list` | `none` | `data` | `off` | List local cached character scores. |

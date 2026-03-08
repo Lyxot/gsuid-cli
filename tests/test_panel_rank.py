@@ -97,6 +97,20 @@ def test_panel_refresh_list_show_compare_and_save(monkeypatch, tmp_path) -> None
     saved = json.loads(output.read_text(encoding="utf-8"))
     assert saved["panel"]["name"] == "Amber"
 
+    code, payload = _run_json(["panel", "artifacts", "--uid", "100000001"])
+
+    assert code == 0
+    assert payload["data"]["total_count"] == 3
+    assert payload["data"]["artifacts"][0]["character"] == "Amber"
+
+    code, payload = _run_json(["panel", "graduation", "--uid", "100000001"])
+
+    assert code == 0
+    assert payload["data"]["count"] == 2
+    assert payload["data"]["characters"][0]["name"] == "Amber"
+    assert payload["data"]["characters"][0]["graduation_score"] is None
+    assert payload["warnings"]
+
 
 def test_panel_missing_cache_returns_no_result(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
@@ -123,6 +137,16 @@ def test_panel_compare_requires_two_builds(monkeypatch, tmp_path) -> None:
     code, payload = _run_json(["panel", "compare", "--uid", "100000001", "--build", "Amber"])
 
     assert code == 1
+    assert payload["error"]["code"] == "INVALID_ARGUMENT"
+
+
+def test_panel_artifacts_rejects_invalid_page(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+
+    code, payload = _run_json(["panel", "artifacts", "--uid", "100000001", "--page", "0"])
+
+    assert code == 1
+    assert payload["command"] == "panel.artifacts"
     assert payload["error"]["code"] == "INVALID_ARGUMENT"
 
 
