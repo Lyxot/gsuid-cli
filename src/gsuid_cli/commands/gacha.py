@@ -185,7 +185,7 @@ def refresh_command(args: argparse.Namespace) -> CommandResult:
                 items = _provider_items(result.data)
                 if not items:
                     break
-                stats = _insert_items(conn, uid, items)
+                stats = _insert_items(conn, uid, items, require_item_id=False)
                 fetched_type += len(items)
                 inserted_type += stats["inserted"]
                 duplicate_type += stats["duplicates"]
@@ -419,13 +419,29 @@ def _insert_items(
     conn: sqlite3.Connection,
     uid: str,
     items: list[dict[str, object]],
+    *,
+    require_item_id: bool = True,
 ) -> dict[str, int]:
     inserted = duplicates = 0
     now = utc_now()
     for item in items:
-        normalized = _normalize_item(uid, item, now)
+        normalized = _normalize_item(uid, item, now, require_item_id=require_item_id)
         existing = _find_existing(conn, uid, str(normalized["id"]))
         if existing is not None:
+            if not require_item_id and _same_draw_with_incomplete_item_id(existing, normalized):
+                duplicates += 1
+                continue
+            if _can_backfill_item_id(existing, normalized):
+                conn.execute(
+                    """
+                    UPDATE gacha_items
+                    SET item_id = ?, imported_at = ?
+                    WHERE uid = ? AND id = ?
+                    """,
+                    (normalized["item_id"], now, uid, normalized["id"]),
+                )
+                duplicates += 1
+                continue
             if _row_conflicts(existing, normalized):
                 raise CliError(
                     "INVALID_ARGUMENT",
@@ -452,8 +468,18 @@ def _insert_items(
     return {"inserted": inserted, "duplicates": duplicates}
 
 
-def _normalize_item(uid: str, item: dict[str, object], imported_at: str) -> dict[str, object]:
-    missing = sorted(field for field in REQUIRED_ITEM_FIELDS if not item.get(field))
+def _normalize_item(
+    uid: str,
+    item: dict[str, object],
+    imported_at: str,
+    *,
+    require_item_id: bool,
+) -> dict[str, object]:
+    required = REQUIRED_ITEM_FIELDS - {"item_id"}
+    missing = sorted(field for field in required if not item.get(field))
+    if require_item_id and not item.get("item_id"):
+        missing.append("item_id")
+    missing = sorted(missing)
     if missing:
         raise CliError(
             "INVALID_ARGUMENT",
@@ -505,6 +531,40 @@ def _row_conflicts(row: sqlite3.Row, item: dict[str, object]) -> bool:
         if str(row[key] or "") != str(item[key] or ""):
             return True
     return int(row["count"]) != int(item["count"])
+
+
+def _can_backfill_item_id(row: sqlite3.Row, item: dict[str, object]) -> bool:
+    if row["item_id"] or not item["item_id"]:
+        return False
+    for key in (
+        "gacha_type",
+        "uigf_gacha_type",
+        "time",
+        "name",
+        "item_type",
+        "rank_type",
+    ):
+        if str(row[key] or "") != str(item[key] or ""):
+            return False
+    return int(row["count"]) == int(item["count"])
+
+
+def _same_draw_with_incomplete_item_id(row: sqlite3.Row, item: dict[str, object]) -> bool:
+    if row["item_id"] == item["item_id"]:
+        return False
+    if row["item_id"] and item["item_id"]:
+        return False
+    for key in (
+        "gacha_type",
+        "uigf_gacha_type",
+        "time",
+        "name",
+        "item_type",
+        "rank_type",
+    ):
+        if str(row[key] or "") != str(item[key] or ""):
+            return False
+    return int(row["count"]) == int(item["count"])
 
 
 def _int_value(value: object, *, default: int) -> int:

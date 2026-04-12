@@ -9,6 +9,7 @@ import httpx
 import pytest
 
 from gsuid_cli.cli import run
+from gsuid_cli.commands import gacha
 from gsuid_cli.core.errors import EXIT_AUTH, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
@@ -124,6 +125,20 @@ def test_gacha_import_rejects_shaped_file_with_missing_item_fields(monkeypatch, 
     ]
 
 
+def test_gacha_import_rejects_empty_item_id(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    import_file = tmp_path / "uigf-v4.json"
+    payload = _uigf_v4()
+    payload["hk4e"][0]["list"][0]["item_id"] = ""
+    import_file.write_text(json.dumps(payload), encoding="utf-8")
+
+    code, payload = _run_json(["gacha", "import", "--uid", "100000001", "--file", str(import_file)])
+
+    assert code == 1
+    assert payload["error"]["code"] == "INVALID_ARGUMENT"
+    assert payload["error"]["details"]["missing"] == ["item_id"]
+
+
 def test_gacha_import_rejects_conflicting_duplicate(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     first = tmp_path / "first.json"
@@ -140,6 +155,45 @@ def test_gacha_import_rejects_conflicting_duplicate(monkeypatch, tmp_path) -> No
 
     assert code == 1
     assert payload["error"]["code"] == "INVALID_ARGUMENT"
+
+
+def test_gacha_import_backfills_empty_item_id_duplicate(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    first = _items()
+    first[0].pop("item_id")
+    with state_db(None) as conn:
+        stats = gacha._insert_items(conn, "100000001", first, require_item_id=False)
+        backfill = gacha._insert_items(conn, "100000001", _items())
+        row = conn.execute(
+            "SELECT item_id FROM gacha_items WHERE uid = ? AND id = ?",
+            ("100000001", "1"),
+        ).fetchone()
+
+    assert stats == {"inserted": 3, "duplicates": 0}
+    assert backfill == {"inserted": 0, "duplicates": 3}
+    assert row["item_id"] == "1"
+
+
+def test_gacha_refresh_duplicate_allows_incoming_missing_item_id(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    incoming = _items()
+    incoming[0].pop("item_id")
+    with state_db(None) as conn:
+        stats = gacha._insert_items(conn, "100000001", _items())
+        duplicate = gacha._insert_items(
+            conn,
+            "100000001",
+            incoming,
+            require_item_id=False,
+        )
+        row = conn.execute(
+            "SELECT item_id FROM gacha_items WHERE uid = ? AND id = ?",
+            ("100000001", "1"),
+        ).fetchone()
+
+    assert stats == {"inserted": 3, "duplicates": 0}
+    assert duplicate == {"inserted": 0, "duplicates": 3}
+    assert row["item_id"] == "1"
 
 
 def test_gacha_import_uses_global_uid(monkeypatch, tmp_path) -> None:
@@ -482,7 +536,9 @@ def _refresh_provider(_region: str, _http_client: HttpClient):
             assert region == "cn"
             if gacha_type == "301" and page == 1:
                 assert end_id == "0"
-                return CommandResult(data={"list": _items()[:2]}, source=_source())
+                items = _items()[:2]
+                del items[0]["item_id"]
+                return CommandResult(data={"list": items}, source=_source())
             return CommandResult(data={"list": []}, source=_source())
 
     return FakeProvider()

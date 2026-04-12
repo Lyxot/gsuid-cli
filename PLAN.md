@@ -644,40 +644,35 @@ tests/
 ### Stage 6: Authenticated Daily And Player Data — completed.
 ### Stage 7: Progress And Challenge Data — completed.
 ### Stage 8: Gacha Log — completed.
-### Stage 8.1: Automatic Gacha Authkey URL
+### Stage 8.1: Automatic Gacha Authkey URL — completed.
+### Stage 8.2: Live Gacha Refresh Normalization
 
 - Status: completed.
-- Result: ported GenshinUID's automatic gacha authkey URL generation so
-  QR-login users can refresh gacha logs without manually pasting an authkey URL.
-- Reference: `a local GenshinUID reference/GenshinUID/genshinuid_gachalog/lelaer_tools.py`
-  and `~/Github/gsuid_core/gsuid_core/utils/api/mys/account_request.py`,
-  GPLv3-compatible with this AGPLv3 project.
+- Result: fixed live gacha refresh rows that omit `item_id`, matching
+  GenshinUID's tolerance for provider rows without item ids.
 - Scope:
-  - Use stored or env cookie/stoken credentials to request a short-lived MYS
-    gacha authkey.
-  - Build the standard CN `getGachaLog` URL and store it as `gacha_url` in OS
-    keyring.
-  - Add `gacha authkey refresh` for automatic refresh while preserving manual
-    `auth gacha-url set` and existing `gacha authkey` status behavior.
-  - Add explicit `gacha authkey status` for discoverable help while keeping
-    bare `gacha authkey` backward compatible.
-  - Never print raw authkeys or generated gacha URLs.
+  - Allow provider-fetched gacha rows to store an empty `item_id`.
+  - Keep imported UIGF files strict for required item fields.
+  - Do not treat duplicate provider rows as conflicting when the only mismatch
+    is an incomplete `item_id`; backfill empty stored ids when a later row
+    provides one.
+  - Rerun live `gacha refresh --uid <UID>`.
 - Verification:
-  - `.venv/bin/python -m pytest tests/test_gacha_log.py tests/test_meta_commands.py`
+  - `.venv/bin/python -m pytest tests/test_gacha_log.py`
   - `.venv/bin/python -m pytest`
   - `.venv/bin/ruff check .`
   - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `.venv/bin/python -m gsuid_cli meta capabilities`
-  - `.venv/bin/python -m gsuid_cli gacha authkey refresh --uid <UID> --request-id stage81-authkey`
-  - `.venv/bin/python -m gsuid_cli gacha authkey --uid <UID> --request-id stage81-authkey-status`
-  - `.venv/bin/python -m gsuid_cli gacha authkey status --uid <UID> --request-id stage81-authkey-status-explicit`
-- Live notes: authkey refresh succeeded with the stored QR credentials and
-  stored a redacted `gacha_url` secret in macOS keyring. Raw authkey URL output
-  was not printed.
-- Review: standalone review agent found a help discoverability issue for bare
-  `gacha authkey`; explicit `status` help/tests were added and reverified.
-- Commit: `feat: add automatic gacha authkey refresh`.
+  - `.venv/bin/python -m gsuid_cli gacha refresh --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli gacha refresh --uid <UID> --request-id stage82-refresh-final`
+- Live notes: initial live refresh inserted 1149 records. Follow-up refreshes
+  returned duplicates without failing on missing provider `item_id` values.
+  Exported live rows with empty `item_id` remain incomplete for strict UIGF
+  re-import until a later item-id resolver is added.
+- Review: standalone review agents found export/import portability and
+  duplicate-direction edge cases; strict imports were preserved, duplicate
+  comparison was made tolerant only for provider refresh rows, and tests cover
+  backfill plus incoming-missing duplicate behavior.
+- Commit: `fix: tolerate missing gacha item ids`.
 
 ### Stage 9: Enka Panels And Ranking — completed.
 ### Stage 10: Rendering And Artifacts — completed.
