@@ -10,9 +10,10 @@ from pathlib import Path
 from gsuid_cli import __version__
 from gsuid_cli.commands.auth import _credential, _uid_and_region
 from gsuid_cli.core.artifacts import ArtifactManager
-from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
+from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.secrets import SecretStore
 from gsuid_cli.core.state import state_db
 from gsuid_cli.core.time import utc_now
 from gsuid_cli.providers import provider_for_region
@@ -54,6 +55,14 @@ CAPABILITIES = [
         "command": "gacha.authkey",
         "description": "Show stored gacha authkey URL availability without revealing it.",
         "auth": "gacha_url",
+        "regions": ["cn"],
+        "render": ["data"],
+        "cache": "off",
+    },
+    {
+        "command": "gacha.authkey.refresh",
+        "description": "Generate and store a gacha authkey URL from cookie and stoken.",
+        "auth": "cookie+stoken",
         "regions": ["cn"],
         "render": ["data"],
         "cache": "off",
@@ -126,9 +135,29 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     )
     import_parser.set_defaults(handler=import_command, command_name="gacha.import")
 
-    authkey = commands.add_parser("authkey", help="Show stored gacha authkey URL status.")
+    authkey = commands.add_parser(
+        "authkey",
+        help="Show or refresh stored gacha authkey URL status.",
+        description="Show stored gacha authkey URL status. With no action, status is returned.",
+    )
     authkey.add_argument("--uid", dest="command_uid")
     authkey.set_defaults(handler=authkey_command, command_name="gacha.authkey")
+    authkey_actions = authkey.add_subparsers(dest="authkey_action", metavar="<action>")
+    authkey_status = authkey_actions.add_parser(
+        "status",
+        help="Show stored gacha authkey URL status.",
+    )
+    authkey_status.add_argument("--uid", dest="command_uid")
+    authkey_status.set_defaults(handler=authkey_command, command_name="gacha.authkey")
+    authkey_refresh = authkey_actions.add_parser(
+        "refresh",
+        help="Generate and store a gacha authkey URL.",
+    )
+    authkey_refresh.add_argument("--uid", dest="command_uid")
+    authkey_refresh.set_defaults(
+        handler=authkey_refresh_command,
+        command_name="gacha.authkey.refresh",
+    )
 
 
 def refresh_command(args: argparse.Namespace) -> CommandResult:
@@ -231,7 +260,7 @@ def import_command(args: argparse.Namespace) -> dict[str, object]:
 def authkey_command(args: argparse.Namespace) -> dict[str, object]:
     uid, _region = _uid_and_region(args)
     args.credential_kind = "gacha_url"
-    value, source, storage_backend = _credential(args, uid)
+    _value, source, storage_backend = _credential(args, uid)
     return {
         "uid": uid,
         "credential_type": "gacha_url",
@@ -242,6 +271,45 @@ def authkey_command(args: argparse.Namespace) -> dict[str, object]:
     }
 
 
+def authkey_refresh_command(args: argparse.Namespace) -> CommandResult:
+    uid, region = _uid_and_region(args)
+    args.credential_kind = "cookie"
+    cookie, cookie_source, cookie_storage_backend = _credential(args, uid)
+    args.credential_kind = "stoken"
+    stoken, stoken_source, stoken_storage_backend = _credential(args, uid)
+
+    result = provider_for_region(region, _http_client(args)).generate_gacha_authkey_url(
+        uid=uid,
+        cookie=cookie,
+        stoken=stoken,
+        region=region,
+    )
+    gacha_url = _generated_gacha_url(result)
+    store = SecretStore()
+    store.set_secret("gacha_url", uid, gacha_url)
+    return CommandResult(
+        data={
+            **result.data,
+            "uid": uid,
+            "credential_type": "gacha_url",
+            "credential_sources": {
+                "cookie": cookie_source,
+                "stoken": stoken_source,
+            },
+            "credential_storage_backends": {
+                "cookie": cookie_storage_backend,
+                "stoken": stoken_storage_backend,
+            },
+            "storage_backend": store.backend_name(),
+            "stored": True,
+            "available": True,
+            "redacted": "[REDACTED_URL]",
+        },
+        source=result.source,
+        warnings=result.warnings,
+    )
+
+
 def _http_client(args: argparse.Namespace) -> HttpClient:
     return HttpClient(
         timeout=args.timeout,
@@ -249,6 +317,19 @@ def _http_client(args: argparse.Namespace) -> HttpClient:
         output_dir=args.output_dir,
         debug=args.debug,
     )
+
+
+def _generated_gacha_url(result: CommandResult) -> str:
+    value = result.data.pop("gacha_url", None)
+    if not isinstance(value, str) or not value:
+        raise CliError(
+            "UPSTREAM_INVALID_RESPONSE",
+            "Provider did not return a gacha authkey URL.",
+            EXIT_UPSTREAM,
+            {"credential_type": "gacha_url"},
+            source=result.source,
+        )
+    return value
 
 
 def _refresh_page_limit(args: argparse.Namespace) -> int:

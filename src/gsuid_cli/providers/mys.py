@@ -9,7 +9,7 @@ import time
 import uuid
 from datetime import UTC, datetime
 from http.cookies import CookieError, SimpleCookie
-from urllib.parse import parse_qsl, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from gsuid_cli.core.errors import (
     EXIT_AUTH,
@@ -47,6 +47,7 @@ CREATE_QRCODE_PATH = "/hk4e_cn/combo/panda/qrcode/fetch"
 CHECK_QRCODE_PATH = "/hk4e_cn/combo/panda/qrcode/query"
 GET_STOKEN_BY_GAME_TOKEN_PATH = "/account/ma-cn-session/app/getTokenByGameToken"
 GET_COOKIE_TOKEN_BY_STOKEN_PATH = "/account/auth/api/getCookieAccountInfoBySToken"
+GET_AUTHKEY_PATH = "/binding/api/genAuthKey"
 APP_VERSION = "2.102.1"
 RECORD_SALT = "xV8v4Qu54lUKrEYFZkJhB8cuOh9Asafs"
 WEB_SALT = "yBh10ikxtLPoIhgwgPZSv5dmfaOTSJ6a"
@@ -859,6 +860,62 @@ class MysProvider:
         data = _payload_data(response.payload, "gacha.refresh", response.source)
         return CommandResult(data=data, source=response.source)
 
+    def generate_gacha_authkey_url(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        stoken: str,
+        region: str,
+    ) -> CommandResult:
+        ensure_supported_region(region)
+        server = server_for_uid(uid)
+        body = {
+            "auth_appid": "webview_gacha",
+            "game_biz": "hk4e_cn",
+            "game_uid": uid,
+            "region": server,
+        }
+        response = self.http.request_json(
+            "POST",
+            f"{GS_BASE_CN}{GET_AUTHKEY_PATH}",
+            provider=PROVIDER,
+            region=region,
+            category="gacha.authkey.refresh",
+            json_body=body,
+            headers=_authkey_headers(stoken),
+        )
+        raise_for_retcode(
+            response.payload,
+            provider=PROVIDER,
+            region=region,
+            category="gacha.authkey.refresh",
+            source=response.source,
+            debug=self.http.debug,
+        )
+        data = _payload_data(response.payload, "gacha.authkey.refresh", response.source)
+        authkey = str(data.get("authkey") or "")
+        if not authkey:
+            raise CliError(
+                "UPSTREAM_INVALID_RESPONSE",
+                "Provider returned an empty gacha authkey.",
+                EXIT_UPSTREAM,
+                {"provider": PROVIDER, "category": "gacha.authkey.refresh"},
+                source=response.source,
+            )
+        return CommandResult(
+            data={
+                "uid": uid,
+                "server": server,
+                "game_biz": "hk4e_cn",
+                "auth_appid": "webview_gacha",
+                "account_id": _account_id_from_cookie(cookie) or _account_id_from_cookie(stoken),
+                "gacha_url": _gacha_authkey_url(authkey, server),
+                "redacted": "[REDACTED_URL]",
+            },
+            source=response.source,
+        )
+
     def create_qrcode_session(self, *, region: str) -> CommandResult:
         ensure_supported_region(region)
         device = _random_device_id()
@@ -1651,6 +1708,28 @@ def _gacha_request(authkey_url: str) -> tuple[str, dict[str, object]]:
     return base_url, params
 
 
+def _gacha_authkey_url(authkey: str, server: str) -> str:
+    params = {
+        "authkey_ver": "1",
+        "sign_type": "2",
+        "auth_appid": "webview_gacha",
+        "init_type": "301",
+        "gacha_id": "fecafa7b6560db5f3182222395d88aaa6aaac1bc",
+        "timestamp": str(int(time.time())),
+        "lang": "zh-cn",
+        "device_type": "mobile",
+        "plat_type": "ios",
+        "region": server,
+        "authkey": authkey,
+        "game_biz": "hk4e_cn",
+        "gacha_type": "301",
+        "page": "1",
+        "size": "5",
+        "end_id": "0",
+    }
+    return f"{GACHA_LOG_URL}?{urlencode(params)}"
+
+
 def _diary_month(month: str | None) -> str:
     if month is None:
         return "0"
@@ -1747,6 +1826,24 @@ def _sign_headers(cookie: str) -> dict[str, str]:
         "x-rpc-signgame": "hk4e",
         "x-rpc-device_id": uuid.uuid4().hex,
         "x-rpc-client_type": "5",
+    }
+
+
+def _authkey_headers(stoken: str) -> dict[str, str]:
+    # Ported from gsuid_core.utils.api.mys.account_request.get_authkey_by_cookie.
+    return {
+        **_headers(stoken),
+        "DS": _web_ds(),
+        "User-Agent": "okhttp/4.8.0",
+        "x-rpc-app_version": APP_VERSION,
+        "x-rpc-sys_version": "12",
+        "x-rpc-client_type": "5",
+        "x-rpc-channel": "mihoyo",
+        "x-rpc-device_id": _generate_seed(32),
+        "x-rpc-device_name": _random_text(random.randint(1, 10)),
+        "x-rpc-device_model": "Mi 10",
+        "Referer": "https://app.mihoyo.com",
+        "Host": "api-takumi.mihoyo.com",
     }
 
 
@@ -1869,6 +1966,10 @@ def _generate_id(length: int = 64) -> str:
 
 def _generate_seed(length: int) -> str:
     return "".join(random.choices(string.digits + "abcdef", k=length))
+
+
+def _random_text(length: int) -> str:
+    return "".join(random.choices(string.ascii_letters + string.digits, k=length))
 
 
 def _random_fp(length: int = 13) -> str:

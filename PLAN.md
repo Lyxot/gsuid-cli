@@ -644,40 +644,48 @@ tests/
 ### Stage 6: Authenticated Daily And Player Data — completed.
 ### Stage 7: Progress And Challenge Data — completed.
 ### Stage 8: Gacha Log — completed.
+### Stage 8.1: Automatic Gacha Authkey URL
+
+- Status: completed.
+- Result: ported GenshinUID's automatic gacha authkey URL generation so
+  QR-login users can refresh gacha logs without manually pasting an authkey URL.
+- Reference: `a local GenshinUID reference/GenshinUID/genshinuid_gachalog/lelaer_tools.py`
+  and `~/Github/gsuid_core/gsuid_core/utils/api/mys/account_request.py`,
+  GPLv3-compatible with this AGPLv3 project.
+- Scope:
+  - Use stored or env cookie/stoken credentials to request a short-lived MYS
+    gacha authkey.
+  - Build the standard CN `getGachaLog` URL and store it as `gacha_url` in OS
+    keyring.
+  - Add `gacha authkey refresh` for automatic refresh while preserving manual
+    `auth gacha-url set` and existing `gacha authkey` status behavior.
+  - Add explicit `gacha authkey status` for discoverable help while keeping
+    bare `gacha authkey` backward compatible.
+  - Never print raw authkeys or generated gacha URLs.
+- Verification:
+  - `.venv/bin/python -m pytest tests/test_gacha_log.py tests/test_meta_commands.py`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `.venv/bin/python -m gsuid_cli meta capabilities`
+  - `.venv/bin/python -m gsuid_cli gacha authkey refresh --uid <UID> --request-id stage81-authkey`
+  - `.venv/bin/python -m gsuid_cli gacha authkey --uid <UID> --request-id stage81-authkey-status`
+  - `.venv/bin/python -m gsuid_cli gacha authkey status --uid <UID> --request-id stage81-authkey-status-explicit`
+- Live notes: authkey refresh succeeded with the stored QR credentials and
+  stored a redacted `gacha_url` secret in macOS keyring. Raw authkey URL output
+  was not printed.
+- Review: standalone review agent found a help discoverability issue for bare
+  `gacha authkey`; explicit `status` help/tests were added and reverified.
+- Commit: `feat: add automatic gacha authkey refresh`.
+
 ### Stage 9: Enka Panels And Ranking — completed.
 ### Stage 10: Rendering And Artifacts — completed.
 ### Stage 11: Guides, Maps, And Rich Public Data — completed.
 ### Stage 12: Batch And Agent Hardening — completed.
 ### Stage 13: Documentation, CI, And Release — completed.
 ### Stage 14: Missing Command Contract Completion — completed.
-### Stage 15: Full Global Options
-
-- Status: completed.
-- Result: global options now work before, between, or after command tokens;
-  `--format pretty-json` emits the normal JSON envelope with indentation; bare
-  `gsuid` and group-only calls such as `gsuid meta` print help with exit code
-  `0`; invalid commands and invalid global values still return JSON error
-  envelopes.
-- Compatibility: command-specific `gacha import/export --format` values remain
-  command options, including inside batch execution. Batch planning now uses the
-  same canonical global-option parser path as normal execution.
-- Metadata: `meta capabilities` advertises `pretty-json` and machine-readable
-  global option placement.
-- Verification:
-  - `.venv/bin/python -m pytest tests/test_global_options.py tests/test_agent_hardening.py tests/test_gacha_log.py::test_gacha_export_command_format_parse_error_stays_json tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `.venv/bin/python -m gsuid_cli meta version --request-id stage15-version --format pretty-json`
-  - `.venv/bin/python -m gsuid_cli meta paths --request-id stage15-paths --output-dir /tmp/gsuid-stage15-artifacts`
-  - `.venv/bin/python -m gsuid_cli meta capabilities --request-id stage15-caps --format pretty-json`
-  - `.venv/bin/python -m gsuid_cli`
-  - `.venv/bin/python -m gsuid_cli meta`
-- Review: standalone review agent found batch-plan, batch gacha-format, and
-  invalid group-only global-value issues; all were fixed and covered by tests.
-- Commit: `feat: add full global options`.
-
+### Stage 15: Full Global Options — completed.
 ## MVP Cut Line
 
 The first usable MVP is complete after Stage 6 if these commands work:

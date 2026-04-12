@@ -39,6 +39,7 @@ Generated from `gsuid meta capabilities`.
 | `events.banners` | `none` | `data` | `use` | List public event banner artwork URLs. |
 | `events.list` | `none` | `data` | `use` | List public event announcements. |
 | `gacha.authkey` | `gacha_url` | `data` | `off` | Show stored gacha authkey URL availability without revealing it. |
+| `gacha.authkey.refresh` | `cookie+stoken` | `data` | `off` | Generate and store a gacha authkey URL from cookie and stoken. |
 | `gacha.export` | `none` | `data` | `off` | Export local gacha logs as UIGF JSON. |
 | `gacha.import` | `none` | `data` | `off` | Import UIGF JSON into local gacha storage. |
 | `gacha.refresh` | `gacha_url` | `data` | `off` | Refresh local gacha logs from a stored authkey URL. |

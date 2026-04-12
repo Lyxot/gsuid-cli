@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 import sqlite3
+from urllib.parse import parse_qs, urlsplit
 
 import httpx
 import pytest
@@ -216,6 +217,57 @@ def test_gacha_authkey_command_fully_redacts_url(monkeypatch, tmp_path) -> None:
     assert "expired-secret" not in raw
     assert "cret" not in raw
 
+    code, status_payload = _run_json(["gacha", "authkey", "status", "--uid", "100000001"])
+
+    assert code == 0
+    assert status_payload["command"] == "gacha.authkey"
+    assert status_payload["data"]["available"] is True
+
+
+def test_gacha_authkey_help_lists_status_and_refresh(capsys: pytest.CaptureFixture[str]) -> None:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(["gacha", "authkey", "--help"], stdout=stdout, stderr=stderr)
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    help_text = stdout.getvalue() or capsys.readouterr().out
+    assert "status" in help_text
+    assert "refresh" in help_text
+    assert "With no action, status is returned." in help_text
+
+
+def test_gacha_authkey_refresh_stores_generated_url_without_printing_it(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.gacha.provider_for_region", _authkey_provider)
+    store = SecretStore()
+    store.set_secret("cookie", "100000001", "account_id=1;cookie_token=cookie-secret")
+    store.set_secret("stoken", "100000001", "stuid=1;stoken=stoken-secret")
+
+    code, payload = _run_json(["gacha", "authkey", "refresh", "--uid", "100000001"])
+
+    raw = json.dumps(payload, ensure_ascii=False)
+    stored_url = store.get_secret("gacha_url", "100000001")
+    assert code == 0
+    assert payload["command"] == "gacha.authkey.refresh"
+    assert payload["data"]["stored"] is True
+    assert payload["data"]["available"] is True
+    assert payload["data"]["credential_sources"] == {"cookie": "keyring", "stoken": "keyring"}
+    assert stored_url is not None
+    assert "secret-authkey" in stored_url
+    assert "secret-authkey" not in raw
+    assert "stoken-secret" not in raw
+    assert "cookie-secret" not in raw
+
+    code, status = _run_json(["gacha", "authkey", "--uid", "100000001"])
+
+    assert code == 0
+    assert status["data"]["available"] is True
+
 
 def test_state_v1_migrates_to_gacha_tables(monkeypatch, tmp_path) -> None:
     home = tmp_path / "home"
@@ -357,6 +409,50 @@ def test_mys_gacha_log_page_sanitizes_expired_authkey() -> None:
     assert "secret-authkey" not in json.dumps(exc.value.details, ensure_ascii=False)
 
 
+def test_mys_gacha_authkey_generation_uses_stoken_endpoint() -> None:
+    captured: dict[str, httpx.Request] = {}
+    provider = MysProvider(
+        _mock_client(
+            lambda request: (
+                _capture_request(captured, request),
+                httpx.Response(
+                    200,
+                    json={
+                        "retcode": 0,
+                        "message": "OK",
+                        "data": {"authkey": "secret auth/key=="},
+                    },
+                ),
+            )[1]
+        )
+    )
+
+    result = provider.generate_gacha_authkey_url(
+        uid="100000001",
+        cookie="account_id=1;cookie_token=cookie-secret",
+        stoken="stuid=1;stoken=stoken-secret",
+        region="cn",
+    )
+
+    request = captured["request"]
+    body = json.loads(request.content)
+    query = parse_qs(urlsplit(str(result.data["gacha_url"])).query)
+    assert request.method == "POST"
+    assert request.url.path == "/binding/api/genAuthKey"
+    assert body == {
+        "auth_appid": "webview_gacha",
+        "game_biz": "hk4e_cn",
+        "game_uid": "100000001",
+        "region": "cn_gf01",
+    }
+    assert request.headers["cookie"] == "stuid=1;stoken=stoken-secret"
+    assert request.headers["x-rpc-client_type"] == "5"
+    assert request.headers["x-rpc-device_model"] == "Mi 10"
+    assert query["authkey"] == ["secret auth/key=="]
+    assert query["region"] == ["cn_gf01"]
+    assert query["auth_appid"] == ["webview_gacha"]
+
+
 def _capture_request(captured: dict[str, httpx.Request], request: httpx.Request) -> None:
     captured["request"] = request
 
@@ -402,6 +498,39 @@ def _expired_provider(_region: str, _http_client: HttpClient):
             )
 
     return ExpiredProvider()
+
+
+def _authkey_provider(_region: str, _http_client: HttpClient):
+    class FakeAuthkeyProvider:
+        def generate_gacha_authkey_url(
+            self,
+            *,
+            uid: str,
+            cookie: str,
+            stoken: str,
+            region: str,
+        ) -> CommandResult:
+            assert uid == "100000001"
+            assert cookie == "account_id=1;cookie_token=cookie-secret"
+            assert stoken == "stuid=1;stoken=stoken-secret"
+            assert region == "cn"
+            return CommandResult(
+                data={
+                    "uid": uid,
+                    "server": "cn_gf01",
+                    "game_biz": "hk4e_cn",
+                    "auth_appid": "webview_gacha",
+                    "account_id": "1",
+                    "gacha_url": (
+                        "https://public-operation-hk4e.mihoyo.com/gacha_info/api/getGachaLog"
+                        "?authkey=secret-authkey"
+                    ),
+                    "redacted": "[REDACTED_URL]",
+                },
+                source=_source(),
+            )
+
+    return FakeAuthkeyProvider()
 
 
 def _source() -> dict[str, object]:

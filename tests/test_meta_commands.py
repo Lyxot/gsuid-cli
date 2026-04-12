@@ -71,7 +71,13 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert {"progress.completion", "progress.exploration", "progress.gcg"}.issubset(commands)
     assert {"progress.achievement-guide", "progress.commission-guide"}.issubset(commands)
     assert "progress.gcg-deck" in commands
-    assert {"gacha.refresh", "gacha.summary", "gacha.import", "gacha.export"}.issubset(commands)
+    assert {
+        "gacha.refresh",
+        "gacha.summary",
+        "gacha.import",
+        "gacha.export",
+        "gacha.authkey.refresh",
+    }.issubset(commands)
     assert {"panel.refresh", "panel.list", "panel.show", "panel.compare"}.issubset(commands)
     assert {"panel.artifacts", "panel.graduation"}.issubset(commands)
     assert {"rank.summary", "rank.list", "rank.character", "rank.artifact"}.issubset(commands)
