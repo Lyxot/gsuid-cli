@@ -58,7 +58,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     commands = account.add_subparsers(dest="account_command", required=True, metavar="<command>")
 
     add = commands.add_parser("add", help="Add or update an account.")
-    add.add_argument("--uid", required=True, dest="account_uid")
+    add.add_argument("--uid", dest="account_uid")
     add.add_argument("--region", choices=("cn", "os"), dest="account_region")
     add.add_argument("--label")
     add.add_argument("--default", action="store_true")
@@ -72,16 +72,16 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     show.set_defaults(handler=show_command, command_name="account.show")
 
     default = commands.add_parser("default", help="Set the default account.")
-    default.add_argument("--uid", required=True, dest="account_uid")
+    default.add_argument("--uid", dest="account_uid")
     default.set_defaults(handler=default_command, command_name="account.default")
 
     remove = commands.add_parser("remove", help="Remove an account.")
-    remove.add_argument("--uid", required=True, dest="account_uid")
+    remove.add_argument("--uid", dest="account_uid")
     remove.set_defaults(handler=remove_command, command_name="account.remove")
 
 
 def add_command(args: argparse.Namespace) -> dict[str, object]:
-    uid = _validate_uid(args.account_uid)
+    uid = _required_uid(args)
     region = args.account_region or args.region
     with state_db(args.output_dir) as conn:
         created = _upsert_account(conn, uid, region, args.label)
@@ -104,7 +104,7 @@ def show_command(args: argparse.Namespace) -> dict[str, object]:
 
 
 def default_command(args: argparse.Namespace) -> dict[str, object]:
-    uid = _validate_uid(args.account_uid)
+    uid = _required_uid(args)
     with state_db(args.output_dir) as conn:
         row = _get_account(conn, uid)
         _set_default(conn, args.profile, uid, row["region"])
@@ -112,7 +112,7 @@ def default_command(args: argparse.Namespace) -> dict[str, object]:
 
 
 def remove_command(args: argparse.Namespace) -> dict[str, object]:
-    uid = _validate_uid(args.account_uid)
+    uid = _required_uid(args)
     with state_db(args.output_dir) as conn:
         row = _get_account(conn, uid)
         data = _serialize_account(row)
@@ -175,6 +175,14 @@ def _resolve_uid(conn: sqlite3.Connection, args: argparse.Namespace) -> str:
         EXIT_INVALID_INPUT,
         {"profile": args.profile},
     )
+
+
+def _required_uid(args: argparse.Namespace) -> str:
+    command_uid = getattr(args, "account_uid", None)
+    uid = command_uid or args.uid
+    if uid:
+        return _validate_uid(uid)
+    raise CliError("INVALID_ARGUMENT", "uid is required", EXIT_INVALID_INPUT)
 
 
 def _validate_uid(uid: str) -> str:

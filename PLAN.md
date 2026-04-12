@@ -64,7 +64,7 @@ Default output is JSON on stdout. Logs, progress, and warnings that are not part
 --profile NAME                 Local profile name. Default: default.
 --uid UID                      Target Genshin UID. Overrides profile default.
 --region cn|os                 Target API region. Default: infer from profile, then UID.
---format json|text             Output format. Default: json.
+--format json|pretty-json|text Output format. Default: json.
 --render data|image|both       Data/artifact preference. Default: data.
 --output-dir PATH              Artifact output directory. Default: $GSUID_HOME/artifacts.
 --cache use|refresh|only|off   Cache policy. Default: use.
@@ -649,36 +649,34 @@ tests/
 ### Stage 11: Guides, Maps, And Rich Public Data — completed.
 ### Stage 12: Batch And Agent Hardening — completed.
 ### Stage 13: Documentation, CI, And Release — completed.
-### Stage 14: Missing Command Contract Completion
+### Stage 14: Missing Command Contract Completion — completed.
+### Stage 15: Full Global Options
 
 - Status: completed.
-- Result: implemented the remaining command names from the original command-set
-  section so `meta capabilities` covers the full planned surface.
-- Scope: `meta doctor`, `cache clear`, `player inventory`, `player calendar`,
-  `player register-time`, `daily bbs-coin`, `challenge hard-rank`,
-  `progress achievement-guide`, `progress commission-guide`,
-  `progress gcg-deck`, `panel artifacts`, and `panel graduation`.
-- Source limits: `player inventory`, `player calendar`, `player register-time`,
-  `daily bbs-coin`, `challenge hard-rank`, `progress achievement-guide`,
-  `progress commission-guide`, and `panel graduation` return explicit
-  source-limitation metadata where no stable provider-backed source is
-  configured. `progress gcg-deck`, `panel artifacts`, `cache clear`, and
-  `meta doctor` are backed by real provider/local behavior.
-- Safety fixes: `cache clear --scope artifacts` ignores global `--output-dir`
-  and only clears `$GSUID_HOME/artifacts`; GCG deck parsing accepts MYS
-  `deck_list` payloads.
+- Result: global options now work before, between, or after command tokens;
+  `--format pretty-json` emits the normal JSON envelope with indentation; bare
+  `gsuid` and group-only calls such as `gsuid meta` print help with exit code
+  `0`; invalid commands and invalid global values still return JSON error
+  envelopes.
+- Compatibility: command-specific `gacha import/export --format` values remain
+  command options, including inside batch execution. Batch planning now uses the
+  same canonical global-option parser path as normal execution.
+- Metadata: `meta capabilities` advertises `pretty-json` and machine-readable
+  global option placement.
 - Verification:
-  - `.venv/bin/python -m pytest tests/test_missing_command_contracts.py tests/test_challenge_progress_data.py tests/test_panel_rank.py tests/test_meta_commands.py -q`
+  - `.venv/bin/python -m pytest tests/test_global_options.py tests/test_agent_hardening.py tests/test_gacha_log.py::test_gacha_export_command_format_parse_error_stays_json tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
   - `.venv/bin/python -m pytest`
   - `.venv/bin/ruff check .`
   - `.venv/bin/ruff format --check .`
   - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `.venv/bin/python -m gsuid_cli meta capabilities`
-  - Plan coverage check: `92` planned unique command contracts, `97`
-    implemented commands, `0` missing.
-  - Standalone review agent before commit; cache-clear and GCG deck findings
-    were fixed and reverified.
-- Commit: `feat: complete planned command surface`.
+  - `.venv/bin/python -m gsuid_cli meta version --request-id stage15-version --format pretty-json`
+  - `.venv/bin/python -m gsuid_cli meta paths --request-id stage15-paths --output-dir /tmp/gsuid-stage15-artifacts`
+  - `.venv/bin/python -m gsuid_cli meta capabilities --request-id stage15-caps --format pretty-json`
+  - `.venv/bin/python -m gsuid_cli`
+  - `.venv/bin/python -m gsuid_cli meta`
+- Review: standalone review agent found batch-plan, batch gacha-format, and
+  invalid group-only global-value issues; all were fixed and covered by tests.
+- Commit: `feat: add full global options`.
 
 ## MVP Cut Line
 

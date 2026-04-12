@@ -193,8 +193,10 @@ def _row_argv(row: object) -> list[str]:
 
 
 def _normalized_argv(argv: list[str], *, request_id: str) -> list[str]:
-    normalized = _without_option(argv, "--format")
-    if "--request-id" not in normalized:
+    from gsuid_cli.cli import _canonicalize_global_options, _global_option_value
+
+    normalized = _without_global_output_format(_canonicalize_global_options(argv))
+    if _global_option_value(normalized, "--request-id") is None:
         normalized = ["--request-id", request_id, *normalized]
     normalized = ["--format", "json", *normalized]
     if _argv_command(normalized).startswith("batch."):
@@ -206,16 +208,20 @@ def _normalized_argv(argv: list[str], *, request_id: str) -> list[str]:
     return normalized
 
 
-def _without_option(argv: list[str], option: str) -> list[str]:
+def _without_global_output_format(argv: list[str]) -> list[str]:
+    from gsuid_cli.cli import OUTPUT_FORMATS, _split_long_option
+
     result = []
     index = 0
     while index < len(argv):
-        if argv[index] == option:
-            index += 2
-            continue
-        if argv[index].startswith(f"{option}="):
-            index += 1
-            continue
+        option, inline_value = _split_long_option(argv[index])
+        if option == "--format":
+            value = inline_value
+            if value is None and index + 1 < len(argv):
+                value = argv[index + 1]
+            if value in OUTPUT_FORMATS:
+                index += 1 if inline_value is not None else 2
+                continue
         result.append(argv[index])
         index += 1
     return result
@@ -257,9 +263,9 @@ def _run_inner(argv: list[str]) -> tuple[int, dict[str, object], str]:
 
 
 def _parse_inner(argv: list[str]) -> Any:
-    from gsuid_cli.cli import _validate_runtime_defaults, build_parser
+    from gsuid_cli.cli import _validate_runtime_defaults, parse_argv
 
-    parsed = build_parser().parse_args(argv)
+    parsed = parse_argv(argv)
     _validate_runtime_defaults(parsed)
     return parsed
 

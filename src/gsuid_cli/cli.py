@@ -48,7 +48,8 @@ GLOBAL_VALUE_OPTIONS = {
     "--request-id",
 }
 GLOBAL_FLAG_OPTIONS = {"--quiet", "--debug", "--help", "--version"}
-OUTPUT_FORMATS = {"json", "text"}
+HOISTED_GLOBAL_FLAG_OPTIONS = {"--quiet", "--debug"}
+OUTPUT_FORMATS = {"json", "pretty-json", "text"}
 
 
 class GsuidArgumentParser(argparse.ArgumentParser):
@@ -70,7 +71,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--format",
-        choices=("json", "text"),
+        choices=("json", "pretty-json", "text"),
         default=os.environ.get("GSUID_FORMAT", "json"),
     )
     parser.add_argument("--render", choices=("data", "image", "both"), default="data")
@@ -101,19 +102,26 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def parse_argv(argv: Sequence[str]) -> argparse.Namespace:
+    return build_parser().parse_args(_canonicalize_global_options(argv))
+
+
 def run(
     argv: Sequence[str] | None = None,
     *,
     stdout: TextIO | None = None,
     stderr: TextIO | None = None,
 ) -> int:
-    args_list = list(sys.argv[1:] if argv is None else argv)
+    args_list = _canonicalize_global_options(list(sys.argv[1:] if argv is None else argv))
     stdout = sys.stdout if stdout is None else stdout
     stderr = sys.stderr if stderr is None else stderr
     started = time.perf_counter()
 
     try:
-        args = build_parser().parse_args(args_list)
+        parser = build_parser()
+        if _write_incomplete_help(parser, args_list, stdout):
+            return 0
+        args = parser.parse_args(args_list)
         _validate_runtime_defaults(args)
         command = args.command_name
         request_id = args.request_id or str(uuid.uuid4())
@@ -205,8 +213,9 @@ def _write_payload(
     stdout: TextIO,
     stderr: TextIO,
 ) -> None:
-    if output_format == "json":
-        stdout.write(json.dumps(payload, ensure_ascii=False))
+    if output_format in {"json", "pretty-json"}:
+        indent = 2 if output_format == "pretty-json" else None
+        stdout.write(json.dumps(payload, ensure_ascii=False, indent=indent))
         stdout.write("\n")
         return
 
@@ -231,13 +240,18 @@ def _system_exit_code(exc: SystemExit) -> int:
 
 
 def _error_context(argv: Sequence[str]) -> dict[str, object]:
+    argv = _canonicalize_global_options(argv)
+    output_format = _global_option_value(argv, "--format")
+    region = _global_option_value(argv, "--region")
     return {
         "command": _guess_command(argv),
         "request_id": _option_value(argv, "--request-id") or str(uuid.uuid4()),
-        "format": _global_option_value(argv, "--format")
-        or _valid_env("GSUID_FORMAT", OUTPUT_FORMATS, "json"),
-        "region": _global_option_value(argv, "--region")
-        or _valid_env("GSUID_REGION", {"cn", "os"}, "cn"),
+        "format": output_format
+        if output_format in OUTPUT_FORMATS
+        else _valid_env("GSUID_FORMAT", OUTPUT_FORMATS, "json"),
+        "region": region
+        if region in {"cn", "os"}
+        else _valid_env("GSUID_REGION", {"cn", "os"}, "cn"),
         "debug": "--debug" in argv,
     }
 
@@ -261,15 +275,20 @@ def _valid_env(name: str, allowed: set[str], default: str) -> str:
 
 def _option_value(argv: Sequence[str], option: str) -> str | None:
     for index, token in enumerate(argv):
+        if token.startswith(f"{option}="):
+            return token.split("=", 1)[1]
         if token == option and index + 1 < len(argv):
             return argv[index + 1]
     return None
 
 
 def _global_option_value(argv: Sequence[str], option: str) -> str | None:
+    argv = _canonicalize_global_options(argv)
     index = 0
     while index < len(argv):
         token = argv[index]
+        if token.startswith(f"{option}="):
+            return token.split("=", 1)[1]
         if token == option and index + 1 < len(argv):
             return argv[index + 1]
         if token in GLOBAL_VALUE_OPTIONS:
@@ -282,6 +301,177 @@ def _global_option_value(argv: Sequence[str], option: str) -> str | None:
             return None
         index += 1
     return None
+
+
+def _canonicalize_global_options(argv: Sequence[str]) -> list[str]:
+    hoisted: list[str] = []
+    remaining: list[str] = []
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        option, value = _split_long_option(token)
+        next_value = value
+        if option in GLOBAL_VALUE_OPTIONS and value is None and index + 1 < len(argv):
+            next_value = argv[index + 1]
+        if option in GLOBAL_VALUE_OPTIONS and _should_hoist_global_option(option, next_value):
+            if value is None and index + 1 < len(argv):
+                hoisted.extend([token, argv[index + 1]])
+                index += 2
+                continue
+            hoisted.append(token)
+            index += 1
+            continue
+        if token in GLOBAL_VALUE_OPTIONS and index + 1 >= len(argv):
+            hoisted.append(token)
+            index += 1
+            continue
+        if token in HOISTED_GLOBAL_FLAG_OPTIONS:
+            hoisted.append(token)
+            index += 1
+            continue
+        remaining.append(token)
+        index += 1
+    return hoisted + remaining
+
+
+def _split_long_option(token: str) -> tuple[str, str | None]:
+    if not token.startswith("--") or "=" not in token:
+        return token, None
+    option, value = token.split("=", 1)
+    return option, value
+
+
+def _should_hoist_global_option(option: str, value: str | None) -> bool:
+    if option != "--format":
+        return True
+    return value is None or value in OUTPUT_FORMATS
+
+
+def _write_incomplete_help(
+    parser: argparse.ArgumentParser,
+    argv: Sequence[str],
+    stdout: TextIO,
+) -> bool:
+    path = _incomplete_command_path(argv)
+    if path is None:
+        return False
+    _validate_globals_for_help(argv)
+    if not path:
+        parser.print_help(stdout)
+        return True
+
+    group_parser = _subparser(parser, path[0])
+    if group_parser is None:
+        return False
+    group_parser.print_help(stdout)
+    return True
+
+
+def _incomplete_command_path(argv: Sequence[str]) -> list[str] | None:
+    if any(token in {"--help", "-h", "--version"} for token in argv):
+        return None
+
+    path: list[str] = []
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        option, value = _split_long_option(token)
+        next_value = value
+        if option in GLOBAL_VALUE_OPTIONS and value is None and index + 1 < len(argv):
+            next_value = argv[index + 1]
+        if option in GLOBAL_VALUE_OPTIONS and _should_hoist_global_option(option, next_value):
+            if value is None:
+                if index + 1 >= len(argv):
+                    return None
+                index += 2
+                continue
+            index += 1
+            continue
+        if token in HOISTED_GLOBAL_FLAG_OPTIONS:
+            index += 1
+            continue
+        if token.startswith("-"):
+            return None
+
+        path.append(token)
+        if len(path) == 2:
+            return None
+        index += 1
+
+    return path
+
+
+def _subparser(parser: argparse.ArgumentParser, name: str) -> argparse.ArgumentParser | None:
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            return action.choices.get(name)
+    return None
+
+
+def _validate_globals_for_help(argv: Sequence[str]) -> None:
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        option, inline_value = _split_long_option(token)
+        if option in GLOBAL_VALUE_OPTIONS:
+            value, consumed = _global_value_for_validation(argv, index, inline_value)
+            _validate_global_value(option, value)
+            index += consumed
+            continue
+        if token in HOISTED_GLOBAL_FLAG_OPTIONS:
+            index += 1
+            continue
+        if not token.startswith("-"):
+            return
+        return
+
+
+def _global_value_for_validation(
+    argv: Sequence[str],
+    index: int,
+    inline_value: str | None,
+) -> tuple[str, int]:
+    if inline_value is not None:
+        return inline_value, 1
+    if index + 1 >= len(argv):
+        raise CliError(
+            "INVALID_ARGUMENT",
+            f"argument {argv[index]}: expected one argument",
+            EXIT_INVALID_INPUT,
+        )
+    return argv[index + 1], 2
+
+
+def _validate_global_value(option: str, value: str) -> None:
+    choices = {
+        "--region": {"cn", "os"},
+        "--format": OUTPUT_FORMATS,
+        "--render": {"data", "image", "both"},
+        "--cache": {"use", "refresh", "only", "off"},
+    }.get(option)
+    if choices is not None and value not in choices:
+        allowed = ", ".join(sorted(choices))
+        raise CliError(
+            "INVALID_ARGUMENT",
+            f"argument {option}: invalid choice: {value!r} (choose from {allowed})",
+            EXIT_INVALID_INPUT,
+        )
+    if option == "--timeout":
+        try:
+            timeout = float(value)
+        except ValueError as exc:
+            raise CliError(
+                "INVALID_ARGUMENT",
+                f"argument --timeout: invalid float value: {value!r}",
+                EXIT_INVALID_INPUT,
+            ) from exc
+        if timeout <= 0:
+            raise CliError(
+                "INVALID_ARGUMENT",
+                "timeout must be greater than 0",
+                EXIT_INVALID_INPUT,
+                {"timeout": timeout},
+            )
 
 
 def _guess_command(argv: Sequence[str]) -> str:

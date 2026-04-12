@@ -82,6 +82,10 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert capability_by_command["map.find"]["cache"] == "off"
     assert "data" in capability_by_command["map.find"]["render"]
     assert payload["data"]["regions"] == ["cn"]
+    assert payload["data"]["formats"] == ["json", "pretty-json", "text"]
+    global_options = {option["name"]: option for option in payload["data"]["global_options"]}
+    assert global_options["--uid"]["placement"] == "anywhere"
+    assert global_options["--format"]["value"] == "json|pretty-json|text"
 
 
 def test_invalid_command_returns_json_error_envelope() -> None:

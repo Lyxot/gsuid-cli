@@ -225,7 +225,7 @@ def qrcode_poll_command(args: argparse.Namespace) -> CommandResult:
 
 
 def qrcode_complete_command(args: argparse.Namespace) -> CommandResult:
-    uid = _validate_uid(args.command_uid)
+    uid = _uid(args)
     provider = provider_for_region(args.region, _http_client(args))
     result = provider.complete_qrcode_login(
         app_id=args.app_id,
@@ -238,7 +238,7 @@ def qrcode_complete_command(args: argparse.Namespace) -> CommandResult:
 
 
 def qrcode_login_command(args: argparse.Namespace) -> CommandResult:
-    uid = _validate_uid(args.command_uid)
+    uid = _uid(args)
     _validate_qrcode_login_timing(args)
     provider = provider_for_region(args.region, _http_client(args))
     session = provider.create_qrcode_session(region=args.region)
@@ -361,11 +361,11 @@ def _register_qrcode(
 
     complete = actions.add_parser("complete", help="Complete a confirmed QR login.")
     _add_qrcode_session_args(complete)
-    complete.add_argument("--uid", required=True, dest="command_uid")
+    complete.add_argument("--uid", dest="command_uid")
     complete.set_defaults(handler=qrcode_complete_command, command_name="auth.qrcode.complete")
 
     login = actions.add_parser("login", help="Run interactive QR login.")
-    login.add_argument("--uid", required=True, dest="command_uid")
+    login.add_argument("--uid", dest="command_uid")
     login.add_argument("--poll-interval", type=float, default=2.0)
     login.add_argument("--login-timeout", type=float, default=120.0)
     login.set_defaults(handler=qrcode_login_command, command_name="auth.qrcode.login")

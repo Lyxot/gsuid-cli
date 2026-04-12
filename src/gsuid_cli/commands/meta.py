@@ -129,8 +129,9 @@ def capabilities_command(_args: argparse.Namespace) -> dict[str, object]:
     return {
         "schema": SCHEMA,
         "regions": ["cn"],
-        "formats": ["json", "text"],
+        "formats": ["json", "pretty-json", "text"],
         "default_format": "json",
+        "global_options": _global_options(),
         "commands": commands,
     }
 
@@ -192,6 +193,88 @@ def _capabilities() -> list[dict[str, object]]:
         + panel.CAPABILITIES
         + rank.CAPABILITIES
     )
+
+
+def _global_options() -> list[dict[str, object]]:
+    return [
+        {
+            "name": "--profile",
+            "value": "NAME",
+            "default": "default",
+            "placement": "anywhere",
+            "description": "Local profile name.",
+        },
+        {
+            "name": "--uid",
+            "value": "UID",
+            "default": None,
+            "placement": "anywhere",
+            "description": "Target Genshin UID. Overrides profile default.",
+        },
+        {
+            "name": "--region",
+            "value": "cn|os",
+            "default": "cn",
+            "placement": "anywhere",
+            "description": "Target API region.",
+        },
+        {
+            "name": "--format",
+            "value": "json|pretty-json|text",
+            "default": "json",
+            "placement": "anywhere",
+            "description": "Output format.",
+        },
+        {
+            "name": "--render",
+            "value": "data|image|both",
+            "default": "data",
+            "placement": "anywhere",
+            "description": "Data/artifact preference.",
+        },
+        {
+            "name": "--output-dir",
+            "value": "PATH",
+            "default": "$GSUID_HOME/artifacts",
+            "placement": "anywhere",
+            "description": "Artifact output directory.",
+        },
+        {
+            "name": "--cache",
+            "value": "use|refresh|only|off",
+            "default": "use",
+            "placement": "anywhere",
+            "description": "Cache policy.",
+        },
+        {
+            "name": "--timeout",
+            "value": "SECONDS",
+            "default": 20,
+            "placement": "anywhere",
+            "description": "HTTP timeout.",
+        },
+        {
+            "name": "--request-id",
+            "value": "ID",
+            "default": "generated UUID",
+            "placement": "anywhere",
+            "description": "Caller-supplied request id.",
+        },
+        {
+            "name": "--quiet",
+            "value": None,
+            "default": False,
+            "placement": "anywhere",
+            "description": "Suppress non-result stderr logs.",
+        },
+        {
+            "name": "--debug",
+            "value": None,
+            "default": False,
+            "placement": "anywhere",
+            "description": "Include debug diagnostics in error details.",
+        },
+    ]
 
 
 def _git_revision() -> str | None:

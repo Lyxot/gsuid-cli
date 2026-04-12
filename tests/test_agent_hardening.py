@@ -87,6 +87,58 @@ def test_batch_plan_validates_without_executing(tmp_path, monkeypatch) -> None:
     assert payload["data"]["steps"][1]["error"]["code"] == "INVALID_ARGUMENT"
 
 
+def test_batch_plan_accepts_late_global_options(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    batch_file = tmp_path / "batch.jsonl"
+    batch_file.write_text(
+        json.dumps({"id": "late", "argv": ["meta", "version", "--request-id", "row-req"]}),
+        encoding="utf-8",
+    )
+
+    code, payload, stderr = _run_json(["batch", "plan", "--file", str(batch_file)])
+
+    assert code == 0
+    assert stderr == ""
+    assert payload["data"]["valid"] is True
+    step = payload["data"]["steps"][0]
+    assert step["command"] == "meta.version"
+    assert step["request_id"] == "row-req"
+
+
+def test_batch_run_preserves_gacha_command_format(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    batch_file = tmp_path / "batch.jsonl"
+    export_file = tmp_path / "gacha.json"
+    batch_file.write_text(
+        json.dumps(
+            {
+                "id": "gacha",
+                "argv": [
+                    "gacha",
+                    "export",
+                    "--uid",
+                    "100000001",
+                    "--format",
+                    "uigf-v2",
+                    "--output",
+                    str(export_file),
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    code, payload, stderr = _run_json(["batch", "run", "--file", str(batch_file)])
+
+    assert code == 0
+    assert stderr == ""
+    result = payload["data"]["results"][0]
+    assert result["payload"]["ok"] is True
+    assert result["payload"]["data"]["format"] == "uigf-v2"
+    exported = json.loads(export_file.read_text(encoding="utf-8"))
+    assert exported["info"]["uigf_version"] == "v2.4"
+
+
 def test_batch_plan_blocks_nested_batch(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     batch_file = tmp_path / "batch.jsonl"

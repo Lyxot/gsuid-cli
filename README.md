@@ -60,6 +60,13 @@ Run authenticated commands after login:
 .venv/bin/python -m gsuid_cli player diary --uid <UID>
 ```
 
+Global options can be placed before, between, or after command tokens:
+
+```sh
+.venv/bin/python -m gsuid_cli meta version --format pretty-json
+.venv/bin/python -m gsuid_cli player summary --uid <UID> --timeout 30
+```
+
 Run agent batch mode with JSONL input:
 
 ```sh
