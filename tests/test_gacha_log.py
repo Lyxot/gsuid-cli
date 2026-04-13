@@ -71,6 +71,66 @@ def test_gacha_import_summary_export_round_trip(monkeypatch, tmp_path) -> None:
     assert payload["data"]["inserted"] == 3
 
 
+def test_gacha_summary_counts_records_between_five_stars(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    import_file = tmp_path / "uigf-v4.json"
+    payload = _uigf_v4()
+    payload["hk4e"][0]["list"] = [
+        _item("1", "301", "Noelle", "4"),
+        _item("2", "301", "Venti", "5"),
+        _item("3", "301", "Debate Club", "3", item_type="Weapon"),
+        _item("4", "301", "Sucrose", "4"),
+        _item("5", "301", "Diluc", "5"),
+        _item("6", "302", "Skyward Harp", "5", item_type="Weapon"),
+    ]
+    import_file.write_text(json.dumps(payload), encoding="utf-8")
+
+    code, _payload = _run_json(
+        ["gacha", "import", "--uid", "100000001", "--file", str(import_file)]
+    )
+    assert code == 0
+
+    code, payload = _run_json(["gacha", "summary", "--uid", "100000001"])
+
+    assert code == 0
+    intervals = payload["data"]["summary"]["five_star_intervals_by_gacha_type"]
+    assert [item["records_since_previous_five_star"] for item in intervals["301"]] == [2, 3]
+    assert [item["record_number_in_gacha_type"] for item in intervals["301"]] == [2, 5]
+    assert intervals["301"][0]["item"]["name"] == "Venti"
+    assert intervals["301"][1]["item"]["name"] == "Diluc"
+    assert intervals["302"][0]["records_since_previous_five_star"] == 1
+
+
+def test_gacha_summary_character_banner_keeps_gacha_type_intervals_separate(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    import_file = tmp_path / "uigf-v4.json"
+    payload = _uigf_v4()
+    payload["hk4e"][0]["list"] = [
+        _item("1", "301", "Noelle", "4"),
+        _item("2", "400", "Barbara", "4"),
+        _item("3", "301", "Venti", "5"),
+        _item("4", "400", "Diluc", "5"),
+        _item("5", "302", "Skyward Harp", "5", item_type="Weapon"),
+    ]
+    import_file.write_text(json.dumps(payload), encoding="utf-8")
+
+    code, _payload = _run_json(
+        ["gacha", "import", "--uid", "100000001", "--file", str(import_file)]
+    )
+    assert code == 0
+
+    code, payload = _run_json(["gacha", "summary", "--uid", "100000001", "--banner", "character"])
+
+    assert code == 0
+    intervals = payload["data"]["summary"]["five_star_intervals_by_gacha_type"]
+    assert set(intervals) == {"301", "400"}
+    assert intervals["301"][0]["records_since_previous_five_star"] == 2
+    assert intervals["400"][0]["records_since_previous_five_star"] == 2
+
+
 def test_gacha_import_supports_uigf_v2(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     import_file = tmp_path / "uigf-v2.json"

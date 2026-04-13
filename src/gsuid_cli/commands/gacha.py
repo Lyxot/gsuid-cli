@@ -603,6 +603,7 @@ def _summary(conn: sqlite3.Connection, uid: str, banner: str) -> dict[str, objec
     by_gacha_type: dict[str, int] = {}
     pity_by_type: dict[str, int] = {}
     last_five_by_type: dict[str, dict[str, object]] = {}
+    five_star_intervals_by_type: dict[str, list[dict[str, object]]] = {}
     for row in rows:
         rank = str(row["rank_type"] or "")
         item_type = str(row["item_type"] or "")
@@ -612,7 +613,16 @@ def _summary(conn: sqlite3.Connection, uid: str, banner: str) -> dict[str, objec
         by_gacha_type[gacha_type] = by_gacha_type.get(gacha_type, 0) + 1
         pity_by_type[gacha_type] = pity_by_type.get(gacha_type, 0) + 1
         if rank == "5":
-            last_five_by_type[gacha_type] = _row_item(row)
+            item = _row_item(row)
+            interval = pity_by_type[gacha_type]
+            last_five_by_type[gacha_type] = item
+            five_star_intervals_by_type.setdefault(gacha_type, []).append(
+                {
+                    "records_since_previous_five_star": interval,
+                    "record_number_in_gacha_type": by_gacha_type[gacha_type],
+                    "item": item,
+                }
+            )
             pity_by_type[gacha_type] = 0
     return {
         "total": len(rows),
@@ -621,6 +631,7 @@ def _summary(conn: sqlite3.Connection, uid: str, banner: str) -> dict[str, objec
         "by_gacha_type": by_gacha_type,
         "pity_by_gacha_type": pity_by_type,
         "last_five_star_by_gacha_type": last_five_by_type,
+        "five_star_intervals_by_gacha_type": five_star_intervals_by_type,
     }
 
 

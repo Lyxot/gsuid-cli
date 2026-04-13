@@ -645,34 +645,31 @@ tests/
 ### Stage 7: Progress And Challenge Data — completed.
 ### Stage 8: Gacha Log — completed.
 ### Stage 8.1: Automatic Gacha Authkey URL — completed.
-### Stage 8.2: Live Gacha Refresh Normalization
+### Stage 8.2: Live Gacha Refresh Normalization — completed.
+### Stage 8.3: Gacha Five-Star Intervals
 
 - Status: completed.
-- Result: fixed live gacha refresh rows that omit `item_id`, matching
-  GenshinUID's tolerance for provider rows without item ids.
+- Result: added per-`gacha_type` record counts between 5-star pulls to
+  `gacha summary`.
 - Scope:
-  - Allow provider-fetched gacha rows to store an empty `item_id`.
-  - Keep imported UIGF files strict for required item fields.
-  - Do not treat duplicate provider rows as conflicting when the only mismatch
-    is an incomplete `item_id`; backfill empty stored ids when a later row
-    provides one.
-  - Rerun live `gacha refresh --uid <UID>`.
+  - Preserve existing summary fields.
+  - Add additive 5-star interval metadata grouped by `gacha_type`.
+  - Count records since the previous 5-star in the same `gacha_type`, including
+    the current 5-star record.
 - Verification:
   - `.venv/bin/python -m pytest tests/test_gacha_log.py`
   - `.venv/bin/python -m pytest`
   - `.venv/bin/ruff check .`
   - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python -m gsuid_cli gacha refresh --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli gacha refresh --uid <UID> --request-id stage82-refresh-final`
-- Live notes: initial live refresh inserted 1149 records. Follow-up refreshes
-  returned duplicates without failing on missing provider `item_id` values.
-  Exported live rows with empty `item_id` remain incomplete for strict UIGF
-  re-import until a later item-id resolver is added.
-- Review: standalone review agents found export/import portability and
-  duplicate-direction edge cases; strict imports were preserved, duplicate
-  comparison was made tolerant only for provider refresh rows, and tests cover
-  backfill plus incoming-missing duplicate behavior.
-- Commit: `fix: tolerate missing gacha item ids`.
+  - `.venv/bin/python -m gsuid_cli gacha summary --uid <UID> --request-id stage83-summary-final`
+- Live notes: UID `<UID>` now reports 5-star intervals grouped by actual
+  `gacha_type`, for example character banner `301` intervals
+  `[77, 79, 31, 8, 78, 15, 81]` and weapon banner `302` intervals
+  `[70, 26, 65, 69, 12, 41, 65, 65]`.
+- Review: standalone review agent found only low-risk coverage/wording issues;
+  banner-filter coverage for separate `301`/`400` interval groups was added and
+  plan wording was corrected.
+- Commit: `feat: add gacha five-star intervals`.
 
 ### Stage 9: Enka Panels And Ranking — completed.
 ### Stage 10: Rendering And Artifacts — completed.
