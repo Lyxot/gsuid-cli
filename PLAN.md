@@ -647,35 +647,7 @@ tests/
 ### Stage 8.1: Automatic Gacha Authkey URL — completed.
 ### Stage 8.2: Live Gacha Refresh Normalization — completed.
 ### Stage 8.3: Gacha Five-Star Intervals — completed.
-### Stage 8.4: Gacha Refresh Gap Recovery
-
-- Status: completed.
-- Result: fixed incremental `gacha refresh` so mixed duplicate pages no longer
-  stop pagination before older missing records are fetched.
-- Scope:
-  - Match GenshinUID's safer duplicate-boundary behavior by stopping only when
-    the oldest row in the current page already existed before insertion.
-  - Add GenshinUID-matched pacing: `0.9s` after every completed gacha-log
-    request and `0.5s` before continuing to the next page.
-  - Add regression coverage where page 1 has both a duplicate and a missing row,
-    and page 2 must still be fetched.
-  - Add sleep-spy coverage so terminal empty pages still apply the post-request
-    delay before moving to the next gacha type.
-- Verification:
-  - `.venv/bin/python -m pytest tests/test_gacha_log.py`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python -m gsuid_cli gacha refresh --uid <UID> --force --request-id stage84-force-refresh-final`
-  - `.venv/bin/python -m gsuid_cli gacha summary --uid <UID> --request-id stage84-summary-final`
-- Live notes: forced live refresh fetched `1149` rows and inserted `0`; this
-  confirms the current local database already contains all rows exposed by the
-  current authkey endpoint under the CLI's query pattern.
-- Review: standalone review agent found terminal-page delay placement was not a
-  precise GenshinUID match; split request/continuation delays and rate-limit
-  coverage were added and reverified.
-- Commit: `fix: recover gacha refresh gaps`.
-
+### Stage 8.4: Gacha Refresh Gap Recovery — completed.
 ### Stage 9: Enka Panels And Ranking — completed.
 ### Stage 10: Rendering And Artifacts — completed.
 ### Stage 11: Guides, Maps, And Rich Public Data — completed.
@@ -683,6 +655,34 @@ tests/
 ### Stage 13: Documentation, CI, And Release — completed.
 ### Stage 14: Missing Command Contract Completion — completed.
 ### Stage 15: Full Global Options — completed.
+### Stage 16: Help Information Coverage
+
+- Status: completed.
+- Result: `--help` is complete and test-covered for every public parser path,
+  and explicit help now writes to the `run(..., stdout=...)` stream instead of
+  bypassing callers through argparse's default stdout.
+- Scope:
+  - Ensure root, group, command, and nested command help paths exit `0`, write
+    help to stdout, and do not emit stderr.
+  - Ensure every implemented `meta capabilities` command has a corresponding
+    parser help path.
+  - Ensure visible arguments and subcommands have nonempty help text.
+  - Keep generated command reference checks aligned with the parser/capability
+    surface.
+  - Preserve runnable parser nodes with optional children, such as bare
+    `gacha authkey`, as JSON-producing commands rather than incomplete-help
+    paths.
+- Verification:
+  - `.venv/bin/python -m pytest tests/test_help_information.py tests/test_cli_parser.py tests/test_global_options.py -q`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+- Review: standalone review agent found nested bare parser paths such as
+  `auth qrcode` were not covered by incomplete-help detection; nested traversal
+  was added and reverified while preserving bare `gacha authkey` execution.
+- Commit: `feat: add help information coverage`.
+
 ## MVP Cut Line
 
 The first usable MVP is complete after Stage 6 if these commands work:

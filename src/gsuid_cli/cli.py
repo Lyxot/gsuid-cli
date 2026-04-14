@@ -50,6 +50,79 @@ GLOBAL_VALUE_OPTIONS = {
 GLOBAL_FLAG_OPTIONS = {"--quiet", "--debug", "--help", "--version"}
 HOISTED_GLOBAL_FLAG_OPTIONS = {"--quiet", "--debug"}
 OUTPUT_FORMATS = {"json", "pretty-json", "text"}
+OPTION_HELP = {
+    "--all": "Include normally omitted rows.",
+    "--app-id": "QR login app id from auth.qrcode.start.",
+    "--artifact-source-character": "Character whose artifacts should be reused for comparison.",
+    "--banner": "Gacha banner category to summarize.",
+    "--build": "Saved or cached build name to compare.",
+    "--cache": "HTTP/cache policy for provider-backed commands.",
+    "--character": "Character name or id.",
+    "--check": "Diagnostic check category to run.",
+    "--constellation": "Constellation name, number, or level.",
+    "--cookie": "Cookie value for this one credential write.",
+    "--cookie-file": "Read the cookie value from a file.",
+    "--cookie-stdin": "Read the cookie value from stdin.",
+    "--date": "Calendar date for the requested data.",
+    "--day": "Weekday name or number.",
+    "--debug": "Include debug diagnostics in error details.",
+    "--deck-id": "Genius Invokation TCG deck id.",
+    "--default": "Mark the created or selected record as default.",
+    "--device": "QR login device id from auth.qrcode.start.",
+    "--file": "Input file path.",
+    "--floor": "Challenge floor number.",
+    "--force": "Bypass local freshness or duplicate-stop shortcuts where supported.",
+    "--full": "Use the larger full-refresh page limit.",
+    "--id": "Provider id for the requested row.",
+    "--item": "Item name or id.",
+    "--label": "Human-readable local account label.",
+    "--level": "Target level for derived wiki data.",
+    "--limit": "Maximum rows to return.",
+    "--login-timeout": "Maximum QR login wait time in seconds.",
+    "--map": "Map source or map id.",
+    "--material": "Material name or id.",
+    "--max-artifact-files": "Warn when artifact files exceed this count.",
+    "--max-http-cache-files": "Warn when HTTP cache files exceed this count.",
+    "--min-free-mb": "Warn when free disk space is below this many MB.",
+    "--name": "Name value for this command.",
+    "--nearby": "Number of nearby rank rows to include.",
+    "--output": "Output file path.",
+    "--output-dir": "Artifact output directory.",
+    "--page": "Result page number.",
+    "--poll-interval": "QR login poll interval in seconds.",
+    "--profile": "Local profile name.",
+    "--query": "Search query.",
+    "--quiet": "Suppress non-result stderr logs.",
+    "--region": "Target API region.",
+    "--render": "Data/artifact preference.",
+    "--request-id": "Caller-supplied request id.",
+    "--scope": "Operation scope.",
+    "--season": "Challenge season selector.",
+    "--sort": "Sort field.",
+    "--source": "Data source provider.",
+    "--stoken": "Stoken value for this one credential write.",
+    "--stoken-file": "Read the stoken value from a file.",
+    "--stoken-stdin": "Read the stoken value from stdin.",
+    "--talent": "Talent name or id.",
+    "--ticket": "QR login ticket from auth.qrcode.start.",
+    "--timeout": "HTTP timeout in seconds.",
+    "--uid": "Target Genshin UID. Overrides the profile default.",
+    "--url": "Secret URL value for this one credential write.",
+    "--url-file": "Read the secret URL value from a file.",
+    "--url-stdin": "Read the secret URL value from stdin.",
+    "--version": "Game or guide version selector.",
+    "--weapon": "Weapon name or id.",
+}
+DEST_HELP = {
+    "account_region": "Account API region.",
+    "account_uid": "Account Genshin UID.",
+    "command_uid": "Target Genshin UID. Overrides the profile default.",
+    "export_format": "Gacha export format.",
+    "format": "Output format.",
+    "import_format": "Gacha import format.",
+    "profile_region": "Profile default API region.",
+    "query": "Search query or lookup name.",
+}
 
 
 class GsuidArgumentParser(argparse.ArgumentParser):
@@ -99,6 +172,7 @@ def build_parser() -> argparse.ArgumentParser:
     gacha.register(groups)
     panel.register(groups)
     rank.register(groups)
+    _complete_help_information(parser)
     return parser
 
 
@@ -119,6 +193,8 @@ def run(
 
     try:
         parser = build_parser()
+        if _write_explicit_help(parser, args_list, stdout):
+            return 0
         if _write_incomplete_help(parser, args_list, stdout):
             return 0
         args = parser.parse_args(args_list)
@@ -188,6 +264,60 @@ def run(
 
 def main(argv: Sequence[str] | None = None) -> int:
     return run(argv)
+
+
+def _complete_help_information(parser: argparse.ArgumentParser) -> None:
+    for current, description in _walk_parsers(parser, parser.description):
+        if not current.description and description:
+            current.description = description
+        for action in current._actions:
+            if isinstance(action, argparse._HelpAction):
+                continue
+            if isinstance(action, argparse._SubParsersAction):
+                _complete_subparser_choice_help(action)
+                continue
+            if action.help in {None, ""}:
+                action.help = _default_action_help(action)
+
+
+def _walk_parsers(
+    parser: argparse.ArgumentParser,
+    description: str | None,
+) -> list[tuple[argparse.ArgumentParser, str | None]]:
+    parsers = [(parser, description)]
+    for action in parser._actions:
+        if not isinstance(action, argparse._SubParsersAction):
+            continue
+        choice_help = {
+            choice.dest: choice.help
+            for choice in action._choices_actions
+            if getattr(choice, "help", None)
+        }
+        for name, child in action.choices.items():
+            parsers.extend(_walk_parsers(child, choice_help.get(name)))
+    return parsers
+
+
+def _complete_subparser_choice_help(action: argparse._SubParsersAction) -> None:
+    for choice in action._choices_actions:
+        if choice.help in {None, ""}:
+            choice.help = _label_help(choice.dest)
+
+
+def _default_action_help(action: argparse.Action) -> str:
+    if action.dest in DEST_HELP:
+        return DEST_HELP[action.dest]
+    for option in action.option_strings:
+        if option in OPTION_HELP:
+            return OPTION_HELP[option]
+    return _label_help(action.dest)
+
+
+def _label_help(value: str) -> str:
+    label = value.replace("_", " ").replace("-", " ").strip()
+    if not label:
+        return "Value for this argument."
+    return f"{label.capitalize()} value."
 
 
 def _validate_runtime_defaults(args: argparse.Namespace) -> None:
@@ -352,7 +482,7 @@ def _write_incomplete_help(
     argv: Sequence[str],
     stdout: TextIO,
 ) -> bool:
-    path = _incomplete_command_path(argv)
+    path = _incomplete_command_path(parser, argv)
     if path is None:
         return False
     _validate_globals_for_help(argv)
@@ -360,14 +490,53 @@ def _write_incomplete_help(
         parser.print_help(stdout)
         return True
 
-    group_parser = _subparser(parser, path[0])
-    if group_parser is None:
+    path_parser = _parser_for_path(parser, path)
+    if path_parser is None:
         return False
-    group_parser.print_help(stdout)
+    path_parser.print_help(stdout)
     return True
 
 
-def _incomplete_command_path(argv: Sequence[str]) -> list[str] | None:
+def _write_explicit_help(
+    parser: argparse.ArgumentParser,
+    argv: Sequence[str],
+    stdout: TextIO,
+) -> bool:
+    if not any(token in {"--help", "-h"} for token in argv):
+        return False
+    _validate_globals_for_help(argv)
+    current = parser
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        option, inline_value = _split_long_option(token)
+        if token in {"--help", "-h"}:
+            current.print_help(stdout)
+            return True
+        if option in GLOBAL_VALUE_OPTIONS and _should_hoist_global_option(option, inline_value):
+            index += 1 if inline_value is not None else 2
+            continue
+        if token in HOISTED_GLOBAL_FLAG_OPTIONS:
+            index += 1
+            continue
+        if token.startswith("-"):
+            index += 1
+            continue
+        child = _subparser(current, token)
+        if child is None:
+            if _subparser_action(current) is not None:
+                return False
+            index += 1
+            continue
+        current = child
+        index += 1
+    return False
+
+
+def _incomplete_command_path(
+    parser: argparse.ArgumentParser,
+    argv: Sequence[str],
+) -> list[str] | None:
     if any(token in {"--help", "-h", "--version"} for token in argv):
         return None
 
@@ -394,17 +563,44 @@ def _incomplete_command_path(argv: Sequence[str]) -> list[str] | None:
             return None
 
         path.append(token)
-        if len(path) == 2:
-            return None
         index += 1
 
-    return path
+    if not path:
+        return path
+    path_parser = _parser_for_path(parser, path)
+    if path_parser is None:
+        return None
+    if path_parser.get_default("handler") is not None:
+        return None
+    return path if _subparser_action(path_parser) is not None else None
+
+
+def _parser_for_path(
+    parser: argparse.ArgumentParser,
+    path: Sequence[str],
+) -> argparse.ArgumentParser | None:
+    current = parser
+    for token in path:
+        child = _subparser(current, token)
+        if child is None:
+            return None
+        current = child
+    return current
 
 
 def _subparser(parser: argparse.ArgumentParser, name: str) -> argparse.ArgumentParser | None:
+    action = _subparser_action(parser)
+    if action is None:
+        return None
+    return action.choices.get(name)
+
+
+def _subparser_action(
+    parser: argparse.ArgumentParser,
+) -> argparse._SubParsersAction | None:
     for action in parser._actions:
         if isinstance(action, argparse._SubParsersAction):
-            return action.choices.get(name)
+            return action
     return None
 
 
