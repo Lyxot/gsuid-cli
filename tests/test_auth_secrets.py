@@ -55,30 +55,6 @@ def test_env_cookie_takes_priority_without_stored_secret(monkeypatch, tmp_path) 
     assert payload["data"]["storage_backend"] is None
 
 
-def test_qrcode_start_can_render_artifact(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _qrcode_provider())
-
-    code, payload = _run_json(
-        [
-            "--request-id",
-            "req-qrcode",
-            "--render",
-            "image",
-            "auth",
-            "qrcode",
-            "start",
-        ]
-    )
-
-    assert code == 0
-    assert payload["command"] == "auth.qrcode.start"
-    assert payload["data"]["ticket"] == "ticket-1"
-    assert payload["artifacts"][0]["name"] == "qrcode_login"
-    assert payload["artifacts"][0]["media_type"] == "image/png"
-    assert (tmp_path / "home" / "artifacts").exists()
-
-
 def test_qrcode_complete_stores_credentials_without_printing_secrets(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _qrcode_provider())

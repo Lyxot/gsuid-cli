@@ -20,21 +20,21 @@ Generated from `gsuid meta capabilities`.
 | `auth.qrcode.complete` | `keyring` | `data` | `off` | Complete a confirmed QR login and store credentials. |
 | `auth.qrcode.login` | `keyring` | `data` | `off` | Run interactive QR login and store credentials. |
 | `auth.qrcode.poll` | `none` | `data` | `off` | Poll a QR login session once. |
-| `auth.qrcode.start` | `none` | `data, image, both` | `off` | Create a QR login session. |
+| `auth.qrcode.start` | `none` | `data` | `off` | Create a QR login session. |
 | `auth.stoken.delete` | `keyring` | `data` | `off` | Delete a stored stoken from the OS keyring. |
 | `auth.stoken.set` | `keyring` | `data` | `off` | Store a stoken in the OS keyring. |
 | `auth.stoken.test` | `stoken` | `data` | `off` | Check local stoken availability without provider validation. |
 | `batch.plan` | `none` | `data` | `off` | Validate JSONL batch commands without executing them. |
 | `batch.run` | `mixed` | `data` | `mixed` | Execute JSONL batch commands and return nested envelopes. |
 | `cache.clear` | `none` | `data` | `off` | Clear local cache and artifact files by scope. |
-| `challenge.abyss` | `cookie` | `data, image, both` | `off` | Show authenticated Spiral Abyss data. |
+| `challenge.abyss` | `cookie` | `data` | `off` | Show authenticated Spiral Abyss data. |
 | `challenge.hard` | `cookie` | `data` | `off` | Show authenticated hard challenge data from player index. |
 | `challenge.hard-rank` | `none` | `data` | `off` | Report hard challenge ranking support status. |
 | `challenge.theater` | `cookie` | `data` | `off` | Show authenticated Imaginarium Theater data. |
 | `codes.list` | `none` | `data` | `use` | List public active redeem-code rows. |
 | `daily.bbs-coin` | `none` | `data` | `off` | Report BBS coin task support status. |
 | `daily.materials` | `none` | `data` | `use` | List daily talent and weapon material domains. |
-| `daily.note` | `cookie` | `data, image, both` | `off` | Show current resin, commissions, expeditions, and teapot status. |
+| `daily.note` | `cookie` | `data` | `off` | Show current resin, commissions, expeditions, and teapot status. |
 | `daily.signin` | `cookie` | `data` | `off` | Claim or report the MYS daily sign-in status. |
 | `events.banners` | `none` | `data` | `use` | List public event banner artwork URLs. |
 | `events.list` | `none` | `data` | `use` | List public event announcements. |
@@ -64,7 +64,7 @@ Generated from `gsuid meta capabilities`.
 | `panel.list` | `none` | `data` | `off` | List cached character panels for a UID. |
 | `panel.refresh` | `none` | `data` | `use` | Refresh Enka showcase panel data into the local cache. |
 | `panel.save` | `none` | `data` | `off` | Save one cached panel as a JSON artifact. |
-| `panel.show` | `none` | `data, image, both` | `off` | Show one cached character panel. |
+| `panel.show` | `none` | `data` | `off` | Show one cached character panel. |
 | `panel.showcase` | `none` | `data` | `off` | Show the cached public showcase summary. |
 | `player.calendar` | `none` | `data` | `off` | Report player calendar data support status. |
 | `player.characters` | `cookie` | `data` | `off` | Show authenticated player character details. |
@@ -108,4 +108,5 @@ Notes:
 - JSON mode is the stable machine contract.
 - `auth` describes required credential type, not whether a command can fail upstream.
 - `render` lists supported result modes; artifacts are returned by absolute path.
+- Stage 17 temporarily disables first-pass generated renderers while GenshinUID-parity images are ported.
 - `cache` describes intended command cache behavior.

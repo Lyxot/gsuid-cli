@@ -655,33 +655,28 @@ tests/
 ### Stage 13: Documentation, CI, And Release — completed.
 ### Stage 14: Missing Command Contract Completion — completed.
 ### Stage 15: Full Global Options — completed.
-### Stage 16: Help Information Coverage
+### Stage 16: Help Information Coverage — completed.
+### Stage 17: GenshinUID Image Parity
 
-- Status: completed.
-- Result: `--help` is complete and test-covered for every public parser path,
-  and explicit help now writes to the `run(..., stdout=...)` stream instead of
-  bypassing callers through argparse's default stdout.
-- Scope:
-  - Ensure root, group, command, and nested command help paths exit `0`, write
-    help to stdout, and do not emit stderr.
-  - Ensure every implemented `meta capabilities` command has a corresponding
-    parser help path.
-  - Ensure visible arguments and subcommands have nonempty help text.
-  - Keep generated command reference checks aligned with the parser/capability
-    surface.
-  - Preserve runnable parser nodes with optional children, such as bare
-    `gacha authkey`, as JSON-producing commands rather than incomplete-help
-    paths.
+- Status: in progress.
+- Goal: replace the first-pass local image generation with GenshinUID-parity
+  rendering, implemented in small reviewable substages.
+- Stage 17a status: completed.
+- Stage 17a result: temporarily removed existing generated-image paths for QR start,
+  daily note, Spiral Abyss, and panel show; deleted the local Pillow card
+  renderer; removed the Pillow runtime dependency; downgraded those command
+  capabilities to data-only; and kept non-generated artifact flows such as
+  MiniGG map images, JSON exports, and saved panel JSON artifacts intact.
 - Verification:
-  - `.venv/bin/python -m pytest tests/test_help_information.py tests/test_cli_parser.py tests/test_global_options.py -q`
+  - `.venv/bin/python -m pytest tests/test_meta_commands.py tests/test_global_options.py tests/test_auth_secrets.py tests/test_rich_public_data.py`
   - `.venv/bin/python -m pytest`
   - `.venv/bin/ruff check .`
   - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-- Review: standalone review agent found nested bare parser paths such as
-  `auth qrcode` were not covered by incomplete-help detection; nested traversal
-  was added and reverified while preserving bare `gacha authkey` execution.
-- Commit: `feat: add help information coverage`.
+- Review: standalone review agents found stale QR preservation/example wording;
+  documentation now states generated renderers are temporarily disabled during
+  Stage 17.
+- Next intended substage: Stage 17b, choose the first GenshinUID renderer group
+  to port and document source/license attribution before adding code.
 
 ## MVP Cut Line
 

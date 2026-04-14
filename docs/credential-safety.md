@@ -43,10 +43,14 @@ and stores cookie/stoken credentials in keyring.
 Manual QR flow is also available for non-interactive orchestration:
 
 ```sh
-.venv/bin/python -m gsuid_cli --render both auth qrcode start
+.venv/bin/python -m gsuid_cli auth qrcode start
 .venv/bin/python -m gsuid_cli auth qrcode poll --app-id APP --ticket TICKET --device DEVICE
 .venv/bin/python -m gsuid_cli auth qrcode complete --uid <UID> --app-id APP --ticket TICKET --device DEVICE
 ```
+
+QR image artifacts for `auth qrcode start --render image|both` are temporarily
+disabled during Stage 17 while generated renderers are replaced with
+GenshinUID-parity versions.
 
 The ticket expires quickly. For humans, prefer `auth qrcode login` so polling
 starts immediately after the QR code is shown.
@@ -83,4 +87,5 @@ logs/
 
 The SQLite state file stores non-secret account/profile metadata. Artifacts can
 include rendered account data, exported gacha logs, and map images; treat the
-artifact directory as local private data.
+artifact directory as local private data. Stage 17 temporarily disables some
+generated renderers while they are replaced with GenshinUID-parity versions.

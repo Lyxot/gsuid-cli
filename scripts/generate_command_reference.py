@@ -50,6 +50,8 @@ def render_command_reference() -> str:
             "- JSON mode is the stable machine contract.",
             "- `auth` describes required credential type, not whether a command can fail upstream.",
             "- `render` lists supported result modes; artifacts are returned by absolute path.",
+            "- Stage 17 temporarily disables first-pass generated renderers while "
+            "GenshinUID-parity images are ported.",
             "- `cache` describes intended command cache behavior.",
             "",
         ]

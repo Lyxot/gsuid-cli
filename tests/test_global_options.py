@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import io
 import json
-from pathlib import Path
 
 from gsuid_cli.cli import run
 from gsuid_cli.core.models import CommandResult
@@ -154,47 +153,6 @@ def test_cache_timeout_region_and_debug_reach_provider(monkeypatch) -> None:
     assert payload["data"]["timeout"] == 7
     assert payload["data"]["cache_policy"] == "off"
     assert payload["data"]["debug"] is True
-
-
-def test_render_both_and_output_dir_work_after_qrcode_start(monkeypatch, tmp_path) -> None:
-    class FakeQrProvider:
-        def create_qrcode_session(self, *, region: str) -> CommandResult:
-            return CommandResult(
-                data={
-                    "app_id": "2",
-                    "ticket": "ticket",
-                    "device": "device",
-                    "url": "https://example.test/qr",
-                },
-                source=_source(region),
-            )
-
-    output = tmp_path / "artifacts"
-    monkeypatch.setattr(
-        "gsuid_cli.commands.auth.provider_for_region",
-        lambda _region, _http_client: FakeQrProvider(),
-    )
-
-    code, payload, stderr = _run_json(
-        [
-            "auth",
-            "qrcode",
-            "start",
-            "--render",
-            "both",
-            "--output-dir",
-            str(output),
-            "--request-id",
-            "qr-global",
-        ]
-    )
-
-    assert code == 0
-    assert stderr == ""
-    assert payload["artifacts"]
-    artifact_path = Path(str(payload["artifacts"][0]["path"]))
-    assert artifact_path.exists()
-    assert output.resolve() in artifact_path.parents
 
 
 def test_quiet_suppresses_interactive_qrcode_logs(monkeypatch, tmp_path) -> None:

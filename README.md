@@ -4,8 +4,13 @@
 panel, gacha-log, and event workflows. It is CN-only for the current MVP.
 
 The stable contract is JSON on stdout. Warnings, progress, and human scan
-instructions go to stderr. Files such as rendered images and exports are written
-to disk and returned as absolute artifact paths in the JSON envelope.
+instructions go to stderr. Files such as rendered images, map images, and
+exports are written to disk and returned as absolute artifact paths in the JSON
+envelope.
+
+Image rendering is being reworked for GenshinUID visual parity. During the
+temporary Stage 17 port, `meta capabilities` is the source of truth for which
+commands currently return image artifacts.
 
 ## Install For Development
 

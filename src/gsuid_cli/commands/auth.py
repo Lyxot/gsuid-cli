@@ -10,7 +10,6 @@ import qrcode
 from qrcode.constants import ERROR_CORRECT_L
 
 from gsuid_cli.commands.account import _validate_uid
-from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_AUTH, EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
@@ -97,7 +96,7 @@ CAPABILITIES = [
         "description": "Create a QR login session.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data"],
         "cache": "off",
     },
     {
@@ -195,23 +194,7 @@ def delete_command(args: argparse.Namespace) -> dict[str, object]:
 
 def qrcode_start_command(args: argparse.Namespace) -> CommandResult:
     provider = provider_for_region(args.region, _http_client(args))
-    result = provider.create_qrcode_session(region=args.region)
-    if args.render in {"image", "both"}:
-        artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-            name="qrcode_login",
-            filename="qrcode_login.png",
-            media_type="image/png",
-            content=_qrcode_png(str(result.data["url"])),
-            description="QR login code for the MiHoYo app",
-            kind="image",
-        )
-        return CommandResult(
-            data=result.data,
-            source=result.source,
-            artifacts=[artifact],
-            warnings=result.warnings,
-        )
-    return result
+    return provider.create_qrcode_session(region=args.region)
 
 
 def qrcode_poll_command(args: argparse.Namespace) -> CommandResult:
@@ -486,21 +469,6 @@ def _http_client(args: argparse.Namespace) -> HttpClient:
         output_dir=args.output_dir,
         debug=args.debug,
     )
-
-
-def _qrcode_png(url: str) -> bytes:
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(url)
-    qr.make(fit=True)
-    image = qr.make_image(fill_color=(255, 134, 36), back_color="white")
-    buffer = io.BytesIO()
-    image.save(buffer, format="PNG")
-    return buffer.getvalue()
 
 
 def _qrcode_terminal(url: str) -> str:

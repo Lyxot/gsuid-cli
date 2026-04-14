@@ -82,9 +82,6 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert {"panel.artifacts", "panel.graduation"}.issubset(commands)
     assert {"rank.summary", "rank.list", "rank.character", "rank.artifact"}.issubset(commands)
     capability_by_command = {command["command"]: command for command in payload["data"]["commands"]}
-    assert "image" in capability_by_command["daily.note"]["render"]
-    assert "image" in capability_by_command["challenge.abyss"]["render"]
-    assert "image" in capability_by_command["panel.show"]["render"]
     assert capability_by_command["map.find"]["cache"] == "off"
     assert "data" in capability_by_command["map.find"]["render"]
     assert payload["data"]["regions"] == ["cn"]
