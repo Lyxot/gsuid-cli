@@ -70,6 +70,8 @@ CAPABILITIES = [
 ]
 
 GACHA_TYPES = ("100", "200", "301", "302", "400", "500")
+GACHA_REFRESH_REQUEST_DELAY_SECONDS = 0.9
+GACHA_REFRESH_CONTINUE_DELAY_SECONDS = 0.5
 BANNER_TYPES = {
     "all": None,
     "character": {"301", "400"},
@@ -172,8 +174,9 @@ def refresh_command(args: argparse.Namespace) -> CommandResult:
         for gacha_type in GACHA_TYPES:
             end_id = "0"
             page = 1
+            page_limit = _refresh_page_limit(args)
             fetched_type = inserted_type = duplicate_type = 0
-            while page <= _refresh_page_limit(args):
+            while page <= page_limit:
                 result = provider.gacha_log_page(
                     uid=uid,
                     authkey_url=authkey_url,
@@ -182,16 +185,20 @@ def refresh_command(args: argparse.Namespace) -> CommandResult:
                     page=page,
                     end_id=end_id,
                 )
+                time.sleep(GACHA_REFRESH_REQUEST_DELAY_SECONDS)
                 items = _provider_items(result.data)
                 if not items:
                     break
+                oldest_existed = _oldest_item_exists(conn, uid, items)
                 stats = _insert_items(conn, uid, items, require_item_id=False)
                 fetched_type += len(items)
                 inserted_type += stats["inserted"]
                 duplicate_type += stats["duplicates"]
                 end_id = str(items[-1]["id"])
-                if stats["duplicates"] and not args.force and not args.full:
+                if _should_stop_incremental_refresh(args, oldest_existed):
                     break
+                if page < page_limit:
+                    time.sleep(GACHA_REFRESH_CONTINUE_DELAY_SECONDS)
                 page += 1
 
             totals["fetched"] += fetched_type
@@ -334,6 +341,19 @@ def _generated_gacha_url(result: CommandResult) -> str:
 
 def _refresh_page_limit(args: argparse.Namespace) -> int:
     return 500 if args.full else 50
+
+
+def _oldest_item_exists(
+    conn: sqlite3.Connection,
+    uid: str,
+    items: list[dict[str, object]],
+) -> bool:
+    item_id = str(items[-1].get("id") or "")
+    return bool(item_id) and _find_existing(conn, uid, item_id) is not None
+
+
+def _should_stop_incremental_refresh(args: argparse.Namespace, oldest_existed: bool) -> bool:
+    return oldest_existed and not args.force and not args.full
 
 
 def _provider_items(data: dict[str, object]) -> list[dict[str, object]]:

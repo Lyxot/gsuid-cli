@@ -646,30 +646,35 @@ tests/
 ### Stage 8: Gacha Log — completed.
 ### Stage 8.1: Automatic Gacha Authkey URL — completed.
 ### Stage 8.2: Live Gacha Refresh Normalization — completed.
-### Stage 8.3: Gacha Five-Star Intervals
+### Stage 8.3: Gacha Five-Star Intervals — completed.
+### Stage 8.4: Gacha Refresh Gap Recovery
 
 - Status: completed.
-- Result: added per-`gacha_type` record counts between 5-star pulls to
-  `gacha summary`.
+- Result: fixed incremental `gacha refresh` so mixed duplicate pages no longer
+  stop pagination before older missing records are fetched.
 - Scope:
-  - Preserve existing summary fields.
-  - Add additive 5-star interval metadata grouped by `gacha_type`.
-  - Count records since the previous 5-star in the same `gacha_type`, including
-    the current 5-star record.
+  - Match GenshinUID's safer duplicate-boundary behavior by stopping only when
+    the oldest row in the current page already existed before insertion.
+  - Add GenshinUID-matched pacing: `0.9s` after every completed gacha-log
+    request and `0.5s` before continuing to the next page.
+  - Add regression coverage where page 1 has both a duplicate and a missing row,
+    and page 2 must still be fetched.
+  - Add sleep-spy coverage so terminal empty pages still apply the post-request
+    delay before moving to the next gacha type.
 - Verification:
   - `.venv/bin/python -m pytest tests/test_gacha_log.py`
   - `.venv/bin/python -m pytest`
   - `.venv/bin/ruff check .`
   - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python -m gsuid_cli gacha summary --uid <UID> --request-id stage83-summary-final`
-- Live notes: UID `<UID>` now reports 5-star intervals grouped by actual
-  `gacha_type`, for example character banner `301` intervals
-  `[77, 79, 31, 8, 78, 15, 81]` and weapon banner `302` intervals
-  `[70, 26, 65, 69, 12, 41, 65, 65]`.
-- Review: standalone review agent found only low-risk coverage/wording issues;
-  banner-filter coverage for separate `301`/`400` interval groups was added and
-  plan wording was corrected.
-- Commit: `feat: add gacha five-star intervals`.
+  - `.venv/bin/python -m gsuid_cli gacha refresh --uid <UID> --force --request-id stage84-force-refresh-final`
+  - `.venv/bin/python -m gsuid_cli gacha summary --uid <UID> --request-id stage84-summary-final`
+- Live notes: forced live refresh fetched `1149` rows and inserted `0`; this
+  confirms the current local database already contains all rows exposed by the
+  current authkey endpoint under the CLI's query pattern.
+- Review: standalone review agent found terminal-page delay placement was not a
+  precise GenshinUID match; split request/continuation delays and rate-limit
+  coverage were added and reverified.
+- Commit: `fix: recover gacha refresh gaps`.
 
 ### Stage 9: Enka Panels And Ranking — completed.
 ### Stage 10: Rendering And Artifacts — completed.

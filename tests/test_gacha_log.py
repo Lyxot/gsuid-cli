@@ -430,6 +430,7 @@ def test_state_v1_migrates_to_gacha_tables(monkeypatch, tmp_path) -> None:
 def test_gacha_refresh_uses_stored_authkey_without_printing_it(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands.gacha.provider_for_region", _refresh_provider)
+    _disable_gacha_refresh_sleep(monkeypatch)
     secret_url = "https://example.test/getGachaLog?authkey=secret-authkey&authkey_ver=1"
     SecretStore().set_secret("gacha_url", "100000001", secret_url)
 
@@ -447,6 +448,52 @@ def test_gacha_refresh_uses_stored_authkey_without_printing_it(monkeypatch, tmp_
     assert code == 0
     assert payload["data"]["inserted"] == 0
     assert payload["data"]["duplicates"] == 2
+
+
+def test_gacha_refresh_continues_past_mixed_duplicate_page(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.gacha.provider_for_region", _gap_refresh_provider)
+    _disable_gacha_refresh_sleep(monkeypatch)
+    SecretStore().set_secret(
+        "gacha_url",
+        "100000001",
+        "https://example.test/getGachaLog?authkey=secret-authkey&authkey_ver=1",
+    )
+    with state_db(None) as conn:
+        gacha._insert_items(conn, "100000001", [_item("3", "301", "Existing", "4")])
+
+    code, payload = _run_json(["gacha", "refresh", "--uid", "100000001"])
+
+    assert code == 0
+    assert payload["data"]["inserted"] == 2
+    assert payload["data"]["duplicates"] == 1
+    with state_db(None) as conn:
+        ids = [
+            row["id"]
+            for row in conn.execute(
+                "SELECT id FROM gacha_items WHERE uid = ? ORDER BY CAST(id AS INTEGER)",
+                ("100000001",),
+            )
+        ]
+    assert ids == ["1", "2", "3"]
+
+
+def test_gacha_refresh_delays_after_terminal_pages(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.gacha.provider_for_region", _empty_refresh_provider)
+    sleeps: list[float] = []
+    monkeypatch.setattr(gacha.time, "sleep", sleeps.append)
+    SecretStore().set_secret(
+        "gacha_url",
+        "100000001",
+        "https://example.test/getGachaLog?authkey=secret-authkey&authkey_ver=1",
+    )
+
+    code, payload = _run_json(["gacha", "refresh", "--uid", "100000001"])
+
+    assert code == 0
+    assert payload["data"]["fetched"] == 0
+    assert sleeps == [gacha.GACHA_REFRESH_REQUEST_DELAY_SECONDS] * len(gacha.GACHA_TYPES)
 
 
 def test_gacha_refresh_expired_authkey_is_sanitized(monkeypatch, tmp_path) -> None:
@@ -579,6 +626,11 @@ def _run_json(argv: list[str]) -> tuple[int, dict[str, object]]:
     return code, json.loads(stdout.getvalue())
 
 
+def _disable_gacha_refresh_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(gacha, "GACHA_REFRESH_REQUEST_DELAY_SECONDS", 0)
+    monkeypatch.setattr(gacha, "GACHA_REFRESH_CONTINUE_DELAY_SECONDS", 0)
+
+
 def _refresh_provider(_region: str, _http_client: HttpClient):
     class FakeProvider:
         def gacha_log_page(
@@ -599,6 +651,66 @@ def _refresh_provider(_region: str, _http_client: HttpClient):
                 items = _items()[:2]
                 del items[0]["item_id"]
                 return CommandResult(data={"list": items}, source=_source())
+            return CommandResult(data={"list": []}, source=_source())
+
+    return FakeProvider()
+
+
+def _empty_refresh_provider(_region: str, _http_client: HttpClient):
+    class FakeProvider:
+        def gacha_log_page(
+            self,
+            *,
+            uid: str,
+            authkey_url: str,
+            region: str,
+            gacha_type: str,
+            page: int,
+            end_id: str,
+        ) -> CommandResult:
+            assert uid == "100000001"
+            assert "secret-authkey" in authkey_url
+            assert region == "cn"
+            assert gacha_type in gacha.GACHA_TYPES
+            assert page == 1
+            assert end_id == "0"
+            return CommandResult(data={"list": []}, source=_source())
+
+    return FakeProvider()
+
+
+def _gap_refresh_provider(_region: str, _http_client: HttpClient):
+    class FakeProvider:
+        def gacha_log_page(
+            self,
+            *,
+            uid: str,
+            authkey_url: str,
+            region: str,
+            gacha_type: str,
+            page: int,
+            end_id: str,
+        ) -> CommandResult:
+            assert uid == "100000001"
+            assert "secret-authkey" in authkey_url
+            assert region == "cn"
+            if gacha_type == "301" and page == 1:
+                assert end_id == "0"
+                return CommandResult(
+                    data={
+                        "list": [
+                            _item("3", "301", "Existing", "4"),
+                            _item("2", "301", "Venti", "5"),
+                        ]
+                    },
+                    source=_source(),
+                )
+            if gacha_type == "301" and page == 2:
+                assert end_id == "2"
+                return CommandResult(
+                    data={"list": [_item("1", "301", "Noelle", "4")]},
+                    source=_source(),
+                )
             return CommandResult(data={"list": []}, source=_source())
 
     return FakeProvider()
