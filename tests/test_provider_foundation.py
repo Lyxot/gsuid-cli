@@ -362,6 +362,90 @@ def test_qrcode_complete_requires_confirmed_status() -> None:
     assert exc.value.exit_code == 6
 
 
+def test_device_set_uses_existing_fp_payload() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return _json_response({"retcode": 0, "message": "OK", "data": {}})
+
+    provider = MysProvider(
+        HttpClient(
+            timeout=1,
+            cache_policy="off",
+            transport=httpx.MockTransport(handler),
+        )
+    )
+
+    result = provider.device_login(
+        uid="100000001",
+        cookie="account_id=1;cookie_token=secret-token",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="test",
+        device_payload={
+            "fp": "fp-secret",
+            "device_id": "device-secret",
+            "device_info": "OnePlus/PHK110/OP5913L1",
+        },
+    )
+
+    assert [request.url.path for request in requests] == [
+        "/apihub/api/deviceLogin",
+        "/apihub/api/saveDevice",
+    ]
+    assert requests[0].headers["x-rpc-device_id"] == "device-secret"
+    assert requests[0].headers["x-rpc-device_fp"] == "fp-secret"
+    assert requests[0].headers["host"] == "bbs-api.miyoushe.com"
+    assert result.data["device_id"] == "device-secret"
+    assert result.data["device_fp"] == "fp-secret"
+    assert result.data["redacted"]["device_fp"] != "fp-secret"
+    assert result.data["provider_response"]["device_set"]["retcode"] == 0
+
+
+def test_device_set_generates_fp_from_app_payload() -> None:
+    requests: list[httpx.Request] = []
+    responses = [
+        _json_response({"retcode": 0, "message": "OK", "data": {"device_fp": "generated-fp"}}),
+        _json_response({"retcode": 0, "message": "OK", "data": {}}),
+        _json_response({"retcode": 0, "message": "OK", "data": {}}),
+    ]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return responses.pop(0)
+
+    provider = MysProvider(
+        HttpClient(
+            timeout=1,
+            cache_policy="off",
+            transport=httpx.MockTransport(handler),
+        )
+    )
+
+    result = provider.device_login(
+        uid="100000001",
+        cookie="account_id=1;cookie_token=secret-token",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="test",
+        device_payload={
+            "deviceModel": "PHK110",
+            "deviceProduct": "PHK110",
+            "deviceName": "OP5913L1",
+            "deviceBoard": "taro",
+            "oaid": "oaid-secret",
+            "deviceFingerprint": "OnePlus/PHK110/OP5913L1:13/build",
+        },
+    )
+
+    assert requests[0].url.host == "public-data-api.mihoyo.com"
+    assert requests[1].url.path == "/apihub/api/deviceLogin"
+    assert requests[1].headers["x-rpc-device_fp"] == "generated-fp"
+    assert result.data["device_fp"] == "generated-fp"
+    assert result.data["generated_fp"] is True
+
+
 @pytest.mark.skipif(
     os.environ.get("GSUID_LIVE_TESTS") != "1"
     or not os.environ.get("GSUID_COOKIE")

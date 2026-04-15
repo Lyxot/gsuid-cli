@@ -10,7 +10,7 @@ from pathlib import Path
 from gsuid_cli.core.config import RuntimePaths, resolve_paths
 from gsuid_cli.core.errors import EXIT_INTERNAL_BUG, CliError
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 @contextmanager
@@ -71,7 +71,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
         return
-    if version not in {0, 1, 2}:
+    if version not in {0, 1, 2, 3}:
         raise CliError(
             "STATE_SCHEMA_UNSUPPORTED",
             f"Unsupported state schema version: {version}",
@@ -110,6 +110,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
         _migrate_gacha(conn)
     if version < 3:
         _migrate_panels(conn)
+    if version < 4:
+        _migrate_account_devices(conn)
     conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
 
@@ -166,6 +168,13 @@ def _migrate_panels(conn: sqlite3.Connection) -> None:
         ON panel_cache(fetched_at);
         """
     )
+
+
+def _migrate_account_devices(conn: sqlite3.Connection) -> None:
+    existing = {str(row["name"]) for row in conn.execute("PRAGMA table_info(accounts)").fetchall()}
+    for name in ("device_id", "device_fp", "device_info", "device_updated_at"):
+        if name not in existing:
+            conn.execute(f"ALTER TABLE accounts ADD COLUMN {name} TEXT")
 
 
 def _chmod_if_supported(path: Path, mode: int) -> None:

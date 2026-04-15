@@ -1,7 +1,8 @@
 # Credential Safety
 
-`gsuid` handles cookies, stokens, gacha authkey URLs, QR login tickets, and
-derived tokens. Treat all of them as secrets.
+`gsuid` handles cookies, stokens, gacha authkey URLs, QR login tickets, device
+fingerprints, and derived tokens. Treat all of them as secrets or private local
+account data.
 
 ## Storage Rules
 
@@ -23,8 +24,8 @@ GSUID_GACHA_URL
 ## Redaction Rules
 
 The CLI must not print full cookies, stokens, gacha authkey URLs, game tokens,
-QR tickets, or URLs containing authkey query parameters. Success output may
-include redacted previews and storage status.
+QR tickets, device fingerprints, or URLs containing authkey query parameters.
+Success output may include redacted previews and storage status.
 
 Do not paste full secrets into issues, logs, commits, screenshots, or batch
 files. Prefer QR login or environment variables for local testing.

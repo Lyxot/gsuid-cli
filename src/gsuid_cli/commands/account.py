@@ -222,6 +222,7 @@ def _serialize_account(row: sqlite3.Row) -> dict[str, object]:
         "has_cookie": credentials["cookie"],
         "has_stoken": credentials["stoken"],
         "has_gacha_url": credentials["gacha_url"],
+        "has_device": bool(row["device_id"] and row["device_fp"]),
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }

@@ -257,6 +257,9 @@ gsuid auth stoken delete --uid UID
 gsuid auth gacha-url set --uid UID (--url-stdin | --url-file PATH | --url VALUE)
 gsuid auth gacha-url test [--uid UID]
 gsuid auth gacha-url delete --uid UID
+gsuid auth device set --uid UID (--device-stdin | --device-file PATH | --device-json JSON)
+gsuid auth device test [--uid UID]
+gsuid auth device delete --uid UID
 ```
 
 Return data:
@@ -270,6 +273,9 @@ Input rules:
 - `--cookie`, `--stoken`, and `--url` are allowed for automation but discouraged because shell history may record them.
 - `--cookie-stdin`, `--stoken-stdin`, and `--url-stdin` are preferred.
 - Secret values must be redacted in debug output.
+- Device payloads may contain stable device identifiers. Prefer
+  `--device-stdin` or `--device-file`; command output must redact raw
+  `device_id` and `device_fp` values.
 
 ### Player And Account Data
 
@@ -640,6 +646,36 @@ tests/
 ### Stage 4.5: QR Login — completed.
 ### Stage 4.6: Interactive QR Login — completed.
 ### Stage 4.7: Live Auth Validation Fixes — completed.
+### Stage 4.8: MYS Device Login
+
+- Status: completed.
+- Result: ported GenshinUID/gsuid_core `mys设备登录` into typed local device
+  metadata commands plus upstream device binding.
+- Reference: `~/Github/gsuid_core/gsuid_core/buildin_plugins/core_command/user_login/__init__.py`,
+  `utils/cookie_manager/add_fp.py`, and `utils/api/mys/base_request.py`,
+  GPLv3-compatible with this AGPLv3 project.
+- Commands:
+  - `auth device set --uid UID (--device-json JSON | --device-file PATH | --device-stdin)`
+  - `auth device test [--uid UID]`
+  - `auth device delete --uid UID`
+- Behavior: `auth device set` parses existing `fp/device_id/device_info`
+  payloads or generates an MYS `device_fp` from raw app device payloads, calls
+  upstream `deviceLogin` and `saveDevice`, persists device headers in local
+  SQLite, reuses stored device headers for later MYS record calls, and never
+  prints cookie or full device fingerprint values.
+- Storage: bumped SQLite schema to v4 with account device metadata columns.
+- Verification:
+  - `.venv/bin/python -m pytest tests/test_auth_secrets.py tests/test_provider_foundation.py tests/test_profile_account_state.py tests/test_meta_commands.py`
+  - `.venv/bin/python -m gsuid_cli auth device --help`
+  - `.venv/bin/python -m gsuid_cli auth device set --help`
+  - `.venv/bin/python -m gsuid_cli auth device test --help`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+- Live notes: upstream `auth device set` was not run live because no trusted
+  real device payload was provided and the command mutates the MYS device list.
+
 ### Stage 5: Public Data MVP — completed.
 ### Stage 6: Authenticated Daily And Player Data — completed.
 ### Stage 7: Progress And Challenge Data — completed.

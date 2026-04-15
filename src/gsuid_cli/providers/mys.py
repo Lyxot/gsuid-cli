@@ -22,6 +22,7 @@ from gsuid_cli.core.http import HttpClient, raise_for_retcode
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
 from gsuid_cli.core.secrets import redact_secret
+from gsuid_cli.core.state import state_db
 
 PROVIDER = "mys"
 RECORD_BASE_CN = "https://api-takumi-record.mihoyo.com"
@@ -29,6 +30,7 @@ GS_BASE_CN = "https://api-takumi.mihoyo.com"
 HK4_API_BASE_CN = "https://hk4e-api.mihoyo.com"
 PASSPORT_BASE_CN = "https://passport-api.mihoyo.com"
 HK4_SDK_BASE_CN = "https://hk4e-sdk.mihoyo.com"
+NEW_BBS_BASE_CN = "https://bbs-api.miyoushe.com"
 GET_FP_URL = "https://public-data-api.mihoyo.com/device-fp/api/getFp"
 GACHA_LOG_URL = "https://public-operation-hk4e.mihoyo.com/gacha_info/api/getGachaLog"
 INDEX_PATH = "/game_record/app/genshin/api/index"
@@ -48,6 +50,8 @@ CHECK_QRCODE_PATH = "/hk4e_cn/combo/panda/qrcode/query"
 GET_STOKEN_BY_GAME_TOKEN_PATH = "/account/ma-cn-session/app/getTokenByGameToken"
 GET_COOKIE_TOKEN_BY_STOKEN_PATH = "/account/auth/api/getCookieAccountInfoBySToken"
 GET_AUTHKEY_PATH = "/binding/api/genAuthKey"
+DEVICE_LOGIN_PATH = "/apihub/api/deviceLogin"
+SAVE_DEVICE_PATH = "/apihub/api/saveDevice"
 APP_VERSION = "2.102.1"
 RECORD_SALT = "xV8v4Qu54lUKrEYFZkJhB8cuOh9Asafs"
 WEB_SALT = "yBh10ikxtLPoIhgwgPZSv5dmfaOTSJ6a"
@@ -916,6 +920,90 @@ class MysProvider:
             source=response.source,
         )
 
+    def device_login(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+        device_payload: dict[str, object],
+    ) -> CommandResult:
+        ensure_supported_region(region)
+        device = self._device_from_payload(device_payload)
+        body = _device_login_body(device["device_id"], device["device_info"])
+        headers = _device_login_headers(
+            cookie=cookie,
+            body=body,
+            device_id=device["device_id"],
+            device_fp=device["device_fp"],
+            device_info=device["device_info"],
+        )
+        login = self.http.request_json(
+            "POST",
+            f"{NEW_BBS_BASE_CN}{DEVICE_LOGIN_PATH}",
+            provider=PROVIDER,
+            region=region,
+            category="auth.device.set",
+            json_body=body,
+            headers=headers,
+        )
+        raise_for_retcode(
+            login.payload,
+            provider=PROVIDER,
+            region=region,
+            category="auth.device.set",
+            source=login.source,
+            debug=self.http.debug,
+        )
+        save = self.http.request_json(
+            "POST",
+            f"{NEW_BBS_BASE_CN}{SAVE_DEVICE_PATH}",
+            provider=PROVIDER,
+            region=region,
+            category="auth.device.save",
+            json_body=body,
+            headers=headers,
+        )
+        raise_for_retcode(
+            save.payload,
+            provider=PROVIDER,
+            region=region,
+            category="auth.device.save",
+            source=save.source,
+            debug=self.http.debug,
+        )
+        return CommandResult(
+            data={
+                "uid": uid,
+                "account_id": _account_id_from_cookie(cookie),
+                "status": "bound",
+                "credential_source": credential_source,
+                "credential_storage_backend": storage_backend,
+                "device_id": device["device_id"],
+                "device_fp": device["device_fp"],
+                "device_info": device["device_info"],
+                "device": _device_info_summary(device["device_info"]),
+                "generated_fp": device["generated_fp"],
+                "redacted": {
+                    "device_id": redact_secret(device["device_id"]),
+                    "device_fp": redact_secret(device["device_fp"]),
+                },
+                "provider_response": {
+                    "device_set": {
+                        "retcode": login.payload.get("retcode"),
+                        "message": login.payload.get("message"),
+                    },
+                    "save_device": {
+                        "retcode": save.payload.get("retcode"),
+                        "message": save.payload.get("message"),
+                    },
+                },
+            },
+            source=save.source,
+        )
+
     def create_qrcode_session(self, *, region: str) -> CommandResult:
         ensure_supported_region(region)
         device = _random_device_id()
@@ -1188,13 +1276,15 @@ class MysProvider:
     def _device_headers(self, uid: str) -> dict[str, str]:
         headers = self._device_headers_by_uid.get(uid)
         if headers is None:
-            device_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"gsuid-cli:mys:{uid}")).lower()
-            seed_id = str(uuid.uuid4()).lower()
-            seed_time = str(int(time.time() * 1000))
-            headers = {
-                "x-rpc-device_id": device_id,
-                "x-rpc-device_fp": self._generate_device_fp(device_id, seed_id, seed_time),
-            }
+            headers = _stored_device_headers(uid, self.http.output_dir)
+            if headers is None:
+                device_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"gsuid-cli:mys:{uid}")).lower()
+                seed_id = str(uuid.uuid4()).lower()
+                seed_time = str(int(time.time() * 1000))
+                headers = {
+                    "x-rpc-device_id": device_id,
+                    "x-rpc-device_fp": self._generate_device_fp(device_id, seed_id, seed_time),
+                }
             self._device_headers_by_uid[uid] = headers
         return dict(headers)
 
@@ -1207,6 +1297,80 @@ class MysProvider:
             category="device.fp",
             headers=_fp_headers(),
             json_body=_device_fp_body(device_id, seed_id, seed_time),
+        )
+        data = response.payload.get("data")
+        if isinstance(data, dict) and data.get("device_fp"):
+            return str(data["device_fp"])
+        return _random_fp()
+
+    def _device_from_payload(self, payload: dict[str, object]) -> dict[str, object]:
+        device_id = _device_payload_value(payload, "device_id") or _device_payload_value(
+            payload, "deviceId"
+        )
+        device_fp = _device_payload_value(payload, "fp")
+        if device_id and device_fp:
+            return {
+                "device_id": device_id,
+                "device_fp": device_fp,
+                "device_info": _device_payload_value(payload, "device_info")
+                or _device_payload_value(payload, "deviceInfo")
+                or "Unknown/Unknown/Unknown/Unknown",
+                "generated_fp": False,
+            }
+
+        device_id = str(uuid.uuid4()).lower()
+        seed_id = str(uuid.uuid4()).lower()
+        seed_time = str(int(time.time() * 1000))
+        device_info = _required_device_payload(payload, "deviceFingerprint")
+        device_fp = self._generate_device_fp_from_info(
+            device_id,
+            seed_id,
+            seed_time,
+            model_name=_required_device_payload(payload, "deviceModel"),
+            device=_required_device_payload(payload, "deviceProduct"),
+            device_type=_required_device_payload(payload, "deviceName"),
+            board=_required_device_payload(payload, "deviceBoard"),
+            oaid=_required_device_payload(payload, "oaid"),
+            device_info=device_info,
+        )
+        return {
+            "device_id": device_id,
+            "device_fp": device_fp,
+            "device_info": device_info,
+            "generated_fp": True,
+        }
+
+    def _generate_device_fp_from_info(
+        self,
+        device_id: str,
+        seed_id: str,
+        seed_time: str,
+        *,
+        model_name: str,
+        device: str,
+        device_type: str,
+        board: str,
+        oaid: str,
+        device_info: str,
+    ) -> str:
+        response = self.http.request_json(
+            "POST",
+            GET_FP_URL,
+            provider=PROVIDER,
+            region="cn",
+            category="device.fp",
+            headers=_fp_headers(),
+            json_body=_device_fp_body(
+                device_id,
+                seed_id,
+                seed_time,
+                model_name=model_name,
+                device=device,
+                device_type=device_type,
+                board=board,
+                oaid=oaid,
+                device_info=device_info,
+            ),
         )
         data = response.payload.get("data")
         if isinstance(data, dict) and data.get("device_fp"):
@@ -1882,13 +2046,105 @@ def _fp_headers() -> dict[str, str]:
     return headers
 
 
-def _device_fp_body(device_id: str, seed_id: str, seed_time: str) -> dict[str, object]:
+def _stored_device_headers(uid: str, output_dir: str | None) -> dict[str, str] | None:
+    with state_db(output_dir) as conn:
+        row = conn.execute(
+            "SELECT device_id, device_fp FROM accounts WHERE uid = ?",
+            (uid,),
+        ).fetchone()
+    if row is None or not row["device_id"] or not row["device_fp"]:
+        return None
+    return {
+        "x-rpc-device_id": str(row["device_id"]),
+        "x-rpc-device_fp": str(row["device_fp"]),
+    }
+
+
+def _device_payload_value(payload: dict[str, object], key: str) -> str | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _required_device_payload(payload: dict[str, object], key: str) -> str:
+    value = _device_payload_value(payload, key)
+    if value is None:
+        raise CliError(
+            "INVALID_ARGUMENT",
+            "device payload is missing a required field",
+            EXIT_INVALID_INPUT,
+            {"field": key},
+        )
+    return value
+
+
+def _device_login_body(device_id: object, device_info: object) -> dict[str, object]:
+    brand, model_name = _device_info_parts(str(device_info))
+    return {
+        "app_version": APP_VERSION,
+        "device_id": str(device_id),
+        "device_name": f"{brand}{model_name}",
+        "os_version": "33",
+        "platform": "Android",
+        "registration_id": _generate_seed(19),
+    }
+
+
+def _device_login_headers(
+    *,
+    cookie: str,
+    body: dict[str, object],
+    device_id: object,
+    device_fp: object,
+    device_info: object,
+) -> dict[str, str]:
+    brand, model_name = _device_info_parts(str(device_info))
+    return {
+        **_headers(cookie),
+        "x-rpc-device_id": str(device_id),
+        "x-rpc-device_fp": str(device_fp),
+        "x-rpc-device_name": f"{brand} {model_name}",
+        "x-rpc-device_model": model_name,
+        "x-rpc-csm_source": "myself",
+        "Referer": "https://app.mihoyo.com",
+        "Host": "bbs-api.miyoushe.com",
+        "DS": _passport_ds(body=body),
+    }
+
+
+def _device_info_summary(device_info: object) -> dict[str, object]:
+    brand, model_name = _device_info_parts(str(device_info))
+    return {
+        "brand": brand,
+        "model": model_name,
+        "has_device_info": bool(str(device_info).strip()),
+    }
+
+
+def _device_info_parts(device_info: str) -> tuple[str, str]:
+    parts = [part.strip() for part in device_info.split("/") if part.strip()]
+    brand = parts[0] if parts else "Unknown"
+    model_name = parts[1] if len(parts) > 1 else brand
+    return brand, model_name
+
+
+def _device_fp_body(
+    device_id: str,
+    seed_id: str,
+    seed_time: str,
+    *,
+    model_name: str = "PHK110",
+    device: str = "PHK110",
+    device_type: str = "OP5913L1",
+    board: str = "taro",
+    oaid: str = "1f1971b188c472f0",
+    device_info: str = (
+        "OnePlus/PHK110/OP5913L1:13/SKQ1.221119.001/T.1328291_b9_41:user/release-keys"
+    ),
+) -> dict[str, object]:
     # Ported from gsuid_core.utils.api.mys.base_request.generate_fake_fp.
-    model_name = "PHK110"
-    device = "PHK110"
-    device_type = "OP5913L1"
-    board = "taro"
-    device_info = "OnePlus/PHK110/OP5913L1:13/SKQ1.221119.001/T.1328291_b9_41:user/release-keys"
     device_brand = device_info.split("/")[0]
     random_data = random.randint(400000, 600000)
     random_data2 = random.randint(150000, 300000)
@@ -1936,7 +2192,7 @@ def _device_fp_body(device_id: str, seed_id: str, seed_time: str) -> dict[str, o
         "buildTags": "release-keys",
         "packageName": "com.mihoyo.hyperion",
         "networkType": "WiFi",
-        "oaid": "1f1971b188c472f0",
+        "oaid": oaid,
         "debugStatus": 1,
         "ramCapacity": str(random_data),
         "magnetometer": "27.1084x-48.5804x-24.8758",

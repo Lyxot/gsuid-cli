@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import json
 import sys
 import time
 from pathlib import Path
@@ -16,6 +17,7 @@ from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import resolve_profile_region, resolve_profile_uid
 from gsuid_cli.core.secrets import CREDENTIALS, SecretStore, env_secret, redact_secret
 from gsuid_cli.core.state import state_db
+from gsuid_cli.core.time import utc_now
 from gsuid_cli.providers import provider_for_region
 
 CAPABILITIES = [
@@ -123,6 +125,30 @@ CAPABILITIES = [
         "render": ["data"],
         "cache": "off",
     },
+    {
+        "command": "auth.device.set",
+        "description": "Bind and store MYS device metadata for account requests.",
+        "auth": "cookie",
+        "regions": ["cn"],
+        "render": ["data"],
+        "cache": "off",
+    },
+    {
+        "command": "auth.device.test",
+        "description": "Check local MYS device metadata availability.",
+        "auth": "device",
+        "regions": ["cn"],
+        "render": ["data"],
+        "cache": "off",
+    },
+    {
+        "command": "auth.device.delete",
+        "description": "Delete local MYS device metadata.",
+        "auth": "none",
+        "regions": ["cn"],
+        "render": ["data"],
+        "cache": "off",
+    },
 ]
 
 
@@ -133,6 +159,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     _register_credential(credentials, "stoken", "stoken")
     _register_credential(credentials, "gacha-url", "url")
     _register_qrcode(credentials)
+    _register_device(credentials)
 
 
 def set_command(args: argparse.Namespace) -> dict[str, object]:
@@ -270,6 +297,78 @@ def qrcode_login_command(args: argparse.Namespace) -> CommandResult:
     )
 
 
+def device_set_command(args: argparse.Namespace) -> CommandResult:
+    uid, region = _uid_and_region(args)
+    cookie, credential_source, storage_backend = _credential(args, uid)
+    provider = provider_for_region(region, _http_client(args))
+    result = provider.device_login(
+        uid=uid,
+        cookie=cookie,
+        region=region,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
+        device_payload=_read_device_payload(args),
+    )
+    return _store_device_binding(args, uid, region, result)
+
+
+def device_test_command(args: argparse.Namespace) -> dict[str, object]:
+    uid, _region = _uid_and_region(args)
+    with state_db(args.output_dir) as conn:
+        row = conn.execute(
+            """
+            SELECT device_id, device_fp, device_info, device_updated_at
+            FROM accounts
+            WHERE uid = ?
+            """,
+            (uid,),
+        ).fetchone()
+    if row is None or not row["device_id"] or not row["device_fp"]:
+        raise CliError(
+            "AUTH_REQUIRED",
+            "No MYS device metadata is available for this UID.",
+            EXIT_AUTH,
+            {"uid": uid, "credential_type": "device"},
+        )
+    device = {
+        "device_id": str(row["device_id"]),
+        "device_fp": str(row["device_fp"]),
+        "device_info": str(row["device_info"] or "Unknown/Unknown/Unknown/Unknown"),
+    }
+    return {
+        **_device_result_data(uid=uid, status="available", device=device),
+        "updated_at": row["device_updated_at"],
+    }
+
+
+def device_delete_command(args: argparse.Namespace) -> dict[str, object]:
+    uid = _uid(args)
+    with state_db(args.output_dir) as conn:
+        row = conn.execute(
+            "SELECT device_id, device_fp, device_info FROM accounts WHERE uid = ?",
+            (uid,),
+        ).fetchone()
+        deleted = bool(row and row["device_id"] and row["device_fp"])
+        conn.execute(
+            """
+            UPDATE accounts
+            SET device_id = NULL,
+                device_fp = NULL,
+                device_info = NULL,
+                device_updated_at = NULL,
+                updated_at = ?
+            WHERE uid = ?
+            """,
+            (utc_now(), uid),
+        )
+    return {
+        "uid": uid,
+        "credential_type": "device",
+        "validity_status": "deleted" if deleted else "missing",
+        "deleted": deleted,
+    }
+
+
 def _store_qrcode_credentials(uid: str, result: CommandResult) -> CommandResult:
     cookie = str(result.data.pop("cookie"))
     stoken = str(result.data.pop("stoken"))
@@ -284,6 +383,37 @@ def _store_qrcode_credentials(uid: str, result: CommandResult) -> CommandResult:
         "stored": True,
     }
     return CommandResult(data=data, source=result.source, warnings=result.warnings)
+
+
+def _store_device_binding(
+    args: argparse.Namespace,
+    uid: str,
+    region: str,
+    result: CommandResult,
+) -> CommandResult:
+    device_id = str(result.data.pop("device_id"))
+    device_fp = str(result.data.pop("device_fp"))
+    device_info = str(result.data.pop("device_info"))
+    _store_device_metadata(
+        output_dir=args.output_dir,
+        uid=uid,
+        region=region,
+        device_id=device_id,
+        device_fp=device_fp,
+        device_info=device_info,
+    )
+
+    return CommandResult(
+        data={
+            **result.data,
+            "uid": uid,
+            "status": "stored",
+            "stored": True,
+            "storage": "state.sqlite",
+        },
+        source=result.source,
+        warnings=result.warnings,
+    )
 
 
 def _register_credential(
@@ -354,10 +484,40 @@ def _register_qrcode(
     login.set_defaults(handler=qrcode_login_command, command_name="auth.qrcode.login")
 
 
+def _register_device(
+    credentials: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    device = credentials.add_parser("device", help="Manage MYS device binding.")
+    actions = device.add_subparsers(dest="device_action", required=True, metavar="<action>")
+    set_parser = actions.add_parser("set", help="Bind and store MYS device metadata.")
+    set_parser.add_argument("--uid", dest="command_uid")
+    _add_device_payload_args(set_parser)
+    set_parser.set_defaults(
+        handler=device_set_command,
+        command_name="auth.device.set",
+        credential_kind="cookie",
+    )
+
+    test = actions.add_parser("test", help="Check local MYS device metadata availability.")
+    test.add_argument("--uid", dest="command_uid")
+    test.set_defaults(handler=device_test_command, command_name="auth.device.test")
+
+    delete = actions.add_parser("delete", help="Delete local MYS device metadata.")
+    delete.add_argument("--uid", dest="command_uid")
+    delete.set_defaults(handler=device_delete_command, command_name="auth.device.delete")
+
+
 def _add_qrcode_session_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--app-id", default="2")
     parser.add_argument("--ticket", required=True)
     parser.add_argument("--device", required=True)
+
+
+def _add_device_payload_args(parser: argparse.ArgumentParser) -> None:
+    sources = parser.add_mutually_exclusive_group(required=True)
+    sources.add_argument("--device-json")
+    sources.add_argument("--device-file")
+    sources.add_argument("--device-stdin", action="store_true")
 
 
 def _uid(args: argparse.Namespace) -> str:
@@ -435,6 +595,90 @@ def _read_value(args: argparse.Namespace) -> str:
     if not value:
         raise CliError("INVALID_ARGUMENT", "credential value is empty", EXIT_INVALID_INPUT)
     return value
+
+
+def _read_device_payload(args: argparse.Namespace) -> dict[str, object]:
+    if args.device_json is not None:
+        raw = args.device_json
+    elif args.device_file:
+        raw = Path(args.device_file).read_text(encoding="utf-8")
+    elif args.device_stdin:
+        raw = sys.stdin.read()
+    else:
+        raise CliError("INVALID_ARGUMENT", "device payload is required", EXIT_INVALID_INPUT)
+
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise CliError(
+            "INVALID_ARGUMENT",
+            "device payload must be valid JSON",
+            EXIT_INVALID_INPUT,
+        ) from exc
+    if not isinstance(payload, dict):
+        raise CliError(
+            "INVALID_ARGUMENT",
+            "device payload must be a JSON object",
+            EXIT_INVALID_INPUT,
+        )
+    return payload
+
+
+def _store_device_metadata(
+    *,
+    output_dir: str | None,
+    uid: str,
+    region: str,
+    device_id: str,
+    device_fp: str,
+    device_info: str,
+) -> None:
+    now = utc_now()
+    with state_db(output_dir) as conn:
+        conn.execute(
+            """
+            INSERT INTO accounts(
+                uid, region, label, is_default, created_at, updated_at,
+                device_id, device_fp, device_info, device_updated_at
+            )
+            VALUES(?, ?, NULL, 0, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(uid) DO UPDATE SET
+                region = excluded.region,
+                updated_at = excluded.updated_at,
+                device_id = excluded.device_id,
+                device_fp = excluded.device_fp,
+                device_info = excluded.device_info,
+                device_updated_at = excluded.device_updated_at
+            """,
+            (uid, region, now, now, device_id, device_fp, device_info, now),
+        )
+
+
+def _device_result_data(
+    *,
+    uid: str,
+    status: str,
+    device: dict[str, str],
+) -> dict[str, object]:
+    return {
+        "uid": uid,
+        "credential_type": "device",
+        "validity_status": status,
+        "device": _device_summary(device["device_info"]),
+        "redacted": {
+            "device_id": redact_secret(device["device_id"]),
+            "device_fp": redact_secret(device["device_fp"]),
+        },
+    }
+
+
+def _device_summary(device_info: str) -> dict[str, object]:
+    parts = [part.strip() for part in device_info.split("/") if part.strip()]
+    return {
+        "brand": parts[0] if parts else "Unknown",
+        "model": parts[1] if len(parts) > 1 else (parts[0] if parts else "Unknown"),
+        "has_device_info": bool(device_info.strip()),
+    }
 
 
 def _credential_data(

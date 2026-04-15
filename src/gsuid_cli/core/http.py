@@ -47,6 +47,7 @@ class HttpClient:
     ) -> None:
         self.timeout = timeout
         self.cache_policy = cache_policy
+        self.output_dir = output_dir
         self.cache = HttpCache(output_dir) if cache_policy != "off" else None
         self.debug = debug
         self.transport = transport

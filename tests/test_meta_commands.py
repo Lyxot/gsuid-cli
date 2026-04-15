@@ -51,7 +51,12 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     }.issubset(commands)
     assert {"profile.init", "account.add", "auth.cookie.set"}.issubset(commands)
     assert {"batch.run", "batch.plan", "cache.clear", "monitor.once"}.issubset(commands)
-    assert "auth.qrcode.login" in commands
+    assert {
+        "auth.qrcode.login",
+        "auth.device.set",
+        "auth.device.test",
+        "auth.device.delete",
+    }.issubset(commands)
     assert {"wiki.character", "events.list", "codes.list", "daily.materials"}.issubset(commands)
     assert {
         "wiki.food",

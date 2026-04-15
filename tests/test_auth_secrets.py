@@ -5,7 +5,7 @@ import json
 
 from gsuid_cli.cli import run
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.secrets import redact_secret
+from gsuid_cli.core.secrets import SecretStore, redact_secret
 
 
 def test_cookie_keyring_lifecycle(monkeypatch, tmp_path) -> None:
@@ -120,6 +120,76 @@ def test_qrcode_login_shows_terminal_code_and_stores_credentials(monkeypatch, tm
     assert payload["data"]["validity_status"] == "available"
 
 
+def test_device_set_binds_device_without_printing_raw_values(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _device_provider())
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(
+        [
+            "auth",
+            "device",
+            "set",
+            "--uid",
+            "100000001",
+            "--device-json",
+            json.dumps({"fp": "fp-secret", "device_id": "device-secret"}),
+        ]
+    )
+
+    assert code == 0
+    assert payload["command"] == "auth.device.set"
+    assert payload["data"]["stored"] is True
+    raw_payload = json.dumps(payload, ensure_ascii=False)
+    assert "fp-secret" not in raw_payload
+    assert "device-secret" not in raw_payload
+
+    code, account = _run_json(["account", "show", "--uid", "100000001"])
+    assert code == 0
+    assert account["data"]["account"]["has_device"] is True
+
+
+def test_device_set_test_delete_lifecycle(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _device_provider())
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+    payload = json.dumps(
+        {
+            "fp": "fp-secret",
+            "device_id": "device-secret",
+            "device_info": "OnePlus/PHK110/OP5913L1",
+        }
+    )
+
+    code, result = _run_json(
+        ["auth", "device", "set", "--uid", "100000001", "--device-json", payload]
+    )
+
+    assert code == 0
+    assert result["command"] == "auth.device.set"
+    assert result["data"]["stored"] is True
+    assert "fp-secret" not in json.dumps(result, ensure_ascii=False)
+
+    code, result = _run_json(["auth", "device", "test", "--uid", "100000001"])
+
+    assert code == 0
+    assert result["command"] == "auth.device.test"
+    assert result["data"]["validity_status"] == "available"
+    assert result["data"]["device"]["brand"] == "OnePlus"
+    assert "device-secret" not in json.dumps(result, ensure_ascii=False)
+
+    code, result = _run_json(["auth", "device", "delete", "--uid", "100000001"])
+
+    assert code == 0
+    assert result["command"] == "auth.device.delete"
+    assert result["data"]["deleted"] is True
+
+    code, result = _run_json(["auth", "device", "test", "--uid", "100000001"])
+
+    assert code == 2
+    assert result["error"]["code"] == "AUTH_REQUIRED"
+
+
 def test_gacha_url_auth_commands_fully_redact_url(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     secret = "https://example.test/getGachaLog?authkey=expired-secret"
@@ -184,6 +254,55 @@ def _provider(status: str):
                     "validity_status": status,
                     "redacted": redact_secret(cookie),
                     "provider_response": {"retcode": 0, "message": "OK"},
+                },
+                source={
+                    "provider": "mys",
+                    "region": region,
+                    "cached": False,
+                    "fetched_at": "2026-04-29T10:30:00Z",
+                },
+            )
+
+    def provider_for_region(_region: str, http_client) -> FakeProvider:
+        return FakeProvider(http_client)
+
+    return provider_for_region
+
+
+def _device_provider():
+    class FakeProvider:
+        def __init__(self, _http_client) -> None:
+            pass
+
+        def device_login(
+            self,
+            *,
+            uid: str,
+            cookie: str,
+            region: str,
+            credential_source: str,
+            storage_backend: str | None,
+            device_payload: dict[str, object],
+        ) -> CommandResult:
+            assert uid == "100000001"
+            assert cookie == "account_id=1;cookie_token=secret"
+            assert device_payload["fp"] == "fp-secret"
+            return CommandResult(
+                data={
+                    "uid": uid,
+                    "account_id": "1",
+                    "status": "bound",
+                    "credential_source": credential_source,
+                    "credential_storage_backend": storage_backend,
+                    "device_id": "device-secret",
+                    "device_fp": "fp-secret",
+                    "device_info": "OnePlus/PHK110/OP5913L1",
+                    "device": {"brand": "OnePlus", "model": "PHK110"},
+                    "generated_fp": False,
+                    "redacted": {
+                        "device_id": "devi...cret",
+                        "device_fp": "fp-s...cret",
+                    },
                 },
                 source={
                     "provider": "mys",

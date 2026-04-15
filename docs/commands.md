@@ -14,6 +14,9 @@ Generated from `gsuid meta capabilities`.
 | `auth.cookie.delete` | `keyring` | `data` | `off` | Delete a stored cookie from the OS keyring. |
 | `auth.cookie.set` | `keyring` | `data` | `off` | Store a cookie in the OS keyring. |
 | `auth.cookie.test` | `cookie` | `data` | `off` | Validate cookie availability against the CN provider. |
+| `auth.device.delete` | `none` | `data` | `off` | Delete local MYS device metadata. |
+| `auth.device.set` | `cookie` | `data` | `off` | Bind and store MYS device metadata for account requests. |
+| `auth.device.test` | `device` | `data` | `off` | Check local MYS device metadata availability. |
 | `auth.gacha-url.delete` | `keyring` | `data` | `off` | Delete a stored gacha authkey URL from the OS keyring. |
 | `auth.gacha-url.set` | `keyring` | `data` | `off` | Store a gacha authkey URL in the OS keyring. |
 | `auth.gacha-url.test` | `gacha_url` | `data` | `off` | Check local gacha URL availability without provider validation. |

@@ -263,7 +263,7 @@ def test_state_v2_migrates_to_panel_cache(monkeypatch, tmp_path) -> None:
         version = migrated.execute("PRAGMA user_version").fetchone()[0]
 
     assert panel_table["name"] == "panel_cache"
-    assert version == 3
+    assert version == 4
 
 
 def test_enka_provider_uses_canonical_uid_endpoint() -> None:
