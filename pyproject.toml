@@ -14,6 +14,7 @@ dependencies = [
   "filelock>=3.13",
   "httpx[socks]>=0.28",
   "keyring>=25.0",
+  "Pillow>=10,<13",
   "qrcode>=7.3,<8",
 ]
 
@@ -28,6 +29,16 @@ gsuid = "gsuid_cli.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+gsuid_cli = [
+  "assets/ATTRIBUTION.md",
+  "assets/daily/materials/textures/*.png",
+  "assets/daily/note/textures/*.apng",
+  "assets/daily/note/textures/*.png",
+  "assets/public/fonts/*.ttf",
+  "assets/public/textures/weapon/*.png",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

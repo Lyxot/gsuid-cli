@@ -3,14 +3,21 @@ from __future__ import annotations
 import argparse
 import hashlib
 
+from gsuid_cli.commands import player as player_commands
 from gsuid_cli.commands.auth import _credential, _uid_and_region
+from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
-from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
+from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
 from gsuid_cli.providers import provider_for_region
 from gsuid_cli.providers.public import DAY_NAMES, PublicDataProvider
+from gsuid_cli.renderers.daily.materials import render_daily_materials_card
+from gsuid_cli.renderers.daily.note import render_daily_note_card
+
+DAILY_MATERIAL_ICON_WORKERS = 8
+DAILY_NOTE_AVATAR_WORKERS = 5
 
 CAPABILITIES = [
     {
@@ -114,7 +121,7 @@ CAPABILITIES = [
         "description": "List daily talent and weapon material domains.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "use",
     },
     {
@@ -122,7 +129,7 @@ CAPABILITIES = [
         "description": "Show current resin, commissions, expeditions, and teapot status.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "off",
     },
     {
@@ -274,7 +281,14 @@ def codes_list_command(args: argparse.Namespace) -> CommandResult:
 
 
 def daily_materials_command(args: argparse.Namespace) -> CommandResult:
-    return _provider(args).daily_materials(day=args.day, date=args.date)
+    result = _provider(args).daily_materials(
+        day=args.day,
+        date=args.date,
+        require_upgrade=args.render != "data",
+    )
+    if args.render == "data":
+        return result
+    return _daily_materials_render_result(args, result)
 
 
 def talent_command(args: argparse.Namespace) -> CommandResult:
@@ -362,14 +376,26 @@ def primogems_plan_command(args: argparse.Namespace) -> CommandResult:
 
 def daily_note_command(args: argparse.Namespace) -> CommandResult:
     uid, region, cookie, credential_source, storage_backend = _cookie_context(args)
-    result = _auth_provider(args, region).daily_note(
+    provider = _auth_provider(args, region)
+    result = provider.daily_note(
         uid=uid,
         cookie=cookie,
         region=region,
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    return result
+    if args.render == "data":
+        return result
+    return _daily_note_render_result(
+        args,
+        provider=provider,
+        result=result,
+        uid=uid,
+        region=region,
+        cookie=cookie,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
+    )
 
 
 def daily_signin_command(args: argparse.Namespace) -> CommandResult:
@@ -641,6 +667,217 @@ def _map_artifact_command(
     )
 
 
+def _daily_materials_render_result(
+    args: argparse.Namespace,
+    result: CommandResult,
+) -> CommandResult:
+    domains = result.data.get("domains")
+    if not isinstance(domains, list):
+        raise CliError(
+            "UPSTREAM_INVALID_RESPONSE",
+            "Provider returned daily material data without renderable domains.",
+            EXIT_UPSTREAM,
+            {"command": "daily.materials"},
+            source=result.source,
+        )
+    renderable_domains = [domain for domain in domains if isinstance(domain, dict)]
+    day = str(result.data.get("day") or args.day or "unknown")
+    icon_images, icon_warnings = fetch_render_images(
+        args,
+        _daily_materials_icon_urls(renderable_domains),
+        provider="ambr",
+        region="cn",
+        category="daily.materials.icon",
+        unavailable_warning="{count} daily materials icons unavailable; rendered placeholders",
+        max_workers=DAILY_MATERIAL_ICON_WORKERS,
+    )
+    png = render_daily_materials_card(day=day, domains=renderable_domains, icon_images=icon_images)
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="daily/materials",
+        filename=f"daily-materials_{_safe_filename(day)}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style daily materials card",
+        kind="image",
+    )
+    render_data = {
+        "day": day,
+        "render": "daily/materials",
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=[*result.warnings, *icon_warnings],
+        pagination=result.pagination,
+    )
+
+
+def _daily_materials_icon_urls(domains: list[object]) -> list[str]:
+    urls: list[str] = []
+    for domain in domains:
+        if not isinstance(domain, dict):
+            continue
+        _append_url(urls, domain.get("domain_icon_url"))
+        items = domain.get("items")
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if isinstance(item, dict):
+                _append_url(urls, item.get("icon_url"))
+    return urls
+
+
+def _append_url(urls: list[str], value: object) -> None:
+    url = _optional_text(value)
+    if url and url not in urls:
+        urls.append(url)
+
+
+def _daily_note_render_result(
+    args: argparse.Namespace,
+    *,
+    provider,
+    result: CommandResult,
+    uid: str,
+    region: str,
+    cookie: str,
+    credential_source: str,
+    storage_backend: str | None,
+) -> CommandResult:
+    note = result.data.get("note")
+    if not isinstance(note, dict):
+        raise CliError(
+            "UPSTREAM_INVALID_RESPONSE",
+            "Provider returned daily note data without a renderable note object.",
+            EXIT_UPSTREAM,
+            {"command": "daily.note"},
+            source=result.source,
+        )
+
+    nickname, level, header_warnings = _daily_note_header(args)
+    signed, sign_warnings = _daily_note_sign_status(
+        provider=provider,
+        uid=uid,
+        cookie=cookie,
+        region=region,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
+    )
+    avatar_images, avatar_warnings = fetch_render_images(
+        args,
+        _expedition_avatar_urls(note),
+        provider="mys",
+        region=region,
+        category="daily.note.avatar",
+        unavailable_warning="daily note expedition avatar unavailable; rendered placeholder",
+        max_workers=DAILY_NOTE_AVATAR_WORKERS,
+    )
+    png = render_daily_note_card(
+        uid=uid,
+        note=note,
+        nickname=nickname,
+        level=level,
+        signed=signed,
+        expedition_avatar_images=avatar_images,
+    )
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="daily/note",
+        filename=f"daily-note_{_safe_filename(uid)}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style daily note card",
+        kind="image",
+    )
+    render_data = {
+        "uid": uid,
+        "render": "daily/note",
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=[*result.warnings, *header_warnings, *sign_warnings, *avatar_warnings],
+        pagination=result.pagination,
+    )
+
+
+def _daily_note_header(
+    args: argparse.Namespace,
+) -> tuple[str | None, object | None, list[str]]:
+    summary_args = argparse.Namespace(**vars(args))
+    summary_args.command_name = "player.summary"
+    try:
+        result = player_commands.summary_command(summary_args)
+    except CliError:
+        return None, None, ["daily note player header data is unavailable; rendered fallback title"]
+
+    summary = result.data.get("summary")
+    if not isinstance(summary, dict):
+        return None, None, ["daily note player header data is unavailable; rendered fallback title"]
+    role = summary.get("role")
+    if not isinstance(role, dict):
+        return None, None, ["daily note player header data is unavailable; rendered fallback title"]
+    nickname = _optional_text(role.get("nickname"))
+    level = role.get("level")
+    warnings = list(result.warnings)
+    if nickname is None or level in (None, ""):
+        warnings.append("daily note player header data is unavailable; rendered fallback title")
+    return nickname, level, warnings
+
+
+def _daily_note_sign_status(
+    *,
+    provider,
+    uid: str,
+    cookie: str,
+    region: str,
+    credential_source: str,
+    storage_backend: str | None,
+) -> tuple[bool | None, list[str]]:
+    if not hasattr(provider, "daily_signin_status"):
+        return None, ["daily note sign-in status is unavailable; rendered fallback sign state"]
+    try:
+        result = provider.daily_signin_status(
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+        )
+    except CliError:
+        return None, ["daily note sign-in status is unavailable; rendered fallback sign state"]
+    signed = _signed_from_signin_result(result.data)
+    if signed is None:
+        return None, ["daily note sign-in status is unavailable; rendered fallback sign state"]
+    return signed, result.warnings
+
+
+def _signed_from_signin_result(data: dict[str, object]) -> bool | None:
+    already_signed = _optional_bool(data.get("already_signed"))
+    signed = _optional_bool(data.get("signed"))
+    if already_signed is True or signed is True:
+        return True
+    if already_signed is False and signed is False:
+        return False
+    return None
+
+
+def _expedition_avatar_urls(note: dict[str, object]) -> list[str]:
+    expeditions = note.get("expeditions")
+    if not isinstance(expeditions, list):
+        return []
+    urls: list[str] = []
+    for expedition in expeditions:
+        if isinstance(expedition, dict):
+            _append_url(urls, expedition.get("avatar_side_icon"))
+    return urls
+
+
 def _image_ext(media_type: str) -> str:
     if media_type == "image/jpeg":
         return "jpg"
@@ -654,6 +891,19 @@ def _safe_filename(value: str) -> str:
     safe = "".join(char if char.isalnum() or char in {"-", "_"} else "_" for char in value)
     safe = safe.strip("_")[:60] or "item"
     return f"{safe}_{digest}"
+
+
+def _optional_text(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _optional_bool(value: object) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    return None
 
 
 def _wiki_query(args: argparse.Namespace) -> str:

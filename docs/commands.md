@@ -36,8 +36,8 @@ Generated from `gsuid meta capabilities`.
 | `challenge.theater` | `cookie` | `data` | `off` | Show authenticated Imaginarium Theater data. |
 | `codes.list` | `none` | `data` | `use` | List public active redeem-code rows. |
 | `daily.bbs-coin` | `none` | `data` | `off` | Report BBS coin task support status. |
-| `daily.materials` | `none` | `data` | `use` | List daily talent and weapon material domains. |
-| `daily.note` | `cookie` | `data` | `off` | Show current resin, commissions, expeditions, and teapot status. |
+| `daily.materials` | `none` | `data, image, both` | `use` | List daily talent and weapon material domains. |
+| `daily.note` | `cookie` | `data, image, both` | `off` | Show current resin, commissions, expeditions, and teapot status. |
 | `daily.signin` | `cookie` | `data` | `off` | Claim or report the MYS daily sign-in status. |
 | `events.banners` | `none` | `data` | `use` | List public event banner artwork URLs. |
 | `events.list` | `none` | `data` | `use` | List public event announcements. |
@@ -111,5 +111,5 @@ Notes:
 - JSON mode is the stable machine contract.
 - `auth` describes required credential type, not whether a command can fail upstream.
 - `render` lists supported result modes; artifacts are returned by absolute path.
-- Stage 17 temporarily disables first-pass generated renderers while GenshinUID-parity images are ported.
+- Stage 17 is porting GenshinUID-parity renderers group by group; `meta capabilities` is the source of truth for current image support.
 - `cache` describes intended command cache behavior.

@@ -90,5 +90,6 @@ logs/
 The SQLite state file stores non-secret account/profile metadata. The asset
 cache stores reusable static files and retry metadata. Artifacts can include
 rendered account data, exported gacha logs, and map images; treat the artifact
-directory as local private data. Stage 17 temporarily disables some generated
-renderers while they are replaced with GenshinUID-parity versions.
+directory as local private data. Stage 17 is porting GenshinUID-parity
+renderers group by group, so `meta capabilities` is the source of truth for
+which commands currently return image artifacts.

@@ -4,11 +4,14 @@ import hashlib
 import io
 import json
 from datetime import UTC, datetime
+from pathlib import Path
 
 import httpx
 import pytest
+from PIL import Image
 
 from gsuid_cli.cli import run
+from gsuid_cli.commands import public_data
 from gsuid_cli.core.errors import EXIT_AUTH, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
@@ -52,6 +55,135 @@ def test_daily_and_player_commands_use_stored_cookie(monkeypatch, tmp_path) -> N
         assert payload["command"] == command
         assert payload["data"]["credential_source"] == "keyring"
         assert key in payload["data"]
+
+
+def test_daily_note_render_image_writes_daily_note_card(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.public_data.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(
+        [
+            "daily",
+            "note",
+            "--uid",
+            "100000001",
+            "--render",
+            "image",
+            "--request-id",
+            "daily-img",
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+        ]
+    )
+
+    assert code == 0
+    assert payload["command"] == "daily.note"
+    assert payload["data"] == {
+        "uid": "100000001",
+        "render": "daily/note",
+        "artifact_sha256": payload["artifacts"][0]["sha256"],
+    }
+    artifact = payload["artifacts"][0]
+    path = Path(artifact["path"])
+    content = path.read_bytes()
+    assert path.parent == tmp_path / "artifacts" / "2026-04-29" / "daily-img"
+    assert artifact["media_type"] == "image/png"
+    assert artifact["sha256"] == hashlib.sha256(content).hexdigest()
+    with Image.open(path) as image:
+        assert image.size == (700, 1300)
+        assert image.getbbox() is not None
+
+
+def test_daily_note_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.public_data.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(["daily", "note", "--uid", "100000001", "--render", "both"])
+
+    assert code == 0
+    assert payload["data"]["note"]["current_resin"] == 1
+    assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
+
+
+def test_daily_note_render_uses_player_summary_and_daily_signin_status(
+    monkeypatch, tmp_path
+) -> None:
+    captured: dict[str, object] = {}
+    calls: list[str] = []
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.provider_for_region",
+        _sign_status_provider(calls, already_signed=True, signed=False),
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.player_commands.summary_command",
+        _player_summary_command(calls),
+    )
+    monkeypatch.setattr(public_data, "render_daily_note_card", _capturing_renderer(captured))
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(["daily", "note", "--uid", "100000001", "--render", "image"])
+
+    assert code == 0
+    assert payload["command"] == "daily.note"
+    assert calls == ["daily_note", "player.summary", "daily_signin_status"]
+    assert captured["nickname"] == "派蒙"
+    assert captured["level"] == 60
+    assert captured["signed"] is True
+
+
+def test_daily_note_render_falls_back_when_player_summary_fails(monkeypatch, tmp_path) -> None:
+    captured: dict[str, object] = {}
+    calls: list[str] = []
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.provider_for_region",
+        _sign_status_provider(calls, already_signed=False, signed=False),
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.player_commands.summary_command",
+        _failing_player_summary_command(calls),
+    )
+    monkeypatch.setattr(public_data, "render_daily_note_card", _capturing_renderer(captured))
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(["daily", "note", "--uid", "100000001", "--render", "image"])
+
+    assert code == 0
+    assert calls == ["daily_note", "player.summary", "daily_signin_status"]
+    assert captured["nickname"] is None
+    assert captured["level"] is None
+    assert "daily note player header data is unavailable" in payload["warnings"][0]
+
+
+def test_daily_note_render_fetches_expedition_avatar_urls(monkeypatch, tmp_path) -> None:
+    captured_urls: list[str] = []
+    avatar_url = "https://upload.example.test/UI_AvatarIcon_Side_Ambor.png"
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.provider_for_region",
+        _avatar_provider(avatar_url),
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.player.provider_for_region", _avatar_provider(avatar_url)
+    )
+    monkeypatch.setattr(public_data, "fetch_render_images", _fake_image_fetcher(captured_urls))
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(["daily", "note", "--uid", "100000001", "--render", "image"])
+
+    assert code == 0
+    assert captured_urls == [avatar_url]
+    with Image.open(payload["artifacts"][0]["path"]) as image:
+        red, green, blue, _alpha = image.convert("RGBA").getpixel((101, 1071))
+        assert red > 200
+        assert green < 80
+        assert blue < 80
 
 
 def test_daily_command_surfaces_expired_cookie(monkeypatch, tmp_path) -> None:
@@ -145,6 +277,91 @@ def test_mys_daily_signin_success_normalizes_reward_and_message() -> None:
     assert result.data["reward"] == {"name": "Primogem", "count": 20, "icon": "primogem.png"}
     assert result.data["provider_message"] == "OK"
     assert len(requests) == 2
+
+
+def test_mys_daily_signin_status_is_read_only() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {"is_sign": False, "total_sign_day": 3},
+            }
+        )
+
+    provider = MysProvider(_mock_client(handler))
+
+    result = provider.daily_signin_status(
+        uid="100000001",
+        cookie="account_id=1;cookie_token=secret",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="tests.MemoryKeyring",
+    )
+
+    assert result.data["already_signed"] is False
+    assert result.data["signed"] is False
+    assert len(requests) == 1
+    assert requests[0].method == "GET"
+    assert requests[0].url.path == "/event/luna/info"
+
+
+def test_mys_player_summary_uses_account_card_identity_when_index_omits_it() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if len(requests) == 1:
+            return _device_fp_response()
+        if len(requests) == 2:
+            return _json_response(
+                {
+                    "retcode": 0,
+                    "message": "OK",
+                    "data": {"stats": {"active_day_number": 1}, "avatars": []},
+                }
+            )
+        return _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {
+                    "list": [
+                        {
+                            "game_id": 2,
+                            "game_role_id": "100000001",
+                            "nickname": "派蒙",
+                            "level": 60,
+                            "region": "cn_gf01",
+                            "region_name": "天空岛",
+                        }
+                    ]
+                },
+            }
+        )
+
+    provider = MysProvider(_mock_client(handler))
+
+    result = provider.player_summary(
+        uid="100000001",
+        cookie="account_id=1;cookie_token=secret",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="tests.MemoryKeyring",
+    )
+
+    role = result.data["summary"]["role"]
+    assert role["nickname"] == "派蒙"
+    assert role["level"] == 60
+    assert role["region_name"] == "天空岛"
+    assert [request.url.path for request in requests] == [
+        "/device-fp/api/getFp",
+        "/game_record/app/genshin/api/index",
+        "/game_record/card/wapi/getGameRecordCard",
+    ]
 
 
 def test_mys_player_characters_fetches_detail_for_index_avatars() -> None:
@@ -281,6 +498,23 @@ def _fake_provider(_region: str, _http_client: HttpClient):
                 source=_source(region),
             )
 
+        def daily_signin_status(
+            self,
+            *,
+            uid: str,
+            cookie: str,
+            region: str,
+            credential_source: str,
+            storage_backend: str | None,
+        ) -> CommandResult:
+            return self.daily_signin(
+                uid=uid,
+                cookie=cookie,
+                region=region,
+                credential_source=credential_source,
+                storage_backend=storage_backend,
+            )
+
         def player_summary(
             self,
             *,
@@ -295,7 +529,10 @@ def _fake_provider(_region: str, _http_client: HttpClient):
                     "uid": uid,
                     "credential_source": credential_source,
                     "storage_backend": storage_backend,
-                    "summary": {"stats": {"active_day_number": 10}},
+                    "summary": {
+                        "role": {"nickname": "派蒙", "level": 60},
+                        "stats": {"active_day_number": 10},
+                    },
                 },
                 source=_source(region),
             )
@@ -342,6 +579,195 @@ def _fake_provider(_region: str, _http_client: HttpClient):
             )
 
     return FakeProvider()
+
+
+def _sign_status_provider(calls: list[str], *, already_signed: bool, signed: bool):
+    def provider_for_region(_region: str, _http_client: HttpClient):
+        class FakeProvider:
+            def daily_note(
+                self,
+                *,
+                uid: str,
+                cookie: str,
+                region: str,
+                credential_source: str,
+                storage_backend: str | None,
+            ) -> CommandResult:
+                calls.append("daily_note")
+                return CommandResult(
+                    data={
+                        "uid": uid,
+                        "credential_source": credential_source,
+                        "storage_backend": storage_backend,
+                        "cookie_seen": cookie.startswith("account_id="),
+                        "note": {"current_resin": 1},
+                    },
+                    source=_source(region),
+                )
+
+            def daily_signin_status(
+                self,
+                *,
+                uid: str,
+                cookie: str,
+                region: str,
+                credential_source: str,
+                storage_backend: str | None,
+            ) -> CommandResult:
+                calls.append("daily_signin_status")
+                return CommandResult(
+                    data={
+                        "uid": uid,
+                        "credential_source": credential_source,
+                        "storage_backend": storage_backend,
+                        "already_signed": already_signed,
+                        "signed": signed,
+                    },
+                    source=_source(region),
+                )
+
+        return FakeProvider()
+
+    return provider_for_region
+
+
+def _avatar_provider(avatar_url: str):
+    def provider_for_region(_region: str, _http_client: HttpClient):
+        class FakeProvider:
+            def daily_note(
+                self,
+                *,
+                uid: str,
+                cookie: str,
+                region: str,
+                credential_source: str,
+                storage_backend: str | None,
+            ) -> CommandResult:
+                return CommandResult(
+                    data={
+                        "uid": uid,
+                        "credential_source": credential_source,
+                        "storage_backend": storage_backend,
+                        "cookie_seen": cookie.startswith("account_id="),
+                        "note": {
+                            "current_resin": 1,
+                            "max_resin": 200,
+                            "resin_recovery_time": 3600,
+                            "expeditions": [
+                                {
+                                    "avatar_side_icon": avatar_url,
+                                    "status": "Finished",
+                                    "remained_time": 0,
+                                }
+                            ],
+                        },
+                    },
+                    source=_source(region),
+                )
+
+            def player_summary(
+                self,
+                *,
+                uid: str,
+                cookie: str,
+                region: str,
+                credential_source: str,
+                storage_backend: str | None,
+            ) -> CommandResult:
+                return CommandResult(
+                    data={
+                        "uid": uid,
+                        "credential_source": credential_source,
+                        "storage_backend": storage_backend,
+                        "summary": {"role": {"nickname": "安柏", "level": 60}},
+                    },
+                    source=_source(region),
+                )
+
+            def daily_signin_status(
+                self,
+                *,
+                uid: str,
+                cookie: str,
+                region: str,
+                credential_source: str,
+                storage_backend: str | None,
+            ) -> CommandResult:
+                return CommandResult(
+                    data={
+                        "uid": uid,
+                        "credential_source": credential_source,
+                        "storage_backend": storage_backend,
+                        "already_signed": False,
+                        "signed": False,
+                    },
+                    source=_source(region),
+                )
+
+        return FakeProvider()
+
+    return provider_for_region
+
+
+def _player_summary_command(calls: list[str]):
+    def command(args) -> CommandResult:
+        calls.append("player.summary")
+        assert args.command_name == "player.summary"
+        return CommandResult(
+            data={
+                "uid": args.command_uid,
+                "credential_source": "keyring",
+                "storage_backend": "tests.MemoryKeyring",
+                "summary": {"role": {"nickname": "派蒙", "level": 60}},
+            },
+            source=_source(args.region),
+        )
+
+    return command
+
+
+def _failing_player_summary_command(calls: list[str]):
+    def command(_args) -> CommandResult:
+        calls.append("player.summary")
+        raise CliError("AUTH_EXPIRED", "Player summary unavailable.", EXIT_AUTH)
+
+    return command
+
+
+def _capturing_renderer(captured: dict[str, object]):
+    def render(**kwargs) -> bytes:
+        captured.update(kwargs)
+        image = Image.new("RGBA", (1, 1), (255, 255, 255, 255))
+        output = io.BytesIO()
+        image.save(output, format="PNG")
+        return output.getvalue()
+
+    return render
+
+
+def _fake_image_fetcher(requested_urls: list[str]):
+    def fetcher(
+        _args,
+        urls,
+        *,
+        provider: str,
+        region: str,
+        category: str,
+        unavailable_warning: str,
+        max_workers: int = 8,
+    ) -> tuple[dict[str, bytes], list[str]]:
+        del provider, region, category, unavailable_warning, max_workers
+        requested_urls.extend(urls)
+        return {url: _png_bytes() for url in urls}, []
+
+    return fetcher
+
+
+def _png_bytes() -> bytes:
+    image = Image.new("RGBA", (32, 32), (255, 0, 0, 255))
+    output = io.BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()
 
 
 def _expired_provider(_region: str, _http_client: HttpClient):

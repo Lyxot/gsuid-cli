@@ -1,0 +1,1 @@
+"""Daily image renderers."""

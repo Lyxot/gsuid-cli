@@ -10,6 +10,8 @@ from gsuid_cli.core.models import CommandResult
 AMBR_BASE_URL = "https://gi.yatta.moe"
 AMBR_EVENT_URL = f"{AMBR_BASE_URL}/assets/data/event.json"
 AMBR_DAILY_URL = f"{AMBR_BASE_URL}/api/v2/chs/dailyDungeon?vh=37F4"
+AMBR_UPGRADE_URL = f"{AMBR_BASE_URL}/api/v2/chs/upgrade?vh=40F3"
+AMBR_UI_URL = f"{AMBR_BASE_URL}/assets/UI"
 FANDOM_CODE_API = "https://genshin-impact.fandom.com/api.php"
 FANDOM_CODE_PAGE = "https://genshin-impact.fandom.com/wiki/Promotional_Code"
 MINIGG_MAP_URL = "https://map.minigg.cn/map/get_map"
@@ -24,6 +26,7 @@ WIKI_PATHS = {
 DAY_NAMES = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
 CN_TZ = timezone(timedelta(hours=8))
 MAP_IDS = {"teyvat": "2", "chasm": "7", "enkanomiya": "9"}
+DAILY_RESET_OFFSET = timedelta(hours=4)
 
 
 class PublicDataProvider:
@@ -107,12 +110,28 @@ class PublicDataProvider:
             source=response.source,
         )
 
-    def daily_materials(self, *, day: str | None, date: str | None = None) -> CommandResult:
+    def daily_materials(
+        self,
+        *,
+        day: str | None,
+        date: str | None = None,
+        require_upgrade: bool = False,
+    ) -> CommandResult:
         response = self._ambr_json(AMBR_DAILY_URL, category="daily.materials")
+        warnings: list[str] = []
         data = response.payload.get("data")
         if not isinstance(data, dict):
             raise _invalid("daily.materials", response.source)
-        selected_day = _day_from_date(date) or day or datetime.now(CN_TZ).strftime("%A").lower()
+        try:
+            upgrades = self._daily_material_upgrades()
+        except CliError:
+            if require_upgrade:
+                raise
+            upgrades = {}
+            warnings.append(
+                "daily material upgrade data is unavailable; returned domains without item matches"
+            )
+        selected_day = _day_from_date(date) or day or _current_daily_day()
         if selected_day not in DAY_NAMES:
             raise CliError(
                 "INVALID_ARGUMENT",
@@ -129,10 +148,13 @@ class PublicDataProvider:
                 {"day": selected_day},
                 source=response.source,
             )
-        domains = [_daily_domain(value) for value in day_data.values() if isinstance(value, dict)]
+        domains = [
+            _daily_domain(value, upgrades) for value in day_data.values() if isinstance(value, dict)
+        ]
         return CommandResult(
             data={"date": date, "day": selected_day, "domains": domains, "count": len(domains)},
             source=response.source,
+            warnings=warnings,
         )
 
     def codes_list(self) -> CommandResult:
@@ -533,6 +555,16 @@ class PublicDataProvider:
             )
         return response
 
+    def _daily_material_upgrades(self) -> dict[str, object]:
+        response = self._ambr_json(
+            AMBR_UPGRADE_URL,
+            category="daily.materials.upgrade",
+        )
+        upgrades = response.payload.get("data")
+        if not isinstance(upgrades, dict):
+            raise _invalid("daily.materials.upgrade", response.source)
+        return upgrades
+
 
 def _items(
     payload: dict[str, object],
@@ -774,13 +806,78 @@ def _parse_time(value: object) -> datetime:
         return datetime.min
 
 
-def _daily_domain(value: dict[str, object]) -> dict[str, object]:
+def _daily_domain(value: dict[str, object], upgrades: dict[str, object]) -> dict[str, object]:
+    reward_ids = value.get("reward") if isinstance(value.get("reward"), list) else []
+    name = value.get("name")
+    material_id = reward_ids[-1] if reward_ids else None
+    item_type = "weapon" if "炼武" in str(name or "") else "avatar"
     return {
         "id": str(value.get("id") or ""),
-        "name": value.get("name"),
+        "name": name,
         "city": value.get("city"),
-        "reward_item_ids": value.get("reward") if isinstance(value.get("reward"), list) else [],
+        "reward_item_ids": reward_ids,
+        "domain_icon_url": _ambr_item_icon_url(material_id),
+        "items": _daily_domain_items(reward_ids, upgrades, item_type),
     }
+
+
+def _daily_domain_items(
+    reward_ids: list[object],
+    upgrades: dict[str, object],
+    item_type: str,
+) -> list[dict[str, object]]:
+    data = upgrades.get(item_type)
+    if not isinstance(data, dict):
+        return []
+    reward_ints = {_optional_int(item_id) for item_id in reward_ids}
+    reward_ints.discard(None)
+
+    items: list[dict[str, object]] = []
+    seen: set[str] = set()
+    for key, value in data.items():
+        if not isinstance(value, dict):
+            continue
+        costs = value.get("items")
+        if not isinstance(costs, dict):
+            continue
+        if not any(_optional_int(cost_id) in reward_ints for cost_id in costs):
+            continue
+        item_id = str(value.get("id") or key)
+        if item_id in seen:
+            continue
+        seen.add(item_id)
+        icon = value.get("icon")
+        items.append(
+            {
+                "id": item_id,
+                "type": item_type,
+                "name": value.get("name"),
+                "rank": value.get("rank"),
+                "icon": icon,
+                "icon_url": _ambr_ui_icon_url(icon),
+            }
+        )
+    return items
+
+
+def _ambr_item_icon_url(item_id: object) -> str | None:
+    if item_id is None:
+        return None
+    text = str(item_id).strip()
+    return f"{AMBR_UI_URL}/UI_ItemIcon_{text}.png" if text else None
+
+
+def _ambr_ui_icon_url(icon: object) -> str | None:
+    if not isinstance(icon, str) or not icon:
+        return None
+    return f"{AMBR_UI_URL}/{icon}.png"
+
+
+def _optional_int(value: object) -> int | None:
+    try:
+        return int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
 
 
 def _day_from_date(value: str | None) -> str | None:
@@ -795,6 +892,10 @@ def _day_from_date(value: str | None) -> str | None:
             EXIT_INVALID_INPUT,
             {"date": value},
         ) from exc
+
+
+def _current_daily_day() -> str:
+    return (datetime.now(CN_TZ) - DAILY_RESET_OFFSET).strftime("%A").lower()
 
 
 def _parse_active_codes(wikitext: str) -> list[dict[str, object]]:

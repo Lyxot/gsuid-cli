@@ -356,6 +356,29 @@ class MysProvider:
             source=response.source,
         )
 
+    def daily_signin_status(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+    ) -> CommandResult:
+        sign_info, source, info_message = self._sign_info(uid=uid, cookie=cookie, region=region)
+        return CommandResult(
+            data=_signin_data(
+                uid=uid,
+                credential_source=credential_source,
+                storage_backend=storage_backend,
+                already_signed=sign_info.get("is_sign") is True,
+                signed=False,
+                sign_info=sign_info,
+                provider_message=info_message,
+            ),
+            source=source,
+        )
+
     def player_summary(
         self,
         *,
@@ -372,14 +395,29 @@ class MysProvider:
             region=region,
             category="player.summary",
         )
+        summary = _player_summary(data)
+        warnings: list[str] = []
+        if _role_needs_identity(summary.get("role")):
+            try:
+                role = self._account_card_role(uid=uid, cookie=cookie, region=region)
+            except CliError:
+                role = None
+            else:
+                if role is not None:
+                    _merge_role_identity(summary, role)
+            if _role_needs_identity(summary.get("role")):
+                warnings.append(
+                    "player role identity is unavailable; nickname and level may be empty"
+                )
         return CommandResult(
             data={
                 "uid": uid,
                 "credential_source": credential_source,
                 "storage_backend": storage_backend,
-                "summary": _player_summary(data),
+                "summary": summary,
             },
             source=source,
+            warnings=warnings,
         )
 
     def player_characters(
@@ -1261,6 +1299,46 @@ class MysProvider:
         )
         return _payload_data(response.payload, category, response.source), response.source
 
+    def _account_card_role(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+    ) -> dict[str, object] | None:
+        account_id = _account_id_from_cookie(cookie)
+        if not account_id:
+            return None
+        params = {"uid": account_id}
+        response = self.http.request_json(
+            "GET",
+            f"{RECORD_BASE_CN}{CARD_PATH}",
+            provider=PROVIDER,
+            region=region,
+            category="player.summary.role",
+            params=params,
+            headers=_record_headers(_account_cookie(cookie, account_id), _query_string(params)),
+        )
+        raise_for_retcode(
+            response.payload,
+            provider=PROVIDER,
+            region=region,
+            category="player.summary.role",
+            source=response.source,
+            debug=self.http.debug,
+        )
+        data = response.payload.get("data")
+        roles_value = data.get("list") if isinstance(data, dict) else []
+        if not isinstance(roles_value, list):
+            roles_value = []
+        for role in roles_value:
+            if not isinstance(role, dict):
+                continue
+            linked_role = _linked_role(role)
+            if linked_role["game_id"] == "2" and linked_role["game_role_id"] == uid:
+                return linked_role
+        return None
+
     def _record_headers_for_uid(
         self,
         uid: str,
@@ -1383,7 +1461,7 @@ class MysProvider:
         uid: str,
         cookie: str,
         region: str,
-    ) -> tuple[dict[str, object], dict[str, object]]:
+    ) -> tuple[dict[str, object], dict[str, object], str]:
         ensure_supported_region(region)
         server = server_for_uid(uid)
         params = {
@@ -1620,6 +1698,21 @@ def _player_summary(data: dict[str, object]) -> dict[str, object]:
         ],
         "homes": [home for home in homes if isinstance(home, dict)],
     }
+
+
+def _role_needs_identity(role: object) -> bool:
+    if not isinstance(role, dict):
+        return False
+    return role.get("nickname") in (None, "") or role.get("level") in (None, "")
+
+
+def _merge_role_identity(summary: dict[str, object], role: dict[str, object]) -> None:
+    summary_role = summary.get("role")
+    if not isinstance(summary_role, dict):
+        return
+    for key in ("nickname", "level", "region", "region_name"):
+        if summary_role.get(key) in (None, "") and role.get(key) not in (None, ""):
+            summary_role[key] = role[key]
 
 
 def _avatar_summary(avatar: dict[str, object]) -> dict[str, object]:

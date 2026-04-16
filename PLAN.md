@@ -672,44 +672,7 @@ tests/
 ### Stage 14: Missing Command Contract Completion — completed.
 ### Stage 15: Full Global Options — completed.
 ### Stage 16: Help Information Coverage — completed.
-### Stage 16.5: Cache System Redesign
-
-- Status: completed.
-- Result: replaced persistent provider JSON response caching with process-local
-  memory caching and added a permanent static asset cache under
-  `$GSUID_HOME/cache/assets`.
-- Asset cache behavior: byte responses are stored as flattened files named from
-  the original filename plus a hash and preserved/content-derived suffix.
-  Metadata sidecars record sanitized URL, content type, fetched time, hash,
-  size, status, and retry/failure details.
-- Concurrency: asset writes use `filelock` per asset key plus atomic temp-file
-  replacement, allowing multiple CLI instances to reuse the same cache without
-  unsafe partial files.
-- Command updates: `map.find` and `guide.route` now honor `--cache` through the
-  static asset cache; `resources.sync` warms process-local JSON cache only;
-  `meta paths`, `meta capabilities`, `cache clear`, and `monitor once` expose
-  asset-cache state.
-- Legacy HTTP/resource cache runtime paths and command options were removed;
-  only the static asset cache remains under `$GSUID_HOME/cache`.
-- Tests: added cache-system coverage for process-local JSON caching, persistent
-  flattened asset caching, and retry metadata. Updated affected command,
-  monitor, metadata, docs, and cache-clear tests.
-- Verification:
-  - `.venv/bin/python -m pytest tests/test_cache_system.py -q`
-  - `.venv/bin/python -m pytest tests/test_provider_foundation.py::test_get_cache_policy_uses_cached_payload tests/test_rich_public_data.py::test_map_find_passes_global_cache_policy_to_asset_provider tests/test_missing_command_contracts.py::test_cache_clear_scope_removes_only_selected_files tests/test_agent_hardening.py::test_monitor_once_reports_threshold_warnings tests/test_meta_commands.py::test_meta_paths_respects_home_and_output_dir tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/python -m gsuid_cli meta paths`
-  - `.venv/bin/python -m gsuid_cli meta capabilities`
-  - `GSUID_HOME=/tmp/gsuid-cache-smoke .venv/bin/python -m gsuid_cli cache clear --scope assets`
-  - `GSUID_HOME=/tmp/gsuid-cache-smoke .venv/bin/python -m gsuid_cli monitor once --max-asset-cache-files 0`
-  - `.venv/bin/python -m gsuid_cli cache clear --help`
-  - `.venv/bin/python -m gsuid_cli monitor once --help`
-- Next intended stage: Stage 17b, port the first GenshinUID image renderer
-  group on top of the redesigned asset cache.
-
+### Stage 16.5: Cache System Redesign — completed.
 ### Stage 17: GenshinUID Image Parity
 
 - Status: in progress.
@@ -731,6 +694,37 @@ tests/
   Stage 17.
 - Next intended substage: Stage 17b, choose the first GenshinUID renderer group
   to port and document source/license attribution before adding code.
+
+- Stage 17b status: completed.
+- Stage 17b goal: port the `daily` image renderer group from the referenced
+  historical GenshinUID-parity commits, starting with `daily.note` and
+  `daily.materials`, while adapting all remote asset fetches to the Stage 16.5
+  static asset cache.
+- Stage 17b scope note: extract only the common renderer and render-asset fetch
+  helpers needed by the daily note/materials ports so later image groups can
+  reuse the same packaged asset, font, PNG, and static-asset cache paths.
+- Stage 17b result: restored attributed GenshinUID daily note/materials assets,
+  added shared renderer helpers and common static-image fetch helpers, re-enabled
+  `--render image|both` for `daily.note` and `daily.materials`, enriched daily
+  materials with AMBR upgrade/icon metadata, and added the read-only MYS daily
+  sign-in status used by the note card. Amended with a shared optimized PNG
+  compression pass for generated renderer output before writing artifacts.
+- Verification:
+  - `.venv/bin/python -m pip install -e '.[dev]'`
+  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_daily_player_data.py tests/test_meta_commands.py -q`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17b-materials --render image daily materials --day wednesday`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17b-note --render image daily note --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17b-compress-materials --render image daily materials --day wednesday`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17b-compress-note --render image daily note --uid <UID>`
+- Live artifacts:
+  - `~/.gsuid-cli/artifacts/2026-05-01/stage17b-materials/daily-materials_wednesday_c1b89f84.png`
+  - `~/.gsuid-cli/artifacts/2026-05-01/stage17b-note/daily-note_102452098_68affdf2.png`
+- Next intended substage: Stage 17c, port the next GenshinUID image renderer
+  group after confirming priority.
 
 ## MVP Cut Line
 

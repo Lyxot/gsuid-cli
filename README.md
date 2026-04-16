@@ -65,6 +65,13 @@ Run authenticated commands after login:
 .venv/bin/python -m gsuid_cli player diary --uid <UID>
 ```
 
+Write GenshinUID-style daily image artifacts:
+
+```sh
+.venv/bin/python -m gsuid_cli --render image daily materials
+.venv/bin/python -m gsuid_cli --render image daily note --uid <UID>
+```
+
 Global options can be placed before, between, or after command tokens:
 
 ```sh

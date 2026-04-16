@@ -1,15 +1,21 @@
 from __future__ import annotations
 
+import hashlib
 import io
 import json
+from datetime import datetime
+from pathlib import Path
 
 import httpx
 import pytest
+from PIL import Image
 
 from gsuid_cli.cli import run
+from gsuid_cli.commands import public_data
 from gsuid_cli.core.errors import CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.providers import public as public_provider
 from gsuid_cli.providers.public import PublicDataProvider, _parse_active_codes
 
 
@@ -55,6 +61,196 @@ def test_public_list_commands_return_json(monkeypatch) -> None:
         assert code == 0
         assert payload["command"] == command
         assert key in payload["data"]
+
+
+def test_daily_materials_render_image_writes_card(monkeypatch, tmp_path) -> None:
+    requested_urls: list[str] = []
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
+    monkeypatch.setattr(public_data, "fetch_render_images", _fake_image_fetcher(requested_urls))
+
+    code, payload = _run_json(
+        [
+            "--request-id",
+            "daily-materials-img",
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+            "daily",
+            "materials",
+            "--date",
+            "2026-04-29",
+            "--render",
+            "image",
+        ]
+    )
+
+    assert code == 0
+    assert payload["command"] == "daily.materials"
+    assert payload["data"] == {
+        "day": "wednesday",
+        "render": "daily/materials",
+        "artifact_sha256": payload["artifacts"][0]["sha256"],
+    }
+    artifact = payload["artifacts"][0]
+    path = Path(artifact["path"])
+    content = path.read_bytes()
+    assert path.parent == tmp_path / "artifacts" / "2026-04-29" / "daily-materials-img"
+    assert artifact["media_type"] == "image/png"
+    assert artifact["sha256"] == hashlib.sha256(content).hexdigest()
+    assert set(requested_urls) == {
+        "https://gi.yatta.moe/assets/UI/UI_ItemIcon_104313.png",
+        "https://gi.yatta.moe/assets/UI/UI_AvatarIcon_Ambor.png",
+        "https://gi.yatta.moe/assets/UI/UI_AvatarIcon_Venti.png",
+    }
+    with Image.open(path) as image:
+        assert image.size[0] == 950
+        assert image.size[1] >= 820
+        assert image.getbbox() is not None
+
+
+def test_daily_materials_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+    monkeypatch.setattr(public_data, "fetch_render_images", _fake_image_fetcher([]))
+
+    code, payload = _run_json(["daily", "materials", "--day", "monday", "--render", "both"])
+
+    assert code == 0
+    assert payload["data"]["domains"][0]["items"][0]["name"] == "安柏"
+    assert payload["data"]["render"] == "daily/materials"
+    assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
+
+
+def test_daily_materials_enriches_ambr_upgrade_icon_urls() -> None:
+    provider = PublicDataProvider(
+        _sequence_client(
+            [
+                _json_response(
+                    {
+                        "response": 200,
+                        "data": {
+                            "monday": {
+                                "domain": {
+                                    "id": 5257,
+                                    "name": "精通秘境：炽炎祭场",
+                                    "reward": [102, 104310],
+                                    "city": 2,
+                                }
+                            }
+                        },
+                    }
+                ),
+                _json_response(
+                    {
+                        "response": 200,
+                        "data": {
+                            "avatar": {
+                                "10000021": {
+                                    "name": "安柏",
+                                    "rank": 4,
+                                    "icon": "UI_AvatarIcon_Ambor",
+                                    "items": {"104310": 1},
+                                }
+                            },
+                            "weapon": {},
+                        },
+                    }
+                ),
+            ]
+        )
+    )
+
+    result = provider.daily_materials(day="monday")
+
+    domain = result.data["domains"][0]
+    assert domain["domain_icon_url"] == "https://gi.yatta.moe/assets/UI/UI_ItemIcon_104310.png"
+    assert domain["items"] == [
+        {
+            "id": "10000021",
+            "type": "avatar",
+            "name": "安柏",
+            "rank": 4,
+            "icon": "UI_AvatarIcon_Ambor",
+            "icon_url": "https://gi.yatta.moe/assets/UI/UI_AvatarIcon_Ambor.png",
+        }
+    ]
+
+
+def test_daily_materials_keeps_base_data_when_upgrade_unavailable() -> None:
+    provider = PublicDataProvider(
+        _sequence_client(
+            [
+                _json_response(
+                    {
+                        "response": 200,
+                        "data": {
+                            "monday": {
+                                "domain": {
+                                    "id": 5257,
+                                    "name": "精通秘境：炽炎祭场",
+                                    "reward": [102, 104310],
+                                    "city": 2,
+                                }
+                            }
+                        },
+                    }
+                ),
+                _json_response({"response": 500}),
+            ]
+        )
+    )
+
+    result = provider.daily_materials(day="monday")
+
+    assert result.data["domains"][0]["items"] == []
+    assert result.warnings == [
+        "daily material upgrade data is unavailable; returned domains without item matches"
+    ]
+
+
+def test_daily_materials_default_day_uses_four_oclock_reset(monkeypatch) -> None:
+    class FixedDatetime:
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 4, 29, 3, 30, tzinfo=tz)
+
+    monkeypatch.setattr(public_provider, "datetime", FixedDatetime)
+    provider = PublicDataProvider(
+        _sequence_client(
+            [
+                _json_response(
+                    {
+                        "response": 200,
+                        "data": {
+                            "tuesday": {
+                                "domain": {
+                                    "id": 1,
+                                    "name": "精通秘境：深炎之底",
+                                    "reward": [104313],
+                                    "city": 2,
+                                }
+                            },
+                            "wednesday": {
+                                "domain": {
+                                    "id": 2,
+                                    "name": "精通秘境：焚尽之环",
+                                    "reward": [104316],
+                                    "city": 2,
+                                }
+                            },
+                        },
+                    }
+                ),
+                _json_response({"response": 200, "data": {"avatar": {}, "weapon": {}}}),
+            ]
+        )
+    )
+
+    result = provider.daily_materials(day=None)
+
+    assert result.data["day"] == "tuesday"
+    assert result.data["domains"][0]["id"] == "1"
 
 
 def test_ambr_wiki_lookup_matches_route_alias() -> None:
@@ -232,12 +428,50 @@ def _fake_provider():
                 source=_source("fandom"),
             )
 
-        def daily_materials(self, *, day: str | None, date: str | None = None) -> CommandResult:
+        def daily_materials(
+            self,
+            *,
+            day: str | None,
+            date: str | None = None,
+            require_upgrade: bool = False,
+        ) -> CommandResult:
             return CommandResult(
                 data={
                     "date": date,
-                    "day": day,
-                    "domains": [{"id": "1", "name": "Domain"}],
+                    "day": day or "wednesday",
+                    "domains": [
+                        {
+                            "id": "1",
+                            "name": "精通秘境：深炎之底",
+                            "city": 2,
+                            "reward_item_ids": [104313],
+                            "domain_icon_url": (
+                                "https://gi.yatta.moe/assets/UI/UI_ItemIcon_104313.png"
+                            ),
+                            "items": [
+                                {
+                                    "id": "10000021",
+                                    "type": "avatar",
+                                    "name": "安柏",
+                                    "rank": 4,
+                                    "icon": "UI_AvatarIcon_Ambor",
+                                    "icon_url": (
+                                        "https://gi.yatta.moe/assets/UI/UI_AvatarIcon_Ambor.png"
+                                    ),
+                                },
+                                {
+                                    "id": "10000022",
+                                    "type": "avatar",
+                                    "name": "温迪",
+                                    "rank": 5,
+                                    "icon": "UI_AvatarIcon_Venti",
+                                    "icon_url": (
+                                        "https://gi.yatta.moe/assets/UI/UI_AvatarIcon_Venti.png"
+                                    ),
+                                },
+                            ],
+                        }
+                    ],
                     "count": 1,
                 },
                 source=_source("ambr"),
@@ -270,3 +504,29 @@ def _sequence_client(responses: list[httpx.Response]) -> HttpClient:
 
 def _json_response(payload: dict[str, object]) -> httpx.Response:
     return httpx.Response(200, json=payload)
+
+
+def _fake_image_fetcher(requested_urls: list[str]):
+    def fetcher(
+        _args,
+        urls,
+        *,
+        provider: str,
+        region: str,
+        category: str,
+        unavailable_warning: str,
+        max_workers: int = 8,
+    ) -> tuple[dict[str, bytes], list[str]]:
+        del provider, region, category, unavailable_warning, max_workers
+        requested_urls.extend(urls)
+        return {url: _png_bytes(url) for url in urls}, []
+
+    return fetcher
+
+
+def _png_bytes(seed: str) -> bytes:
+    digest = hashlib.sha1(seed.encode("utf-8")).digest()
+    image = Image.new("RGBA", (16, 16), (digest[0], digest[1], digest[2], 255))
+    output = io.BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()
