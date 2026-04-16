@@ -4,6 +4,7 @@ import argparse
 import shutil
 from pathlib import Path
 
+from gsuid_cli.core.cache import AssetCache
 from gsuid_cli.core.config import resolve_paths
 from gsuid_cli.core.models import CommandResult
 
@@ -26,7 +27,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     clear = commands.add_parser("clear", help="Clear local cache files.")
     clear.add_argument(
         "--scope",
-        choices=("http", "resources", "artifacts", "all"),
+        choices=("assets", "artifacts", "all"),
         default="all",
     )
     clear.set_defaults(handler=clear_command, command_name="cache.clear")
@@ -35,8 +36,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 def clear_command(args: argparse.Namespace) -> CommandResult:
     paths = resolve_paths(None)
     targets = {
-        "http": paths.cache_http,
-        "resources": paths.cache_resources,
+        "assets": paths.cache_assets,
         "artifacts": paths.home / "artifacts",
     }
     selected = targets if args.scope == "all" else {args.scope: targets[args.scope]}
@@ -52,6 +52,15 @@ def clear_command(args: argparse.Namespace) -> CommandResult:
 
 
 def _clear_path(name: str, path: Path) -> dict[str, object]:
+    if name == "assets":
+        removed_files, removed_dirs = AssetCache().clear()
+        path.mkdir(mode=0o700, parents=True, exist_ok=True)
+        return {
+            "scope": name,
+            "path": str(path),
+            "removed_files": removed_files,
+            "removed_dirs": removed_dirs,
+        }
     removed_files = _count_files(path)
     removed_dirs = _count_dirs(path)
     if path.exists():

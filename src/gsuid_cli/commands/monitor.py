@@ -26,14 +26,14 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 
     once = commands.add_parser("once", help="Run one local health check pass.")
     once.add_argument("--min-free-mb", type=int, default=100)
-    once.add_argument("--max-http-cache-files", type=int)
+    once.add_argument("--max-asset-cache-files", type=int)
     once.add_argument("--max-artifact-files", type=int)
     once.set_defaults(handler=once_command, command_name="monitor.once")
 
 
 def once_command(args: argparse.Namespace) -> CommandResult:
     _validate_threshold("min-free-mb", args.min_free_mb, allow_zero=True)
-    _validate_threshold("max-http-cache-files", args.max_http_cache_files, allow_zero=True)
+    _validate_threshold("max-asset-cache-files", args.max_asset_cache_files, allow_zero=True)
     _validate_threshold("max-artifact-files", args.max_artifact_files, allow_zero=True)
 
     paths = resolve_paths(args.output_dir)
@@ -46,14 +46,14 @@ def once_command(args: argparse.Namespace) -> CommandResult:
             f"{free_mb} MiB free",
         )
     ]
-    if args.max_http_cache_files is not None:
-        count = _file_count(paths.cache_http)
+    if args.max_asset_cache_files is not None:
+        count = _asset_file_count(paths.cache_assets)
         checks.append(
             _check_maximum(
-                "cache.http_files",
+                "cache.asset_files",
                 count,
-                args.max_http_cache_files,
-                f"{count} cached HTTP files",
+                args.max_asset_cache_files,
+                f"{count} cached asset files",
             )
         )
     if args.max_artifact_files is not None:
@@ -74,7 +74,7 @@ def once_command(args: argparse.Namespace) -> CommandResult:
             "checks": checks,
             "thresholds": {
                 "min_free_mb": args.min_free_mb,
-                "max_http_cache_files": args.max_http_cache_files,
+                "max_asset_cache_files": args.max_asset_cache_files,
                 "max_artifact_files": args.max_artifact_files,
             },
         },
@@ -127,3 +127,17 @@ def _file_count(path: Path) -> int:
     if not path.exists():
         return 0
     return len([item for item in path.rglob("*") if item.is_file()])
+
+
+def _asset_file_count(path: Path) -> int:
+    if not path.exists():
+        return 0
+    return len(
+        [
+            item
+            for item in path.iterdir()
+            if item.is_file()
+            and not item.name.startswith(".")
+            and not item.name.endswith(".metadata.json")
+        ]
+    )

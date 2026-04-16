@@ -86,7 +86,7 @@ def test_map_find_writes_image_artifact(monkeypatch, tmp_path) -> None:
     assert payload["data"]["marker_count"] is None
 
 
-def test_map_find_ignores_global_cache_policy(monkeypatch, tmp_path) -> None:
+def test_map_find_passes_global_cache_policy_to_asset_provider(monkeypatch, tmp_path) -> None:
     class CaptureProvider(FakeProvider):
         cache_policy: str | None = None
 
@@ -99,7 +99,7 @@ def test_map_find_ignores_global_cache_policy(monkeypatch, tmp_path) -> None:
     code, _payload = _run_json(["--cache", "only", "map", "find", "--item", "甜甜花"])
 
     assert code == 0
-    assert CaptureProvider.cache_policy == "off"
+    assert CaptureProvider.cache_policy == "only"
 
 
 def test_guide_route_uses_route_provider_category(monkeypatch, tmp_path) -> None:

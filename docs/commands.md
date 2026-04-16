@@ -50,9 +50,9 @@ Generated from `gsuid meta capabilities`.
 | `guide.abyss` | `none` | `data` | `use` | Report public abyss guide availability. |
 | `guide.character` | `none` | `data` | `use` | Show public character guide facts. |
 | `guide.reference-panel` | `none` | `data` | `use` | Report public reference-panel availability for a character. |
-| `guide.route` | `none` | `data, image, both` | `off` | Fetch a public material route map artifact. |
+| `guide.route` | `none` | `data, image, both` | `use` | Fetch a public material route map artifact. |
 | `guide.theater` | `none` | `data` | `use` | Report public theater guide availability. |
-| `map.find` | `none` | `data, image, both` | `off` | Fetch a public MiniGG material map artifact. |
+| `map.find` | `none` | `data, image, both` | `use` | Fetch a public MiniGG material map artifact. |
 | `meta.capabilities` | `none` | `data` | `off` | Show implemented command capabilities. |
 | `meta.doctor` | `none` | `data` | `off` | Run local diagnostics for storage, credentials, resources, or network. |
 | `meta.errors` | `none` | `data` | `off` | Show stable machine-readable error metadata. |
@@ -95,7 +95,7 @@ Generated from `gsuid meta capabilities`.
 | `recommend.build` | `none` | `data` | `use` | Report public build recommendation availability. |
 | `recommend.holder` | `none` | `data` | `use` | Report public holder recommendation availability. |
 | `rerun.list` | `none` | `data` | `use` | List wish-banner rows for rerun analysis. |
-| `resources.sync` | `none` | `data` | `refresh` | Refresh local cached public resource metadata. |
+| `resources.sync` | `none` | `data` | `memory` | Fetch public resource metadata and warm process-local JSON cache. |
 | `wiki.artifact` | `none` | `data` | `use` | Look up public artifact set data. |
 | `wiki.character` | `none` | `data` | `use` | Look up public character data. |
 | `wiki.character-materials` | `none` | `data` | `use` | Show public character material data. |

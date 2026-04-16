@@ -244,7 +244,7 @@ def _global_options() -> list[dict[str, object]]:
             "value": "use|refresh|only|off",
             "default": "use",
             "placement": "anywhere",
-            "description": "Cache policy.",
+            "description": "Process JSON and static asset cache policy.",
         },
         {
             "name": "--timeout",
@@ -314,14 +314,14 @@ def _resource_checks(args: argparse.Namespace) -> list[dict[str, object]]:
     paths = resolve_paths(args.output_dir)
     return [
         {
-            "name": "resources.cache",
-            "status": "ok" if paths.cache_resources.exists() else "warn",
-            "message": "resource cache directory exists"
-            if paths.cache_resources.exists()
-            else "resource cache directory has not been created yet",
+            "name": "resources.asset_cache",
+            "status": "ok" if paths.cache_assets.exists() else "warn",
+            "message": "asset cache directory exists"
+            if paths.cache_assets.exists()
+            else "asset cache directory has not been created yet",
             "details": {
-                "path": str(paths.cache_resources),
-                "file_count": _file_count(paths.cache_resources),
+                "path": str(paths.cache_assets),
+                "file_count": _file_count(paths.cache_assets),
             },
         }
     ]

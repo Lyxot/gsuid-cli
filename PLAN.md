@@ -22,6 +22,16 @@ gsuid [GLOBAL_OPTIONS] <group> <command> [COMMAND_OPTIONS]
 
 Default output is JSON on stdout. Logs, progress, and warnings that are not part of the result go to stderr. Binary/image outputs are written as files and referenced by path in JSON.
 
+Cache system decisions:
+
+- HTTP JSON/game-record calls should not use persistent cache storage because the data changes rapidly. Keep only a short-lived in-memory cache within one CLI process when useful.
+- Static assets are cached permanently under `$GSUID_HOME/cache/assets` until manually cleaned.
+- Static asset cache paths should be flattened for easy system preview and cross-command reuse. Use the original file name plus a hash while preserving the corresponding file suffix.
+- Store asset metadata, including URL, content type, fetched time, hash, size, status, and retry/failure information.
+- Add a file-locking dependency if needed. Support large per-process parallel asset downloads while keeping writes safe across multiple CLI instances.
+- Limit asset download concurrency per process only; no cross-process global rate limiter is required.
+- Failed or partial asset downloads should clean up unsafe partial files but leave retry metadata for later diagnosis and retry behavior.
+
 ## Assumptions
 
 - The first target game is Genshin Impact only.
@@ -96,8 +106,7 @@ $GSUID_HOME/
   config.toml                  Non-secret defaults.
   state.sqlite                 Accounts, profiles, cache metadata, gacha summaries.
   cache/
-    http/
-    resources/
+    assets/                    Flattened permanent static asset cache.
   artifacts/
     YYYY-MM-DD/
       REQUEST_ID/
@@ -221,7 +230,7 @@ gsuid meta capabilities
 gsuid meta schema [--command COMMAND]
 gsuid meta doctor [--check network|storage|credentials|resources|all]
 gsuid meta paths
-gsuid cache clear [--scope http|resources|artifacts|all]
+gsuid cache clear [--scope assets|artifacts|all]
 gsuid resources sync [--scope wiki|icons|maps|all]
 ```
 
@@ -516,7 +525,7 @@ Return data:
 ```text
 gsuid batch run --file commands.jsonl
 gsuid batch plan --file commands.jsonl
-gsuid monitor once [--min-free-mb N] [--max-http-cache-files N] [--max-artifact-files N]
+gsuid monitor once [--min-free-mb N] [--max-asset-cache-files N] [--max-artifact-files N]
 ```
 
 Batch input line formats:
@@ -646,36 +655,7 @@ tests/
 ### Stage 4.5: QR Login — completed.
 ### Stage 4.6: Interactive QR Login — completed.
 ### Stage 4.7: Live Auth Validation Fixes — completed.
-### Stage 4.8: MYS Device Login
-
-- Status: completed.
-- Result: ported GenshinUID/gsuid_core `mys设备登录` into typed local device
-  metadata commands plus upstream device binding.
-- Reference: `~/Github/gsuid_core/gsuid_core/buildin_plugins/core_command/user_login/__init__.py`,
-  `utils/cookie_manager/add_fp.py`, and `utils/api/mys/base_request.py`,
-  GPLv3-compatible with this AGPLv3 project.
-- Commands:
-  - `auth device set --uid UID (--device-json JSON | --device-file PATH | --device-stdin)`
-  - `auth device test [--uid UID]`
-  - `auth device delete --uid UID`
-- Behavior: `auth device set` parses existing `fp/device_id/device_info`
-  payloads or generates an MYS `device_fp` from raw app device payloads, calls
-  upstream `deviceLogin` and `saveDevice`, persists device headers in local
-  SQLite, reuses stored device headers for later MYS record calls, and never
-  prints cookie or full device fingerprint values.
-- Storage: bumped SQLite schema to v4 with account device metadata columns.
-- Verification:
-  - `.venv/bin/python -m pytest tests/test_auth_secrets.py tests/test_provider_foundation.py tests/test_profile_account_state.py tests/test_meta_commands.py`
-  - `.venv/bin/python -m gsuid_cli auth device --help`
-  - `.venv/bin/python -m gsuid_cli auth device set --help`
-  - `.venv/bin/python -m gsuid_cli auth device test --help`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-- Live notes: upstream `auth device set` was not run live because no trusted
-  real device payload was provided and the command mutates the MYS device list.
-
+### Stage 4.8: MYS Device Login — completed.
 ### Stage 5: Public Data MVP — completed.
 ### Stage 6: Authenticated Daily And Player Data — completed.
 ### Stage 7: Progress And Challenge Data — completed.
@@ -692,6 +672,44 @@ tests/
 ### Stage 14: Missing Command Contract Completion — completed.
 ### Stage 15: Full Global Options — completed.
 ### Stage 16: Help Information Coverage — completed.
+### Stage 16.5: Cache System Redesign
+
+- Status: completed.
+- Result: replaced persistent provider JSON response caching with process-local
+  memory caching and added a permanent static asset cache under
+  `$GSUID_HOME/cache/assets`.
+- Asset cache behavior: byte responses are stored as flattened files named from
+  the original filename plus a hash and preserved/content-derived suffix.
+  Metadata sidecars record sanitized URL, content type, fetched time, hash,
+  size, status, and retry/failure details.
+- Concurrency: asset writes use `filelock` per asset key plus atomic temp-file
+  replacement, allowing multiple CLI instances to reuse the same cache without
+  unsafe partial files.
+- Command updates: `map.find` and `guide.route` now honor `--cache` through the
+  static asset cache; `resources.sync` warms process-local JSON cache only;
+  `meta paths`, `meta capabilities`, `cache clear`, and `monitor once` expose
+  asset-cache state.
+- Legacy HTTP/resource cache runtime paths and command options were removed;
+  only the static asset cache remains under `$GSUID_HOME/cache`.
+- Tests: added cache-system coverage for process-local JSON caching, persistent
+  flattened asset caching, and retry metadata. Updated affected command,
+  monitor, metadata, docs, and cache-clear tests.
+- Verification:
+  - `.venv/bin/python -m pytest tests/test_cache_system.py -q`
+  - `.venv/bin/python -m pytest tests/test_provider_foundation.py::test_get_cache_policy_uses_cached_payload tests/test_rich_public_data.py::test_map_find_passes_global_cache_policy_to_asset_provider tests/test_missing_command_contracts.py::test_cache_clear_scope_removes_only_selected_files tests/test_agent_hardening.py::test_monitor_once_reports_threshold_warnings tests/test_meta_commands.py::test_meta_paths_respects_home_and_output_dir tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m gsuid_cli meta paths`
+  - `.venv/bin/python -m gsuid_cli meta capabilities`
+  - `GSUID_HOME=/tmp/gsuid-cache-smoke .venv/bin/python -m gsuid_cli cache clear --scope assets`
+  - `GSUID_HOME=/tmp/gsuid-cache-smoke .venv/bin/python -m gsuid_cli monitor once --max-asset-cache-files 0`
+  - `.venv/bin/python -m gsuid_cli cache clear --help`
+  - `.venv/bin/python -m gsuid_cli monitor once --help`
+- Next intended stage: Stage 17b, port the first GenshinUID image renderer
+  group on top of the redesigned asset cache.
+
 ### Stage 17: GenshinUID Image Parity
 
 - Status: in progress.

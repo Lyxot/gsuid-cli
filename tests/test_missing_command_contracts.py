@@ -28,22 +28,24 @@ def test_meta_doctor_storage_reports_checks(monkeypatch, tmp_path) -> None:
 
 def test_cache_clear_scope_removes_only_selected_files(monkeypatch, tmp_path) -> None:
     home = tmp_path / "home"
-    http_file = home / "cache" / "http" / "cached.json"
-    resource_file = home / "cache" / "resources" / "resource.json"
-    http_file.parent.mkdir(parents=True)
-    resource_file.parent.mkdir(parents=True)
-    http_file.write_text("{}", encoding="utf-8")
-    resource_file.write_text("{}", encoding="utf-8")
+    asset_file = home / "cache" / "assets" / "icon.1234.png"
+    asset_metadata = home / "cache" / "assets" / "icon.1234.metadata.json"
+    asset_lock = home / "cache" / "assets" / ".1234.lock"
+    asset_file.parent.mkdir(parents=True)
+    asset_file.write_text("asset", encoding="utf-8")
+    asset_metadata.write_text("{}", encoding="utf-8")
+    asset_lock.write_text("", encoding="utf-8")
     monkeypatch.setenv("GSUID_HOME", str(home))
 
-    code, payload, stderr = _run_json(["cache", "clear", "--scope", "http"])
+    code, payload, stderr = _run_json(["cache", "clear", "--scope", "assets"])
 
     assert code == 0
     assert stderr == ""
     assert payload["command"] == "cache.clear"
-    assert payload["data"]["removed_files"] == 1
-    assert not http_file.exists()
-    assert resource_file.exists()
+    assert payload["data"]["removed_files"] == 2
+    assert not asset_file.exists()
+    assert not asset_metadata.exists()
+    assert asset_lock.exists()
 
 
 def test_cache_clear_artifacts_ignores_global_output_dir(monkeypatch, tmp_path) -> None:

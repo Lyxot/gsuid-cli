@@ -430,6 +430,7 @@ class PublicDataProvider:
             region="cn",
             category=category,
             params={"resource_name": item, "map_id": map_id, "is_cluster": "false"},
+            expected_media_types=("image/",),
         )
         if not response.media_type.startswith("image/"):
             raise CliError(
@@ -505,6 +506,8 @@ class PublicDataProvider:
                 "scope": scope,
                 "synced": synced,
                 "count": len(synced),
+                "cache_backend": "process-memory",
+                "persistent_json_cache": False,
                 "source_limitations": warnings,
             },
             warnings=warnings,

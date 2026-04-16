@@ -55,8 +55,7 @@ def _ensure_storage(paths: RuntimePaths) -> None:
     for directory in (
         paths.home,
         paths.cache,
-        paths.cache_http,
-        paths.cache_resources,
+        paths.cache_assets,
         paths.artifacts,
         paths.logs,
     ):

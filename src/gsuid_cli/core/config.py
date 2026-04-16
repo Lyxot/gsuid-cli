@@ -12,8 +12,7 @@ class RuntimePaths:
     state: Path
     data: Path
     cache: Path
-    cache_http: Path
-    cache_resources: Path
+    cache_assets: Path
     artifacts: Path
     logs: Path
 
@@ -24,8 +23,7 @@ class RuntimePaths:
             "state": str(self.state),
             "data": str(self.data),
             "cache": str(self.cache),
-            "cache_http": str(self.cache_http),
-            "cache_resources": str(self.cache_resources),
+            "cache_assets": str(self.cache_assets),
             "artifacts": str(self.artifacts),
             "logs": str(self.logs),
         }
@@ -41,8 +39,7 @@ def resolve_paths(output_dir: str | None = None) -> RuntimePaths:
         state=home / "state.sqlite",
         data=home,
         cache=cache,
-        cache_http=cache / "http",
-        cache_resources=cache / "resources",
+        cache_assets=cache / "assets",
         artifacts=artifacts,
         logs=home / "logs",
     )

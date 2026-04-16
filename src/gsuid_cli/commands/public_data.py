@@ -163,7 +163,7 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "both"],
-        "cache": "off",
+        "cache": "use",
     },
     {
         "command": "guide.abyss",
@@ -219,7 +219,7 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "both"],
-        "cache": "off",
+        "cache": "use",
     },
     {
         "command": "rerun.list",
@@ -607,7 +607,7 @@ def _map_artifact_command(
     map_name: str,
     artifact_name: str,
 ) -> CommandResult:
-    response = _uncached_provider(args).map_image(
+    response = _provider(args).map_image(
         item=item,
         map_name=map_name,
         category=command,
@@ -674,18 +674,6 @@ def _provider(args: argparse.Namespace) -> PublicDataProvider:
         HttpClient(
             timeout=args.timeout,
             cache_policy=args.cache,
-            output_dir=args.output_dir,
-            debug=args.debug,
-        )
-    )
-
-
-def _uncached_provider(args: argparse.Namespace) -> PublicDataProvider:
-    ensure_supported_region(args.region)
-    return PublicDataProvider(
-        HttpClient(
-            timeout=args.timeout,
-            cache_policy="off",
             output_dir=args.output_dir,
             debug=args.debug,
         )

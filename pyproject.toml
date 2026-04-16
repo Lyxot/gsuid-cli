@@ -11,6 +11,7 @@ requires-python = ">=3.11,<3.15"
 license = "AGPL-3.0-only"
 authors = [{ name = "Lyxot" }]
 dependencies = [
+  "filelock>=3.13",
   "httpx[socks]>=0.28",
   "keyring>=25.0",
   "qrcode>=7.3,<8",

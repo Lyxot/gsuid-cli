@@ -82,11 +82,13 @@ Default local state is under `$GSUID_HOME`, or `~/.gsuid-cli` when unset:
 config.toml
 state.sqlite
 cache/
+  assets/
 artifacts/
 logs/
 ```
 
-The SQLite state file stores non-secret account/profile metadata. Artifacts can
-include rendered account data, exported gacha logs, and map images; treat the
-artifact directory as local private data. Stage 17 temporarily disables some
-generated renderers while they are replaced with GenshinUID-parity versions.
+The SQLite state file stores non-secret account/profile metadata. The asset
+cache stores reusable static files and retry metadata. Artifacts can include
+rendered account data, exported gacha logs, and map images; treat the artifact
+directory as local private data. Stage 17 temporarily disables some generated
+renderers while they are replaced with GenshinUID-parity versions.

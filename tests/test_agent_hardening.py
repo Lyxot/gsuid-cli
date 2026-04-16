@@ -183,20 +183,23 @@ def test_batch_invalid_utf8_file_returns_invalid_argument(tmp_path, monkeypatch)
 
 def test_monitor_once_reports_threshold_warnings(tmp_path, monkeypatch) -> None:
     home = tmp_path / "home"
-    cache_http = home / "cache" / "http"
-    cache_http.mkdir(parents=True)
-    (cache_http / "cached.json").write_text("{}", encoding="utf-8")
+    cache_assets = home / "cache" / "assets"
+    cache_assets.mkdir(parents=True)
+    (cache_assets / "icon.1234.png").write_text("asset", encoding="utf-8")
+    (cache_assets / "icon.1234.metadata.json").write_text("{}", encoding="utf-8")
+    (cache_assets / ".1234.lock").write_text("", encoding="utf-8")
     monkeypatch.setenv("GSUID_HOME", str(home))
 
-    code, payload, stderr = _run_json(["monitor", "once", "--max-http-cache-files", "0"])
+    code, payload, stderr = _run_json(["monitor", "once", "--max-asset-cache-files", "0"])
 
     assert code == 0
     assert stderr == ""
     assert payload["command"] == "monitor.once"
     assert payload["data"]["status"] == "warn"
     by_name = {check["name"]: check for check in payload["data"]["checks"]}
-    assert by_name["cache.http_files"]["value"] == 1
-    assert by_name["cache.http_files"]["status"] == "warn"
+    assert by_name["cache.asset_files"]["value"] == 1
+    assert by_name["cache.asset_files"]["status"] == "warn"
+    assert payload["data"]["thresholds"]["max_asset_cache_files"] == 0
     assert payload["warnings"]
 
 

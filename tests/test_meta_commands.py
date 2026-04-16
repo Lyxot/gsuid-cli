@@ -34,6 +34,17 @@ def test_meta_paths_respects_home_and_output_dir(monkeypatch, tmp_path) -> None:
     assert payload["data"]["home"] == str(home.resolve())
     assert payload["data"]["artifacts"] == str(output.resolve())
     assert payload["data"]["config"] == str((home / "config.toml").resolve())
+    assert payload["data"]["cache_assets"] == str((home / "cache" / "assets").resolve())
+    assert set(payload["data"]) == {
+        "home",
+        "config",
+        "state",
+        "data",
+        "cache",
+        "cache_assets",
+        "artifacts",
+        "logs",
+    }
 
 
 def test_meta_capabilities_lists_implemented_commands() -> None:
@@ -87,7 +98,7 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert {"panel.artifacts", "panel.graduation"}.issubset(commands)
     assert {"rank.summary", "rank.list", "rank.character", "rank.artifact"}.issubset(commands)
     capability_by_command = {command["command"]: command for command in payload["data"]["commands"]}
-    assert capability_by_command["map.find"]["cache"] == "off"
+    assert capability_by_command["map.find"]["cache"] == "use"
     assert "data" in capability_by_command["map.find"]["render"]
     assert payload["data"]["regions"] == ["cn"]
     assert payload["data"]["formats"] == ["json", "pretty-json", "text"]

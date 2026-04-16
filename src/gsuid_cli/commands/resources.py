@@ -10,11 +10,11 @@ from gsuid_cli.providers.public import PublicDataProvider
 CAPABILITIES = [
     {
         "command": "resources.sync",
-        "description": "Refresh local cached public resource metadata.",
+        "description": "Fetch public resource metadata and warm process-local JSON cache.",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data"],
-        "cache": "refresh",
+        "cache": "memory",
     },
 ]
 
@@ -27,7 +27,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
         metavar="<command>",
     )
 
-    sync = commands.add_parser("sync", help="Refresh public resource metadata.")
+    sync = commands.add_parser("sync", help="Fetch public resource metadata.")
     sync.add_argument("--scope", choices=("wiki", "icons", "maps", "all"), default="all")
     sync.set_defaults(handler=sync_command, command_name="resources.sync")
 
