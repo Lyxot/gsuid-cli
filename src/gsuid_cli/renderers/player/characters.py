@@ -35,6 +35,21 @@ def render_player_characters_card(
     asset_images: Mapping[str, bytes] | None = None,
 ) -> bytes:
     """Render a GenshinUID-style player character list card as PNG bytes."""
+    foreground = render_player_characters_section(
+        characters=characters,
+        asset_images=asset_images,
+    )
+    background = v4_background(WIDTH, foreground.size[1])
+    background.paste(foreground, (0, 0), foreground)
+    return png_bytes(background, rgb=True)
+
+
+def render_player_characters_section(
+    *,
+    characters: Sequence[Mapping[str, object]],
+    asset_images: Mapping[str, bytes] | None = None,
+) -> Image.Image:
+    """Render the transparent GenshinUID character-list section."""
     asset_images = asset_images or {}
     ordered_characters = _sorted_characters(characters)
     rows = max((len(ordered_characters) + COLUMNS - 1) // COLUMNS, 1)
@@ -50,9 +65,7 @@ def render_player_characters_card(
         y = CARD_TOP + (index // COLUMNS) * CARD_SIZE[1]
         foreground.paste(card, (x, y), card)
 
-    background = v4_background(WIDTH, height)
-    background.paste(foreground, (0, 0), foreground)
-    return png_bytes(background, rgb=True)
+    return foreground
 
 
 def _character_card(
@@ -74,7 +87,7 @@ def _character_card(
     char_image = _first_remote_image(
         (
             character_portrait_url(character),
-            _character_mys_image_url(character),
+            *character_mys_image_urls(character),
         ),
         asset_images,
         (256, 256),
@@ -199,10 +212,6 @@ def weapon_icon_url(weapon: Mapping[str, object]) -> str | None:
     if not name:
         return None
     return f"{GENSHINUID_RESOURCE_BASE}/weapon/{quote(name, safe='')}.png"
-
-
-def _character_mys_image_url(character: Mapping[str, object]) -> str | None:
-    return text_value(character.get("image")) or text_value(character.get("icon"))
 
 
 def character_mys_image_urls(character: Mapping[str, object]) -> tuple[str | None, str | None]:

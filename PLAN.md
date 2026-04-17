@@ -756,6 +756,44 @@ tests/
 - Next intended substage: Stage 17d, port the larger full player summary /
   role-info card after confirming its data and asset scope.
 
+- Stage 17d status: completed.
+- Stage 17d goal: port the GenshinUID full player role-info card to
+  `player summary --render image|both`.
+- Stage 17d scope note: compose the GenshinUID title, exploration, and
+  character-list sections using existing `player.summary` and
+  `player.characters` provider data; use deterministic account/avatar assets
+  instead of chat-event avatars because the CLI has no bot event context.
+- Stage 17d result: restored attributed GenshinUID title/footer/mask and
+  exploration assets, added the full player summary renderer, re-enabled
+  `--render image|both` for `player.summary`, reused the Stage 17c character
+  resource fetch strategy, prefer `role.avatar_icon` for the title avatar and
+  fall back to the public player profile picture because the CLI cannot access
+  QQ profile images, resolve Enka profile-picture ids through live profile
+  picture config data instead of hardcoded profile mappings, made
+  missing/future oculus icon assets degrade to placeholders, draw the footer as
+  `Created by gsuid-cli & Render style/assets by GenshinUID & Data by 米游社`,
+  and forced internal daily-note player-summary lookup to data mode so
+  unrelated render modes do not create nested artifacts.
+- Verification:
+  - `.venv/bin/python -m pytest tests/test_daily_player_data.py::test_player_summary_render_image_writes_full_role_card -q`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17d-player-summary-footer --render image player summary --uid <UID>`
+  - `.venv/bin/python -m pytest tests/test_daily_player_data.py tests/test_meta_commands.py -q`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17d-player-summary --render image player summary --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17d-player-summary-profile --render image player summary --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17d-player-summary-final --render image player summary --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17d-player-summary-pfp-config --render image player summary --uid <UID>`
+- Live artifact:
+  - `~/.gsuid-cli/artifacts/2026-05-01/stage17d-player-summary/player-summary_102452098.png`
+  - `~/.gsuid-cli/artifacts/2026-05-01/stage17d-player-summary-profile/player-summary_102452098.png`
+  - `~/.gsuid-cli/artifacts/2026-05-01/stage17d-player-summary-final/player-summary_102452098.png`
+  - `~/.gsuid-cli/artifacts/2026-05-01/stage17d-player-summary-pfp-config/player-summary_102452098.png`
+- Next intended substage: Stage 17e, port the next GenshinUID image renderer
+  group after confirming priority.
+
 ## MVP Cut Line
 
 The first usable MVP is complete after Stage 6 if these commands work:

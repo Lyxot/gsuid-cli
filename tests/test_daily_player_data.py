@@ -18,6 +18,12 @@ from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.secrets import SecretStore
 from gsuid_cli.providers.mys import RECORD_SALT, MysProvider
+from gsuid_cli.renderers.player import summary as player_summary_renderer
+from gsuid_cli.renderers.player.summary import (
+    FOOTER_TEXT,
+    player_profile_picture_url,
+    render_player_summary_card,
+)
 
 
 def test_daily_note_requires_cookie(monkeypatch, tmp_path) -> None:
@@ -245,6 +251,255 @@ def test_player_characters_render_both_preserves_structured_data(monkeypatch, tm
     assert code == 0
     assert payload["data"]["characters"][0]["name"] == "Amber"
     assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
+
+
+def test_player_summary_render_image_writes_full_role_card(monkeypatch, tmp_path) -> None:
+    captured_urls: list[str] = []
+    footer_calls = 0
+    original_paste_footer = player_summary_renderer._paste_footer
+
+    def spy_paste_footer(image) -> None:
+        nonlocal footer_calls
+        footer_calls += 1
+        original_paste_footer(image)
+
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher(captured_urls))
+    monkeypatch.setattr(player_summary_renderer, "_paste_footer", spy_paste_footer)
+    monkeypatch.setattr(
+        player_commands,
+        "_player_profile_title_avatar_url",
+        lambda args, uid, region: (
+            "https://enka.network/ui/UI_AvatarIcon_PlayerGirl_Circle.png",
+            [],
+        ),
+    )
+    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(
+        [
+            "player",
+            "summary",
+            "--uid",
+            "100000001",
+            "--render",
+            "image",
+            "--request-id",
+            "player-summary-img",
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+        ]
+    )
+
+    assert code == 0
+    assert payload["command"] == "player.summary"
+    assert payload["data"] == {
+        "uid": "100000001",
+        "render": "player/summary",
+        "character_count": 1,
+        "artifact_sha256": payload["artifacts"][0]["sha256"],
+    }
+    assert captured_urls == [
+        "https://example.test/GenshinUID/resource/chars/10000021.png",
+        "https://example.test/GenshinUID/resource/char_namecard_pic/10000021.png",
+        "https://example.test/GenshinUID/resource/weapon/Bow.png",
+        "https://upload.example.test/world.png",
+        "https://upload.example.test/offering.png",
+        "https://enka.network/ui/UI_AvatarIcon_PlayerGirl_Circle.png",
+    ]
+    artifact = payload["artifacts"][0]
+    path = Path(artifact["path"])
+    content = path.read_bytes()
+    assert path.parent == tmp_path / "artifacts" / "2026-04-29" / "player-summary-img"
+    assert artifact["media_type"] == "image/png"
+    assert artifact["sha256"] == hashlib.sha256(content).hexdigest()
+    assert (
+        FOOTER_TEXT == "Created by gsuid-cli & Render style/assets by GenshinUID & Data by 米游社"
+    )
+    assert footer_calls == 1
+    with Image.open(path) as image:
+        assert image.size == (1680, 2115)
+        assert image.getbbox() is not None
+
+
+def test_player_summary_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher([]))
+    monkeypatch.setattr(
+        player_commands,
+        "_player_profile_title_avatar_url",
+        lambda args, uid, region: (None, []),
+    )
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(["player", "summary", "--uid", "100000001", "--render", "both"])
+
+    assert code == 0
+    assert payload["data"]["summary"]["role"]["nickname"] == "派蒙"
+    assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
+
+
+def test_player_summary_render_skips_profile_lookup_when_role_avatar_exists(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.player.provider_for_region",
+        _summary_provider_with_role_avatar,
+    )
+    monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher([]))
+    monkeypatch.setattr(
+        player_commands,
+        "_player_profile_title_avatar_url",
+        _unexpected_profile_title_avatar_url,
+    )
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(["player", "summary", "--uid", "100000001", "--render", "image"])
+
+    assert code == 0
+    assert payload["data"]["render"] == "player/summary"
+
+
+def test_player_profile_picture_url_uses_live_mapping() -> None:
+    assert (
+        player_profile_picture_url(
+            {"playerInfo": {"profilePicture": {"id": 21}}},
+            {"21": {"iconPath": "UI_AvatarIcon_Ayaka_Circle"}},
+        )
+        == "https://enka.network/ui/UI_AvatarIcon_Ayaka_Circle.png"
+    )
+
+
+def test_player_profile_picture_url_does_not_use_showcase_for_unknown_picture() -> None:
+    assert (
+        player_profile_picture_url(
+            {
+                "playerInfo": {
+                    "profilePicture": {"id": 900004},
+                    "showAvatarInfoList": [{"avatarId": 10000022}],
+                }
+            }
+        )
+        is None
+    )
+
+
+def test_player_profile_title_avatar_resolves_pfps_mapping(monkeypatch) -> None:
+    class FakeEnkaProvider:
+        def __init__(self, _http_client: HttpClient) -> None:
+            pass
+
+        def profile(self, *, uid: str, region: str) -> CommandResult:
+            del uid
+            return CommandResult(
+                data={
+                    "playerInfo": {
+                        "profilePicture": {"id": 21},
+                        "showAvatarInfoList": [{"avatarId": 10000022}],
+                    }
+                },
+                source=_source(region),
+            )
+
+    class Args:
+        timeout = 20
+        cache = "use"
+        output_dir = None
+        debug = False
+
+    monkeypatch.setattr(player_commands, "EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr(
+        player_commands,
+        "_profile_picture_icons",
+        lambda args, region: {"21": {"iconPath": "UI_AvatarIcon_Ayaka_Circle"}},
+    )
+
+    url, warnings = player_commands._player_profile_title_avatar_url(Args(), "100000001", "cn")
+
+    assert warnings == []
+    assert url == "https://enka.network/ui/UI_AvatarIcon_Ayaka_Circle.png"
+
+
+def test_player_profile_picture_config_honors_cache_policy(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeHttpClient:
+        def __init__(
+            self,
+            *,
+            timeout: float,
+            cache_policy: str,
+            output_dir: str | None,
+            debug: bool,
+        ) -> None:
+            captured.update(
+                {
+                    "timeout": timeout,
+                    "cache_policy": cache_policy,
+                    "output_dir": output_dir,
+                    "debug": debug,
+                }
+            )
+
+        def request_bytes(self, *args, **kwargs):
+            captured["request"] = (args, kwargs)
+            return type(
+                "Response",
+                (),
+                {
+                    "content": b'[{"id":21,"iconPath":"UI_AvatarIcon_PlayerGirl_Circle"}]',
+                    "source": _source("cn"),
+                },
+            )()
+
+    class Args:
+        timeout = 7
+        cache = "only"
+        output_dir = "/tmp/gsuid-cache-test"
+        debug = True
+
+    monkeypatch.setattr(player_commands, "HttpClient", FakeHttpClient)
+
+    icons = player_commands._profile_picture_icons(Args(), "cn")
+
+    assert captured["cache_policy"] == "only"
+    assert icons == {"21": {"iconPath": "UI_AvatarIcon_PlayerGirl_Circle"}}
+
+
+def test_player_summary_render_handles_missing_oculus_texture() -> None:
+    png = render_player_summary_card(
+        uid="100000001",
+        summary={"role": {}, "stats": {"cryoculus_number": 1}},
+        characters=[],
+    )
+
+    with Image.open(io.BytesIO(png)) as image:
+        assert image.getbbox() is not None
+
+
+def test_player_summary_render_prefers_role_avatar_icon() -> None:
+    role_avatar = _solid_png((220, 10, 10, 255))
+    player_avatar = _solid_png((10, 220, 10, 255))
+    png = render_player_summary_card(
+        uid="100000001",
+        summary={
+            "role": {"avatar_icon": "https://upload.example.test/role.png"},
+            "stats": {},
+        },
+        characters=[],
+        asset_images={
+            "https://upload.example.test/role.png": role_avatar,
+            "https://enka.network/ui/UI_AvatarIcon_PlayerGirl_Circle.png": player_avatar,
+        },
+        title_avatar_url="https://enka.network/ui/UI_AvatarIcon_PlayerGirl_Circle.png",
+    )
+
+    with Image.open(io.BytesIO(png)) as image:
+        assert image.getpixel((840, 260)) == (220, 10, 10)
 
 
 def test_player_characters_render_fetches_mys_fallbacks_for_missing_resources(
@@ -618,7 +873,28 @@ def _fake_provider(_region: str, _http_client: HttpClient):
                     "storage_backend": storage_backend,
                     "summary": {
                         "role": {"nickname": "派蒙", "level": 60},
-                        "stats": {"active_day_number": 10},
+                        "stats": {
+                            "active_day_number": 10,
+                            "achievement_number": 20,
+                            "spiral_abyss": "1-1",
+                        },
+                        "avatars": [{"id": 10000021, "name": "Amber"}],
+                        "world_explorations": [
+                            {
+                                "id": 1,
+                                "name": "蒙德",
+                                "level": 8,
+                                "exploration_percentage": 1000,
+                                "icon": "https://upload.example.test/world.png",
+                                "offerings": [
+                                    {
+                                        "name": "忍冬之树",
+                                        "level": 12,
+                                        "icon": "https://upload.example.test/offering.png",
+                                    }
+                                ],
+                            }
+                        ],
                     },
                 },
                 source=_source(region),
@@ -814,6 +1090,62 @@ def _avatar_provider(avatar_url: str):
     return provider_for_region
 
 
+def _summary_provider_with_role_avatar(_region: str, _http_client: HttpClient):
+    class FakeProvider:
+        def player_summary(
+            self,
+            *,
+            uid: str,
+            cookie: str,
+            region: str,
+            credential_source: str,
+            storage_backend: str | None,
+        ) -> CommandResult:
+            del cookie
+            return CommandResult(
+                data={
+                    "uid": uid,
+                    "credential_source": credential_source,
+                    "storage_backend": storage_backend,
+                    "summary": {
+                        "role": {
+                            "nickname": "派蒙",
+                            "level": 60,
+                            "avatar_icon": "https://upload.example.test/role-avatar.png",
+                        },
+                        "stats": {"active_day_number": 10},
+                    },
+                },
+                source=_source(region),
+            )
+
+        def player_characters(
+            self,
+            *,
+            uid: str,
+            cookie: str,
+            region: str,
+            credential_source: str,
+            storage_backend: str | None,
+        ) -> CommandResult:
+            del cookie
+            return CommandResult(
+                data={
+                    "uid": uid,
+                    "credential_source": credential_source,
+                    "storage_backend": storage_backend,
+                    "characters": [],
+                },
+                source=_source(region),
+            )
+
+    return FakeProvider()
+
+
+def _unexpected_profile_title_avatar_url(*_args, **_kwargs):
+    raise AssertionError("profile picture fallback should not be resolved")
+
+
 def _player_summary_command(calls: list[str]):
     def command(args) -> CommandResult:
         calls.append("player.summary")
@@ -894,7 +1226,11 @@ def _missing_character_resource_fetcher(requested_urls: list[str]):
 
 
 def _png_bytes() -> bytes:
-    image = Image.new("RGBA", (32, 32), (255, 0, 0, 255))
+    return _solid_png((255, 0, 0, 255))
+
+
+def _solid_png(color: tuple[int, int, int, int]) -> bytes:
+    image = Image.new("RGBA", (32, 32), color)
     output = io.BytesIO()
     image.save(output, format="PNG")
     return output.getvalue()

@@ -74,7 +74,7 @@ Generated from `gsuid meta capabilities`.
 | `player.diary` | `cookie` | `data` | `off` | Show authenticated monthly traveler diary data. |
 | `player.inventory` | `none` | `data` | `off` | Report inventory data support status. |
 | `player.register-time` | `none` | `data` | `off` | Report registration-time data support status. |
-| `player.summary` | `cookie` | `data` | `off` | Show authenticated player profile summary data. |
+| `player.summary` | `cookie` | `data, image, both` | `off` | Show authenticated player profile summary data. |
 | `profile.default` | `none` | `data` | `off` | Set the default local profile. |
 | `profile.delete` | `none` | `data` | `off` | Delete a local profile. |
 | `profile.init` | `none` | `data` | `off` | Create or update a local profile. |

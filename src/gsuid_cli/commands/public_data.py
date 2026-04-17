@@ -811,6 +811,7 @@ def _daily_note_header(
 ) -> tuple[str | None, object | None, list[str]]:
     summary_args = argparse.Namespace(**vars(args))
     summary_args.command_name = "player.summary"
+    summary_args.render = "data"
     try:
         result = player_commands.summary_command(summary_args)
     except CliError:
