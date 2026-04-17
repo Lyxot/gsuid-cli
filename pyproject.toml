@@ -36,7 +36,11 @@ gsuid_cli = [
   "assets/daily/materials/textures/*.png",
   "assets/daily/note/textures/*.apng",
   "assets/daily/note/textures/*.png",
+  "assets/player/characters/textures/*.png",
+  "assets/player/characters/textures/hg/*.png",
+  "assets/player/characters/textures/mz/*.png",
   "assets/public/fonts/*.ttf",
+  "assets/public/textures/*.jpg",
   "assets/public/textures/weapon/*.png",
 ]
 

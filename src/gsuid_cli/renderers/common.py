@@ -5,7 +5,7 @@ from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 
-from PIL import Image, ImageFont
+from PIL import Image, ImageFilter, ImageFont
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 ASSETS_ROOT = PACKAGE_ROOT / "assets"
@@ -18,6 +18,28 @@ def asset_path(*parts: str) -> Path:
 
 def open_rgba(path: Path) -> Image.Image:
     return Image.open(path).convert("RGBA")
+
+
+def v4_background(width: int, height: int, *, black_value: int = 190) -> Image.Image:
+    source = Image.open(asset_path("public", "textures", "bg.jpg"))
+    background = crop_center(source, width, height)
+    overlay = Image.new("RGBA", (width, height), (0, 0, 0, black_value))
+    background = background.filter(ImageFilter.GaussianBlur(radius=15)).convert("RGBA")
+    background.paste(overlay, (0, 0), overlay)
+    return background
+
+
+def crop_center(image: Image.Image, width: int, height: int) -> Image.Image:
+    source_width, source_height = image.size
+    if source_width / source_height > width / height:
+        resized_width = round(height * source_width / source_height)
+        resized = image.resize((resized_width, height), Image.Resampling.LANCZOS)
+        left = (resized_width - width) // 2
+        return resized.crop((left, 0, left + width, height))
+    resized_height = round(width * source_height / source_width)
+    resized = image.resize((width, resized_height), Image.Resampling.LANCZOS)
+    top = (resized_height - height) // 2
+    return resized.crop((0, top, width, top + height))
 
 
 def image_from_bytes(content: bytes, size: tuple[int, int]) -> Image.Image | None:

@@ -726,6 +726,36 @@ tests/
 - Next intended substage: Stage 17c, port the next GenshinUID image renderer
   group after confirming priority.
 
+- Stage 17c status: completed.
+- Stage 17c goal: port the GenshinUID `角色列表` player character-list
+  renderer to `player characters --render image|both`.
+- Stage 17c scope note: adapt the GenshinUID `draw_all_char.py` layout to the
+  existing `player.characters` provider data and Stage 16.5 static asset fetch
+  strategy, including GenshinUID resource-mirror character portraits, weapon
+  icons, and namecard backgrounds; leave the larger full player summary /
+  role-info card for a later focused substage.
+- Stage 17c result: restored attributed GenshinUID player character-list
+  textures and shared v4 background asset, added a reusable v4 background
+  helper, added the `player.characters` renderer, fetched GenshinUID
+  character/weapon/namecard resources through the static asset cache with MYS
+  image fallback, and re-enabled `--render image|both` for the player character
+  list.
+- Verification:
+  - `.venv/bin/python -m pytest tests/test_daily_player_data.py tests/test_meta_commands.py -q`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17c-player-characters --render image player characters --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17c-player-characters-v2 --render image player characters --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17c-player-characters-v3 --render image player characters --uid <UID>`
+- Live artifact:
+  - `~/.gsuid-cli/artifacts/2026-05-01/stage17c-player-characters/player-characters_102452098.png`
+  - `~/.gsuid-cli/artifacts/2026-05-01/stage17c-player-characters-v2/player-characters_102452098.png`
+  - `~/.gsuid-cli/artifacts/2026-05-01/stage17c-player-characters-v3/player-characters_102452098.png`
+- Next intended substage: Stage 17d, port the larger full player summary /
+  role-info card after confirming its data and asset scope.
+
 ## MVP Cut Line
 
 The first usable MVP is complete after Stage 6 if these commands work:

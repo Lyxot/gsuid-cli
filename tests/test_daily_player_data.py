@@ -11,6 +11,7 @@ import pytest
 from PIL import Image
 
 from gsuid_cli.cli import run
+from gsuid_cli.commands import player as player_commands
 from gsuid_cli.commands import public_data
 from gsuid_cli.core.errors import EXIT_AUTH, CliError
 from gsuid_cli.core.http import HttpClient
@@ -184,6 +185,92 @@ def test_daily_note_render_fetches_expedition_avatar_urls(monkeypatch, tmp_path)
         assert red > 200
         assert green < 80
         assert blue < 80
+
+
+def test_player_characters_render_image_writes_character_card(monkeypatch, tmp_path) -> None:
+    captured_urls: list[str] = []
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher(captured_urls))
+    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(
+        [
+            "player",
+            "characters",
+            "--uid",
+            "100000001",
+            "--render",
+            "image",
+            "--request-id",
+            "player-characters-img",
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+        ]
+    )
+
+    assert code == 0
+    assert payload["command"] == "player.characters"
+    assert payload["data"] == {
+        "uid": "100000001",
+        "render": "player/characters",
+        "character_count": 1,
+        "artifact_sha256": payload["artifacts"][0]["sha256"],
+    }
+    assert captured_urls == [
+        "https://example.test/GenshinUID/resource/chars/10000021.png",
+        "https://example.test/GenshinUID/resource/char_namecard_pic/10000021.png",
+        "https://example.test/GenshinUID/resource/weapon/Bow.png",
+    ]
+    artifact = payload["artifacts"][0]
+    path = Path(artifact["path"])
+    content = path.read_bytes()
+    assert path.parent == tmp_path / "artifacts" / "2026-04-29" / "player-characters-img"
+    assert artifact["media_type"] == "image/png"
+    assert artifact["sha256"] == hashlib.sha256(content).hexdigest()
+    with Image.open(path) as image:
+        assert image.size == (1680, 435)
+        assert image.getbbox() is not None
+
+
+def test_player_characters_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher([]))
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(["player", "characters", "--uid", "100000001", "--render", "both"])
+
+    assert code == 0
+    assert payload["data"]["characters"][0]["name"] == "Amber"
+    assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
+
+
+def test_player_characters_render_fetches_mys_fallbacks_for_missing_resources(
+    monkeypatch, tmp_path
+) -> None:
+    captured_urls: list[str] = []
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr(
+        player_commands,
+        "fetch_render_images",
+        _missing_character_resource_fetcher(captured_urls),
+    )
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(["player", "characters", "--uid", "100000001", "--render", "image"])
+
+    assert code == 0
+    assert captured_urls == [
+        "https://example.test/GenshinUID/resource/chars/10000021.png",
+        "https://example.test/GenshinUID/resource/char_namecard_pic/10000021.png",
+        "https://example.test/GenshinUID/resource/weapon/Bow.png",
+        "https://upload.example.test/amber.png",
+        "https://upload.example.test/amber-icon.png",
+    ]
+    assert payload["warnings"] == ["1 mirror miss"]
 
 
 def test_daily_command_surfaces_expired_cookie(monkeypatch, tmp_path) -> None:
@@ -551,7 +638,25 @@ def _fake_provider(_region: str, _http_client: HttpClient):
                     "uid": uid,
                     "credential_source": credential_source,
                     "storage_backend": storage_backend,
-                    "characters": [{"id": 10000021, "name": "Amber"}],
+                    "characters": [
+                        {
+                            "id": 10000021,
+                            "name": "Amber",
+                            "level": 80,
+                            "rarity": 4,
+                            "fetter": 10,
+                            "actived_constellation_num": 2,
+                            "image": "https://upload.example.test/amber.png",
+                            "icon": "https://upload.example.test/amber-icon.png",
+                            "weapon": {
+                                "name": "Bow",
+                                "rarity": 4,
+                                "level": 80,
+                                "affix_level": 1,
+                                "icon": "https://upload.example.test/bow.png",
+                            },
+                        }
+                    ],
                     "count": 1,
                 },
                 source=_source(region),
@@ -759,6 +864,31 @@ def _fake_image_fetcher(requested_urls: list[str]):
         del provider, region, category, unavailable_warning, max_workers
         requested_urls.extend(urls)
         return {url: _png_bytes() for url in urls}, []
+
+    return fetcher
+
+
+def _missing_character_resource_fetcher(requested_urls: list[str]):
+    def fetcher(
+        _args,
+        urls,
+        *,
+        provider: str,
+        region: str,
+        category: str,
+        unavailable_warning: str,
+        max_workers: int = 8,
+    ) -> tuple[dict[str, bytes], list[str]]:
+        del region, unavailable_warning, max_workers
+        url_list = list(urls)
+        requested_urls.extend(url_list)
+        if provider == "genshinuid":
+            return {
+                url: _png_bytes()
+                for url in url_list
+                if "/chars/" not in url and category == "player.characters.resource"
+            }, ["1 mirror miss"]
+        return {url: _png_bytes() for url in url_list}, []
 
     return fetcher
 

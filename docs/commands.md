@@ -70,7 +70,7 @@ Generated from `gsuid meta capabilities`.
 | `panel.show` | `none` | `data` | `off` | Show one cached character panel. |
 | `panel.showcase` | `none` | `data` | `off` | Show the cached public showcase summary. |
 | `player.calendar` | `none` | `data` | `off` | Report player calendar data support status. |
-| `player.characters` | `cookie` | `data` | `off` | Show authenticated player character details. |
+| `player.characters` | `cookie` | `data, image, both` | `off` | Show authenticated player character details. |
 | `player.diary` | `cookie` | `data` | `off` | Show authenticated monthly traveler diary data. |
 | `player.inventory` | `none` | `data` | `off` | Report inventory data support status. |
 | `player.register-time` | `none` | `data` | `off` | Report registration-time data support status. |

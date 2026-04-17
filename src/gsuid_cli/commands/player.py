@@ -1,15 +1,28 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
+from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from gsuid_cli.commands.auth import _credential, _uid_and_region
-from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
+from gsuid_cli.commands.render_assets import fetch_render_images
+from gsuid_cli.core.artifacts import ArtifactManager
+from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
 from gsuid_cli.providers import provider_for_region
+from gsuid_cli.renderers.player.characters import (
+    character_mys_image_urls,
+    character_namecard_url,
+    character_portrait_url,
+    render_player_characters_card,
+    weapon_icon_url,
+)
+
+PLAYER_CHARACTER_IMAGE_WORKERS = 8
 
 CAPABILITIES = [
     {
@@ -25,7 +38,7 @@ CAPABILITIES = [
         "description": "Show authenticated player character details.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "off",
     },
     {
@@ -109,13 +122,16 @@ def summary_command(args: argparse.Namespace) -> CommandResult:
 
 def characters_command(args: argparse.Namespace) -> CommandResult:
     uid, region, cookie, credential_source, storage_backend = _cookie_context(args)
-    return _provider(args, region).player_characters(
+    result = _provider(args, region).player_characters(
         uid=uid,
         cookie=cookie,
         region=region,
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
+    if args.render == "data":
+        return result
+    return _characters_render_result(args, result=result, uid=uid, region=region)
 
 
 def inventory_command(args: argparse.Namespace) -> CommandResult:
@@ -221,3 +237,119 @@ def _validate_month_arg(month: str | None) -> None:
             EXIT_INVALID_INPUT,
             {"month": month},
         )
+
+
+def _characters_render_result(
+    args: argparse.Namespace,
+    *,
+    result: CommandResult,
+    uid: str,
+    region: str,
+) -> CommandResult:
+    characters_value = result.data.get("characters")
+    if not isinstance(characters_value, list):
+        raise CliError(
+            "UPSTREAM_INVALID_RESPONSE",
+            "Provider returned player character data without renderable characters.",
+            EXIT_UPSTREAM,
+            {"command": "player.characters"},
+            source=result.source,
+        )
+    characters = [character for character in characters_value if isinstance(character, Mapping)]
+    genshinuid_images, resource_warnings = fetch_render_images(
+        args,
+        _player_character_genshinuid_resource_urls(characters),
+        provider="genshinuid",
+        region=region,
+        category="player.characters.resource",
+        unavailable_warning=(
+            "{count} player character GenshinUID resources unavailable; "
+            "rendered fallbacks where possible"
+        ),
+        max_workers=PLAYER_CHARACTER_IMAGE_WORKERS,
+    )
+    fallback_images, fallback_warnings = fetch_render_images(
+        args,
+        _player_character_mys_fallback_urls(characters, genshinuid_images),
+        provider="mys",
+        region=region,
+        category="player.characters.fallback",
+        unavailable_warning=(
+            "{count} player character fallback images unavailable; rendered placeholders"
+        ),
+        max_workers=PLAYER_CHARACTER_IMAGE_WORKERS,
+    )
+    png = render_player_characters_card(
+        characters=characters,
+        asset_images={**fallback_images, **genshinuid_images},
+    )
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="player/characters",
+        filename=f"player-characters_{_safe_filename(uid)}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style player character list card",
+        kind="image",
+    )
+    render_data = {
+        "uid": uid,
+        "render": "player/characters",
+        "character_count": len(characters),
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=[*result.warnings, *resource_warnings, *fallback_warnings],
+        pagination=result.pagination,
+    )
+
+
+def _player_character_genshinuid_resource_urls(
+    characters: list[Mapping[str, object]],
+) -> list[str]:
+    urls: list[str] = []
+    for character in characters:
+        _append_url(urls, character_portrait_url(character))
+        _append_url(urls, character_namecard_url(character))
+        weapon = character.get("weapon")
+        if isinstance(weapon, Mapping):
+            _append_url(urls, weapon_icon_url(weapon))
+    return urls
+
+
+def _player_character_mys_fallback_urls(
+    characters: list[Mapping[str, object]],
+    resource_images: Mapping[str, bytes],
+) -> list[str]:
+    urls: list[str] = []
+    for character in characters:
+        if character_portrait_url(character) not in resource_images:
+            for url in character_mys_image_urls(character):
+                _append_url(urls, url)
+        weapon = character.get("weapon")
+        if isinstance(weapon, Mapping) and weapon_icon_url(weapon) not in resource_images:
+            _append_url(urls, weapon.get("icon"))
+    return urls
+
+
+def _append_url(urls: list[str], value: object) -> None:
+    url = _optional_text(value)
+    if url and url not in urls:
+        urls.append(url)
+
+
+def _optional_text(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _safe_filename(value: str) -> str:
+    safe = re.sub(r"[^A-Za-z0-9_.-]+", "-", value).strip("-")
+    if safe:
+        return safe[:80]
+    return hashlib.sha1(value.encode("utf-8")).hexdigest()[:16]
