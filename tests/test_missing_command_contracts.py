@@ -73,9 +73,6 @@ def test_cache_clear_artifacts_ignores_global_output_dir(monkeypatch, tmp_path) 
 def test_source_limited_missing_commands_return_structured_results(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     commands = [
-        ["player", "inventory", "--uid", "100000001"],
-        ["player", "calendar", "--uid", "100000001"],
-        ["player", "register-time", "--uid", "100000001"],
         ["daily", "bbs-coin", "--uid", "100000001"],
         ["challenge", "hard-rank"],
         ["progress", "achievement-guide", "--query", "commission"],

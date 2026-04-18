@@ -55,16 +55,17 @@ CAPABILITIES = [
     },
     {
         "command": "player.inventory",
-        "description": "Report inventory data support status.",
-        "auth": "none",
+        "description": "Show owned-character and equipped-weapon material counts.",
+        "auth": "cookie",
         "regions": ["cn"],
         "render": ["data"],
         "cache": "off",
+        "coverage": "owned_character_ascension_and_equipped_weapon_materials",
     },
     {
         "command": "player.calendar",
-        "description": "Report player calendar data support status.",
-        "auth": "none",
+        "description": "Show authenticated player activity calendar data.",
+        "auth": "cookie",
         "regions": ["cn"],
         "render": ["data"],
         "cache": "off",
@@ -79,11 +80,15 @@ CAPABILITIES = [
     },
     {
         "command": "player.register-time",
-        "description": "Report registration-time data support status.",
-        "auth": "none",
+        "description": "Attempt to show Genshin account registration time.",
+        "auth": "cookie",
         "regions": ["cn"],
         "render": ["data"],
         "cache": "off",
+        "availability": "upstream-limited",
+        "limitations": [
+            "Uses the legacy MYS anniversary endpoint, which may return provider retcode -502."
+        ],
     },
 ]
 
@@ -100,11 +105,14 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     characters.add_argument("--uid", dest="command_uid")
     characters.set_defaults(handler=characters_command, command_name="player.characters")
 
-    inventory = commands.add_parser("inventory", help="Report inventory data support status.")
+    inventory = commands.add_parser(
+        "inventory",
+        help="Show owned-character and equipped-weapon material counts.",
+    )
     inventory.add_argument("--uid", dest="command_uid")
     inventory.set_defaults(handler=inventory_command, command_name="player.inventory")
 
-    calendar = commands.add_parser("calendar", help="Report player calendar data support status.")
+    calendar = commands.add_parser("calendar", help="Show player activity calendar data.")
     calendar.add_argument("--uid", dest="command_uid")
     calendar.set_defaults(handler=calendar_command, command_name="player.calendar")
 
@@ -115,7 +123,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 
     register_time = commands.add_parser(
         "register-time",
-        help="Report registration-time data support status.",
+        help="Attempt to show Genshin account registration time.",
     )
     register_time.add_argument("--uid", dest="command_uid")
     register_time.set_defaults(handler=register_time_command, command_name="player.register-time")
@@ -160,18 +168,24 @@ def characters_command(args: argparse.Namespace) -> CommandResult:
 
 
 def inventory_command(args: argparse.Namespace) -> CommandResult:
-    return _source_limited_player_command(
-        args,
-        field="inventory",
-        message="inventory item counts are not exposed by the configured MYS provider",
+    uid, region, cookie, credential_source, storage_backend = _cookie_context(args)
+    return _provider(args, region).player_inventory(
+        uid=uid,
+        cookie=cookie,
+        region=region,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
     )
 
 
 def calendar_command(args: argparse.Namespace) -> CommandResult:
-    return _source_limited_player_command(
-        args,
-        field="calendar",
-        message="personal calendar data is not exposed by the configured MYS provider",
+    uid, region, cookie, credential_source, storage_backend = _cookie_context(args)
+    return _provider(args, region).player_calendar(
+        uid=uid,
+        cookie=cookie,
+        region=region,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
     )
 
 
@@ -189,10 +203,13 @@ def diary_command(args: argparse.Namespace) -> CommandResult:
 
 
 def register_time_command(args: argparse.Namespace) -> CommandResult:
-    return _source_limited_player_command(
-        args,
-        field="register_time",
-        message="registration time is not exposed by the configured MYS provider",
+    uid, region, cookie, credential_source, storage_backend = _cookie_context(args)
+    return _provider(args, region).player_register_time(
+        uid=uid,
+        cookie=cookie,
+        region=region,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
     )
 
 
@@ -214,25 +231,6 @@ def _cookie_context(args: argparse.Namespace) -> tuple[str, str, str, str, str |
     args.credential_kind = "cookie"
     cookie, credential_source, storage_backend = _credential(args, uid)
     return uid, region, cookie, credential_source, storage_backend
-
-
-def _source_limited_player_command(
-    args: argparse.Namespace,
-    *,
-    field: str,
-    message: str,
-) -> CommandResult:
-    uid, region = _uid_and_region(args)
-    ensure_supported_region(region)
-    return CommandResult(
-        data={
-            "uid": uid,
-            "available": False,
-            field: [] if field in {"inventory", "calendar"} else None,
-            "source_limitations": [message],
-        },
-        warnings=[message],
-    )
 
 
 def _validate_month_arg(month: str | None) -> None:

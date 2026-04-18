@@ -36,6 +36,17 @@ def test_daily_note_requires_cookie(monkeypatch, tmp_path) -> None:
     assert payload["error"]["code"] == "AUTH_REQUIRED"
 
 
+def test_player_source_backed_commands_require_cookie(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+
+    for command in ("inventory", "calendar", "register-time"):
+        code, payload = _run_json(["player", command, "--uid", "100000001"])
+
+        assert code == 2
+        assert payload["command"] == f"player.{command}"
+        assert payload["error"]["code"] == "AUTH_REQUIRED"
+
+
 def test_daily_and_player_commands_use_stored_cookie(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands.public_data.provider_for_region", _fake_provider)
@@ -48,10 +59,17 @@ def test_daily_and_player_commands_use_stored_cookie(monkeypatch, tmp_path) -> N
         (["daily", "signin", "--uid", "100000001"], "daily.signin", "signed"),
         (["player", "summary", "--uid", "100000001"], "player.summary", "summary"),
         (["player", "characters", "--uid", "100000001"], "player.characters", "characters"),
+        (["player", "inventory", "--uid", "100000001"], "player.inventory", "inventory"),
+        (["player", "calendar", "--uid", "100000001"], "player.calendar", "calendar"),
         (
             ["player", "diary", "--uid", "100000001", "--month", current_month],
             "player.diary",
             "diary",
+        ),
+        (
+            ["player", "register-time", "--uid", "100000001"],
+            "player.register-time",
+            "register_time",
         ),
     ]
 
@@ -772,6 +790,281 @@ def test_mys_player_characters_fetches_detail_for_index_avatars() -> None:
     assert requests[2].headers["x-rpc-device_fp"] == "device-fp-1"
 
 
+def test_mys_player_inventory_uses_calculator_batch_compute() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if len(requests) == 1:
+            return _device_fp_response()
+        if len(requests) == 2:
+            return _json_response(
+                {
+                    "retcode": 0,
+                    "message": "OK",
+                    "data": {"avatars": [{"id": 10000021, "name": "Amber"}]},
+                }
+            )
+        if len(requests) == 3:
+            return _json_response(
+                {
+                    "retcode": 0,
+                    "message": "OK",
+                    "data": {
+                        "list": [
+                            {
+                                "id": 10000021,
+                                "name": "Amber",
+                                "element": "Pyro",
+                                "level": 80,
+                                "rarity": 4,
+                                "weapon": {
+                                    "id": 15401,
+                                    "name": "Favonius Warbow",
+                                    "type": 12,
+                                    "rarity": 4,
+                                    "level": 80,
+                                },
+                            }
+                        ]
+                    },
+                }
+            )
+        return _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {
+                    "has_user_info": True,
+                    "overall_consume": [
+                        {},
+                        {
+                            "id": 202,
+                            "name": "Mora",
+                            "num": 100,
+                            "lack_num": 40,
+                            "level": 3,
+                        },
+                    ],
+                    "overall_material_consume": {
+                        "avatar_consume": [
+                            {
+                                "id": 104003,
+                                "name": "Hero's Wit",
+                                "num": 10,
+                                "lack_num": 0,
+                            }
+                        ],
+                        "avatar_skill_consume": [],
+                        "weapon_consume": [
+                            {},
+                            {
+                                "id": 104013,
+                                "name": "Mystic Enhancement Ore",
+                                "num": 20,
+                                "lack_num": 5,
+                            },
+                        ],
+                    },
+                },
+            }
+        )
+
+    provider = MysProvider(_mock_client(handler))
+
+    result = provider.player_inventory(
+        uid="100000001",
+        cookie="account_id=1;cookie_token=secret",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="tests.MemoryKeyring",
+    )
+
+    compute_body = json.loads(requests[3].content.decode())
+    item = compute_body["items"][0]
+    assert requests[3].url.path == "/event/e20200928calculate/v3/batch_compute"
+    assert item["avatar_id"] == 10000021
+    assert item["element_attr_id"] == 1
+    assert item["weapon"]["id"] == 15401
+    assert item["weapon"]["weapon_cat_id"] == 12
+    assert result.data["coverage"] == "owned_character_ascension_and_equipped_weapon_materials"
+    assert result.data["inventory"]["count"] == 1
+    assert result.data["inventory"]["overall"][0]["owned"] == 60
+    assert result.data["inventory"]["raw_count"]["weapon_consume"] == 1
+    assert result.data["inventory"]["categories"]["weapon_consume"][0]["owned"] == 15
+
+
+def test_mys_player_inventory_skips_rejected_calculator_rows() -> None:
+    requests: list[httpx.Request] = []
+    compute_bodies: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if len(requests) == 1:
+            return _device_fp_response()
+        if len(requests) == 2:
+            return _json_response(
+                {
+                    "retcode": 0,
+                    "message": "OK",
+                    "data": {
+                        "avatars": [
+                            {"id": 10000021, "name": "Amber"},
+                            {"id": 10000118, "name": "Bad Traveler"},
+                            {"id": 10000006, "name": "Lisa"},
+                        ]
+                    },
+                }
+            )
+        if len(requests) == 3:
+            return _json_response(
+                {
+                    "retcode": 0,
+                    "message": "OK",
+                    "data": {
+                        "list": [
+                            {
+                                "id": 10000021,
+                                "name": "Amber",
+                                "element": "Pyro",
+                                "rarity": 4,
+                            },
+                            {
+                                "id": 10000118,
+                                "name": "Bad Traveler",
+                                "element": "Hydro",
+                                "rarity": 5,
+                            },
+                            {
+                                "id": 10000006,
+                                "name": "Lisa",
+                                "element": "Electro",
+                                "rarity": 4,
+                            },
+                        ]
+                    },
+                }
+            )
+
+        body = json.loads(request.content.decode())
+        compute_bodies.append(body)
+        if any(item["avatar_id"] == 10000118 for item in body["items"]):
+            return _json_response(
+                {
+                    "retcode": -500001,
+                    "message": "calculator rejected row",
+                    "data": None,
+                }
+            )
+        return _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {
+                    "has_user_info": True,
+                    "overall_consume": [{"id": 202, "name": "Mora", "num": 100, "lack_num": 10}],
+                    "overall_material_consume": {},
+                },
+            }
+        )
+
+    provider = MysProvider(_mock_client(handler))
+
+    result = provider.player_inventory(
+        uid="100000001",
+        cookie="account_id=1;cookie_token=secret",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="tests.MemoryKeyring",
+    )
+
+    assert len(compute_bodies) == 6
+    assert [item["avatar_id"] for item in compute_bodies[0]["items"]] == [
+        10000021,
+        10000118,
+        10000006,
+    ]
+    assert [item["avatar_id"] for item in compute_bodies[-1]["items"]] == [10000021, 10000006]
+    assert result.warnings == ["skipped MYS calculator rows rejected by the provider: Bad Traveler"]
+    assert result.data["compute_item_count"] == 2
+    assert result.data["skipped_compute_item_count"] == 1
+    assert result.data["skipped_compute_items"] == [{"avatar_id": 10000118, "name": "Bad Traveler"}]
+    assert result.data["inventory"]["overall"][0]["owned"] == 90
+
+
+def test_mys_player_calendar_posts_activity_calendar() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {
+                    "avatar_card_pool_list": [{"pool_name": "Character"}],
+                    "weapon_card_pool_list": [{"pool_name": "Weapon"}],
+                    "act_list": [{"name": "Event"}],
+                    "fixed_act_list": [],
+                },
+            }
+        )
+
+    provider = MysProvider(_mock_client(handler))
+
+    result = provider.player_calendar(
+        uid="100000001",
+        cookie="account_id=1;cookie_token=secret",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="tests.MemoryKeyring",
+    )
+
+    assert requests[0].method == "POST"
+    assert requests[0].url.path == "/game_record/app/genshin/api/act_calendar"
+    assert json.loads(requests[0].content.decode()) == {
+        "role_id": "100000001",
+        "server": "cn_gf01",
+    }
+    assert result.data["calendar"]["counts"]["act_list"] == 1
+
+
+def test_mys_player_register_time_fetches_hk4e_token() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if len(requests) == 1:
+            return _json_response(
+                {"retcode": 0, "message": "OK", "data": {"game_uid": "100000001"}},
+                headers={"set-cookie": "e_hk4e_token=token-1; Path=/; HttpOnly"},
+            )
+        assert "e_hk4e_token=token-1" in request.headers["cookie"]
+        return _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {"data": json.dumps({"1": 1600000000})},
+            }
+        )
+
+    provider = MysProvider(_mock_client(handler))
+
+    result = provider.player_register_time(
+        uid="100000001",
+        cookie="account_id=1;cookie_token=secret",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="tests.MemoryKeyring",
+    )
+
+    assert requests[0].url.path == "/common/badge/v1/login/account"
+    assert requests[1].url.path == "/event/e20220928anniversary/game_data"
+    assert requests[1].headers["ds"]
+    assert result.data["register_time"]["timestamp"] == 1600000000
+    assert result.data["register_time"]["registered_at"] == "2020-09-13T20:26:40+08:00"
+
+
 def test_mys_player_diary_rejects_invalid_month() -> None:
     provider = MysProvider(
         _mock_client(lambda _request: _json_response({"retcode": 0, "message": "OK", "data": {}}))
@@ -955,6 +1248,66 @@ def _fake_provider(_region: str, _http_client: HttpClient):
                     "storage_backend": storage_backend,
                     "requested_month": month,
                     "diary": {"month": 4},
+                },
+                source=_source(region),
+            )
+
+        def player_inventory(
+            self,
+            *,
+            uid: str,
+            cookie: str,
+            region: str,
+            credential_source: str,
+            storage_backend: str | None,
+        ) -> CommandResult:
+            return CommandResult(
+                data={
+                    "uid": uid,
+                    "credential_source": credential_source,
+                    "storage_backend": storage_backend,
+                    "cookie_seen": cookie.startswith("account_id="),
+                    "inventory": {"overall": [{"id": 202, "owned": 100}], "count": 1},
+                },
+                source=_source(region),
+            )
+
+        def player_calendar(
+            self,
+            *,
+            uid: str,
+            cookie: str,
+            region: str,
+            credential_source: str,
+            storage_backend: str | None,
+        ) -> CommandResult:
+            return CommandResult(
+                data={
+                    "uid": uid,
+                    "credential_source": credential_source,
+                    "storage_backend": storage_backend,
+                    "cookie_seen": cookie.startswith("account_id="),
+                    "calendar": {"act_list": [{"name": "Event"}], "counts": {"act_list": 1}},
+                },
+                source=_source(region),
+            )
+
+        def player_register_time(
+            self,
+            *,
+            uid: str,
+            cookie: str,
+            region: str,
+            credential_source: str,
+            storage_backend: str | None,
+        ) -> CommandResult:
+            return CommandResult(
+                data={
+                    "uid": uid,
+                    "credential_source": credential_source,
+                    "storage_backend": storage_backend,
+                    "cookie_seen": cookie.startswith("account_id="),
+                    "register_time": {"registered_at": "2020-09-15T20:26:40+08:00"},
                 },
                 source=_source(region),
             )
@@ -1265,8 +1618,11 @@ def _mock_client(handler) -> HttpClient:
     )
 
 
-def _json_response(payload: dict[str, object]) -> httpx.Response:
-    return httpx.Response(200, json=payload)
+def _json_response(
+    payload: dict[str, object],
+    headers: dict[str, str] | None = None,
+) -> httpx.Response:
+    return httpx.Response(200, json=payload, headers=headers)
 
 
 def _device_fp_response() -> httpx.Response:

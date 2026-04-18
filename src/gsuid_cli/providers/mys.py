@@ -7,7 +7,7 @@ import re
 import string
 import time
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from http.cookies import CookieError, SimpleCookie
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -18,7 +18,7 @@ from gsuid_cli.core.errors import (
     EXIT_UPSTREAM,
     CliError,
 )
-from gsuid_cli.core.http import HttpClient, raise_for_retcode
+from gsuid_cli.core.http import HttpClient, ProviderResponse, raise_for_retcode
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
 from gsuid_cli.core.secrets import redact_secret
@@ -42,9 +42,13 @@ ACHIEVEMENT_PATH = "/game_record/app/genshin/api/achievement"
 GCG_BASIC_PATH = "/game_record/app/genshin/api/gcg/basicInfo"
 GCG_DECK_PATH = "/game_record/app/genshin/api/gcg/deckList"
 CHARACTER_LIST_PATH = "/game_record/app/genshin/api/character/list"
+ACT_CALENDAR_PATH = "/game_record/app/genshin/api/act_calendar"
 MONTHLY_AWARD_PATH = "/event/ys_ledger/monthInfo"
 SIGN_INFO_PATH = "/event/luna/info"
 SIGN_PATH = "/event/luna/sign"
+CALCULATOR_BATCH_COMPUTE_PATH = "/event/e20200928calculate/v3/batch_compute"
+HK4E_LOGIN_PATH = "/common/badge/v1/login/account"
+REGISTER_TIME_PATH = "/event/e20220928anniversary/game_data"
 CREATE_QRCODE_PATH = "/hk4e_cn/combo/panda/qrcode/fetch"
 CHECK_QRCODE_PATH = "/hk4e_cn/combo/panda/qrcode/query"
 GET_STOKEN_BY_GAME_TOKEN_PATH = "/account/ma-cn-session/app/getTokenByGameToken"
@@ -68,6 +72,16 @@ SERVER_BY_UID_PREFIX = {
     "2": "cn_gf01",
     "5": "cn_qd01",
 }
+ELEMENT_ID_BY_NAME = {
+    "Pyro": 1,
+    "Anemo": 2,
+    "Geo": 3,
+    "Dendro": 4,
+    "Electro": 5,
+    "Hydro": 6,
+    "Cryo": 7,
+}
+CN_TIMEZONE = timezone(timedelta(hours=8))
 
 
 class MysProvider:
@@ -493,6 +507,140 @@ class MysProvider:
             source=response.source,
         )
 
+    def player_inventory(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+    ) -> CommandResult:
+        characters_result = self.player_characters(
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+        )
+        character_rows = characters_result.data.get("characters")
+        characters = _dict_list(character_rows)
+        items = [_inventory_compute_item(character) for character in characters]
+        items = [item for item in items if item is not None]
+        server = server_for_uid(uid)
+        body = {
+            "items": items,
+            "region": server,
+            "uid": uid,
+        }
+        response = self._inventory_compute_response(
+            cookie=cookie,
+            region=region,
+            body=body,
+        )
+        warnings = list(characters_result.warnings)
+        skipped_items: list[dict[str, object]] = []
+        try:
+            raise_for_retcode(
+                response.payload,
+                provider=PROVIDER,
+                region=region,
+                category="player.inventory",
+                source=response.source,
+                debug=self.http.debug,
+            )
+        except CliError as exc:
+            if not _is_calculator_row_rejection(exc) or len(items) <= 1:
+                raise
+            invalid_indexes = self._invalid_inventory_indexes(
+                uid=uid,
+                cookie=cookie,
+                region=region,
+                items=items,
+            )
+            invalid_index_set = set(invalid_indexes)
+            skipped_items = [
+                _inventory_compute_item_summary(items[index]) for index in invalid_indexes
+            ]
+            body["items"] = [
+                item for index, item in enumerate(items) if index not in invalid_index_set
+            ]
+            response = self._inventory_compute_response(
+                cookie=cookie,
+                region=region,
+                body=body,
+            )
+            raise_for_retcode(
+                response.payload,
+                provider=PROVIDER,
+                region=region,
+                category="player.inventory",
+                source=response.source,
+                debug=self.http.debug,
+            )
+            warnings.append(
+                "skipped MYS calculator rows rejected by the provider: "
+                + ", ".join(
+                    str(item.get("name") or item.get("avatar_id")) for item in skipped_items
+                )
+            )
+        data = _payload_data(response.payload, "player.inventory", response.source)
+        inventory = _inventory(data)
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_source": credential_source,
+                "storage_backend": storage_backend,
+                "coverage": "owned_character_ascension_and_equipped_weapon_materials",
+                "compute_item_count": len(body["items"]),
+                "skipped_compute_item_count": len(skipped_items),
+                "skipped_compute_items": skipped_items,
+                "character_count": len(characters),
+                "inventory": inventory,
+            },
+            source=response.source,
+            warnings=warnings,
+        )
+
+    def player_calendar(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+    ) -> CommandResult:
+        server = server_for_uid(uid)
+        body = {"role_id": uid, "server": server}
+        response = self.http.request_json(
+            "POST",
+            f"{RECORD_BASE_CN}{ACT_CALENDAR_PATH}",
+            provider=PROVIDER,
+            region=region,
+            category="player.calendar",
+            headers=_headers(cookie),
+            json_body=body,
+        )
+        raise_for_retcode(
+            response.payload,
+            provider=PROVIDER,
+            region=region,
+            category="player.calendar",
+            source=response.source,
+            debug=self.http.debug,
+        )
+        data = _payload_data(response.payload, "player.calendar", response.source)
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_source": credential_source,
+                "storage_backend": storage_backend,
+                "calendar": _calendar(data),
+            },
+            source=response.source,
+        )
+
     def player_diary(
         self,
         *,
@@ -540,6 +688,50 @@ class MysProvider:
                 "storage_backend": storage_backend,
                 "requested_month": month,
                 "diary": _diary(data),
+            },
+            source=response.source,
+        )
+
+    def player_register_time(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+    ) -> CommandResult:
+        hk4e_token, _login_source = self._hk4e_token(uid=uid, cookie=cookie, region=region)
+        params = {
+            "game_biz": "hk4e_cn",
+            "lang": "zh-cn",
+            "badge_uid": uid,
+            "badge_region": server_for_uid(uid),
+        }
+        response = self.http.request_json(
+            "GET",
+            f"{HK4_API_BASE_CN}{REGISTER_TIME_PATH}",
+            provider=PROVIDER,
+            region=region,
+            category="player.register-time",
+            params=params,
+            headers=_record_headers(f"{hk4e_token};{cookie}", _query_string(params)),
+        )
+        raise_for_retcode(
+            response.payload,
+            provider=PROVIDER,
+            region=region,
+            category="player.register-time",
+            source=response.source,
+            debug=self.http.debug,
+        )
+        data = _payload_data(response.payload, "player.register-time", response.source)
+        return CommandResult(
+            data={
+                "uid": uid,
+                "credential_source": credential_source,
+                "storage_backend": storage_backend,
+                "register_time": _register_time(uid, data, response.source),
             },
             source=response.source,
         )
@@ -1493,6 +1685,132 @@ class MysProvider:
             str(response.payload.get("message") or "OK"),
         )
 
+    def _hk4e_token(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+    ) -> tuple[str, dict[str, object]]:
+        body = {
+            "game_biz": "hk4e_cn",
+            "lang": "zh-cn",
+            "uid": uid,
+            "region": server_for_uid(uid),
+        }
+        response = self.http.request_json(
+            "POST",
+            f"{GS_BASE_CN}{HK4E_LOGIN_PATH}",
+            provider=PROVIDER,
+            region=region,
+            category="player.register-time.hk4e-token",
+            headers=_hk4e_login_headers(cookie),
+            json_body=body,
+        )
+        raise_for_retcode(
+            response.payload,
+            provider=PROVIDER,
+            region=region,
+            category="player.register-time.hk4e-token",
+            source=response.source,
+            debug=self.http.debug,
+        )
+        token = response.cookies.get("e_hk4e_token")
+        if not token:
+            raise CliError(
+                "UPSTREAM_INVALID_RESPONSE",
+                "Provider did not return an e_hk4e_token cookie.",
+                EXIT_UPSTREAM,
+                {"provider": PROVIDER, "category": "player.register-time.hk4e-token"},
+                source=response.source,
+            )
+        return f"e_hk4e_token={token}", response.source
+
+    def _inventory_compute_response(
+        self,
+        *,
+        cookie: str,
+        region: str,
+        body: dict[str, object],
+    ) -> ProviderResponse:
+        return self.http.request_json(
+            "POST",
+            f"{GS_BASE_CN}{CALCULATOR_BATCH_COMPUTE_PATH}",
+            provider=PROVIDER,
+            region=region,
+            category="player.inventory",
+            headers=_headers(cookie),
+            json_body=body,
+        )
+
+    def _invalid_inventory_indexes(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        items: list[dict[str, object]],
+    ) -> list[int]:
+        indexed = list(enumerate(items))
+        midpoint = len(indexed) // 2
+        return [
+            *self._invalid_inventory_indexes_in_batch(
+                uid=uid,
+                cookie=cookie,
+                region=region,
+                indexed_items=indexed[:midpoint],
+            ),
+            *self._invalid_inventory_indexes_in_batch(
+                uid=uid,
+                cookie=cookie,
+                region=region,
+                indexed_items=indexed[midpoint:],
+            ),
+        ]
+
+    def _invalid_inventory_indexes_in_batch(
+        self,
+        *,
+        uid: str,
+        cookie: str,
+        region: str,
+        indexed_items: list[tuple[int, dict[str, object]]],
+    ) -> list[int]:
+        body = {
+            "items": [item for _index, item in indexed_items],
+            "region": server_for_uid(uid),
+            "uid": uid,
+        }
+        response = self._inventory_compute_response(cookie=cookie, region=region, body=body)
+        if _retcode_ok(response.payload):
+            return []
+        if not _is_calculator_payload_rejection(response.payload):
+            raise_for_retcode(
+                response.payload,
+                provider=PROVIDER,
+                region=region,
+                category="player.inventory",
+                source=response.source,
+                debug=self.http.debug,
+            )
+        if len(indexed_items) == 1:
+            return [indexed_items[0][0]]
+        midpoint = len(indexed_items) // 2
+        return [
+            *self._invalid_inventory_indexes_in_batch(
+                uid=uid,
+                cookie=cookie,
+                region=region,
+                indexed_items=indexed_items[:midpoint],
+            ),
+            *self._invalid_inventory_indexes_in_batch(
+                uid=uid,
+                cookie=cookie,
+                region=region,
+                indexed_items=indexed_items[midpoint:],
+            ),
+        ]
+
     def _stoken_by_game_token(
         self,
         *,
@@ -1764,6 +2082,184 @@ def _character(character: dict[str, object]) -> dict[str, object]:
         "constellations": [item for item in constellations if isinstance(item, dict)],
         "costumes": [item for item in costumes if isinstance(item, dict)],
     }
+
+
+def _inventory(data: dict[str, object]) -> dict[str, object]:
+    overall = _inventory_items(data.get("overall_consume"))
+    categories = {}
+    material_consume = data.get("overall_material_consume")
+    if not isinstance(material_consume, dict):
+        material_consume = {}
+    for key in (
+        "avatar_consume",
+        "avatar_skill_consume",
+        "weapon_consume",
+        "reliquary_consume",
+    ):
+        categories[key] = _inventory_items(material_consume.get(key))
+    return {
+        "has_user_info": data.get("has_user_info"),
+        "overall": overall,
+        "categories": categories,
+        "count": len(overall),
+        "raw_count": {
+            key: len(value) for key, value in categories.items() if isinstance(value, list)
+        },
+    }
+
+
+def _inventory_items(value: object) -> list[dict[str, object]]:
+    items = []
+    for item in _dict_list(value):
+        if item.get("id") in (None, "") and item.get("name") in (None, ""):
+            continue
+        items.append(_inventory_item(item))
+    return items
+
+
+def _inventory_item(item: dict[str, object]) -> dict[str, object]:
+    required = _int_value(item.get("num"))
+    missing = _int_value(item.get("lack_num"))
+    return {
+        "id": item.get("id"),
+        "name": item.get("name"),
+        "level": item.get("level"),
+        "required": required,
+        "missing": missing,
+        "owned": max(required - missing, 0),
+        "icon": item.get("icon") or item.get("icon_url"),
+        "wiki_url": item.get("wiki_url"),
+    }
+
+
+def _inventory_compute_item(character: dict[str, object]) -> dict[str, object] | None:
+    avatar_id = _int_value(character.get("id"))
+    name = character.get("name")
+    if avatar_id <= 0 or not isinstance(name, str) or not name:
+        return None
+    item: dict[str, object] = {
+        "avatar_id": avatar_id,
+        "avatar_level_current": 1,
+        "avatar_level_target": 90,
+        "element_attr_id": ELEMENT_ID_BY_NAME.get(str(character.get("element")), 0),
+        "level": _int_value(character.get("rarity"), 5),
+        "name": name,
+    }
+    weapon = _inventory_compute_weapon(character.get("weapon"))
+    if weapon is not None:
+        item["weapon"] = weapon
+    return item
+
+
+def _inventory_compute_weapon(value: object) -> dict[str, object] | None:
+    if not isinstance(value, dict):
+        return None
+    weapon_id = _int_value(value.get("id"))
+    name = value.get("name")
+    rarity = _int_value(value.get("rarity"))
+    if weapon_id <= 0 or not isinstance(name, str) or not name or rarity <= 0:
+        return None
+    target = 70 if rarity <= 2 else 90
+    return {
+        "id": weapon_id,
+        "name": name,
+        "weapon_cat_id": _int_value(value.get("type"), 1),
+        "weapon_level": rarity,
+        "max_level": target,
+        "is_recommend": False,
+        "levelRange": [1, target],
+        "level_current": 1,
+        "level_target": target,
+    }
+
+
+def _inventory_compute_item_summary(item: dict[str, object]) -> dict[str, object]:
+    return {
+        "avatar_id": item.get("avatar_id"),
+        "name": item.get("name"),
+    }
+
+
+def _retcode_ok(payload: dict[str, object]) -> bool:
+    return payload.get("retcode") in (0, "0", None)
+
+
+def _is_calculator_row_rejection(error: CliError) -> bool:
+    return error.code == "UPSTREAM_REJECTED" and str(error.details.get("retcode")) == "-500001"
+
+
+def _is_calculator_payload_rejection(payload: dict[str, object]) -> bool:
+    return str(payload.get("retcode")) == "-500001"
+
+
+def _calendar(data: dict[str, object]) -> dict[str, object]:
+    keys = (
+        "avatar_card_pool_list",
+        "weapon_card_pool_list",
+        "mixed_card_pool_list",
+        "selected_avatar_card_pool_list",
+        "selected_mixed_card_pool_list",
+        "act_list",
+        "fixed_act_list",
+        "selected_act_list",
+    )
+    lists = {key: _dict_list(data.get(key)) for key in keys}
+    return {
+        **lists,
+        "counts": {key: len(value) for key, value in lists.items()},
+    }
+
+
+def _register_time(
+    uid: str,
+    data: dict[str, object],
+    source: dict[str, object],
+) -> dict[str, object]:
+    raw_data = data.get("data")
+    if isinstance(raw_data, str):
+        try:
+            parsed = json.loads(raw_data)
+        except ValueError as exc:
+            raise _invalid_provider_data("player.register-time", source) from exc
+    elif isinstance(raw_data, dict):
+        parsed = raw_data
+    else:
+        raise _invalid_provider_data("player.register-time", source)
+    timestamp = _int_value(parsed.get("1"))
+    if timestamp <= 0:
+        raise _invalid_provider_data("player.register-time", source)
+    registered_at = datetime.fromtimestamp(timestamp, CN_TIMEZONE)
+    return {
+        "uid": uid,
+        "timestamp": timestamp,
+        "registered_at": registered_at.isoformat(),
+        "timezone": "Asia/Shanghai",
+        "confidence": "provider",
+        "source": "mys_anniversary_game_data",
+    }
+
+
+def _dict_list(value: object) -> list[dict[str, object]]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
+def _int_value(value: object, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _invalid_provider_data(category: str, source: dict[str, object]) -> CliError:
+    return CliError(
+        "UPSTREAM_INVALID_RESPONSE",
+        "Provider returned an unexpected response shape.",
+        EXIT_UPSTREAM,
+        {"provider": PROVIDER, "category": category},
+        source=source,
+    )
 
 
 def _diary(data: dict[str, object]) -> dict[str, object]:
@@ -2083,6 +2579,15 @@ def _sign_headers(cookie: str) -> dict[str, str]:
         "x-rpc-signgame": "hk4e",
         "x-rpc-device_id": uuid.uuid4().hex,
         "x-rpc-client_type": "5",
+    }
+
+
+def _hk4e_login_headers(cookie: str) -> dict[str, str]:
+    return {
+        **_headers(cookie),
+        "Content-Type": "application/json;charset=UTF-8",
+        "Referer": "https://webstatic.mihoyo.com/",
+        "Origin": "https://webstatic.mihoyo.com",
     }
 
 

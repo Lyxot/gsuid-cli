@@ -102,6 +102,14 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert capability_by_command["daily.note"]["render"] == ["data", "image", "both"]
     assert capability_by_command["player.summary"]["render"] == ["data", "image", "both"]
     assert capability_by_command["player.characters"]["render"] == ["data", "image", "both"]
+    assert capability_by_command["player.inventory"]["auth"] == "cookie"
+    assert (
+        capability_by_command["player.inventory"]["coverage"]
+        == "owned_character_ascension_and_equipped_weapon_materials"
+    )
+    assert capability_by_command["player.calendar"]["auth"] == "cookie"
+    assert capability_by_command["player.register-time"]["auth"] == "cookie"
+    assert capability_by_command["player.register-time"]["availability"] == "upstream-limited"
     assert capability_by_command["map.find"]["cache"] == "use"
     assert "data" in capability_by_command["map.find"]["render"]
     assert payload["data"]["regions"] == ["cn"]

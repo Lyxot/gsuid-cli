@@ -69,11 +69,11 @@ Generated from `gsuid meta capabilities`.
 | `panel.save` | `none` | `data` | `off` | Save one cached panel as a JSON artifact. |
 | `panel.show` | `none` | `data` | `off` | Show one cached character panel. |
 | `panel.showcase` | `none` | `data` | `off` | Show the cached public showcase summary. |
-| `player.calendar` | `none` | `data` | `off` | Report player calendar data support status. |
+| `player.calendar` | `cookie` | `data` | `off` | Show authenticated player activity calendar data. |
 | `player.characters` | `cookie` | `data, image, both` | `off` | Show authenticated player character details. |
 | `player.diary` | `cookie` | `data` | `off` | Show authenticated monthly traveler diary data. |
-| `player.inventory` | `none` | `data` | `off` | Report inventory data support status. |
-| `player.register-time` | `none` | `data` | `off` | Report registration-time data support status. |
+| `player.inventory` | `cookie` | `data` | `off` | Show owned-character and equipped-weapon material counts. Coverage: `owned_character_ascension_and_equipped_weapon_materials`. |
+| `player.register-time` | `cookie` | `data` | `off` | Attempt to show Genshin account registration time. Availability: `upstream-limited`. Limitations: Uses the legacy MYS anniversary endpoint, which may return provider retcode -502. |
 | `player.summary` | `cookie` | `data, image, both` | `off` | Show authenticated player profile summary data. |
 | `profile.default` | `none` | `data` | `off` | Set the default local profile. |
 | `profile.delete` | `none` | `data` | `off` | Delete a local profile. |

@@ -98,6 +98,20 @@ def test_output_dir_works_between_group_and_command(monkeypatch, tmp_path) -> No
 
 def test_profile_and_uid_work_after_command_tokens(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("GSUID_COOKIE", "cookie")
+
+    class FakeProvider:
+        def player_inventory(self, **kwargs: object) -> CommandResult:
+            return CommandResult(
+                data={
+                    "uid": kwargs["uid"],
+                    "credential_source": kwargs["credential_source"],
+                    "inventory": {"count": 0},
+                },
+                source={"provider": "mys", "region": "cn", "cached": False, "fetched_at": "now"},
+            )
+
+    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", lambda *_: FakeProvider())
 
     code, _payload, _stderr = _run_json(["profile", "init", "--name", "alt"])
     assert code == 0

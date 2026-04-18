@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
@@ -25,6 +25,7 @@ class ProviderResponse:
     payload: dict[str, object]
     source: dict[str, object]
     status_code: int
+    cookies: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -184,6 +185,7 @@ class HttpClient:
             payload=payload,
             source=_source(provider, region, False, fetched_at),
             status_code=response.status_code,
+            cookies=dict(response.cookies.items()),
         )
 
     def request_bytes(

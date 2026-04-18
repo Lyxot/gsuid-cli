@@ -39,7 +39,7 @@ def render_command_reference() -> str:
                     auth=command["auth"],
                     render=", ".join(command["render"]),
                     cache=command["cache"],
-                    description=_escape_pipes(str(command["description"])),
+                    description=_escape_pipes(_description(command)),
                 )
             )
     lines.extend(
@@ -77,6 +77,20 @@ def main() -> int:
 
 def _escape_pipes(value: str) -> str:
     return value.replace("|", "\\|")
+
+
+def _description(command: dict[str, Any]) -> str:
+    description = str(command["description"])
+    coverage = command.get("coverage")
+    if coverage:
+        description += f" Coverage: `{coverage}`."
+    availability = command.get("availability")
+    if availability:
+        description += f" Availability: `{availability}`."
+    limitations = command.get("limitations")
+    if isinstance(limitations, list) and limitations:
+        description += " Limitations: " + "; ".join(str(item) for item in limitations)
+    return description
 
 
 if __name__ == "__main__":
