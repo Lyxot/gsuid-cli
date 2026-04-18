@@ -16,12 +16,21 @@ from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
 from gsuid_cli.providers import provider_for_region
 from gsuid_cli.providers.enka import EnkaProvider
+from gsuid_cli.renderers.player.calendar import (
+    player_calendar_icon_urls,
+    render_player_calendar_card,
+)
 from gsuid_cli.renderers.player.characters import (
     character_mys_image_urls,
     character_namecard_url,
     character_portrait_url,
     render_player_characters_card,
     weapon_icon_url,
+)
+from gsuid_cli.renderers.player.diary import render_player_diary_card
+from gsuid_cli.renderers.player.inventory import (
+    player_inventory_icon_urls,
+    render_player_inventory_card,
 )
 from gsuid_cli.renderers.player.summary import (
     ENKA_UI_BASE,
@@ -34,6 +43,8 @@ from gsuid_cli.renderers.player.summary import (
 PLAYER_CHARACTER_IMAGE_WORKERS = 8
 PLAYER_SUMMARY_ICON_WORKERS = 8
 PLAYER_PROFILE_IMAGE_WORKERS = 2
+PLAYER_INVENTORY_ICON_WORKERS = 12
+PLAYER_CALENDAR_ICON_WORKERS = 12
 PROFILE_PICTURE_CONFIG_URL = "https://cdn.jsdelivr.net/gh/DimbreathBot/AnimeGameData@master/ExcelBinOutput/ProfilePictureExcelConfigData.json"
 
 CAPABILITIES = [
@@ -58,7 +69,7 @@ CAPABILITIES = [
         "description": "Show owned-character and equipped-weapon material counts.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "off",
         "coverage": "owned_character_ascension_and_equipped_weapon_materials",
     },
@@ -67,7 +78,7 @@ CAPABILITIES = [
         "description": "Show authenticated player activity calendar data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "off",
     },
     {
@@ -75,7 +86,7 @@ CAPABILITIES = [
         "description": "Show authenticated monthly traveler diary data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "off",
     },
     {
@@ -169,10 +180,23 @@ def characters_command(args: argparse.Namespace) -> CommandResult:
 
 def inventory_command(args: argparse.Namespace) -> CommandResult:
     uid, region, cookie, credential_source, storage_backend = _cookie_context(args)
-    return _provider(args, region).player_inventory(
+    provider = _provider(args, region)
+    result = provider.player_inventory(
         uid=uid,
         cookie=cookie,
         region=region,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
+    )
+    if args.render == "data":
+        return result
+    return _inventory_render_result(
+        args,
+        provider=provider,
+        result=result,
+        uid=uid,
+        region=region,
+        cookie=cookie,
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
@@ -180,10 +204,23 @@ def inventory_command(args: argparse.Namespace) -> CommandResult:
 
 def calendar_command(args: argparse.Namespace) -> CommandResult:
     uid, region, cookie, credential_source, storage_backend = _cookie_context(args)
-    return _provider(args, region).player_calendar(
+    provider = _provider(args, region)
+    result = provider.player_calendar(
         uid=uid,
         cookie=cookie,
         region=region,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
+    )
+    if args.render == "data":
+        return result
+    return _calendar_render_result(
+        args,
+        provider=provider,
+        result=result,
+        uid=uid,
+        region=region,
+        cookie=cookie,
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
@@ -192,13 +229,26 @@ def calendar_command(args: argparse.Namespace) -> CommandResult:
 def diary_command(args: argparse.Namespace) -> CommandResult:
     _validate_month_arg(args.month)
     uid, region, cookie, credential_source, storage_backend = _cookie_context(args)
-    return _provider(args, region).player_diary(
+    provider = _provider(args, region)
+    result = provider.player_diary(
         uid=uid,
         cookie=cookie,
         region=region,
         credential_source=credential_source,
         storage_backend=storage_backend,
         month=args.month,
+    )
+    if args.render == "data":
+        return result
+    return _diary_render_result(
+        args,
+        provider=provider,
+        result=result,
+        uid=uid,
+        region=region,
+        cookie=cookie,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
     )
 
 
@@ -399,6 +449,264 @@ def _summary_render_result(
             *profile_image_warnings,
         ],
         pagination=result.pagination,
+    )
+
+
+def _inventory_render_result(
+    args: argparse.Namespace,
+    *,
+    provider,
+    result: CommandResult,
+    uid: str,
+    region: str,
+    cookie: str,
+    credential_source: str,
+    storage_backend: str | None,
+) -> CommandResult:
+    inventory = _mapping_data(result, "inventory", "player.inventory")
+    summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
+        args,
+        provider=provider,
+        uid=uid,
+        region=region,
+        cookie=cookie,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
+        category_prefix="player.inventory",
+    )
+    inventory_images, inventory_warnings = fetch_render_images(
+        args,
+        player_inventory_icon_urls(inventory),
+        provider="mys",
+        region=region,
+        category="player.inventory.icon",
+        unavailable_warning="{count} player inventory icons unavailable; rendered placeholders",
+        max_workers=PLAYER_INVENTORY_ICON_WORKERS,
+    )
+    png = render_player_inventory_card(
+        uid=uid,
+        summary=summary,
+        inventory=inventory,
+        asset_images={**title_images, **inventory_images},
+        title_avatar_url=title_avatar_url,
+    )
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="player/inventory",
+        filename=f"player-inventory_{_safe_filename(uid)}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style player inventory card",
+        kind="image",
+    )
+    render_data = {
+        "uid": uid,
+        "render": "player/inventory",
+        "item_count": inventory.get("count"),
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=[*result.warnings, *title_warnings, *inventory_warnings],
+        pagination=result.pagination,
+    )
+
+
+def _calendar_render_result(
+    args: argparse.Namespace,
+    *,
+    provider,
+    result: CommandResult,
+    uid: str,
+    region: str,
+    cookie: str,
+    credential_source: str,
+    storage_backend: str | None,
+) -> CommandResult:
+    calendar = _mapping_data(result, "calendar", "player.calendar")
+    summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
+        args,
+        provider=provider,
+        uid=uid,
+        region=region,
+        cookie=cookie,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
+        category_prefix="player.calendar",
+    )
+    calendar_images, calendar_warnings = fetch_render_images(
+        args,
+        player_calendar_icon_urls(calendar),
+        provider="mys",
+        region=region,
+        category="player.calendar.icon",
+        unavailable_warning="{count} player calendar icons unavailable; rendered placeholders",
+        max_workers=PLAYER_CALENDAR_ICON_WORKERS,
+    )
+    png = render_player_calendar_card(
+        uid=uid,
+        summary=summary,
+        calendar=calendar,
+        asset_images={**title_images, **calendar_images},
+        title_avatar_url=title_avatar_url,
+    )
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="player/calendar",
+        filename=f"player-calendar_{_safe_filename(uid)}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style player activity calendar card",
+        kind="image",
+    )
+    counts = calendar.get("counts") if isinstance(calendar.get("counts"), Mapping) else {}
+    render_data = {
+        "uid": uid,
+        "render": "player/calendar",
+        "act_count": counts.get("act_list"),
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=[*result.warnings, *title_warnings, *calendar_warnings],
+        pagination=result.pagination,
+    )
+
+
+def _diary_render_result(
+    args: argparse.Namespace,
+    *,
+    provider,
+    result: CommandResult,
+    uid: str,
+    region: str,
+    cookie: str,
+    credential_source: str,
+    storage_backend: str | None,
+) -> CommandResult:
+    diary = _mapping_data(result, "diary", "player.diary")
+    summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
+        args,
+        provider=provider,
+        uid=uid,
+        region=region,
+        cookie=cookie,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
+        category_prefix="player.diary",
+    )
+    png = render_player_diary_card(
+        uid=uid,
+        summary=summary,
+        diary=diary,
+        asset_images=title_images,
+        title_avatar_url=title_avatar_url,
+    )
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="player/diary",
+        filename=f"player-diary_{_safe_filename(uid)}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style monthly traveler diary card",
+        kind="image",
+    )
+    render_data = {
+        "uid": uid,
+        "render": "player/diary",
+        "month": diary.get("month"),
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=[*result.warnings, *title_warnings],
+        pagination=result.pagination,
+    )
+
+
+def _player_title_render_context(
+    args: argparse.Namespace,
+    *,
+    provider,
+    uid: str,
+    region: str,
+    cookie: str,
+    credential_source: str,
+    storage_backend: str | None,
+    category_prefix: str,
+) -> tuple[Mapping[str, object], dict[str, bytes], str | None, list[str]]:
+    summary_result = provider.player_summary(
+        uid=uid,
+        cookie=cookie,
+        region=region,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
+    )
+    summary = _mapping_data(summary_result, "summary", f"{category_prefix}.summary")
+    role_avatar_url = _summary_role_avatar_url(summary)
+    if role_avatar_url:
+        title_avatar_url, profile_warnings = None, []
+    else:
+        title_avatar_url, profile_warnings = _player_profile_title_avatar_url(args, uid, region)
+    resource_urls = player_summary_genshinuid_resource_urls(summary)
+    if title_avatar_url and not title_avatar_url.startswith(f"{ENKA_UI_BASE}/"):
+        _append_url(resource_urls, title_avatar_url)
+    resource_images, resource_warnings = fetch_render_images(
+        args,
+        resource_urls,
+        provider="genshinuid",
+        region=region,
+        category=f"{category_prefix}.title.resource",
+        unavailable_warning="{count} player title resources unavailable; rendered fallback avatar",
+        max_workers=PLAYER_CHARACTER_IMAGE_WORKERS,
+    )
+    icon_images, icon_warnings = fetch_render_images(
+        args,
+        _player_title_mys_icon_urls(summary),
+        provider="mys",
+        region=region,
+        category=f"{category_prefix}.title.icon",
+        unavailable_warning="{count} player title icons unavailable; rendered fallback avatar",
+        max_workers=PLAYER_SUMMARY_ICON_WORKERS,
+    )
+    profile_images, profile_image_warnings = _player_profile_image_assets(
+        args, title_avatar_url, region
+    )
+    return (
+        summary,
+        {**resource_images, **icon_images, **profile_images},
+        title_avatar_url,
+        [
+            *summary_result.warnings,
+            *profile_warnings,
+            *resource_warnings,
+            *icon_warnings,
+            *profile_image_warnings,
+        ],
+    )
+
+
+def _player_title_mys_icon_urls(summary: Mapping[str, object]) -> list[str]:
+    role_avatar_url = _summary_role_avatar_url(summary)
+    return [role_avatar_url] if role_avatar_url else []
+
+
+def _mapping_data(result: CommandResult, field: str, command: str) -> Mapping[str, object]:
+    value = result.data.get(field)
+    if isinstance(value, Mapping):
+        return value
+    raise CliError(
+        "UPSTREAM_INVALID_RESPONSE",
+        f"Provider returned {command} data without a renderable {field}.",
+        EXIT_UPSTREAM,
+        {"command": command},
+        source=result.source,
     )
 
 

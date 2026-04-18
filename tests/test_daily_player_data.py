@@ -19,6 +19,7 @@ from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.secrets import SecretStore
 from gsuid_cli.providers.mys import RECORD_SALT, MysProvider
 from gsuid_cli.renderers.player import summary as player_summary_renderer
+from gsuid_cli.renderers.player.calendar import render_player_calendar_card
 from gsuid_cli.renderers.player.summary import (
     FOOTER_TEXT,
     player_profile_picture_url,
@@ -358,6 +359,126 @@ def test_player_summary_render_both_preserves_structured_data(monkeypatch, tmp_p
     assert code == 0
     assert payload["data"]["summary"]["role"]["nickname"] == "派蒙"
     assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
+
+
+def test_player_inventory_calendar_diary_render_images(monkeypatch, tmp_path) -> None:
+    captured_urls: list[str] = []
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher(captured_urls))
+    monkeypatch.setattr(
+        player_commands,
+        "_player_profile_title_avatar_url",
+        lambda args, uid, region: (None, []),
+    )
+    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    cases = [
+        (
+            ["player", "inventory", "--uid", "100000001", "--render", "image"],
+            "player.inventory",
+            "player/inventory",
+            (1680, 950),
+        ),
+        (
+            ["player", "calendar", "--uid", "100000001", "--render", "image"],
+            "player.calendar",
+            "player/calendar",
+            (1000, 986),
+        ),
+        (
+            ["player", "diary", "--uid", "100000001", "--render", "image"],
+            "player.diary",
+            "player/diary",
+            (850, 1950),
+        ),
+    ]
+
+    for argv, command, render, size in cases:
+        code, payload = _run_json(
+            [
+                *argv,
+                "--request-id",
+                command,
+                "--output-dir",
+                str(tmp_path / "artifacts"),
+            ]
+        )
+
+        assert code == 0
+        assert payload["command"] == command
+        assert payload["data"]["render"] == render
+        artifact = payload["artifacts"][0]
+        assert artifact["media_type"] == "image/png"
+        with Image.open(artifact["path"]) as image:
+            assert image.size == size
+            assert image.getbbox() is not None
+
+    assert (
+        "https://example.test/GenshinUID/resource/chars/10000021.png" in captured_urls
+    )
+
+
+def test_player_inventory_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher([]))
+    monkeypatch.setattr(
+        player_commands,
+        "_player_profile_title_avatar_url",
+        lambda args, uid, region: (None, []),
+    )
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(["player", "inventory", "--uid", "100000001", "--render", "both"])
+
+    assert code == 0
+    assert payload["data"]["inventory"]["count"] == 1
+    assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
+
+
+def test_player_calendar_renderer_keeps_pool_items_after_four() -> None:
+    icon_url = "https://upload.example.test/fifth.png"
+    icon = Image.new("RGBA", (105, 105), (235, 20, 20, 255))
+    icon_buffer = io.BytesIO()
+    icon.save(icon_buffer, format="PNG")
+
+    image = Image.open(
+        io.BytesIO(
+            render_player_calendar_card(
+                uid="100000001",
+                summary={
+                    "role": {"nickname": "派蒙", "level": 60},
+                    "stats": {
+                        "active_day_number": 10,
+                        "achievement_number": 20,
+                        "spiral_abyss": "1-1",
+                    },
+                },
+                calendar={
+                    "avatar_card_pool_list": [
+                        {
+                            "pool_name": "Pool",
+                            "version_name": "5.0",
+                            "countdown_seconds": 3600,
+                            "avatars": [{"name": f"角色{index}", "rarity": 5} for index in range(4)]
+                            + [{"name": "第五位", "rarity": 5, "icon": icon_url}],
+                        }
+                    ],
+                    "weapon_card_pool_list": [],
+                    "act_list": [],
+                    "fixed_act_list": [],
+                },
+                asset_images={icon_url: icon_buffer.getvalue()},
+            )
+        )
+    )
+
+    pixel = image.convert("RGB").getpixel((64 + 4 * 105 + 52, 561 + 136 + 52))
+    assert pixel[0] > 200
+    assert pixel[1] < 80
+    assert pixel[2] < 80
 
 
 def test_player_summary_render_skips_profile_lookup_when_role_avatar_exists(

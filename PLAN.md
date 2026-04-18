@@ -670,46 +670,7 @@ tests/
 ### Stage 12: Batch And Agent Hardening — completed.
 ### Stage 13: Documentation, CI, And Release — completed.
 ### Stage 14: Missing Command Contract Completion — completed.
-### Stage 14.1: Source-Limited Player Data Ports
-
-- Status: completed.
-- Result: replaced the source-limited placeholders for `player inventory`,
-  `player calendar`, and `player register-time` with cookie-authenticated CN
-  provider calls and updated capability metadata/help docs accordingly.
-- Scope: data output only; image parity for these commands remains a later
-  Stage 17 renderer substage.
-- Source mapping:
-  - `player.inventory`: port GenshinUID `我的背包` behavior through the MYS
-    calculator `batch_compute` endpoint. The output reports owned-character
-    ascension and equipped-weapon material coverage, filters empty calculator
-    placeholders, and isolates provider-rejected calculator rows.
-  - `player.calendar`: port GenshinUID `个人日历` behavior through the MYS
-    activity-calendar endpoint.
-  - `player.register-time`: port GenshinUID `原神注册时间` behavior through the
-    anniversary `game_data` endpoint and the `e_hk4e_token` acquisition flow.
-    Capability metadata marks this command `upstream-limited` until the legacy
-    endpoint is live-verified.
-- Live smoke:
-  - `.venv/bin/python -m gsuid_cli --request-id stage14-1-inventory player inventory --uid <UID>`
-    succeeded with `compute_item_count=84`, `character_count=85`, and one
-    provider-rejected calculator row skipped: `10000118` / `奇偶·女性`.
-  - `.venv/bin/python -m gsuid_cli --request-id stage14-1-calendar player calendar --uid <UID>`
-    succeeded with non-empty pool and activity counts.
-  - `.venv/bin/python -m gsuid_cli --request-id stage14-1-register-time player register-time --uid <UID>`
-    retrieved `e_hk4e_token` but the live anniversary endpoint currently
-    rejects with MYS retcode `-502`; alternate cookie/stoken order probes
-    produced the same upstream rejection.
-- Verification:
-  - `.venv/bin/python -m pytest tests/test_daily_player_data.py tests/test_missing_command_contracts.py tests/test_meta_commands.py tests/test_global_options.py -q`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `git diff --check`
-  - Standalone review agent before commit; capability caveats and inventory
-    fallback test coverage findings were fixed and reverified.
-- Next intended stage: resume Stage 17 renderer ports after user direction.
-
+### Stage 14.1: Source-Limited Player Data Ports — completed.
 ### Stage 15: Full Global Options — completed.
 ### Stage 16: Help Information Coverage — completed.
 ### Stage 16.5: Cache System Redesign — completed.
@@ -833,6 +794,40 @@ tests/
   - `~/.gsuid-cli/artifacts/2026-05-01/stage17d-player-summary-pfp-config/player-summary_102452098.png`
 - Next intended substage: Stage 17e, port the next GenshinUID image renderer
   group after confirming priority.
+
+- Stage 17e status: completed.
+- Stage 17e goal: finish GenshinUID-parity image rendering for the `player`
+  command group by porting the remaining GenshinUID player-related renderers.
+- Stage 17e result:
+  - Add `player inventory --render image|both` from GenshinUID `我的背包`.
+  - Add `player calendar --render image|both` from GenshinUID `个人日历`.
+  - Add `player diary --render image|both` from GenshinUID `原石札记`.
+  - Reused shared player title/avatar/footer helpers for the new renderers,
+    packaged and attributed the copied GenshinUID assets, and updated
+    capabilities/docs to advertise the new image render support.
+  - Keep `player register-time` data-only because GenshinUID returns text for
+    `原神注册时间` and no GenshinUID image renderer is available to port.
+- Stage 17e review:
+  - Standalone review agent completed; two medium visual-parity gaps were fixed
+    before commit: diary now uses the GenshinUID color background/avatar ring,
+    and calendar no longer truncates pool items after the fourth entry.
+- Stage 17e verification:
+  - `.venv/bin/python -m pytest tests/test_daily_player_data.py::test_player_inventory_calendar_diary_render_images tests/test_daily_player_data.py::test_player_calendar_renderer_keeps_pool_items_after_four tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `git diff --check`
+  - `.venv/bin/python -m build`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17e-inventory-final --render image player inventory --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17e-calendar-final --render image player calendar --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17e-diary-final --render image player diary --uid <UID>`
+- Stage 17e live artifacts:
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17e-inventory-final/player-inventory_102452098.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17e-calendar-final/player-calendar_102452098.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17e-diary-final/player-diary_102452098.png`
+- Next intended substage: Stage 17f, continue porting the next image-render
+  group selected from the remaining PLAN coverage.
 
 ## MVP Cut Line
 

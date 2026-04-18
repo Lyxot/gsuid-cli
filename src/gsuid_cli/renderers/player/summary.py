@@ -122,7 +122,12 @@ def render_player_summary_card(
 ) -> bytes:
     """Render a GenshinUID-style full player role-info card as PNG bytes."""
     asset_images = asset_images or {}
-    title = _title_section(uid, summary, asset_images, title_avatar_url)
+    title = render_player_title_section(
+        uid=uid,
+        summary=summary,
+        asset_images=asset_images,
+        title_avatar_url=title_avatar_url,
+    )
     exploration = _exploration_section(summary, asset_images)
     character_section = render_player_characters_section(
         characters=characters,
@@ -134,11 +139,41 @@ def render_player_summary_card(
     foreground.paste(title, (0, 0), title)
     foreground.paste(exploration, (0, 650), exploration)
     foreground.paste(character_section, (0, 500 + exploration.size[1] + 40), character_section)
-    _paste_footer(foreground)
+    paste_player_footer(foreground)
 
     background = v4_background(WIDTH, foreground.size[1])
     background.paste(foreground, (0, 0), foreground)
     return png_bytes(background, rgb=True)
+
+
+def render_player_title_section(
+    *,
+    uid: str,
+    summary: Mapping[str, object],
+    asset_images: Mapping[str, bytes],
+    title_avatar_url: str | None = None,
+) -> Image.Image:
+    """Render the shared GenshinUID-style player title section."""
+    return _title_section(uid, summary, asset_images, title_avatar_url)
+
+
+def player_title_avatar_image(
+    *,
+    summary: Mapping[str, object],
+    asset_images: Mapping[str, bytes],
+    size: int,
+    title_avatar_url: str | None = None,
+) -> Image.Image:
+    """Render the shared masked player avatar used by player cards."""
+    return _title_avatar(summary, asset_images, size, title_avatar_url)
+
+
+def paste_player_footer(image: Image.Image, *, font_size: int = 32) -> None:
+    """Paste the shared GenshinUID-style footer text onto a player image."""
+    if font_size == 32:
+        _paste_footer(image)
+        return
+    _paste_footer(image, font_size=font_size)
 
 
 def player_summary_genshinuid_resource_urls(summary: Mapping[str, object]) -> list[str]:
@@ -417,11 +452,11 @@ def _paste_grid_card(
     image.paste(card, (offer_x + card_x * (index % column), y + line * (index // column)), card)
 
 
-def _paste_footer(image: Image.Image) -> None:
+def _paste_footer(image: Image.Image, *, font_size: int = 32) -> None:
     draw = ImageDraw.Draw(image)
     x = image.size[0] // 2
     y = image.size[1] - 42
-    footer_font = font(32)
+    footer_font = font(font_size)
     draw.text(
         (x + 2, y + 2),
         FOOTER_TEXT,

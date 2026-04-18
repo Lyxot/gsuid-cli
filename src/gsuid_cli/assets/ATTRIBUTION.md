@@ -6,15 +6,23 @@ KimigaiiWuyi/GenshinUID (GPL-3.0,
 rendering.
 
 - Daily note textures, daily materials textures, player character-list
-  textures, player summary/exploration textures, shared title/footer/mask
-  textures, the shared v4 background, weapon rarity backgrounds, and the
-  bundled Yuanshen font are from GenshinUID historical renderer assets.
+  textures, player summary/exploration textures, player inventory textures,
+  player calendar textures, player diary textures, shared title/footer/mask
+  textures, the shared v4 background, weapon rarity backgrounds, and the bundled
+  Yuanshen font are from GenshinUID historical renderer assets.
 - Player character-list textures are copied from
   `GenshinUID/genshinuid_roleinfo/texture2d/`; the shared v4 background is
   copied from `GenshinUID/utils/image/texture2d/bg.jpg`.
 - Player summary/exploration textures are copied from
   `GenshinUID/genshinuid_collection/texture2D/`; title/footer/mask textures are
   copied from `GenshinUID/utils/image/texture2d/`.
+- Player inventory textures are copied from
+  `GenshinUID/genshinuid_compute/texture2d/`.
+- Player calendar textures are copied from
+  `GenshinUID/genshinuid_cale/texture2d/`.
+- Player diary textures are copied from
+  `GenshinUID/genshinuid_note/texture2d/`, with the diary background and avatar
+  ring assets copied from `GenshinUID/utils/image/`.
 - Player character portraits, weapon icons, and namecard backgrounds are
   fetched from the GenshinUID resource mirror under
   `https://example.test/GenshinUID/resource/`.
