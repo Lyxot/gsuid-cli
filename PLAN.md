@@ -829,6 +829,58 @@ tests/
 - Next intended substage: Stage 17f, continue porting the next image-render
   group selected from the remaining PLAN coverage.
 
+- Stage 17f status: completed.
+- Stage 17f goal: port GenshinUID-style image rendering for the `challenge`
+  command group.
+- Stage 17f result:
+  - Add `challenge abyss --render image|both` using the GenshinUID Spiral Abyss
+    renderer layout and assets, adapted to the CLI's normalized abyss payload.
+  - Add `challenge theater --render image|both` using the GenshinUID
+    `幻想真境剧诗` renderer layout and assets, adapted to the selected theater
+    session payload.
+  - Add `challenge hard --render image|both` using the GenshinUID
+    `新新深渊`/`幽境危战` renderer layout and assets.
+  - Keep `challenge hard-rank` data-only because the configured source still
+    reports ranking support as unavailable.
+  - Reuse shared GenshinUID-style challenge render helpers, copied/attributed
+    GenshinUID challenge textures and character-card assets, and package them in
+    the wheel/sdist.
+  - Fix Abyss image overview parity so lower floors omitted by skipped or
+    floor-filtered payloads render as skipped rather than locked.
+  - Switch `challenge hard` to the same `/hard_challenge?need_detail=true`
+    endpoint used by GenshinUID `新新深渊`/`幽境危战`, normalize the
+    `data[0].single.challenge` payload, and render the fixed 900x1900
+    GenshinUID hard-challenge card for the current three-boss layout.
+  - Do not emit an Abyss image artifact when the provider returns no Abyss floor
+    data; return `NO_RESULT` with no artifacts instead.
+  - Use the same title profile-image selection logic as `player summary`, with
+    role avatar first and Enka profile-picture fallback when the role avatar is
+    absent.
+- Stage 17f review:
+  - Standalone review agent completed. One medium Abyss visual-parity issue was
+    fixed before commit: missing lower floors now synthesize GenshinUID-style
+    skipped floor slots for the overview.
+  - A second standalone review after the hard-endpoint/profile-image correction
+    found no blocking issues.
+- Stage 17f verification:
+  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py::test_challenge_abyss_overview_marks_missing_lower_floors_as_skipped tests/test_challenge_progress_data.py::test_challenge_render_images -q`
+  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py tests/test_meta_commands.py tests/test_docs.py -q`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `git diff --check`
+  - `.venv/bin/python -m build`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17f-hard-data-v2 challenge hard --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17f-hard-image-v5 --render image challenge hard --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17f-abyss-no-data-v2 --render image challenge abyss --uid <UID>` exits 6 with `NO_RESULT` and no artifacts for the current no-floor data.
+  - `.venv/bin/python -m gsuid_cli --request-id stage17f-theater-final --render image challenge theater --uid <UID>`
+- Stage 17f live artifacts:
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17f-hard-image-v5/challenge-hard_102452098.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17f-theater-final/challenge-theater_102452098.png`
+- Next intended substage: Stage 17g, port GenshinUID-style progress image
+  renderers.
+
 ## MVP Cut Line
 
 The first usable MVP is complete after Stage 6 if these commands work:

@@ -33,6 +33,10 @@ where = ["src"]
 [tool.setuptools.package-data]
 gsuid_cli = [
   "assets/ATTRIBUTION.md",
+  "assets/challenge/abyss/textures/*.png",
+  "assets/challenge/hard/textures/*.jpg",
+  "assets/challenge/hard/textures/*.png",
+  "assets/challenge/theater/textures/*.png",
   "assets/daily/materials/textures/*.png",
   "assets/daily/note/textures/*.apng",
   "assets/daily/note/textures/*.png",
@@ -49,6 +53,7 @@ gsuid_cli = [
   "assets/public/fonts/*.ttf",
   "assets/public/textures/*.jpg",
   "assets/public/textures/*.png",
+  "assets/public/textures/char_card/*.png",
   "assets/public/textures/weapon/*.png",
 ]
 

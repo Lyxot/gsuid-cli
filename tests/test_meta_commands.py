@@ -113,6 +113,10 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert capability_by_command["player.diary"]["render"] == ["data", "image", "both"]
     assert capability_by_command["player.register-time"]["auth"] == "cookie"
     assert capability_by_command["player.register-time"]["availability"] == "upstream-limited"
+    assert capability_by_command["challenge.abyss"]["render"] == ["data", "image", "both"]
+    assert capability_by_command["challenge.theater"]["render"] == ["data", "image", "both"]
+    assert capability_by_command["challenge.hard"]["render"] == ["data", "image", "both"]
+    assert capability_by_command["challenge.hard-rank"]["render"] == ["data"]
     assert capability_by_command["map.find"]["cache"] == "use"
     assert "data" in capability_by_command["map.find"]["render"]
     assert payload["data"]["regions"] == ["cn"]

@@ -1,0 +1,1 @@
+"""GenshinUID-style challenge renderers."""

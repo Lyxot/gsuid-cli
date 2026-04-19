@@ -38,6 +38,7 @@ CARD_PATH = "/game_record/card/wapi/getGameRecordCard"
 DAILY_NOTE_PATH = "/game_record/app/genshin/api/dailyNote"
 ABYSS_PATH = "/game_record/app/genshin/api/spiralAbyss"
 ROLE_COMBAT_PATH = "/game_record/app/genshin/api/role_combat"
+HARD_CHALLENGE_PATH = "/game_record/app/genshin/api/hard_challenge"
 ACHIEVEMENT_PATH = "/game_record/app/genshin/api/achievement"
 GCG_BASIC_PATH = "/game_record/app/genshin/api/gcg/basicInfo"
 GCG_DECK_PATH = "/game_record/app/genshin/api/gcg/deckList"
@@ -823,12 +824,18 @@ class MysProvider:
         storage_backend: str | None,
         season: str,
     ) -> CommandResult:
+        server = server_for_uid(uid)
         data, source = self._record_get(
-            path=INDEX_PATH,
+            path=HARD_CHALLENGE_PATH,
             uid=uid,
             cookie=cookie,
             region=region,
             category="challenge.hard",
+            params={
+                "role_id": uid,
+                "server": server,
+                "need_detail": "true",
+            },
         )
         warnings = []
         if season != "current":
@@ -2358,6 +2365,15 @@ def _theater(data: dict[str, object], _season: str) -> dict[str, object]:
 
 
 def _hard_challenge(data: dict[str, object]) -> dict[str, object]:
+    sessions = data.get("data")
+    if isinstance(sessions, list):
+        session_items = [item for item in sessions if isinstance(item, dict)]
+        return {
+            "selected": session_items[0] if session_items else None,
+            "data": session_items,
+            "count": len(session_items),
+        }
+
     hard = data.get("hard_challenge")
     role_combat = data.get("role_combat")
     return {
