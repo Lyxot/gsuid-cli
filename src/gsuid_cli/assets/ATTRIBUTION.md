@@ -7,10 +7,10 @@ rendering.
 
 - Daily note textures, daily materials textures, player character-list
   textures, player summary/exploration textures, player inventory textures,
-  player calendar textures, player diary textures, challenge textures, shared
-  title/footer/mask textures, the shared v4 background, weapon rarity
-  backgrounds, character-card frame/background textures, and the bundled Yuanshen
-  font are from GenshinUID historical renderer assets.
+  player calendar textures, player diary textures, challenge textures, progress
+  textures, shared title/footer/mask textures, the shared v4 background, weapon
+  rarity backgrounds, character-card frame/background textures, and the bundled
+  Yuanshen font are from GenshinUID historical renderer assets.
 - Player character-list textures are copied from
   `GenshinUID/genshinuid_roleinfo/texture2d/`; the shared v4 background is
   copied from `GenshinUID/utils/image/texture2d/bg.jpg`.
@@ -33,6 +33,12 @@ rendering.
 - Shared avatar ring and character-card textures are copied from
   `GenshinUID/utils/image/texture2d/` and
   `GenshinUID/utils/resource/texture2d/char_card/`.
+- Progress achievement textures are copied from
+  `GenshinUID/genshinuid_achievement/texture2d/`.
+- Progress GCG textures are copied from `GenshinUID/genshinuid_gcg/texture2d/`.
+- Progress collection/exploration slider and base-mask textures are copied from
+  `GenshinUID/utils/resource/texture2d/`; the collection/exploration/GCG-deck
+  background is copied from `GenshinUID/utils/image/bg/nm_bg/zy.jpg`.
 - Player character portraits, weapon icons, and namecard backgrounds are
   fetched from the GenshinUID resource mirror under
   `https://example.test/GenshinUID/resource/`.

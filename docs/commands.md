@@ -81,13 +81,13 @@ Generated from `gsuid meta capabilities`.
 | `profile.list` | `none` | `data` | `off` | List local profiles. |
 | `profile.show` | `none` | `data` | `off` | Show one local profile. |
 | `progress.achievement-guide` | `none` | `data` | `off` | Report achievement guide lookup support status. |
-| `progress.achievements` | `cookie` | `data` | `off` | Show authenticated achievement category data. |
-| `progress.collection` | `cookie` | `data` | `off` | Show authenticated collection count data. |
+| `progress.achievements` | `cookie` | `data, image, both` | `off` | Show authenticated achievement category data. |
+| `progress.collection` | `cookie` | `data, image, both` | `off` | Show authenticated collection count data. |
 | `progress.commission-guide` | `none` | `data` | `off` | Report commission guide lookup support status. |
-| `progress.completion` | `cookie` | `data` | `off` | Show authenticated account completion summary data. |
-| `progress.exploration` | `cookie` | `data` | `off` | Show authenticated world exploration data. |
-| `progress.gcg` | `cookie` | `data` | `off` | Show authenticated Genius Invokation TCG data. |
-| `progress.gcg-deck` | `cookie` | `data` | `off` | Show authenticated Genius Invokation TCG deck data. |
+| `progress.completion` | `cookie` | `data, image, both` | `off` | Show authenticated account completion summary data. |
+| `progress.exploration` | `cookie` | `data, image, both` | `off` | Show authenticated world exploration data. |
+| `progress.gcg` | `cookie` | `data, image, both` | `off` | Show authenticated Genius Invokation TCG data. |
+| `progress.gcg-deck` | `cookie` | `data, image, both` | `off` | Show authenticated Genius Invokation TCG deck data. |
 | `rank.artifact` | `none` | `data` | `off` | List local cached artifacts sorted by score. |
 | `rank.character` | `none` | `data` | `off` | Show local cached score details for one character. |
 | `rank.list` | `none` | `data` | `off` | List local cached character scores. |

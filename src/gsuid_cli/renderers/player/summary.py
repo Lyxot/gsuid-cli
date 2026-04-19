@@ -157,15 +157,25 @@ def render_player_title_section(
     return _title_section(uid, summary, asset_images, title_avatar_url)
 
 
+def render_player_exploration_section(
+    *,
+    summary: Mapping[str, object],
+    asset_images: Mapping[str, bytes],
+) -> Image.Image:
+    """Render the shared GenshinUID-style exploration/completion grid section."""
+    return _exploration_section(summary, asset_images)
+
+
 def player_title_avatar_image(
     *,
     summary: Mapping[str, object],
     asset_images: Mapping[str, bytes],
     size: int,
     title_avatar_url: str | None = None,
+    with_ring: bool = False,
 ) -> Image.Image:
     """Render the shared masked player avatar used by player cards."""
-    return _title_avatar(summary, asset_images, size, title_avatar_url)
+    return _title_avatar(summary, asset_images, size, title_avatar_url, with_ring=with_ring)
 
 
 def paste_player_footer(image: Image.Image, *, font_size: int = 32) -> None:
@@ -255,6 +265,8 @@ def _title_avatar(
     asset_images: Mapping[str, bytes],
     size: int,
     title_avatar_url: str | None,
+    *,
+    with_ring: bool = False,
 ) -> Image.Image:
     role = summary.get("role")
     role_url = text_value(role.get("avatar_icon")) if isinstance(role, Mapping) else None
@@ -263,19 +275,25 @@ def _title_avatar(
         if content:
             image = image_from_bytes(content, (size, size))
             if image is not None:
-                return _masked_avatar(image, size)
+                return _masked_avatar(image, size, with_ring=with_ring)
 
     avatar = Image.new("RGBA", (size, size), (55, 58, 73, 255))
     draw = ImageDraw.Draw(avatar)
     draw.text((size // 2, size // 2), "旅行者", fill=WHITE, font=font(54), anchor="mm")
-    return _masked_avatar(avatar, size)
+    return _masked_avatar(avatar, size, with_ring=with_ring)
 
 
-def _masked_avatar(image: Image.Image, size: int) -> Image.Image:
+def _masked_avatar(image: Image.Image, size: int, *, with_ring: bool = False) -> Image.Image:
     avatar = crop_center(image, size, size).convert("RGBA")
     mask = open_rgba(PUBLIC_TEXTURE / "mask.png").resize((size, size), Image.Resampling.LANCZOS)
     output = Image.new("RGBA", (size, size))
     output.paste(avatar, (0, 0), mask)
+    if with_ring:
+        ring = open_rgba(PUBLIC_TEXTURE / "avatar_ring.png").resize(
+            (size, size),
+            Image.Resampling.LANCZOS,
+        )
+        output.paste(ring, (0, 0), ring)
     return output
 
 

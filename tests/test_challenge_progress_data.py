@@ -13,6 +13,7 @@ from PIL import Image
 
 from gsuid_cli.cli import run
 from gsuid_cli.commands import challenge as challenge_commands
+from gsuid_cli.commands import progress as progress_commands
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.secrets import SecretStore, redact_secret
@@ -141,6 +142,86 @@ def test_challenge_abyss_render_both_preserves_structured_data(monkeypatch, tmp_
     assert code == 0
     assert payload["data"]["abyss"]["floor_count"] == 1
     assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
+
+
+def test_progress_render_images(monkeypatch, tmp_path) -> None:
+    captured_urls: list[str] = []
+    fetcher = _fake_image_fetcher(captured_urls)
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.progress.provider_for_region", _fake_provider)
+    monkeypatch.setattr(progress_commands, "fetch_render_images", fetcher)
+    monkeypatch.setattr("gsuid_cli.commands.player.fetch_render_images", fetcher)
+    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    cases = [
+        (
+            ["progress", "completion", "--uid", "100000001", "--render", "image"],
+            "progress.completion",
+            "progress/completion",
+            (1680, 1510),
+        ),
+        (
+            ["progress", "exploration", "--uid", "100000001", "--render", "image"],
+            "progress.exploration",
+            "progress/exploration",
+            (750, 945),
+        ),
+        (
+            ["progress", "collection", "--uid", "100000001", "--render", "image"],
+            "progress.collection",
+            "progress/collection",
+            (750, 1520),
+        ),
+        (
+            ["progress", "achievements", "--uid", "100000001", "--render", "image"],
+            "progress.achievements",
+            "progress/achievements",
+            (1950, 1110),
+        ),
+        (
+            ["progress", "gcg", "--uid", "100000001", "--render", "image"],
+            "progress.gcg",
+            "progress/gcg",
+            (900, 500),
+        ),
+        (
+            ["progress", "gcg-deck", "--uid", "100000001", "--render", "image"],
+            "progress.gcg-deck",
+            "progress/gcg-deck",
+            (950, 2300),
+        ),
+    ]
+
+    for argv, command, render, size in cases:
+        code, payload = _run_json(
+            [
+                *argv,
+                "--request-id",
+                command,
+                "--output-dir",
+                str(tmp_path / "artifacts"),
+            ]
+        )
+
+        assert code == 0
+        assert payload["command"] == command
+        assert payload["data"]["render"] == render
+        if command == "progress.gcg-deck":
+            assert payload["data"]["deck_id"] == 1
+            assert payload["data"]["deck_name"] == "Deck"
+        artifact = payload["artifacts"][0]
+        path = Path(artifact["path"])
+        assert path.parent == tmp_path / "artifacts" / "2026-04-29" / command
+        assert artifact["media_type"] == "image/png"
+        assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        with Image.open(path) as image:
+            assert image.size == size
+            assert image.getbbox() is not None
+
+    assert "https://upload.example.test/world.png" in captured_urls
+    assert "https://upload.example.test/achievement.png" in captured_urls
+    assert "https://upload.example.test/gcg-card.png" in captured_urls
 
 
 def test_challenge_abyss_render_image_requires_floor_data(monkeypatch, tmp_path) -> None:
@@ -646,26 +727,151 @@ def _fake_provider(_region: str, _http_client: HttpClient):
                         "level": 60,
                         "avatar_icon": "https://upload.example.test/avatar.png",
                     },
-                    "stats": {},
+                    "stats": _fake_stats(),
+                    "avatars": [
+                        {
+                            "id": 10000021,
+                            "name": "Amber",
+                            "level": 80,
+                            "rarity": 4,
+                        }
+                    ],
+                    "world_explorations": _fake_worlds(),
                 },
             )
 
         def progress_completion(self, **kwargs) -> CommandResult:
-            return _result(kwargs, "completion", {"stats": {}})
+            return _result(
+                kwargs,
+                "completion",
+                {
+                    "stats": _fake_stats(),
+                    "world_explorations": _fake_worlds(),
+                    "exploration_count": 1,
+                },
+            )
 
         def progress_exploration(self, **kwargs) -> CommandResult:
-            return _result(kwargs, "exploration", {"world_explorations": []})
+            return _result(kwargs, "exploration", {"world_explorations": _fake_worlds()})
 
         def progress_collection(self, **kwargs) -> CommandResult:
-            return _result(kwargs, "collection", {"raw_stats": {}})
+            return _result(kwargs, "collection", {"raw_stats": _fake_stats()})
 
         def progress_achievements(self, **kwargs) -> CommandResult:
-            return _result(kwargs, "achievements", [])
+            return _result(
+                kwargs,
+                "achievements",
+                [
+                    {
+                        "name": "天地万象",
+                        "id": 1,
+                        "percentage": -1,
+                        "finish_num": 10,
+                        "icon": "https://upload.example.test/achievement.png",
+                    }
+                ],
+            )
 
         def progress_gcg(self, **kwargs) -> CommandResult:
-            return _result(kwargs, "gcg", {"basic": {}, "decks": []})
+            return _result(
+                kwargs,
+                "gcg",
+                {
+                    "basic": {
+                        "level": 10,
+                        "nickname": "TCG",
+                        "avatar_card_num_gained": 10,
+                        "avatar_card_num_total": 20,
+                        "action_card_num_gained": 30,
+                        "action_card_num_total": 40,
+                        "covers": [
+                            {
+                                "id": 1,
+                                "name": "Card",
+                                "image": "https://upload.example.test/gcg-card.png",
+                            }
+                        ],
+                    },
+                    "decks": [_fake_gcg_deck()],
+                    "deck_count": 1,
+                },
+            )
+
+        def progress_gcg_deck(self, **kwargs) -> CommandResult:
+            deck_id = kwargs.get("deck_id")
+            decks = [_fake_gcg_deck()] if deck_id in (None, 1) else []
+            return CommandResult(
+                data={
+                    "uid": kwargs["uid"],
+                    "credential_source": kwargs["credential_source"],
+                    "storage_backend": kwargs["storage_backend"],
+                    "deck_id": deck_id,
+                    "decks": decks,
+                    "count": len(decks),
+                },
+                source=_source(str(kwargs["region"])),
+            )
 
     return FakeProvider()
+
+
+def _fake_stats() -> dict[str, object]:
+    return {
+        "active_day_number": 100,
+        "achievement_number": 10,
+        "anemoculus_number": 66,
+        "avatar_number": 1,
+        "way_point_number": 10,
+        "domain_number": 2,
+        "spiral_abyss": "12-3",
+        "common_chest_number": 20,
+        "exquisite_chest_number": 15,
+        "precious_chest_number": 10,
+        "luxurious_chest_number": 5,
+        "magic_chest_number": 3,
+    }
+
+
+def _fake_worlds() -> list[dict[str, object]]:
+    return [
+        {
+            "id": 1,
+            "name": "蒙德",
+            "level": 10,
+            "exploration_percentage": 800,
+            "icon": "https://upload.example.test/world.png",
+            "offerings": [
+                {
+                    "name": "忍冬之树",
+                    "level": 8,
+                    "icon": "https://upload.example.test/offering.png",
+                }
+            ],
+        }
+    ]
+
+
+def _fake_gcg_deck() -> dict[str, object]:
+    return {
+        "id": 1,
+        "name": "Deck",
+        "avatar_cards": [
+            {
+                "id": 1,
+                "name": "Avatar",
+                "image": "https://upload.example.test/gcg-card.png",
+            }
+        ],
+        "action_cards": [
+            {
+                "id": 2,
+                "name": "Action",
+                "image": "https://upload.example.test/gcg-action.png",
+                "num": 2,
+                "action_cost": [{"cost_type": "CostTypeSame", "cost_value": 1}],
+            }
+        ],
+    }
 
 
 def _empty_abyss_provider(_region: str, _http_client: HttpClient):

@@ -881,6 +881,57 @@ tests/
 - Next intended substage: Stage 17g, port GenshinUID-style progress image
   renderers.
 
+- Stage 17g status: completed.
+- Stage 17g goal: port GenshinUID-style image rendering for the `progress`
+  command group.
+- Stage 17g result:
+  - Add `progress completion --render image|both` using the shared
+    GenshinUID-style player exploration/completion section.
+  - Add `progress exploration --render image|both` using the GenshinUID old
+    `查询探索` slider layout, including the `获得角色数` row and player-summary
+    title avatar fallback logic.
+  - Add `progress collection --render image|both` using the GenshinUID old
+    `查询收集` slider layout.
+  - Add `progress achievements --render image|both` using the GenshinUID
+    `我的成就` category renderer layout and textures.
+  - Add `progress gcg --render image|both` and
+    `progress gcg-deck --render image|both` using the GenshinUID
+    `七圣召唤` overview/deck renderer layouts and textures.
+  - Keep `progress achievement-guide` and `progress commission-guide`
+    data-only because they are guide/status lookups without compatible live
+    renderer payloads.
+  - Copy and attribute progress achievement, collection/exploration slider, and
+    GCG textures from GenshinUID, and package them in wheel/sdist.
+  - Match GenshinUID `get_color_bg` backgrounds and white-ring title avatars
+    for the old collection/exploration and GCG-deck renderers.
+- Stage 17g review:
+  - Standalone review agent found three issues before commit; all were fixed:
+    missing `获得角色数` row in exploration, ambiguous default GCG deck image
+    metadata, and unclamped malformed achievement percentages.
+- Stage 17g verification:
+  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py::test_progress_render_images tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `git diff --check`
+  - `.venv/bin/python -m build`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17g-completion-final --render image progress completion --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17g-exploration-reviewfix --render image progress exploration --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17g-collection-final --render image progress collection --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17g-achievements-final --render image progress achievements --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17g-gcg-final --render image progress gcg --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17g-gcg-deck-reviewfix --render image progress gcg-deck --uid <UID>`
+- Stage 17g live artifacts:
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17g-completion-final/progress-completion_102452098.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17g-exploration-reviewfix/progress-exploration_102452098.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17g-collection-final/progress-collection_102452098.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17g-achievements-final/progress-achievements_102452098.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17g-gcg-final/progress-gcg_102452098.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17g-gcg-deck-reviewfix/progress-gcg-deck_102452098.png`
+- Next intended substage: Stage 17h, select the next remaining GenshinUID image
+  renderer group from PLAN coverage.
+
 ## MVP Cut Line
 
 The first usable MVP is complete after Stage 6 if these commands work:
