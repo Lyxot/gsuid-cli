@@ -47,11 +47,11 @@ Generated from `gsuid meta capabilities`.
 | `gacha.import` | `none` | `data` | `off` | Import UIGF JSON into local gacha storage. |
 | `gacha.refresh` | `gacha_url` | `data` | `off` | Refresh local gacha logs from a stored authkey URL. |
 | `gacha.summary` | `none` | `data` | `off` | Summarize local gacha logs. |
-| `guide.abyss` | `none` | `data` | `use` | Report public abyss guide availability. |
+| `guide.abyss` | `none` | `data, image, both` | `use` | Show public abyss guide data and GenshinUID-style monster layout. |
 | `guide.character` | `none` | `data, image, both` | `use` | Show public character guide facts and GenshinUID guide image. |
 | `guide.reference-panel` | `none` | `data, image, both` | `use` | Show the GenshinUID reference-panel image for a character. |
 | `guide.route` | `none` | `data, image, both` | `use` | Fetch a public material route map artifact. |
-| `guide.theater` | `none` | `data` | `use` | Report public theater guide availability. |
+| `guide.theater` | `none` | `data, image, both` | `use` | Show public theater guide data and GenshinUID-style monster layout. |
 | `map.find` | `none` | `data, image, both` | `use` | Fetch a public MiniGG material map artifact. |
 | `meta.capabilities` | `none` | `data` | `off` | Show implemented command capabilities. |
 | `meta.doctor` | `none` | `data` | `off` | Run local diagnostics for storage, credentials, resources, or network. |

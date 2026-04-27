@@ -1053,6 +1053,66 @@ tests/
 - Next intended substage: decide whether to port guide abyss/theater renderers
   separately.
 
+- Stage 17j status: completed.
+- Stage 17j goal: port the remaining GenshinUID public guide image renderers for
+  `guide abyss` and `guide theater`.
+- Stage 17j result:
+  - `guide abyss --render image|both`: use the GenshinUID `abyss.js` schedule
+    and monster data bundled with the package, normalize the selected
+    floor/chamber/wave payload, render the GenshinUID-style abyss monster
+    layout, and show the same `数据 妮可少年` source label.
+  - `guide theater --render image|both`: use the Hakush rolecombat data source
+    used by GenshinUID, normalize the selected event/room/avatar payload, and
+    render the GenshinUID-style theater monster layout.
+  - If no current abyss schedule matches today's date, fall back to the latest
+    bundled GenshinUID schedule and warn because the upstream static data can be
+    stale.
+  - Guide abyss/theater images omit the extra CLI footer to match GenshinUID
+    guide output; abyss monster card backgrounds are alpha-adjusted so they do
+    not obscure the shared panel background.
+  - Non-`UI_` abyss monster icon ids render placeholders rather than incorrect
+    AMBR icons; theater non-`UI_` icon ids fall through to the Hakush UI URL.
+  - The recommendation footer was reverted to
+    `Created by gsuid-cli & Data by GenshinUID`.
+- Stage 17j review:
+  - Standalone review agent found two issues before commit; both were fixed:
+    non-`UI_` monster icon ids no longer map to a wrong tanuki icon, and guide
+    images no longer reuse the challenge footer that credits MYS data.
+  - Re-review found no remaining blocking or nonblocking findings.
+- Stage 17j verification:
+  - `.venv/bin/python -m pytest tests/test_public_data.py::test_guide_layout_renderers_write_cards tests/test_public_data.py::test_guide_abyss_uses_genshinuid_abyss_js_data tests/test_public_data.py::test_guide_theater_uses_hakush_rolecombat_data -q`
+  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_rich_public_data.py tests/test_meta_commands.py tests/test_docs.py -q`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `git diff --check`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/python -m build`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17j-caps meta capabilities`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17j-abyss-data --format pretty-json guide abyss --floor 12`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17j-abyss-image-placeholder --render image guide abyss --floor 12`
+  - `.venv/bin/python -m gsuid_cli --timeout 10 --request-id stage17j-theater-data --format pretty-json guide theater` currently exits with `NETWORK_ERROR` because `https://api.hakush.in/gi/data/rolecombat.json` fails TLS/network from this machine.
+- Stage 17j live artifacts:
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17j-abyss-image-placeholder/guide-abyss_6_0B_floor12_f203e878.png`
+- Stage 17j amend verification:
+  - Standalone review agent found no issues and marked the amend safe to include
+    in the current Stage 17j commit.
+  - `.venv/bin/python -m pytest tests/test_public_data.py::test_guide_layout_renderers_write_cards tests/test_public_data.py::test_guide_abyss_uses_genshinuid_abyss_js_data tests/test_public_data.py::test_recommend_render_images_write_cards -q`
+  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_rich_public_data.py tests/test_meta_commands.py tests/test_docs.py -q`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `git diff --check`
+  - `.venv/bin/python -m build` confirms
+    `gsuid_cli/assets/guide/abyss/data/abyss.js` is included in the wheel.
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17j-abyss-local-source --format pretty-json guide abyss --floor 12`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17j-abyss-local-image --render image guide abyss --floor 12`
+- Stage 17j amend live artifact:
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17j-abyss-local-image/guide-abyss_6_0B_floor12_f203e878.png`
+- Next intended substage: continue with the next remaining image-render group
+  from PLAN coverage.
+
 ## MVP Cut Line
 
 The first usable MVP is complete after Stage 6 if these commands work:

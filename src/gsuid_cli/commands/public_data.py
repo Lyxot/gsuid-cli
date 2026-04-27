@@ -15,6 +15,12 @@ from gsuid_cli.providers import provider_for_region
 from gsuid_cli.providers.public import DAY_NAMES, PublicDataProvider
 from gsuid_cli.renderers.daily.materials import render_daily_materials_card
 from gsuid_cli.renderers.daily.note import render_daily_note_card
+from gsuid_cli.renderers.guide import (
+    guide_abyss_image_urls,
+    guide_theater_image_urls,
+    render_guide_abyss_card,
+    render_guide_theater_card,
+)
 from gsuid_cli.renderers.recommend import (
     render_recommend_build_card,
     render_recommend_holder_card,
@@ -188,18 +194,18 @@ CAPABILITIES = [
     },
     {
         "command": "guide.abyss",
-        "description": "Report public abyss guide availability.",
+        "description": "Show public abyss guide data and GenshinUID-style monster layout.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "use",
     },
     {
         "command": "guide.theater",
-        "description": "Report public theater guide availability.",
+        "description": "Show public theater guide data and GenshinUID-style monster layout.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "use",
     },
     {
@@ -399,11 +405,17 @@ def guide_route_command(args: argparse.Namespace) -> CommandResult:
 
 
 def guide_abyss_command(args: argparse.Namespace) -> CommandResult:
-    return _provider(args).guide_abyss(version=args.version, floor=args.floor)
+    result = _provider(args).guide_abyss(version=args.version, floor=args.floor)
+    if args.render == "data":
+        return result
+    return _guide_abyss_render_result(args, result)
 
 
 def guide_theater_command(args: argparse.Namespace) -> CommandResult:
-    return _provider(args).guide_theater(version=args.version)
+    result = _provider(args).guide_theater(version=args.version)
+    if args.render == "data":
+        return result
+    return _guide_theater_render_result(args, result)
 
 
 def recommend_build_command(args: argparse.Namespace) -> CommandResult:
@@ -598,12 +610,12 @@ def _register_guides(groups: argparse._SubParsersAction[argparse.ArgumentParser]
     route.add_argument("--map", choices=("teyvat", "chasm", "enkanomiya"), default="teyvat")
     route.set_defaults(handler=guide_route_command, command_name="guide.route")
 
-    abyss = commands.add_parser("abyss", help="Show abyss guide availability.")
+    abyss = commands.add_parser("abyss", help="Show abyss guide data.")
     abyss.add_argument("--version")
     abyss.add_argument("--floor", type=int, choices=(11, 12))
     abyss.set_defaults(handler=guide_abyss_command, command_name="guide.abyss")
 
-    theater = commands.add_parser("theater", help="Show theater guide availability.")
+    theater = commands.add_parser("theater", help="Show theater guide data.")
     theater.add_argument("--version")
     theater.set_defaults(handler=guide_theater_command, command_name="guide.theater")
 
@@ -733,6 +745,84 @@ def _guide_image_result(
         artifacts=[artifact],
         source=response.source,
         warnings=result.warnings,
+        pagination=result.pagination,
+    )
+
+
+def _guide_abyss_render_result(args: argparse.Namespace, result: CommandResult) -> CommandResult:
+    abyss = _mapping_data(result, "abyss", "guide.abyss")
+    asset_images, asset_warnings = fetch_render_images(
+        args,
+        guide_abyss_image_urls(abyss),
+        provider="guide-assets",
+        region="cn",
+        category="guide.abyss.asset",
+        unavailable_warning="{count} guide abyss monster images unavailable; rendered placeholders",
+        max_workers=WIKI_IMAGE_WORKERS,
+    )
+    render_abyss = dict(abyss)
+    schedule = result.data.get("schedule")
+    if isinstance(schedule, dict):
+        render_abyss["version"] = schedule.get("show") or schedule.get("name")
+    png = render_guide_abyss_card(render_abyss, asset_images=asset_images)
+    name = f"{result.data.get('version') or 'abyss'}_floor{abyss.get('floor') or args.floor or 12}"
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="guide/abyss",
+        filename=f"guide-abyss_{_safe_filename(str(name))}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style abyss guide monster layout",
+        kind="image",
+    )
+    render_data = {
+        "version": result.data.get("version"),
+        "floor": abyss.get("floor"),
+        "render": "guide/abyss",
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=[*result.warnings, *asset_warnings],
+        pagination=result.pagination,
+    )
+
+
+def _guide_theater_render_result(args: argparse.Namespace, result: CommandResult) -> CommandResult:
+    theater = _mapping_data(result, "theater", "guide.theater")
+    asset_images, asset_warnings = fetch_render_images(
+        args,
+        guide_theater_image_urls(theater),
+        provider="guide-assets",
+        region="cn",
+        category="guide.theater.asset",
+        unavailable_warning="{count} guide theater images unavailable; rendered placeholders",
+        max_workers=WIKI_IMAGE_WORKERS,
+    )
+    png = render_guide_theater_card(theater, asset_images=asset_images)
+    name = _optional_text(theater.get("event_id")) or _optional_text(result.data.get("version"))
+    name = name or "theater"
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="guide/theater",
+        filename=f"guide-theater_{_safe_filename(name)}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style theater guide monster layout",
+        kind="image",
+    )
+    render_data = {
+        "version": result.data.get("version"),
+        "render": "guide/theater",
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=[*result.warnings, *asset_warnings],
         pagination=result.pagination,
     )
 
@@ -878,6 +968,19 @@ def _wiki_render_result(
         source=result.source,
         warnings=warnings,
         pagination=result.pagination,
+    )
+
+
+def _mapping_data(result: CommandResult, field: str, command: str) -> dict[str, object]:
+    value = result.data.get(field)
+    if isinstance(value, dict):
+        return value
+    raise CliError(
+        "UPSTREAM_INVALID_RESPONSE",
+        f"Provider returned {command} data without a renderable {field}.",
+        EXIT_UPSTREAM,
+        {"command": command, "field": field},
+        source=result.source,
     )
 
 

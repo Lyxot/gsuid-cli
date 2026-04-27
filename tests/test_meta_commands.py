@@ -102,6 +102,8 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert capability_by_command["daily.note"]["render"] == ["data", "image", "both"]
     assert capability_by_command["guide.character"]["render"] == ["data", "image", "both"]
     assert capability_by_command["guide.reference-panel"]["render"] == ["data", "image", "both"]
+    assert capability_by_command["guide.abyss"]["render"] == ["data", "image", "both"]
+    assert capability_by_command["guide.theater"]["render"] == ["data", "image", "both"]
     assert capability_by_command["recommend.build"]["render"] == ["data", "image", "both"]
     assert capability_by_command["recommend.holder"]["render"] == ["data", "image", "both"]
     assert capability_by_command["player.summary"]["render"] == ["data", "image", "both"]

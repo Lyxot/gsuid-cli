@@ -30,6 +30,11 @@ rendering.
   `GenshinUID/genshinuid_poetry_abyss/texture2d/`.
 - Challenge hard-mode textures are copied from
   `GenshinUID/genshinuid_hard_challenge/texture2d/`.
+- Guide Abyss textures are copied from
+  `GenshinUID/genshinuid_guide/texture2d/`; the title icon is copied from
+  `GenshinUID/utils/resource/texture2d/icon.png`.
+- Guide Theater textures are copied from
+  `GenshinUID/genshinuid_guide/texture2d2/`.
 - Shared avatar ring and character-card textures are copied from
   `GenshinUID/utils/image/texture2d/` and
   `GenshinUID/utils/resource/texture2d/char_card/`.
@@ -51,5 +56,8 @@ rendering.
   `https://example.test/GenshinUID/wiki/`.
 - Build and holder recommendation data is fetched from GenshinUID
   `GenshinUID/genshinuid_adv/char_adv_list.json`.
+- Abyss guide schedule and monster data is bundled from GenshinUID
+  `GenshinUID/genshinuid_guide/abyss.js`, where the rendered data credit is
+  `妮可少年`; theater guide data is fetched from the Hakush rolecombat API used by GenshinUID.
 - The CLI renderer code that uses these assets is adapted for this
   repository's command contract and static asset cache.

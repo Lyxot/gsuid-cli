@@ -205,12 +205,34 @@ def test_guide_image_render_writes_resource_artifacts(monkeypatch, tmp_path) -> 
         assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def test_guide_layout_renderers_write_cards(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+    monkeypatch.setattr(public_data, "fetch_render_images", _fake_image_fetcher([]))
+
+    commands = [
+        (["guide", "abyss", "--version", "9.9", "--floor", "12"], "guide.abyss", "guide/abyss"),
+        (["guide", "theater", "--version", "1"], "guide.theater", "guide/theater"),
+    ]
+
+    for argv, command, render in commands:
+        code, payload = _run_json([*argv, "--render", "image"])
+
+        assert code == 0
+        assert payload["command"] == command
+        assert payload["data"]["render"] == render
+        artifact = payload["artifacts"][0]
+        path = Path(artifact["path"])
+        assert artifact["media_type"] == "image/png"
+        assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        with Image.open(path) as image:
+            assert image.getbbox() is not None
+
+
 def test_recommend_render_images_write_cards(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
-    assert (
-        recommend_renderer.FOOTER_TEXT == "Created by gsuid-cli & Data by GenshinUID char_adv_list"
-    )
+    assert recommend_renderer.FOOTER_TEXT == "Created by gsuid-cli & Data by GenshinUID"
 
     commands = [
         (["recommend", "build", "--character", "Amber"], "recommend.build", "recommend/build"),
@@ -586,6 +608,123 @@ def test_recommend_build_uses_genshinuid_adv_data() -> None:
     assert result.data["remarks"] == ["侦察骑士。"]
 
 
+def test_guide_abyss_uses_genshinuid_abyss_js_data(monkeypatch, tmp_path) -> None:
+    abyss_js = tmp_path / "abyss.js"
+    abyss_js.write_text(
+        """
+var _SpiralAbyssSchedule = [
+  {"Name": "9.9", "Show": "9.9", "OpenTime": "2026/01/01 - 2026/12/31", "Floors": [1, 2, 3, 4]}
+]
+var _Monsters = {
+  "100": {"Name": "草史莱姆", "Icon": ["UI_MonsterIcon_Slime_Grass_02"]},
+  "60513": {"Name": "西尼阿斯", "Icon": ["pbv"]}
+}
+var _SpiralAbyssFloorConfig = {
+  "4": {
+    "Disorder": "<b>上半</b> 草元素伤害提升。",
+    "Chambers": [
+      {
+        "Name": "12-1",
+        "Level": 95,
+        "Upper": [{"WaveDesc": 1, "Monsters": [{"ID": 100, "Num": 2}, {"ID": 60513, "Num": 1}]}],
+        "Lower": [{"WaveDesc": 0, "Monsters": [{"ID": 100, "Num": 1}]}]
+      }
+    ]
+  }
+}
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(public_provider, "GENSHINUID_ABYSS_JS_PATH", abyss_js)
+    provider = PublicDataProvider(_sequence_client([]))
+
+    result = provider.guide_abyss(version="9.9", floor=12)
+
+    assert result.data["available"] is True
+    assert result.source["path"] == "package:assets/guide/abyss/data/abyss.js"
+    assert result.data["version"] == "9.9"
+    abyss = result.data["abyss"]
+    assert abyss["disorder"] == "上半 草元素伤害提升。"
+    monster = abyss["chambers"][0]["upper"][0]["monsters"][0]
+    assert monster["name"] == "草史莱姆"
+    assert monster["icon_url"] == (
+        "https://gi.yatta.moe/assets/UI/monster/UI_MonsterIcon_Slime_Grass_02.png"
+    )
+    local_legend = abyss["chambers"][0]["upper"][0]["monsters"][1]
+    assert local_legend["name"] == "西尼阿斯"
+    assert local_legend["icon"] == "pbv"
+    assert local_legend["icon_url"] is None
+
+
+def test_guide_theater_uses_hakush_rolecombat_data() -> None:
+    provider = PublicDataProvider(
+        _sequence_client(
+            [
+                _json_response(
+                    {
+                        "1": {
+                            "begin": "2026-01-01 00:00:00",
+                            "end": "2026-12-31 23:59:59",
+                        }
+                    }
+                ),
+                _json_response(
+                    {
+                        "BeginTime": "2026-01-01 00:00:00",
+                        "EndTime": "2026-12-31 23:59:59",
+                        "AvatarConfig": {
+                            "BuffAvatarList": [{"Id": 10000021, "Desc": "<b>火元素强化</b>"}],
+                            "InviteAvatarList": [10000022],
+                        },
+                        "DifficultyConfig": {
+                            "3": {
+                                "Room": {
+                                    "1": {"MonsterLevel": 90},
+                                    "2": {
+                                        "Title": "首领",
+                                        "Desc": "<b>击败敌人</b>",
+                                        "MonsterPreviewList": [
+                                            {
+                                                "Id": 1,
+                                                "Name": "草史莱姆",
+                                                "Icon": "pbv",
+                                                "Hp": 12345,
+                                            }
+                                        ],
+                                    },
+                                }
+                            }
+                        },
+                    }
+                ),
+                _json_response(
+                    {
+                        "response": 200,
+                        "data": {
+                            "items": {
+                                "10000021": {"id": 10000021, "name": "安柏"},
+                                "10000022": {"id": 10000022, "name": "温迪"},
+                            }
+                        },
+                    }
+                ),
+            ]
+        )
+    )
+
+    result = provider.guide_theater(version=None)
+
+    assert result.data["available"] is True
+    theater = result.data["theater"]
+    assert theater["event_id"] == "1"
+    assert theater["buff_avatars"][0]["name"] == "安柏"
+    assert theater["invite_avatars"][0]["name"] == "温迪"
+    monster = theater["rooms"][1]["monsters"][0]
+    assert monster["hp"] == 12345
+    assert monster["icon_url"] is None
+    assert monster["icon_urls"] == ["https://api.hakush.in/gi/UI/pbv.webp"]
+
+
 def test_ambr_wiki_lookup_no_result() -> None:
     provider = PublicDataProvider(
         _sequence_client(
@@ -765,6 +904,99 @@ def _fake_provider():
                 media_type="image/png",
                 source=_source("genshinuid-resource"),
                 status_code=200,
+            )
+
+        def guide_abyss(self, *, version: str | None, floor: int | None) -> CommandResult:
+            floor_number = floor or 12
+            return CommandResult(
+                data={
+                    "version": version or "9.9",
+                    "requested_version": version,
+                    "floor": floor_number,
+                    "available": True,
+                    "schedule": {"name": version or "9.9", "show": version or "9.9"},
+                    "abyss": {
+                        "floor": floor_number,
+                        "disorder": "上半 草元素伤害提升。",
+                        "chambers": [
+                            {
+                                "name": "12-1",
+                                "level": 95,
+                                "upper": [
+                                    {
+                                        "index": 1,
+                                        "monsters": [
+                                            {
+                                                "name": "草史莱姆",
+                                                "count": 2,
+                                                "icon_url": "https://example.test/monster.png",
+                                            }
+                                        ],
+                                    }
+                                ],
+                                "lower": [
+                                    {
+                                        "index": 1,
+                                        "monsters": [
+                                            {
+                                                "name": "草史莱姆",
+                                                "count": 1,
+                                                "icon_url": "https://example.test/monster.png",
+                                            }
+                                        ],
+                                    }
+                                ],
+                            }
+                        ],
+                    },
+                },
+                source=_source("genshinuid"),
+            )
+
+        def guide_theater(self, *, version: str | None) -> CommandResult:
+            return CommandResult(
+                data={
+                    "version": version or "1",
+                    "requested_version": version,
+                    "available": True,
+                    "theater": {
+                        "event_id": version or "1",
+                        "begin_time": "2026-01-01 00:00:00",
+                        "end_time": "2026-12-31 23:59:59",
+                        "buff_description": "火元素强化",
+                        "buff_avatars": [
+                            {
+                                "id": "10000021",
+                                "name": "安柏",
+                                "image_url": "https://example.test/amber.png",
+                            }
+                        ],
+                        "invite_avatars": [
+                            {
+                                "id": "10000022",
+                                "name": "温迪",
+                                "image_url": "https://example.test/venti.png",
+                            }
+                        ],
+                        "rooms": [
+                            {"id": "1", "monster_level": 90, "monsters": []},
+                            {
+                                "id": "2",
+                                "title": "首领",
+                                "description": "击败敌人",
+                                "monster_level": 95,
+                                "monsters": [
+                                    {
+                                        "name": "草史莱姆",
+                                        "hp": 12345,
+                                        "icon_urls": ["https://example.test/monster.png"],
+                                    }
+                                ],
+                            },
+                        ],
+                    },
+                },
+                source=_source("hakush"),
             )
 
         def events_list(self, *, include_all: bool, limit: int) -> CommandResult:
