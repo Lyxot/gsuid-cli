@@ -122,6 +122,70 @@ def test_daily_materials_render_both_preserves_structured_data(monkeypatch, tmp_
     assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
 
 
+def test_wiki_picwiki_renderers_write_cards(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+    monkeypatch.setattr(public_data, "fetch_render_images", _fake_image_fetcher([]))
+
+    commands = [
+        (["wiki", "food", "--name", "Sweet Madame"], "wiki.food", "wiki/food"),
+        (["wiki", "artifact", "--name", "Gladiator"], "wiki.artifact", "wiki/artifact"),
+        (["wiki", "weapon", "--name", "Dull Blade"], "wiki.weapon", "wiki/weapon"),
+        (
+            ["wiki", "constellation", "--character", "Amber", "--constellation", "1"],
+            "wiki.constellation",
+            "wiki/constellation",
+        ),
+        (
+            ["wiki", "character-materials", "--character", "Amber"],
+            "wiki.character-materials",
+            "wiki/character-materials",
+        ),
+        (
+            ["wiki", "weapon-materials", "--weapon", "Dull Blade"],
+            "wiki.weapon-materials",
+            "wiki/weapon-materials",
+        ),
+    ]
+
+    for argv, command, render in commands:
+        code, payload = _run_json([*argv, "--render", "image"])
+
+        assert code == 0
+        assert payload["command"] == command
+        assert payload["data"]["render"] == render
+        artifact = payload["artifacts"][0]
+        path = Path(artifact["path"])
+        assert artifact["media_type"] == "image/png"
+        assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        with Image.open(path) as image:
+            assert image.getbbox() is not None
+
+
+def test_wiki_constellation_render_both_preserves_data(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+    monkeypatch.setattr(public_data, "fetch_render_images", _fake_image_fetcher([]))
+
+    code, payload = _run_json(
+        [
+            "wiki",
+            "constellation",
+            "--character",
+            "Amber",
+            "--constellation",
+            "1",
+            "--render",
+            "both",
+        ]
+    )
+
+    assert code == 0
+    assert payload["data"]["constellation"] == {"index": 1, "name": "One Arrow"}
+    assert payload["data"]["requested_constellation"] == 1
+    assert payload["data"]["render"] == "wiki/constellation"
+
+
 def test_daily_materials_enriches_ambr_upgrade_icon_urls() -> None:
     provider = PublicDataProvider(
         _sequence_client(
@@ -300,6 +364,109 @@ def test_ambr_wiki_lookup_matches_route_alias() -> None:
     assert result.data["item"]["title"] == "飞行冠军"
 
 
+def test_ambr_artifact_suit_icons_use_reliquary_asset_path() -> None:
+    provider = PublicDataProvider(
+        _sequence_client(
+            [
+                _json_response(
+                    {
+                        "response": 200,
+                        "data": {
+                            "items": {
+                                "15001": {
+                                    "id": 15001,
+                                    "name": "角斗士的终幕礼",
+                                    "route": "Gladiator's Finale",
+                                }
+                            }
+                        },
+                    }
+                ),
+                _json_response(
+                    {
+                        "response": 200,
+                        "data": {
+                            "id": 15001,
+                            "name": "角斗士的终幕礼",
+                            "icon": "UI_RelicIcon_15001_4",
+                            "levelList": [4, 5],
+                            "affixList": {"2": "攻击力提高18%。"},
+                            "suit": {
+                                "EQUIP_BRACER": {
+                                    "name": "角斗士的留恋",
+                                    "description": "小花。",
+                                    "icon": "UI_RelicIcon_15001_4",
+                                }
+                            },
+                        },
+                    }
+                ),
+            ]
+        )
+    )
+
+    result = provider.wiki_lookup(kind="artifact", query="Gladiator's Finale")
+
+    assert result.data["item"]["icon_url"] == (
+        "https://gi.yatta.moe/assets/UI/reliquary/UI_RelicIcon_15001_4.png"
+    )
+    assert result.data["item"]["suit"][0]["icon_url"] == (
+        "https://gi.yatta.moe/assets/UI/reliquary/UI_RelicIcon_15001_4.png"
+    )
+
+
+def test_ambr_food_recipe_data_shape_stays_raw() -> None:
+    provider = PublicDataProvider(
+        _sequence_client(
+            [
+                _json_response(
+                    {
+                        "response": 200,
+                        "data": {
+                            "items": {
+                                "1004": {
+                                    "id": 1004,
+                                    "name": "甜甜花酿鸡",
+                                    "route": "Sweet Madame",
+                                }
+                            }
+                        },
+                    }
+                ),
+                _json_response(
+                    {
+                        "response": 200,
+                        "data": {
+                            "id": 1004,
+                            "name": "甜甜花酿鸡",
+                            "icon": "UI_ItemIcon_Recipe_1004",
+                            "recipe": {
+                                "effect": {"0": "恢复生命值。"},
+                                "input": {
+                                    "100012": {
+                                        "name": "甜甜花",
+                                        "icon": "UI_ItemIcon_100012",
+                                        "count": 2,
+                                    }
+                                },
+                                "effectIcon": "UI_Buff_Item_Recovery_HpAdd",
+                            },
+                        },
+                    }
+                ),
+            ]
+        )
+    )
+
+    result = provider.wiki_lookup(kind="food", query="Sweet Madame")
+
+    recipe = result.data["item"]["recipe"]
+    assert recipe["input"] == {
+        "100012": {"name": "甜甜花", "icon": "UI_ItemIcon_100012", "count": 2}
+    }
+    assert recipe["effectIcon"] == "UI_Buff_Item_Recovery_HpAdd"
+
+
 def test_ambr_wiki_lookup_no_result() -> None:
     provider = PublicDataProvider(
         _sequence_client(
@@ -393,8 +560,34 @@ def _fake_provider():
                     "kind": kind,
                     "query": query,
                     "match": {"id": "1", "name": "Amber"},
-                    "item": {"id": "1", "name": "Amber"},
+                    "item": _fake_wiki_item(kind, query),
                 },
+                source=_source("ambr"),
+            )
+
+        def character_constellation(
+            self,
+            *,
+            character: str,
+            constellation: int | None,
+        ) -> CommandResult:
+            return CommandResult(
+                data={
+                    "character": character,
+                    "constellation": {"index": constellation, "name": "One Arrow"},
+                },
+                source=_source("ambr"),
+            )
+
+        def character_materials(self, *, character: str) -> CommandResult:
+            return CommandResult(
+                data={"character": character, "ascension": {"1001": 3}},
+                source=_source("ambr"),
+            )
+
+        def weapon_materials(self, *, weapon: str) -> CommandResult:
+            return CommandResult(
+                data={"weapon": weapon, "ascension": {"1001": 3}},
                 source=_source("ambr"),
             )
 
@@ -478,6 +671,87 @@ def _fake_provider():
             )
 
     return FakeProvider
+
+
+def _fake_wiki_item(kind: str, query: str) -> dict[str, object]:
+    if kind == "food":
+        return {
+            "id": "1004",
+            "name": query,
+            "rank": 2,
+            "icon_url": "https://example.test/food.png",
+            "description": "Tasty food.",
+            "recipe": {
+                "effect": {"0": "Restores HP."},
+                "effect_icon": "UI_Buff_Item_Recovery_HpAdd",
+                "effect_icon_url": "https://example.test/effect.png",
+                "input": [
+                    {
+                        "id": "1001",
+                        "name": "Flower",
+                        "icon_url": "https://example.test/flower.png",
+                        "count": 2,
+                    }
+                ],
+            },
+        }
+    if kind == "artifact":
+        return {
+            "id": "15001",
+            "name": query,
+            "level_list": [4, 5],
+            "bonuses": {"2": "ATK +18%.", "4": "Normal Attack DMG +35%."},
+            "suit": [
+                {
+                    "slot": "flower",
+                    "name": "Flower",
+                    "description": "A flower.",
+                    "icon_url": "https://example.test/artifact.png",
+                }
+            ],
+        }
+    if kind == "weapon":
+        return {
+            "id": "11101",
+            "name": query,
+            "rank": 1,
+            "icon_url": "https://example.test/weapon.png",
+            "weapon_type": "单手剑",
+            "description": "A sword.",
+            "special_prop": None,
+            "affixes": [],
+            "ascension": {"1001": 3},
+            "upgrade": {
+                "prop": [
+                    {"propType": "FIGHT_PROP_BASE_ATTACK", "initValue": 23},
+                ]
+            },
+        }
+    return {
+        "id": "10000021",
+        "name": query,
+        "rank": 4,
+        "icon_url": "https://example.test/amber.png",
+        "element": "Fire",
+        "title": "Champion",
+        "description": "Scout Knight.",
+        "ascension": {"1001": 3},
+        "talent": {
+            "0": {
+                "promote": {
+                    "2": {"costItems": {"1002": 3}},
+                    "3": {"costItems": {"1003": 2}},
+                }
+            }
+        },
+        "constellation": {
+            "0": {
+                "name": "One Arrow",
+                "description": "Shoots one more arrow.",
+                "icon": "UI_Talent_S_Ambor_01",
+            }
+        },
+    }
 
 
 def _source(provider: str) -> dict[str, object]:

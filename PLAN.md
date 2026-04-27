@@ -932,6 +932,68 @@ tests/
 - Next intended substage: Stage 17h, select the next remaining GenshinUID image
   renderer group from PLAN coverage.
 
+- Stage 17h status: completed.
+- Stage 17h goal: port the GenshinUID PicWiki renderers for the `wiki` command
+  group.
+- Stage 17h scope: add GenshinUID-style image artifacts for `wiki food`,
+  `wiki artifact`, `wiki weapon`, `wiki weapon-materials`,
+  `wiki character-materials`, and `wiki constellation`, using the existing
+  AMBR-backed public data and Stage 16.5 static asset cache. Keep
+  `wiki character`, `wiki talent`, and `wiki enemy` data-only because
+  GenshinUID implements those paths as text/data responses rather than PicWiki
+  image renderers.
+- Stage 17h result:
+  - Added GenshinUID PicWiki-style renderers and packaged/attributed wiki
+    textures for `wiki food`, `wiki artifact`, `wiki weapon`,
+    `wiki weapon-materials`, `wiki character-materials`, and
+    `wiki constellation`.
+  - Reused the Stage 16.5 static asset cache for AMBR icons and GenshinUID
+    resource-mirror character/weapon images.
+  - Preserved the existing data-only JSON contract for `wiki food` by keeping
+    raw AMBR `recipe` data in provider output and doing renderer-only recipe
+    normalization.
+  - Kept `wiki character`, `wiki talent`, and `wiki enemy` data-only because
+    GenshinUID implements those paths as text/data responses rather than
+    PicWiki image renderers.
+  - `wiki weapon` images use AMBR public weapon data and warn that
+    level-specific stats are unavailable from the current public source.
+  - Amended `wiki artifact` text layout to align wrapped bonus text beside the
+    GenshinUID suitbar label and vertically center each part-detail text block.
+- Stage 17h review:
+  - Standalone review agent found three issues before commit; all were fixed:
+    food recipe data-shape regression, `wiki.weapon-materials` artifact identity,
+    and missing completed PLAN verification.
+- Stage 17h verification:
+  - `.venv/bin/python -m pytest tests/test_public_data.py::test_wiki_picwiki_renderers_write_cards tests/test_public_data.py::test_ambr_food_recipe_data_shape_stays_raw -q`
+  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_rich_public_data.py tests/test_meta_commands.py -q`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `git diff --check`
+  - `.venv/bin/python -m build`
+  - `.venv/bin/python -m gsuid_cli --request-id stage17h-caps meta capabilities`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17h-food --render image wiki food --name '甜甜花酿鸡'`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17h-artifact-v2 --render image wiki artifact --name '角斗士的终幕礼'`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17h-artifact-align-v2 --render image wiki artifact --name '角斗士的终幕礼'`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17h-weapon --render image wiki weapon --name '无锋剑'`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17h-weapon-materials-v2 --render image wiki weapon-materials --weapon '无锋剑'`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17h-char-materials --render image wiki character-materials --character '安柏'`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17h-constellation --render image wiki constellation --character '安柏' --constellation 1`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17h-constellation-all --render image wiki constellation --character '安柏'`
+  - `.venv/bin/python -m gsuid_cli --format pretty-json --cache refresh wiki food --name '甜甜花酿鸡'`
+- Stage 17h live artifacts:
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17h-food/wiki-food_甜甜花酿鸡_4276073d.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17h-artifact-v2/wiki-artifact_角斗士的终幕礼_0043ab6b.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17h-artifact-align-v2/wiki-artifact_角斗士的终幕礼_0043ab6b.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17h-weapon/wiki-weapon_无锋剑_5ab3d022.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17h-weapon-materials-v2/wiki-weapon-materials_无锋剑_5ab3d022.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17h-char-materials/wiki-character-materials_安柏_3aa0a86d.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17h-constellation/wiki-constellation_安柏_3aa0a86d_c1.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17h-constellation-all/wiki-constellation_安柏_3aa0a86d.png`
+- Next intended substage: choose the next remaining GenshinUID image renderer
+  group from PLAN coverage.
+
 ## MVP Cut Line
 
 The first usable MVP is complete after Stage 6 if these commands work:

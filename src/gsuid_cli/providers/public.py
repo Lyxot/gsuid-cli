@@ -615,6 +615,7 @@ def _normalize_wiki_item(kind: str, item: dict[str, object]) -> dict[str, object
         "name": str(item.get("name") or ""),
         "rank": item.get("rank"),
         "icon": item.get("icon"),
+        "icon_url": _ambr_ui_icon_url(item.get("icon")),
         "route": item.get("route"),
     }
     if kind == "character":
@@ -637,6 +638,7 @@ def _normalize_wiki_item(kind: str, item: dict[str, object]) -> dict[str, object
             **common,
             "weapon_type": item.get("type"),
             "description": item.get("description"),
+            "special_prop": item.get("specialProp"),
             "affixes": _affixes(item.get("affix")),
             "ascension": item.get("ascension"),
             "upgrade": item.get("upgrade"),
@@ -646,6 +648,8 @@ def _normalize_wiki_item(kind: str, item: dict[str, object]) -> dict[str, object
             **common,
             "level_list": item.get("levelList"),
             "bonuses": item.get("affixList") or item.get("setBonus"),
+            "suit": _artifact_suit(item.get("suit")),
+            "source": item.get("source"),
         }
     if kind == "food":
         return {
@@ -675,10 +679,43 @@ def _affixes(value: object) -> list[dict[str, object]]:
     if not isinstance(value, dict):
         return []
     return [
-        {"id": str(key), "name": affix.get("name")}
+        {
+            "id": str(key),
+            "name": affix.get("name"),
+            "upgrade": affix.get("upgrade"),
+        }
         for key, affix in value.items()
         if isinstance(affix, dict)
     ]
+
+
+def _artifact_suit(value: object) -> list[dict[str, object]]:
+    if not isinstance(value, dict):
+        return []
+    slot_names = {
+        "EQUIP_BRACER": "flower",
+        "EQUIP_NECKLACE": "plume",
+        "EQUIP_SHOES": "sands",
+        "EQUIP_RING": "goblet",
+        "EQUIP_DRESS": "circlet",
+    }
+    parts: list[dict[str, object]] = []
+    for key in ("EQUIP_BRACER", "EQUIP_NECKLACE", "EQUIP_SHOES", "EQUIP_RING", "EQUIP_DRESS"):
+        part = value.get(key)
+        if not isinstance(part, dict):
+            continue
+        icon = part.get("icon")
+        parts.append(
+            {
+                "slot": slot_names[key],
+                "name": part.get("name"),
+                "description": part.get("description"),
+                "max_level": part.get("maxLevel"),
+                "icon": icon,
+                "icon_url": _ambr_ui_icon_url(icon),
+            }
+        )
+    return parts
 
 
 def _dict_value(value: object) -> dict[str, object]:
@@ -870,6 +907,8 @@ def _ambr_item_icon_url(item_id: object) -> str | None:
 def _ambr_ui_icon_url(icon: object) -> str | None:
     if not isinstance(icon, str) or not icon:
         return None
+    if icon.startswith("UI_RelicIcon_"):
+        return f"{AMBR_UI_URL}/reliquary/{icon}.png"
     return f"{AMBR_UI_URL}/{icon}.png"
 
 

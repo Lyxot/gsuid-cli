@@ -39,6 +39,10 @@ rendering.
 - Progress collection/exploration slider and base-mask textures are copied from
   `GenshinUID/utils/resource/texture2d/`; the collection/exploration/GCG-deck
   background is copied from `GenshinUID/utils/image/bg/nm_bg/zy.jpg`.
+- Wiki PicWiki textures are copied from
+  `GenshinUID/genshinuid_wikitext/texture2D/`; wiki star and unknown-icon
+  textures are copied from `GenshinUID/utils/resource/texture2d/weapon_star/`
+  and `GenshinUID/utils/image/texture2d/`.
 - Player character portraits, weapon icons, and namecard backgrounds are
   fetched from the GenshinUID resource mirror under
   `https://example.test/GenshinUID/resource/`.
