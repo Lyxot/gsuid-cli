@@ -13,10 +13,11 @@ from PIL import Image
 from gsuid_cli.cli import run
 from gsuid_cli.commands import public_data
 from gsuid_cli.core.errors import CliError
-from gsuid_cli.core.http import HttpClient
+from gsuid_cli.core.http import HttpClient, ProviderBytesResponse
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.providers import public as public_provider
 from gsuid_cli.providers.public import PublicDataProvider, _parse_active_codes
+from gsuid_cli.renderers import recommend as recommend_renderer
 
 
 def test_public_wiki_command_returns_json(monkeypatch) -> None:
@@ -159,6 +160,75 @@ def test_wiki_picwiki_renderers_write_cards(monkeypatch, tmp_path) -> None:
         assert artifact["media_type"] == "image/png"
         assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
         with Image.open(path) as image:
+            assert image.getbbox() is not None
+
+
+def test_guide_image_render_writes_resource_artifacts(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
+
+    commands = [
+        (
+            ["guide", "character", "--name", "Amber"],
+            "guide.character",
+            "guide/character",
+            "image/png",
+        ),
+        (
+            ["guide", "reference-panel", "--character", "Amber"],
+            "guide.reference-panel",
+            "guide/reference-panel",
+            "image/jpeg",
+        ),
+    ]
+
+    for argv, command, render, media_type in commands:
+        code, payload = _run_json(
+            [
+                "--request-id",
+                "guide-img",
+                "--output-dir",
+                str(tmp_path / "artifacts"),
+                *argv,
+                "--render",
+                "image",
+            ]
+        )
+
+        assert code == 0
+        assert payload["command"] == command
+        assert payload["data"]["render"] == render
+        artifact = payload["artifacts"][0]
+        path = Path(artifact["path"])
+        assert artifact["media_type"] == media_type
+        assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def test_recommend_render_images_write_cards(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+    assert (
+        recommend_renderer.FOOTER_TEXT == "Created by gsuid-cli & Data by GenshinUID char_adv_list"
+    )
+
+    commands = [
+        (["recommend", "build", "--character", "Amber"], "recommend.build", "recommend/build"),
+        (["recommend", "holder", "--item", "Bow"], "recommend.holder", "recommend/holder"),
+    ]
+
+    for argv, command, render in commands:
+        code, payload = _run_json([*argv, "--render", "image"])
+
+        assert code == 0
+        assert payload["command"] == command
+        assert payload["data"]["render"] == render
+        artifact = payload["artifacts"][0]
+        path = Path(artifact["path"])
+        assert artifact["media_type"] == "image/png"
+        assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        with Image.open(path) as image:
+            assert image.size[0] == 900
             assert image.getbbox() is not None
 
 
@@ -467,6 +537,55 @@ def test_ambr_food_recipe_data_shape_stays_raw() -> None:
     assert recipe["effectIcon"] == "UI_Buff_Item_Recovery_HpAdd"
 
 
+def test_recommend_build_uses_genshinuid_adv_data() -> None:
+    provider = PublicDataProvider(
+        _sequence_client(
+            [
+                _json_response(
+                    {
+                        "response": 200,
+                        "data": {
+                            "items": {
+                                "10000021": {
+                                    "id": 10000021,
+                                    "name": "安柏",
+                                    "route": "Amber",
+                                }
+                            }
+                        },
+                    }
+                ),
+                _json_response(
+                    {
+                        "response": 200,
+                        "data": {
+                            "id": 10000021,
+                            "name": "安柏",
+                            "route": "Amber",
+                        },
+                    }
+                ),
+                _json_response(
+                    {
+                        "安柏": {
+                            "weapon": {"5": ["阿莫斯之弓"], "4": ["绝弦"], "3": []},
+                            "artifact": [["昔日宗室之仪"], ["炽烈的炎之魔女", "角斗士的终幕礼"]],
+                            "remark": ["侦察骑士。"],
+                        }
+                    }
+                ),
+            ]
+        )
+    )
+
+    result = provider.recommend_build(character="Amber")
+
+    assert result.data["character"] == "安柏"
+    assert result.data["weapons"][0] == {"rarity": 5, "items": ["阿莫斯之弓"]}
+    assert result.data["artifacts"][0] == {"sets": ["昔日宗室之仪"], "pieces": [4]}
+    assert result.data["remarks"] == ["侦察骑士。"]
+
+
 def test_ambr_wiki_lookup_no_result() -> None:
     provider = PublicDataProvider(
         _sequence_client(
@@ -589,6 +708,63 @@ def _fake_provider():
             return CommandResult(
                 data={"weapon": weapon, "ascension": {"1001": 3}},
                 source=_source("ambr"),
+            )
+
+        def guide_character(self, *, character: str) -> CommandResult:
+            return CommandResult(
+                data={
+                    "character": "安柏",
+                    "overview": {},
+                    "guide_image_url": "https://example.test/guide.png",
+                },
+                source=_source("ambr"),
+            )
+
+        def reference_panel(self, *, character: str) -> CommandResult:
+            return CommandResult(
+                data={
+                    "character": "安柏",
+                    "available": True,
+                    "reference_panel": {"format": "image"},
+                },
+                source=_source("ambr"),
+            )
+
+        def recommend_build(self, *, character: str) -> CommandResult:
+            return CommandResult(
+                data={
+                    "character": character,
+                    "weapons": [{"rarity": 5, "items": ["Bow"]}],
+                    "artifacts": [{"sets": ["Set"], "pieces": [4]}],
+                    "remarks": ["Remark"],
+                    "recommendations": [],
+                },
+                source=_source("genshinuid"),
+            )
+
+        def recommend_holder(self, *, item: str) -> CommandResult:
+            return CommandResult(
+                data={
+                    "item": item,
+                    "matches": [{"kind": "weapon", "match": item, "holders": ["Amber"]}],
+                    "count": 1,
+                },
+                source=_source("genshinuid"),
+            )
+
+        def guide_image(self, *, kind: str, character: str) -> ProviderBytesResponse:
+            if kind == "reference-panel":
+                return ProviderBytesResponse(
+                    content=b"\xff\xd8fake-jpeg",
+                    media_type="image/jpeg",
+                    source=_source("genshinuid-resource"),
+                    status_code=200,
+                )
+            return ProviderBytesResponse(
+                content=_png_bytes(character),
+                media_type="image/png",
+                source=_source("genshinuid-resource"),
+                status_code=200,
             )
 
         def events_list(self, *, include_all: bool, limit: int) -> CommandResult:

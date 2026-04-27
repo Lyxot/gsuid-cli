@@ -15,6 +15,10 @@ from gsuid_cli.providers import provider_for_region
 from gsuid_cli.providers.public import DAY_NAMES, PublicDataProvider
 from gsuid_cli.renderers.daily.materials import render_daily_materials_card
 from gsuid_cli.renderers.daily.note import render_daily_note_card
+from gsuid_cli.renderers.recommend import (
+    render_recommend_build_card,
+    render_recommend_holder_card,
+)
 from gsuid_cli.renderers.wiki.picwiki import (
     render_wiki_artifact_card,
     render_wiki_character_materials_card,
@@ -160,18 +164,18 @@ CAPABILITIES = [
     },
     {
         "command": "guide.character",
-        "description": "Show public character guide facts.",
+        "description": "Show public character guide facts and GenshinUID guide image.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "use",
     },
     {
         "command": "guide.reference-panel",
-        "description": "Report public reference-panel availability for a character.",
+        "description": "Show the GenshinUID reference-panel image for a character.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "use",
     },
     {
@@ -200,18 +204,18 @@ CAPABILITIES = [
     },
     {
         "command": "recommend.build",
-        "description": "Report public build recommendation availability.",
+        "description": "Show GenshinUID character build recommendations.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "use",
     },
     {
         "command": "recommend.holder",
-        "description": "Report public holder recommendation availability.",
+        "description": "Show GenshinUID holder recommendations for a weapon or artifact.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "use",
     },
     {
@@ -355,11 +359,33 @@ def weapon_materials_command(args: argparse.Namespace) -> CommandResult:
 
 
 def guide_character_command(args: argparse.Namespace) -> CommandResult:
-    return _provider(args).guide_character(character=args.name)
+    provider = _provider(args)
+    result = provider.guide_character(character=args.name)
+    if args.render == "data":
+        return result
+    character = _optional_text(result.data.get("character")) or args.name
+    return _guide_image_result(
+        args,
+        result,
+        provider=provider,
+        kind="character",
+        character=character,
+    )
 
 
 def reference_panel_command(args: argparse.Namespace) -> CommandResult:
-    return _provider(args).reference_panel(character=args.character)
+    provider = _provider(args)
+    result = provider.reference_panel(character=args.character)
+    if args.render == "data":
+        return result
+    character = _optional_text(result.data.get("character")) or args.character
+    return _guide_image_result(
+        args,
+        result,
+        provider=provider,
+        kind="reference-panel",
+        character=character,
+    )
 
 
 def guide_route_command(args: argparse.Namespace) -> CommandResult:
@@ -381,11 +407,17 @@ def guide_theater_command(args: argparse.Namespace) -> CommandResult:
 
 
 def recommend_build_command(args: argparse.Namespace) -> CommandResult:
-    return _provider(args).recommend_build(character=args.character)
+    result = _provider(args).recommend_build(character=args.character)
+    if args.render == "data":
+        return result
+    return _recommend_render_result(args, result, "build")
 
 
 def recommend_holder_command(args: argparse.Namespace) -> CommandResult:
-    return _provider(args).recommend_holder(item=args.item)
+    result = _provider(args).recommend_holder(item=args.item)
+    if args.render == "data":
+        return result
+    return _recommend_render_result(args, result, "holder")
 
 
 def announcements_list_command(args: argparse.Namespace) -> CommandResult:
@@ -663,6 +695,91 @@ def _positive(value: int, name: str) -> int:
             {name: value},
         )
     return value
+
+
+def _guide_image_result(
+    args: argparse.Namespace,
+    result: CommandResult,
+    *,
+    provider: PublicDataProvider,
+    kind: str,
+    character: str,
+) -> CommandResult:
+    response = provider.guide_image(kind=kind, character=character)
+    render_name = "guide/character" if kind == "character" else "guide/reference-panel"
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name=render_name,
+        filename=f"{render_name.replace('/', '-')}_{_safe_filename(character)}."
+        f"{_image_ext(response.media_type)}",
+        media_type=response.media_type,
+        content=response.content,
+        description=f"GenshinUID {render_name} image",
+        kind="image",
+    )
+    render_data = {
+        "character": character,
+        "render": render_name,
+        "artifact_sha256": artifact["sha256"],
+    }
+    if kind == "reference-panel":
+        render_data["available"] = True
+        render_data["reference_panel"] = {
+            "format": "image",
+            "artifact_sha256": artifact["sha256"],
+        }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=response.source,
+        warnings=result.warnings,
+        pagination=result.pagination,
+    )
+
+
+def _recommend_render_result(
+    args: argparse.Namespace,
+    result: CommandResult,
+    render_kind: str,
+) -> CommandResult:
+    if render_kind == "build":
+        png = render_recommend_build_card(result.data)
+        name = _optional_text(result.data.get("character")) or "build"
+        render_name = "recommend/build"
+        description = "GenshinUID-style build recommendation card"
+    elif render_kind == "holder":
+        png = render_recommend_holder_card(result.data)
+        name = _optional_text(result.data.get("item")) or "holder"
+        render_name = "recommend/holder"
+        description = "GenshinUID-style holder recommendation card"
+    else:
+        raise CliError(
+            "INVALID_ARGUMENT",
+            "recommend renderer is not implemented for this command.",
+            EXIT_INVALID_INPUT,
+            {"render": render_kind},
+        )
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name=render_name,
+        filename=f"{render_name.replace('/', '-')}_{_safe_filename(name)}.png",
+        media_type="image/png",
+        content=png,
+        description=description,
+        kind="image",
+    )
+    render_data = {
+        "name": name,
+        "render": render_name,
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=result.warnings,
+        pagination=result.pagination,
+    )
 
 
 def _map_artifact_command(

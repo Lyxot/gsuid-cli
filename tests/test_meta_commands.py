@@ -100,6 +100,10 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     capability_by_command = {command["command"]: command for command in payload["data"]["commands"]}
     assert capability_by_command["daily.materials"]["render"] == ["data", "image", "both"]
     assert capability_by_command["daily.note"]["render"] == ["data", "image", "both"]
+    assert capability_by_command["guide.character"]["render"] == ["data", "image", "both"]
+    assert capability_by_command["guide.reference-panel"]["render"] == ["data", "image", "both"]
+    assert capability_by_command["recommend.build"]["render"] == ["data", "image", "both"]
+    assert capability_by_command["recommend.holder"]["render"] == ["data", "image", "both"]
     assert capability_by_command["player.summary"]["render"] == ["data", "image", "both"]
     assert capability_by_command["player.characters"]["render"] == ["data", "image", "both"]
     assert capability_by_command["player.inventory"]["auth"] == "cookie"

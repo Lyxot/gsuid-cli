@@ -994,6 +994,65 @@ tests/
 - Next intended substage: choose the next remaining GenshinUID image renderer
   group from PLAN coverage.
 
+- Stage 17i status: completed.
+- Stage 17i goal: add image artifact support for the remaining simple
+  GenshinUID guide/recommendation flows.
+- Stage 17i scope:
+  - `guide character --render image|both`: fetch and return the stored
+    GenshinUID `wiki/guide/{角色}.png` guide image.
+  - `guide reference-panel --render image|both`: fetch and return the stored
+    GenshinUID `wiki/ref/{角色}.jpg` reference-panel image.
+  - `guide route` remains covered by the existing image-only MiniGG map artifact
+    flow.
+  - `recommend build --render image|both` and
+    `recommend holder --render image|both`: port GenshinUID `文字推荐` data from
+    `char_adv_list.json`, expose structured recommendation data, and render a
+    GenshinUID-style text card.
+  - Keep `guide abyss` and `guide theater` data-only in this substage; upstream
+    implements them as separate generated monster-layout renderers with larger
+    static data/assets and they should be ported in a later focused substage.
+- Stage 17i result:
+  - Added `guide character --render image|both` by fetching the stored
+    GenshinUID `wiki/guide/{角色}.png` guide image through the static asset
+    cache and writing it as a CLI artifact.
+  - Added `guide reference-panel --render image|both` by fetching the stored
+    GenshinUID `wiki/ref/{角色}.jpg` reference-panel image through the static
+    asset cache and writing it as a CLI artifact.
+  - Ported GenshinUID `文字推荐` data from upstream `char_adv_list.json` as a
+    static cached asset, replacing placeholder recommendation availability
+    responses for `recommend build` and `recommend holder`.
+  - Added GenshinUID-style text-card renderers for
+    `recommend build --render image|both` and
+    `recommend holder --render image|both`.
+  - Use recommendation-specific footer attribution:
+    `Created by gsuid-cli & Data by GenshinUID char_adv_list`.
+  - Kept `guide abyss` and `guide theater` data-only; their upstream image
+    paths are separate generated monster-layout renderers and remain a later
+    focused substage.
+- Stage 17i verification:
+  - `.venv/bin/python -m pytest tests/test_public_data.py::test_guide_image_render_writes_resource_artifacts tests/test_public_data.py::test_recommend_render_images_write_cards tests/test_public_data.py::test_recommend_build_uses_genshinuid_adv_data tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
+  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_rich_public_data.py tests/test_meta_commands.py -q`
+  - `.venv/bin/ruff check src/gsuid_cli/providers/public.py src/gsuid_cli/commands/public_data.py src/gsuid_cli/renderers/recommend.py tests/test_public_data.py tests/test_meta_commands.py`
+  - `.venv/bin/ruff format --check src/gsuid_cli/providers/public.py src/gsuid_cli/commands/public_data.py src/gsuid_cli/renderers/recommend.py tests/test_public_data.py tests/test_meta_commands.py`
+  - `.venv/bin/python scripts/generate_command_reference.py`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17i-guide-character --render image guide character --name '安柏'`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17i-guide-reference --render image guide reference-panel --character '安柏'`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17i-recommend-build --render image recommend build --character '安柏'`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17i-recommend-holder --render image recommend holder --item '西风剑'`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17i-recommend-build-footer --render image recommend build --character '安柏'`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17i-recommend-holder-footer --render image recommend holder --item '西风剑'`
+  - `.venv/bin/python -m gsuid_cli --format pretty-json --cache use recommend build --character '安柏'`
+  - `.venv/bin/python -m gsuid_cli --format pretty-json --cache use guide reference-panel --character '安柏'`
+- Stage 17i live artifacts:
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17i-guide-character/guide-character_安柏_3aa0a86d.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17i-guide-reference/guide-reference-panel_安柏_3aa0a86d.jpg`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17i-recommend-build/recommend-build_安柏_3aa0a86d.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17i-recommend-holder/recommend-holder_西风剑_8014054b.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17i-recommend-build-footer/recommend-build_安柏_3aa0a86d.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17i-recommend-holder-footer/recommend-holder_西风剑_8014054b.png`
+- Next intended substage: decide whether to port guide abyss/theater renderers
+  separately.
+
 ## MVP Cut Line
 
 The first usable MVP is complete after Stage 6 if these commands work:

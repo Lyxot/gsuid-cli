@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime, timedelta, timezone
+from urllib.parse import quote
 
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, EXIT_UPSTREAM, CliError
-from gsuid_cli.core.http import HttpClient
+from gsuid_cli.core.http import HttpClient, ProviderBytesResponse
 from gsuid_cli.core.models import CommandResult
 
 AMBR_BASE_URL = "https://gi.yatta.moe"
@@ -14,6 +16,11 @@ AMBR_UPGRADE_URL = f"{AMBR_BASE_URL}/api/v2/chs/upgrade?vh=40F3"
 AMBR_UI_URL = f"{AMBR_BASE_URL}/assets/UI"
 FANDOM_CODE_API = "https://genshin-impact.fandom.com/api.php"
 FANDOM_CODE_PAGE = "https://genshin-impact.fandom.com/wiki/Promotional_Code"
+GENSHINUID_ADV_LIST_URL = (
+    "https://raw.githubusercontent.com/KimigaiiWuyi/GenshinUID/"
+    "main/GenshinUID/genshinuid_adv/char_adv_list.json"
+)
+GENSHINUID_RESOURCE_BASE = "https://example.test/GenshinUID"
 MINIGG_MAP_URL = "https://map.minigg.cn/map/get_map"
 
 WIKI_PATHS = {
@@ -265,6 +272,10 @@ class PublicDataProvider:
             data={
                 "character": item.get("name"),
                 "source": "project-amber",
+                "guide_image_url": _genshinuid_resource_url(
+                    "wiki/guide",
+                    f"{item.get('name')}.png",
+                ),
                 "overview": {
                     "title": item.get("title"),
                     "element": item.get("element"),
@@ -287,35 +298,47 @@ class PublicDataProvider:
     def reference_panel(self, *, character: str) -> CommandResult:
         base = self.wiki_lookup(kind="character", query=character)
         item = _dict_value(base.data.get("item"))
+        name = _text(item.get("name")) or character
         return CommandResult(
             data={
-                "character": item.get("name"),
-                "available": False,
-                "reference_panel": None,
-                "source_limitations": ["no stable public reference-panel provider is configured"],
+                "character": name,
+                "available": True,
+                "reference_panel": {
+                    "format": "image",
+                    "source": "GenshinUID wiki/ref",
+                    "image_url": _genshinuid_resource_url("wiki/ref", f"{name}.jpg"),
+                },
             },
-            warnings=["reference-panel targets are not available from the public data source"],
             source=base.source,
         )
 
     def recommend_build(self, *, character: str) -> CommandResult:
-        guide = self.guide_character(character=character)
+        base = self.wiki_lookup(kind="character", query=character)
+        item = _dict_value(base.data.get("item"))
+        name = _text(item.get("name")) or character
+        adv_list, source = self._adv_list()
+        matched_name, info = _find_adv_character(adv_list, name)
+        if info is None:
+            raise CliError(
+                "NO_RESULT",
+                "No build recommendation matched the character.",
+                EXIT_NO_RESULT,
+                {"character": character, "resolved_character": name},
+                source=source,
+            )
         return CommandResult(
             data={
-                "character": guide.data["character"],
-                "recommendations": [],
-                "basis": "Project Amber facts only; curated build data unavailable",
-                "source_limitations": guide.data["source_limitations"],
+                "character": matched_name,
+                "query": character,
+                "source": "GenshinUID char_adv_list.json",
+                **_build_recommendation_data(info),
             },
-            warnings=[
-                "curated build recommendations are not available from the public data source"
-            ],
-            source=guide.source,
+            source=source,
         )
 
     def recommend_holder(self, *, item: str) -> CommandResult:
-        matches: list[dict[str, object]] = []
-        source = None
+        adv_list, adv_source = self._adv_list()
+        query_names = {item}
         for kind in ("weapon", "artifact"):
             try:
                 match = self.wiki_lookup(kind=kind, query=item)
@@ -323,31 +346,44 @@ class PublicDataProvider:
                 if exc.code == "NO_RESULT":
                     continue
                 raise
-            if source is None:
-                source = match.source
-            matches.append(
-                {
-                    "kind": kind,
-                    "match": match.data["match"],
-                    "holders": [],
-                    "source_limitations": [
-                        "holder recommendations require curated guide data not available here"
-                    ],
-                }
-            )
+            match_data = _dict_value(match.data.get("match"))
+            match_name = _text(match_data.get("name"))
+            if match_name:
+                query_names.add(match_name)
+        matches = _holder_matches(adv_list, query_names)
         if not matches:
             raise CliError(
                 "NO_RESULT",
                 "No weapon or artifact matched the item query.",
                 EXIT_NO_RESULT,
-                {"item": item},
+                {"item": item, "queries": sorted(query_names)},
             )
         return CommandResult(
             data={"item": item, "matches": matches, "count": len(matches)},
-            warnings=[
-                "curated holder recommendations are not available from the public data source"
-            ],
-            source=source,
+            source=adv_source,
+        )
+
+    def guide_image(self, *, kind: str, character: str) -> ProviderBytesResponse:
+        if kind == "character":
+            endpoint = "wiki/guide"
+            filename = f"{character}.png"
+        elif kind == "reference-panel":
+            endpoint = "wiki/ref"
+            filename = f"{character}.jpg"
+        else:
+            raise CliError(
+                "INVALID_ARGUMENT",
+                "Unsupported guide image kind.",
+                EXIT_INVALID_INPUT,
+                {"kind": kind},
+            )
+        return self.http.request_bytes(
+            "GET",
+            _genshinuid_resource_url(endpoint, filename),
+            provider="genshinuid-resource",
+            region="cn",
+            category=f"guide.{kind}.image",
+            expected_media_types=("image/",),
         )
 
     def announcements_list(self, *, limit: int) -> CommandResult:
@@ -565,6 +601,35 @@ class PublicDataProvider:
             raise _invalid("daily.materials.upgrade", response.source)
         return upgrades
 
+    def _adv_list(self) -> tuple[dict[str, object], dict[str, object]]:
+        response = self.http.request_bytes(
+            "GET",
+            GENSHINUID_ADV_LIST_URL,
+            provider="genshinuid",
+            region="cn",
+            category="recommend.adv-list",
+            expected_media_types=("application/json", "text/"),
+        )
+        try:
+            payload = json.loads(response.content.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise CliError(
+                "UPSTREAM_INVALID_RESPONSE",
+                "Provider returned invalid recommendation data.",
+                EXIT_UPSTREAM,
+                {"url": GENSHINUID_ADV_LIST_URL},
+                source=response.source,
+            ) from exc
+        if not isinstance(payload, dict):
+            raise CliError(
+                "UPSTREAM_INVALID_RESPONSE",
+                "Provider returned recommendation data with an unexpected shape.",
+                EXIT_UPSTREAM,
+                {"url": GENSHINUID_ADV_LIST_URL},
+                source=response.source,
+            )
+        return payload, response.source
+
 
 def _items(
     payload: dict[str, object],
@@ -607,6 +672,110 @@ def _find_item(
 
 def _normalize(value: str) -> str:
     return re.sub(r"[\W_]+", "", value, flags=re.UNICODE).casefold()
+
+
+def _text(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _genshinuid_resource_url(endpoint: str, filename: str) -> str:
+    return f"{GENSHINUID_RESOURCE_BASE}/{endpoint}/{quote(filename)}"
+
+
+def _find_adv_character(
+    adv_list: dict[str, object],
+    character: str,
+) -> tuple[str, dict[str, object] | None]:
+    normalized = _normalize(character)
+    for name, raw_info in adv_list.items():
+        if normalized == _normalize(name) and isinstance(raw_info, dict):
+            return name, raw_info
+    for name, raw_info in adv_list.items():
+        if normalized in _normalize(name) and isinstance(raw_info, dict):
+            return name, raw_info
+    return character, None
+
+
+def _build_recommendation_data(info: dict[str, object]) -> dict[str, object]:
+    weapon_groups: list[dict[str, object]] = []
+    recommendations: list[dict[str, object]] = []
+    weapons = _dict_value(info.get("weapon"))
+    for rarity in ("5", "4", "3"):
+        items = _string_list(weapons.get(rarity))
+        if not items:
+            continue
+        row = {"type": "weapon", "rarity": int(rarity), "items": items}
+        weapon_groups.append({"rarity": int(rarity), "items": items})
+        recommendations.append(row)
+
+    artifact_groups: list[dict[str, object]] = []
+    artifacts = info.get("artifact")
+    if isinstance(artifacts, list):
+        for artifact in artifacts:
+            sets = _string_list(artifact)
+            if not sets:
+                continue
+            pieces = [4] if len(sets) == 1 else [2 for _ in sets]
+            row = {"type": "artifact", "sets": sets, "pieces": pieces}
+            artifact_groups.append({"sets": sets, "pieces": pieces})
+            recommendations.append(row)
+
+    return {
+        "weapons": weapon_groups,
+        "artifacts": artifact_groups,
+        "remarks": _string_list(info.get("remark")),
+        "recommendations": recommendations,
+    }
+
+
+def _holder_matches(
+    adv_list: dict[str, object],
+    query_names: set[str],
+) -> list[dict[str, object]]:
+    weapon_holders: dict[str, set[str]] = {}
+    artifact_holders: dict[str, set[str]] = {}
+    for character, raw_info in adv_list.items():
+        if not isinstance(raw_info, dict):
+            continue
+        weapons = _dict_value(raw_info.get("weapon"))
+        for rarity in ("5", "4", "3"):
+            for weapon in _string_list(weapons.get(rarity)):
+                if _matches_any_name(weapon, query_names):
+                    weapon_holders.setdefault(weapon, set()).add(character)
+        artifacts = raw_info.get("artifact")
+        if not isinstance(artifacts, list):
+            continue
+        for artifact_group in artifacts:
+            for artifact in _string_list(artifact_group):
+                if _matches_any_name(artifact, query_names):
+                    artifact_holders.setdefault(artifact, set()).add(character)
+
+    matches: list[dict[str, object]] = []
+    for name in sorted(weapon_holders):
+        matches.append({"kind": "weapon", "match": name, "holders": sorted(weapon_holders[name])})
+    for name in sorted(artifact_holders):
+        matches.append(
+            {"kind": "artifact", "match": name, "holders": sorted(artifact_holders[name])}
+        )
+    return matches
+
+
+def _matches_any_name(candidate: str, query_names: set[str]) -> bool:
+    normalized_candidate = _normalize(candidate)
+    for query in query_names:
+        normalized_query = _normalize(query)
+        if normalized_query and normalized_query in normalized_candidate:
+            return True
+    return False
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [text for item in value if (text := _text(item))]
 
 
 def _normalize_wiki_item(kind: str, item: dict[str, object]) -> dict[str, object]:

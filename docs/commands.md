@@ -48,8 +48,8 @@ Generated from `gsuid meta capabilities`.
 | `gacha.refresh` | `gacha_url` | `data` | `off` | Refresh local gacha logs from a stored authkey URL. |
 | `gacha.summary` | `none` | `data` | `off` | Summarize local gacha logs. |
 | `guide.abyss` | `none` | `data` | `use` | Report public abyss guide availability. |
-| `guide.character` | `none` | `data` | `use` | Show public character guide facts. |
-| `guide.reference-panel` | `none` | `data` | `use` | Report public reference-panel availability for a character. |
+| `guide.character` | `none` | `data, image, both` | `use` | Show public character guide facts and GenshinUID guide image. |
+| `guide.reference-panel` | `none` | `data, image, both` | `use` | Show the GenshinUID reference-panel image for a character. |
 | `guide.route` | `none` | `data, image, both` | `use` | Fetch a public material route map artifact. |
 | `guide.theater` | `none` | `data` | `use` | Report public theater guide availability. |
 | `map.find` | `none` | `data, image, both` | `use` | Fetch a public MiniGG material map artifact. |
@@ -92,8 +92,8 @@ Generated from `gsuid meta capabilities`.
 | `rank.character` | `none` | `data` | `off` | Show local cached score details for one character. |
 | `rank.list` | `none` | `data` | `off` | List local cached character scores. |
 | `rank.summary` | `none` | `data` | `off` | Summarize local cached panel ranking inputs. |
-| `recommend.build` | `none` | `data` | `use` | Report public build recommendation availability. |
-| `recommend.holder` | `none` | `data` | `use` | Report public holder recommendation availability. |
+| `recommend.build` | `none` | `data, image, both` | `use` | Show GenshinUID character build recommendations. |
+| `recommend.holder` | `none` | `data, image, both` | `use` | Show GenshinUID holder recommendations for a weapon or artifact. |
 | `rerun.list` | `none` | `data` | `use` | List wish-banner rows for rerun analysis. |
 | `resources.sync` | `none` | `data` | `memory` | Fetch public resource metadata and warm process-local JSON cache. |
 | `wiki.artifact` | `none` | `data, image, both` | `use` | Look up public artifact set data. |
