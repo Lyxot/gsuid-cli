@@ -254,6 +254,84 @@ def test_recommend_render_images_write_cards(monkeypatch, tmp_path) -> None:
             assert image.getbbox() is not None
 
 
+def test_event_render_images_write_cards(monkeypatch, tmp_path) -> None:
+    requested_urls: list[str] = []
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+    monkeypatch.setattr(public_data, "fetch_render_images", _fake_image_fetcher(requested_urls))
+
+    commands = [
+        (["events", "list"], "events.list", "events/list"),
+        (["events", "banners"], "events.banners", "events/banners"),
+    ]
+
+    for argv, command, render in commands:
+        code, payload = _run_json([*argv, "--render", "image"])
+
+        assert code == 0
+        assert payload["command"] == command
+        assert payload["data"]["render"] == render
+        artifact = payload["artifacts"][0]
+        path = Path(artifact["path"])
+        assert artifact["media_type"] == "image/png"
+        assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        with Image.open(path) as image:
+            assert image.size[0] == 950
+            assert image.getbbox() is not None
+
+    assert "https://example.test/a.jpg" in requested_urls
+
+
+def test_announcement_render_images_write_cards(monkeypatch, tmp_path) -> None:
+    requested_urls: list[str] = []
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+    monkeypatch.setattr(public_data, "fetch_render_images", _fake_image_fetcher(requested_urls))
+
+    commands = [
+        (["announcements", "list", "--limit", "3"], "announcements.list", "announcements/list"),
+        (
+            ["announcements", "show", "--id", "1001"],
+            "announcements.show",
+            "announcements/show",
+        ),
+    ]
+
+    for argv, command, render in commands:
+        code, payload = _run_json([*argv, "--render", "image"])
+
+        assert code == 0
+        assert payload["command"] == command
+        assert payload["data"]["render"] == render
+        artifact = payload["artifacts"][0]
+        path = Path(artifact["path"])
+        assert artifact["media_type"] == "image/png"
+        assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        with Image.open(path) as image:
+            if command == "announcements.list":
+                assert image.size[1] > 242
+            assert image.getbbox() is not None
+
+    assert "https://example.test/banner.jpg" in requested_urls
+    assert "https://example.test/detail.jpg" in requested_urls
+
+
+def test_announcement_show_latest_uses_newest_list_row(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+
+    code, payload = _run_json(["announcements", "show", "--latest"])
+
+    assert code == 0
+    assert payload["command"] == "announcements.show"
+    assert payload["data"]["announcement"]["id"] == "1001"
+    assert payload["data"]["selected_announcement"] == {
+        "mode": "latest",
+        "id": "1001",
+        "start_at": "2026-05-01 10:00:00",
+    }
+
+
 def test_wiki_constellation_render_both_preserves_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
@@ -781,6 +859,112 @@ def test_events_banners_filters_wish_rows() -> None:
     assert result.data["banners"][0]["id"] == "2"
 
 
+def test_announcements_list_uses_mihoyo_announcement_api() -> None:
+    provider = PublicDataProvider(
+        _sequence_client(
+            [
+                _json_response(
+                    {
+                        "retcode": 0,
+                        "message": "OK",
+                        "data": {
+                            "list": [
+                                {
+                                    "type_id": 2,
+                                    "type_label": "活动公告",
+                                    "list": [
+                                        {
+                                            "ann_id": 1001,
+                                            "title": "标题",
+                                            "subtitle": "版本活动",
+                                            "banner": "https://example.test/banner.jpg",
+                                            "tag_label": "活动",
+                                            "start_time": "2026-04-01 10:00:00",
+                                            "end_time": "2026-05-01 03:59:59",
+                                        },
+                                        {"ann_id": 762, "subtitle": "GenshinUID隐藏公告"},
+                                    ],
+                                }
+                            ]
+                        },
+                    }
+                )
+            ]
+        )
+    )
+
+    result = provider.announcements_list(limit=20)
+
+    assert result.source["provider"] == "mihoyo-announcement"
+    assert result.data["count"] == 1
+    assert result.data["total"] == 1
+    row = result.data["announcements"][0]
+    assert row["id"] == "1001"
+    assert row["type_label"] == "活动公告"
+    assert result.data["sections"][0]["items"][0]["subtitle"] == "版本活动"
+
+
+def test_announcement_show_normalizes_content_html() -> None:
+    provider = PublicDataProvider(
+        _sequence_client(
+            [
+                _json_response(
+                    {
+                        "retcode": 0,
+                        "message": "OK",
+                        "data": {
+                            "list": [
+                                {
+                                    "ann_id": 1001,
+                                    "title": "标题",
+                                    "subtitle": "版本活动",
+                                    "banner": "https://example.test/banner.jpg",
+                                    "content": (
+                                        "<p>旅行者好</p>"
+                                        '<p><img src="https://example.test/detail.jpg" /></p>'
+                                    ),
+                                }
+                            ]
+                        },
+                    }
+                ),
+                _json_response(
+                    {
+                        "retcode": 0,
+                        "message": "OK",
+                        "data": {
+                            "list": [
+                                {
+                                    "type_id": 2,
+                                    "type_label": "活动公告",
+                                    "list": [
+                                        {
+                                            "ann_id": 1001,
+                                            "title": "标题",
+                                            "subtitle": "版本活动",
+                                            "start_time": "2026-04-01 10:00:00",
+                                            "end_time": "2026-05-01 03:59:59",
+                                        }
+                                    ],
+                                }
+                            ]
+                        },
+                    }
+                ),
+            ]
+        )
+    )
+
+    result = provider.announcement_show(announcement_id="1001")
+
+    announcement = result.data["announcement"]
+    assert announcement["id"] == "1001"
+    assert announcement["start_at"] == "2026-04-01 10:00:00"
+    assert announcement["end_at"] == "2026-05-01 03:59:59"
+    assert announcement["text"] == "旅行者好"
+    assert announcement["image_urls"] == ["https://example.test/detail.jpg"]
+
+
 def test_codes_parser_extracts_active_rows() -> None:
     codes = _parse_active_codes(
         """
@@ -1003,7 +1187,14 @@ def _fake_provider():
             return CommandResult(
                 data={
                     "events": [
-                        {"id": "1", "name": "Event", "banner_url": "https://example.test/a.jpg"}
+                        {
+                            "id": "1",
+                            "name": "Event",
+                            "name_full": "普通活动",
+                            "start_at": "2026-04-01 10:00:00",
+                            "end_at": "2026-05-01 03:59:59",
+                            "banner_url": "https://example.test/a.jpg",
+                        }
                     ],
                     "count": min(1, limit),
                     "filter": "all" if include_all else "active",
@@ -1015,12 +1206,78 @@ def _fake_provider():
             return CommandResult(
                 data={
                     "banners": [
-                        {"id": "1", "name": "Event", "banner_url": "https://example.test/a.jpg"}
+                        {
+                            "id": "1",
+                            "name": "Wish",
+                            "name_full": "角色活动祈愿",
+                            "start_at": "2026-04-01 10:00:00",
+                            "end_at": "2026-05-01 03:59:59",
+                            "banner_url": "https://example.test/a.jpg",
+                        }
                     ],
                     "count": min(1, limit),
                     "filter": "all" if include_all else "active",
                 },
                 source=_source("ambr"),
+            )
+
+        def announcements_list(self, *, limit: int) -> CommandResult:
+            row1 = {
+                "id": "1003",
+                "ann_id": "1003",
+                "title": "公告",
+                "subtitle": "版本更新说明",
+                "type_id": 2,
+                "type_label": "活动公告",
+                "start_at": "2026-04-01 10:00:00",
+            }
+            row2 = {
+                "id": "1001",
+                "ann_id": "1001",
+                "title": "活动",
+                "subtitle": "活动公告",
+                "type_id": 1,
+                "type_label": "活动公告",
+                "start_at": "2026-05-01 10:00:00",
+            }
+            row3 = {
+                "id": "1002",
+                "ann_id": "1002",
+                "title": "千星奇域",
+                "subtitle": "奇域公告",
+                "type_id": 26,
+                "type_label": "千星奇域",
+                "start_at": "2026-04-15 10:00:00",
+            }
+            rows = [row1, row2, row3][:limit]
+            sections = [
+                {"type_id": row["type_id"], "type_label": row["type_label"], "items": [row]}
+                for row in rows
+            ]
+            return CommandResult(
+                data={
+                    "announcements": rows,
+                    "sections": sections,
+                    "count": len(rows),
+                },
+                source=_source("mihoyo-announcement"),
+            )
+
+        def announcement_show(self, *, announcement_id: str) -> CommandResult:
+            return CommandResult(
+                data={
+                    "announcement": {
+                        "id": announcement_id,
+                        "title": "公告",
+                        "subtitle": "版本更新说明",
+                        "banner_url": "https://example.test/banner.jpg",
+                        "content_html": (
+                            '<p>旅行者好。</p><p><img src="https://example.test/detail.jpg" /></p>'
+                        ),
+                        "image_urls": ["https://example.test/detail.jpg"],
+                    }
+                },
+                source=_source("mihoyo-announcement"),
             )
 
         def codes_list(self) -> CommandResult:

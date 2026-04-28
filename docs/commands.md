@@ -9,8 +9,8 @@ Generated from `gsuid meta capabilities`.
 | `account.list` | `none` | `data` | `off` | List local accounts. |
 | `account.remove` | `none` | `data` | `off` | Remove a local account. |
 | `account.show` | `none` | `data` | `off` | Show one local account. |
-| `announcements.list` | `none` | `data` | `use` | List public event announcement rows. |
-| `announcements.show` | `none` | `data` | `use` | Show one public event announcement row. |
+| `announcements.list` | `none` | `data, image, both` | `use` | List public game announcement rows. |
+| `announcements.show` | `none` | `data, image, both` | `use` | Show one public game announcement row. |
 | `auth.cookie.delete` | `keyring` | `data` | `off` | Delete a stored cookie from the OS keyring. |
 | `auth.cookie.set` | `keyring` | `data` | `off` | Store a cookie in the OS keyring. |
 | `auth.cookie.test` | `cookie` | `data` | `off` | Validate cookie availability against the CN provider. |
@@ -39,8 +39,8 @@ Generated from `gsuid meta capabilities`.
 | `daily.materials` | `none` | `data, image, both` | `use` | List daily talent and weapon material domains. |
 | `daily.note` | `cookie` | `data, image, both` | `off` | Show current resin, commissions, expeditions, and teapot status. |
 | `daily.signin` | `cookie` | `data` | `off` | Claim or report the MYS daily sign-in status. |
-| `events.banners` | `none` | `data` | `use` | List public event banner artwork URLs. |
-| `events.list` | `none` | `data` | `use` | List public event announcements. |
+| `events.banners` | `none` | `data, image, both` | `use` | List public event banner artwork URLs. |
+| `events.list` | `none` | `data, image, both` | `use` | List public event announcements. |
 | `gacha.authkey` | `gacha_url` | `data` | `off` | Show stored gacha authkey URL availability without revealing it. |
 | `gacha.authkey.refresh` | `cookie+stoken` | `data` | `off` | Generate and store a gacha authkey URL from cookie and stoken. |
 | `gacha.export` | `none` | `data` | `off` | Export local gacha logs as UIGF JSON. |

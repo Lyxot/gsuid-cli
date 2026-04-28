@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+from datetime import datetime
 
 from gsuid_cli.commands import player as player_commands
 from gsuid_cli.commands.auth import _credential, _uid_and_region
 from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
-from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_UPSTREAM, CliError
+from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
@@ -15,6 +16,13 @@ from gsuid_cli.providers import provider_for_region
 from gsuid_cli.providers.public import DAY_NAMES, PublicDataProvider
 from gsuid_cli.renderers.daily.materials import render_daily_materials_card
 from gsuid_cli.renderers.daily.note import render_daily_note_card
+from gsuid_cli.renderers.events import (
+    announcement_detail_image_urls,
+    event_image_urls,
+    render_announcement_detail_card,
+    render_announcements_list_card,
+    render_events_card,
+)
 from gsuid_cli.renderers.guide import (
     guide_abyss_image_urls,
     guide_theater_image_urls,
@@ -37,6 +45,8 @@ from gsuid_cli.renderers.wiki.picwiki import (
 DAILY_MATERIAL_ICON_WORKERS = 8
 DAILY_NOTE_AVATAR_WORKERS = 5
 WIKI_IMAGE_WORKERS = 8
+EVENT_IMAGE_WORKERS = 6
+LATEST_ANNOUNCEMENT_SCAN_LIMIT = 10000
 WIKI_LOOKUP_IMAGE_KINDS = {"artifact", "food", "weapon"}
 
 CAPABILITIES = [
@@ -117,7 +127,7 @@ CAPABILITIES = [
         "description": "List public event announcements.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "use",
     },
     {
@@ -125,7 +135,7 @@ CAPABILITIES = [
         "description": "List public event banner artwork URLs.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "use",
     },
     {
@@ -226,18 +236,18 @@ CAPABILITIES = [
     },
     {
         "command": "announcements.list",
-        "description": "List public event announcement rows.",
+        "description": "List public game announcement rows.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "use",
     },
     {
         "command": "announcements.show",
-        "description": "Show one public event announcement row.",
+        "description": "Show one public game announcement row.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "use",
     },
     {
@@ -291,11 +301,17 @@ def wiki_command(args: argparse.Namespace) -> CommandResult:
 
 
 def events_list_command(args: argparse.Namespace) -> CommandResult:
-    return _provider(args).events_list(include_all=args.all, limit=_limit(args.limit))
+    result = _provider(args).events_list(include_all=args.all, limit=_limit(args.limit))
+    if args.render == "data":
+        return result
+    return _events_render_result(args, result, "events")
 
 
 def events_banners_command(args: argparse.Namespace) -> CommandResult:
-    return _provider(args).event_banners(include_all=args.all, limit=_limit(args.limit))
+    result = _provider(args).event_banners(include_all=args.all, limit=_limit(args.limit))
+    if args.render == "data":
+        return result
+    return _events_render_result(args, result, "banners")
 
 
 def codes_list_command(args: argparse.Namespace) -> CommandResult:
@@ -433,11 +449,31 @@ def recommend_holder_command(args: argparse.Namespace) -> CommandResult:
 
 
 def announcements_list_command(args: argparse.Namespace) -> CommandResult:
-    return _provider(args).announcements_list(limit=_limit(args.limit))
+    result = _provider(args).announcements_list(limit=_limit(args.limit))
+    if args.render == "data":
+        return result
+    return _announcements_list_render_result(args, result)
 
 
 def announcements_show_command(args: argparse.Namespace) -> CommandResult:
-    return _provider(args).announcement_show(announcement_id=args.id)
+    provider = _provider(args)
+    announcement_id = args.id
+    warnings: list[str] = []
+    if args.latest:
+        latest = provider.announcements_list(limit=LATEST_ANNOUNCEMENT_SCAN_LIMIT)
+        announcement_id, start_at = _latest_announcement(latest)
+        warnings.extend(latest.warnings)
+    result = provider.announcement_show(announcement_id=announcement_id)
+    if args.latest:
+        result.data["selected_announcement"] = {
+            "mode": "latest",
+            "id": announcement_id,
+            "start_at": start_at,
+        }
+        result.warnings[:0] = warnings
+    if args.render == "data":
+        return result
+    return _announcement_detail_render_result(args, result)
 
 
 def map_find_command(args: argparse.Namespace) -> CommandResult:
@@ -653,7 +689,9 @@ def _register_announcements(groups: argparse._SubParsersAction[argparse.Argument
     )
 
     show = commands.add_parser("show", help="Show one public announcement.")
-    show.add_argument("--id", required=True)
+    selector = show.add_mutually_exclusive_group(required=True)
+    selector.add_argument("--id")
+    selector.add_argument("--latest", action="store_true", help="Show the newest announcement.")
     show.set_defaults(handler=announcements_show_command, command_name="announcements.show")
 
 
@@ -872,6 +910,112 @@ def _recommend_render_result(
     )
 
 
+def _events_render_result(
+    args: argparse.Namespace,
+    result: CommandResult,
+    render_kind: str,
+) -> CommandResult:
+    key = "banners" if render_kind == "banners" else "events"
+    command_segment = "banners" if render_kind == "banners" else "list"
+    asset_images, asset_warnings = fetch_render_images(
+        args,
+        event_image_urls(result.data, key),
+        provider="event-assets",
+        region="cn",
+        category=f"events.{command_segment}.asset",
+        unavailable_warning="{count} event banner images unavailable; rendered placeholders",
+        max_workers=EVENT_IMAGE_WORKERS,
+    )
+    png = render_events_card(result.data, kind=render_kind, asset_images=asset_images)
+    render_name = "events/banners" if render_kind == "banners" else "events/list"
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name=render_name,
+        filename=f"{render_name.replace('/', '-')}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style event list card",
+        kind="image",
+    )
+    render_data = {
+        "render": render_name,
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=[*result.warnings, *asset_warnings],
+        pagination=result.pagination,
+    )
+
+
+def _announcements_list_render_result(
+    args: argparse.Namespace,
+    result: CommandResult,
+) -> CommandResult:
+    png = render_announcements_list_card(result.data)
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="announcements/list",
+        filename="announcements-list.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style announcement list card",
+        kind="image",
+    )
+    render_data = {
+        "render": "announcements/list",
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=result.warnings,
+        pagination=result.pagination,
+    )
+
+
+def _announcement_detail_render_result(
+    args: argparse.Namespace,
+    result: CommandResult,
+) -> CommandResult:
+    announcement = _mapping_data(result, "announcement", "announcements.show")
+    asset_images, asset_warnings = fetch_render_images(
+        args,
+        announcement_detail_image_urls(announcement),
+        provider="announcement-assets",
+        region="cn",
+        category="announcements.show.asset",
+        unavailable_warning="{count} announcement images unavailable; omitted from render",
+        max_workers=EVENT_IMAGE_WORKERS,
+    )
+    png = render_announcement_detail_card(announcement, asset_images=asset_images)
+    ann_id = _optional_text(announcement.get("id")) or "announcement"
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="announcements/show",
+        filename=f"announcements-show_{_safe_filename(ann_id)}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style announcement detail card",
+        kind="image",
+    )
+    render_data = {
+        "id": ann_id,
+        "render": "announcements/show",
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=[*result.warnings, *asset_warnings],
+        pagination=result.pagination,
+    )
+
+
 def _map_artifact_command(
     args: argparse.Namespace,
     *,
@@ -982,6 +1126,44 @@ def _mapping_data(result: CommandResult, field: str, command: str) -> dict[str, 
         {"command": command, "field": field},
         source=result.source,
     )
+
+
+def _latest_announcement(result: CommandResult) -> tuple[str, str]:
+    rows = result.data.get("announcements")
+    newest: tuple[datetime, str, str] | None = None
+    if isinstance(rows, list):
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            ann_id = _optional_text(row.get("id") or row.get("ann_id"))
+            start_at = _optional_text(row.get("start_at"))
+            start_time = _announcement_start_time(start_at)
+            if ann_id and start_at and start_time is not None:
+                candidate = (start_time, ann_id, start_at)
+                if newest is None or candidate[0] > newest[0]:
+                    newest = candidate
+    if newest is not None:
+        return newest[1], newest[2]
+    raise CliError(
+        "NO_RESULT",
+        "No latest announcement is available.",
+        EXIT_NO_RESULT,
+        {"command": "announcements.show", "selector": "latest"},
+        source=result.source,
+    )
+
+
+def _announcement_start_time(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    normalized = value.replace("/", "-")
+    try:
+        return datetime.strptime(normalized, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        try:
+            return datetime.fromisoformat(normalized)
+        except ValueError:
+            return None
 
 
 def _wiki_item(result: CommandResult, render_kind: str) -> dict[str, object]:

@@ -40,6 +40,8 @@ gsuid_cli = [
   "assets/daily/materials/textures/*.png",
   "assets/daily/note/textures/*.apng",
   "assets/daily/note/textures/*.png",
+  "assets/announcements/textures/*.png",
+  "assets/events/textures/*.png",
   "assets/guide/abyss/textures/*.png",
   "assets/guide/abyss/textures/bg/*.jpg",
   "assets/guide/abyss/data/*.js",

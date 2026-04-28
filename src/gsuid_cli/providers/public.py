@@ -3,11 +3,12 @@ from __future__ import annotations
 import json
 import re
 from datetime import datetime, timedelta, timezone
+from html import unescape
 from pathlib import Path
 from urllib.parse import quote
 
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, EXIT_UPSTREAM, CliError
-from gsuid_cli.core.http import HttpClient, ProviderBytesResponse
+from gsuid_cli.core.http import HttpClient, ProviderBytesResponse, raise_for_retcode
 from gsuid_cli.core.models import CommandResult
 
 AMBR_BASE_URL = "https://gi.yatta.moe"
@@ -16,6 +17,7 @@ AMBR_DAILY_URL = f"{AMBR_BASE_URL}/api/v2/chs/dailyDungeon?vh=37F4"
 AMBR_UPGRADE_URL = f"{AMBR_BASE_URL}/api/v2/chs/upgrade?vh=40F3"
 AMBR_UI_URL = f"{AMBR_BASE_URL}/assets/UI"
 AMBR_MONSTER_UI_URL = f"{AMBR_UI_URL}/monster"
+MIHOYO_ANNOUNCEMENT_API = "https://hk4e-api-static.mihoyo.com/common/hk4e_cn/announcement/api"
 FANDOM_CODE_API = "https://genshin-impact.fandom.com/api.php"
 FANDOM_CODE_PAGE = "https://genshin-impact.fandom.com/wiki/Promotional_Code"
 GENSHINUID_ADV_LIST_URL = (
@@ -42,6 +44,7 @@ DAY_NAMES = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
 CN_TZ = timezone(timedelta(hours=8))
 MAP_IDS = {"teyvat": "2", "chasm": "7", "enkanomiya": "9"}
 DAILY_RESET_OFFSET = timedelta(hours=4)
+ANNOUNCEMENT_BLACK_IDS = {762, 422, 423, 1263, 495, 1957, 2522, 2388, 2516, 2476}
 
 
 class PublicDataProvider:
@@ -395,32 +398,59 @@ class PublicDataProvider:
         )
 
     def announcements_list(self, *, limit: int) -> CommandResult:
-        result = self.events_list(include_all=True, limit=limit)
-        events = result.data.get("events")
-        announcements = (
-            [_announcement(event) for event in events if isinstance(event, dict)]
-            if isinstance(events, list)
-            else []
+        response = self.http.request_json(
+            "GET",
+            f"{MIHOYO_ANNOUNCEMENT_API}/getAnnList",
+            provider="mihoyo-announcement",
+            region="cn",
+            category="announcements.list",
+            params=_announcement_params(),
         )
+        data = self._announcement_data(response.payload, response.source, "announcements.list")
+        sections, total = _announcement_sections(data, limit=limit)
+        announcements = [
+            row
+            for section in sections
+            for row in _list_value(section.get("items"))
+            if isinstance(row, dict)
+        ]
         return CommandResult(
-            data={"announcements": announcements, "count": len(announcements)}, source=result.source
+            data={
+                "announcements": announcements,
+                "sections": sections,
+                "count": len(announcements),
+                "total": total,
+                "source_limitations": [
+                    "announcement rows use the miHoYo announcement API used by GenshinUID; "
+                    "GenshinUID hidden announcement ids are filtered"
+                ],
+            },
+            source=response.source,
         )
 
     def announcement_show(self, *, announcement_id: str) -> CommandResult:
-        result = self.events_list(include_all=True, limit=1000)
-        events = result.data.get("events")
-        if isinstance(events, list):
-            for event in events:
-                if isinstance(event, dict) and str(event.get("id") or "") == announcement_id:
-                    return CommandResult(
-                        data={"announcement": _announcement(event)}, source=result.source
-                    )
+        response = self.http.request_json(
+            "GET",
+            f"{MIHOYO_ANNOUNCEMENT_API}/getAnnContent",
+            provider="mihoyo-announcement",
+            region="cn",
+            category="announcements.show",
+            params=_announcement_params(),
+        )
+        data = self._announcement_data(response.payload, response.source, "announcements.show")
+        for row in _list_value(data.get("list")):
+            if isinstance(row, dict) and str(row.get("ann_id") or "") == announcement_id:
+                announcement = _announcement_content(row)
+                metadata = self._announcement_metadata(announcement_id)
+                if metadata:
+                    _merge_missing_announcement_fields(announcement, metadata)
+                return CommandResult(data={"announcement": announcement}, source=response.source)
         raise CliError(
             "NO_RESULT",
             "No announcement matched the id.",
             EXIT_NO_RESULT,
             {"id": announcement_id},
-            source=result.source,
+            source=response.source,
         )
 
     def guide_abyss(self, *, version: str | None, floor: int | None) -> CommandResult:
@@ -646,6 +676,45 @@ class PublicDataProvider:
             raise _invalid("daily.materials.upgrade", response.source)
         return upgrades
 
+    def _announcement_data(
+        self,
+        payload: dict[str, object],
+        source: dict[str, object],
+        category: str,
+    ) -> dict[str, object]:
+        raise_for_retcode(
+            payload,
+            provider="mihoyo-announcement",
+            region="cn",
+            category=category,
+            source=source,
+            debug=self.http.debug,
+        )
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            raise _invalid(category, source)
+        return data
+
+    def _announcement_metadata(self, announcement_id: str) -> dict[str, object] | None:
+        response = self.http.request_json(
+            "GET",
+            f"{MIHOYO_ANNOUNCEMENT_API}/getAnnList",
+            provider="mihoyo-announcement",
+            region="cn",
+            category="announcements.show.metadata",
+            params=_announcement_params(),
+        )
+        data = self._announcement_data(
+            response.payload, response.source, "announcements.show.metadata"
+        )
+        for section in _list_value(data.get("list")):
+            if not isinstance(section, dict):
+                continue
+            for row in _list_value(section.get("list")):
+                if isinstance(row, dict) and str(row.get("ann_id") or "") == announcement_id:
+                    return _announcement_row(row, section)
+        return None
+
     def _adv_list(self) -> tuple[dict[str, object], dict[str, object]]:
         response = self.http.request_bytes(
             "GET",
@@ -768,6 +837,29 @@ def _text(value: object) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _int_or_none(value: object) -> int | None:
+    try:
+        return int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+def _announcement_text(content: str) -> str:
+    content = unescape(content).replace("<<", "")
+    content = re.sub(r"</(?:p|div|li|h[1-6])\s*>", "\n", content, flags=re.I)
+    content = re.sub(r"<br\s*/?>", "\n", content, flags=re.I)
+    text = re.sub(r"<[^>]+>", "", content)
+    return "\n".join(line.strip() for line in text.splitlines() if line.strip())
+
+
+def _announcement_image_urls(content: str) -> list[str]:
+    content = unescape(content)
+    return [
+        unescape(match.group(1))
+        for match in re.finditer(r"<img\b[^>]*\bsrc=[\"']([^\"']+)[\"'][^>]*>", content, re.I)
+    ]
 
 
 def _genshinuid_resource_url(endpoint: str, filename: str) -> str:
@@ -1390,16 +1482,98 @@ def _talent_materials(value: object) -> list[dict[str, object]]:
     return rows
 
 
-def _announcement(event: dict[str, object]) -> dict[str, object]:
+def _announcement_params() -> dict[str, object]:
     return {
-        "id": str(event.get("id") or ""),
-        "title": event.get("name"),
-        "summary": event.get("name_full"),
-        "start_at": event.get("start_at"),
-        "end_at": event.get("end_at"),
-        "banner_url": event.get("banner_url"),
-        "source": "project-amber-event",
+        "game": "hk4e",
+        "game_biz": "hk4e_cn",
+        "lang": "zh-cn",
+        "bundle_id": "hk4e_cn",
+        "level": 57,
+        "platform": "pc",
+        "region": "cn_gf01",
+        "uid": "114514",
     }
+
+
+def _announcement_sections(
+    data: dict[str, object],
+    *,
+    limit: int,
+) -> tuple[list[dict[str, object]], int]:
+    sections: list[dict[str, object]] = []
+    remaining = limit
+    total = 0
+    for section in _list_value(data.get("list")):
+        if not isinstance(section, dict):
+            continue
+        rows: list[dict[str, object]] = []
+        for row in _list_value(section.get("list")):
+            if not isinstance(row, dict):
+                continue
+            ann_id = _int_or_none(row.get("ann_id"))
+            if ann_id in ANNOUNCEMENT_BLACK_IDS:
+                continue
+            total += 1
+            if remaining <= 0:
+                continue
+            rows.append(_announcement_row(row, section))
+            remaining -= 1
+        if rows:
+            sections.append(
+                {
+                    "type_id": _int_or_none(section.get("type_id")),
+                    "type_label": _text(section.get("type_label") or section.get("type_name")),
+                    "items": rows,
+                    "count": len(rows),
+                }
+            )
+    return sections, total
+
+
+def _announcement_row(row: dict[str, object], section: dict[str, object]) -> dict[str, object]:
+    ann_id = str(row.get("ann_id") or "")
+    return {
+        "id": ann_id,
+        "ann_id": ann_id,
+        "title": _text(row.get("title")),
+        "subtitle": _text(row.get("subtitle")),
+        "summary": _text(row.get("content")),
+        "banner_url": _text(row.get("banner")),
+        "tag": _text(row.get("tag_label")),
+        "type_id": _int_or_none(section.get("type_id")),
+        "type_label": _text(section.get("type_label") or section.get("type_name")),
+        "start_at": _text(row.get("start_time")),
+        "end_at": _text(row.get("end_time")),
+        "remind": bool(row.get("remind")),
+        "source": "mihoyo-announcement",
+    }
+
+
+def _announcement_content(row: dict[str, object]) -> dict[str, object]:
+    content = _text(row.get("content")) or ""
+    ann_id = str(row.get("ann_id") or "")
+    return {
+        "id": ann_id,
+        "ann_id": ann_id,
+        "title": _text(row.get("title")),
+        "subtitle": _text(row.get("subtitle")),
+        "banner_url": _text(row.get("banner")),
+        "start_at": _text(row.get("start_time")),
+        "end_at": _text(row.get("end_time")),
+        "content_html": content,
+        "text": _announcement_text(content),
+        "image_urls": _announcement_image_urls(content),
+        "source": "mihoyo-announcement",
+    }
+
+
+def _merge_missing_announcement_fields(
+    announcement: dict[str, object],
+    metadata: dict[str, object],
+) -> None:
+    for key, value in metadata.items():
+        if key not in announcement or announcement[key] in (None, ""):
+            announcement[key] = value
 
 
 def _rerun_row(banner: dict[str, object]) -> dict[str, object]:

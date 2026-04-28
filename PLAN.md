@@ -486,7 +486,7 @@ gsuid recommend holder --item NAME
 gsuid events list
 gsuid events banners
 gsuid announcements list [--limit N]
-gsuid announcements show --id ID
+gsuid announcements show (--id ID | --latest)
 gsuid codes list
 gsuid map find --item NAME [--map teyvat|chasm|enkanomiya]
 gsuid rerun list
@@ -1112,6 +1112,57 @@ tests/
   - `~/.gsuid-cli/artifacts/2026-05-02/stage17j-abyss-local-image/guide-abyss_6_0B_floor12_f203e878.png`
 - Next intended substage: continue with the next remaining image-render group
   from PLAN coverage.
+
+- Stage 17k status: completed.
+- Stage 17k goal: port GenshinUID public event and announcement rendering.
+- Stage 17k result:
+  - `events list --render image|both`: render the GenshinUID-style activity
+    list card using `genshinuid_eventlist/texture2d` assets and current AMBR
+    event rows.
+  - `events banners --render image|both`: render the GenshinUID-style wish
+    banner list card using the matching GenshinUID assets.
+  - `announcements list/show --render image|both`: use the miHoYo
+    announcement endpoints used by GenshinUID, normalize list/detail JSON for
+    the CLI envelope, and render GenshinUID-style list/detail cards.
+  - `announcements show --latest`: selects the announcement row with the newest
+    parseable `start_at`, then fetches that row by id.
+  - `announcements show` merges list metadata into detail output so detail rows
+    retain `start_at`, `end_at`, type, tag, and reminder fields when the
+    content endpoint omits them.
+  - Announcement HTML cleanup strips both real and escaped inline tags before
+    drawing detail cards.
+  - Announcement list rendering includes every source section pair and wraps
+    item titles away from the id label.
+  - `meta capabilities` and `docs/commands.md` now advertise image/both render
+    support for `events.*` and `announcements.*`.
+- Stage 17k verification:
+  - `.venv/bin/python -m pytest tests/test_public_data.py::test_events_banners_filters_wish_rows tests/test_public_data.py::test_announcements_list_uses_mihoyo_announcement_api tests/test_public_data.py::test_announcement_show_normalizes_content_html tests/test_public_data.py::test_event_render_images_write_cards tests/test_public_data.py::test_announcement_render_images_write_cards tests/test_public_data.py::test_announcement_show_latest_uses_newest_list_row -q`
+  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_rich_public_data.py tests/test_meta_commands.py tests/test_docs.py tests/test_help_information.py -q`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `git diff --check`
+  - `.venv/bin/python -m build` confirms the new event and announcement
+    texture assets are included in the wheel.
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-events-list --render image events list --limit 5`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-events-banners --render image events banners --limit 5`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-ann-list-data --format json announcements list --limit 2`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-ann-list-image --render image announcements list --limit 10`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-ann-list-aligned --cache refresh --render image announcements list --limit 30`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-ann-show-latest-start-at --cache refresh announcements show --latest`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-ann-show-latest-start-at-merged --cache refresh announcements show --latest`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-ann-show-latest-start-at-image --cache refresh --render image announcements show --latest`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-ann-show-image-clean --cache refresh --render image announcements show --id 21647`
+- Stage 17k live artifacts:
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17k-events-list/events-list.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17k-events-banners/events-banners.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17k-ann-list-image/announcements-list.png`
+  - `~/.gsuid-cli/artifacts/2026-05-03/stage17k-ann-list-aligned/2026-05-02/stage17k-ann-list-aligned/announcements-list.png`
+  - `~/.gsuid-cli/artifacts/2026-05-03/stage17k-ann-show-latest-start-at/2026-05-02/stage17k-ann-show-latest-start-at-image/announcements-show_21652_f9dcddb4.png`
+  - `~/.gsuid-cli/artifacts/2026-05-02/stage17k-ann-show-image-clean/announcements-show_21647_9bb44cf6.png`
+- Next intended substage: continue with the next remaining public image-render
+  group from PLAN coverage.
 
 ## MVP Cut Line
 
