@@ -9,6 +9,7 @@ from pathlib import Path
 
 from gsuid_cli import __version__
 from gsuid_cli.commands.auth import _credential, _uid_and_region
+from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
@@ -17,6 +18,11 @@ from gsuid_cli.core.secrets import SecretStore
 from gsuid_cli.core.state import state_db
 from gsuid_cli.core.time import utc_now
 from gsuid_cli.providers import provider_for_region
+from gsuid_cli.renderers.gacha import (
+    gacha_summary_item_urls,
+    gacha_summary_missing_icon_count,
+    render_gacha_summary_card,
+)
 
 CAPABILITIES = [
     {
@@ -32,7 +38,7 @@ CAPABILITIES = [
         "description": "Summarize local gacha logs.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "off",
     },
     {
@@ -226,10 +232,15 @@ def refresh_command(args: argparse.Namespace) -> CommandResult:
     )
 
 
-def summary_command(args: argparse.Namespace) -> dict[str, object]:
+def summary_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
     uid, _region = _uid_and_region(args)
     with state_db(args.output_dir) as conn:
-        return {"uid": uid, "banner": args.banner, "summary": _summary(conn, uid, args.banner)}
+        rows = _item_rows(conn, uid, args.banner)
+        summary = _summary_from_rows(rows)
+    data = {"uid": uid, "banner": args.banner, "summary": summary}
+    if args.render == "data":
+        return data
+    return _summary_render_result(args, data, [_row_item(row) for row in rows])
 
 
 def export_command(args: argparse.Namespace) -> CommandResult:
@@ -617,7 +628,10 @@ def _update_sync(conn: sqlite3.Connection, uid: str, gacha_type: str) -> None:
 
 
 def _summary(conn: sqlite3.Connection, uid: str, banner: str) -> dict[str, object]:
-    rows = _item_rows(conn, uid, banner)
+    return _summary_from_rows(_item_rows(conn, uid, banner))
+
+
+def _summary_from_rows(rows: list[sqlite3.Row]) -> dict[str, object]:
     by_rank: dict[str, int] = {}
     by_type: dict[str, int] = {}
     by_gacha_type: dict[str, int] = {}
@@ -653,6 +667,48 @@ def _summary(conn: sqlite3.Connection, uid: str, banner: str) -> dict[str, objec
         "last_five_star_by_gacha_type": last_five_by_type,
         "five_star_intervals_by_gacha_type": five_star_intervals_by_type,
     }
+
+
+def _summary_render_result(
+    args: argparse.Namespace,
+    data: dict[str, object],
+    items: list[dict[str, object]],
+) -> CommandResult:
+    uid = str(data["uid"])
+    banner = str(data["banner"])
+    asset_images, _asset_warnings = fetch_render_images(
+        args,
+        gacha_summary_item_urls(items),
+        provider="gacha-assets",
+        region="cn",
+        category="gacha.summary.asset",
+        unavailable_warning="{count} optional gacha item icon candidates unavailable",
+        max_workers=8,
+    )
+    missing = gacha_summary_missing_icon_count(items, asset_images)
+    asset_warnings = (
+        [f"{missing} gacha item icons unavailable; rendered fallback icons"] if missing else []
+    )
+    png = render_gacha_summary_card(uid=uid, items=items, asset_images=asset_images)
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="gacha/summary",
+        filename=f"gacha-summary_{uid}_{banner}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style gacha summary card",
+        kind="image",
+    )
+    render_data = {
+        "uid": uid,
+        "banner": banner,
+        "render": "gacha/summary",
+        "artifact_sha256": artifact["sha256"],
+    }
+    return CommandResult(
+        data={**data, **render_data} if args.render == "both" else render_data,
+        artifacts=[artifact],
+        warnings=asset_warnings,
+    )
 
 
 def _item_rows(conn: sqlite3.Connection, uid: str, banner: str) -> list[sqlite3.Row]:

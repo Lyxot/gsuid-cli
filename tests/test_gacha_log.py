@@ -3,10 +3,12 @@ from __future__ import annotations
 import io
 import json
 import sqlite3
+from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 import httpx
 import pytest
+from PIL import Image
 
 from gsuid_cli.cli import run
 from gsuid_cli.commands import gacha
@@ -16,6 +18,11 @@ from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.secrets import SecretStore
 from gsuid_cli.core.state import state_db
 from gsuid_cli.providers.mys import MysProvider
+from gsuid_cli.renderers.gacha import (
+    FALLBACK_CHARACTER_ICON_URL,
+    gacha_summary_item_urls,
+    gacha_summary_missing_icon_count,
+)
 
 
 def test_gacha_import_summary_export_round_trip(monkeypatch, tmp_path) -> None:
@@ -129,6 +136,106 @@ def test_gacha_summary_character_banner_keeps_gacha_type_intervals_separate(
     assert set(intervals) == {"301", "400"}
     assert intervals["301"][0]["records_since_previous_five_star"] == 2
     assert intervals["400"][0]["records_since_previous_five_star"] == 2
+
+
+def test_gacha_summary_render_image_writes_card(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(gacha, "fetch_render_images", lambda *args, **kwargs: ({}, []))
+    import_file = tmp_path / "uigf-v4.json"
+    import_file.write_text(json.dumps(_uigf_v4()), encoding="utf-8")
+
+    code, _payload = _run_json(
+        ["gacha", "import", "--uid", "100000001", "--file", str(import_file)]
+    )
+    assert code == 0
+
+    code, payload = _run_json(["gacha", "summary", "--uid", "100000001", "--render", "image"])
+
+    assert code == 0
+    assert payload["command"] == "gacha.summary"
+    assert payload["data"]["render"] == "gacha/summary"
+    artifact = payload["artifacts"][0]
+    path = Path(artifact["path"])
+    assert artifact["media_type"] == "image/png"
+    with Image.open(path) as image:
+        assert image.size[0] == 950
+        assert image.getbbox() is not None
+
+
+def test_gacha_summary_render_both_preserves_data(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(gacha, "fetch_render_images", lambda *args, **kwargs: ({}, []))
+    import_file = tmp_path / "uigf-v4.json"
+    import_file.write_text(json.dumps(_uigf_v4()), encoding="utf-8")
+
+    code, _payload = _run_json(
+        ["gacha", "import", "--uid", "100000001", "--file", str(import_file)]
+    )
+    assert code == 0
+
+    code, payload = _run_json(["gacha", "summary", "--uid", "100000001", "--render", "both"])
+
+    assert code == 0
+    assert payload["data"]["summary"]["total"] == 3
+    assert payload["data"]["render"] == "gacha/summary"
+    assert payload["artifacts"][0]["kind"] == "image"
+
+
+def test_gacha_summary_character_icon_urls_include_duplicate_name_candidates() -> None:
+    fallback_item = {
+        "rank_type": "5",
+        "item_type": "角色",
+        "item_id": "",
+        "name": "哥伦",
+    }
+    exact_item = {
+        "rank_type": "5",
+        "item_type": "角色",
+        "item_id": "",
+        "name": "温迪",
+    }
+    duplicate_name_item = {
+        "rank_type": "5",
+        "item_type": "角色",
+        "item_id": "",
+        "name": "伊涅芙",
+    }
+    duplicate_name_with_id = {
+        "rank_type": "5",
+        "item_type": "角色",
+        "item_id": "10000903",
+        "name": "伊涅芙",
+    }
+    weapon_item = {
+        "rank_type": "5",
+        "item_type": "武器",
+        "item_id": "",
+        "name": "missing-weapon",
+    }
+
+    assert gacha_summary_item_urls([fallback_item]) == [FALLBACK_CHARACTER_ICON_URL]
+    assert gacha_summary_item_urls([exact_item]) == [
+        "https://example.test/GenshinUID/resource/chars/10000022.png",
+        FALLBACK_CHARACTER_ICON_URL,
+    ]
+    assert gacha_summary_item_urls([duplicate_name_item]) == [
+        "https://example.test/GenshinUID/resource/chars/10000116.png",
+        "https://example.test/GenshinUID/resource/chars/10000903.png",
+        FALLBACK_CHARACTER_ICON_URL,
+    ]
+    assert gacha_summary_item_urls([duplicate_name_with_id]) == [
+        "https://example.test/GenshinUID/resource/chars/10000903.png",
+        "https://example.test/GenshinUID/resource/chars/10000116.png",
+        FALLBACK_CHARACTER_ICON_URL,
+    ]
+    assert (
+        gacha_summary_missing_icon_count(
+            [duplicate_name_item],
+            {"https://example.test/GenshinUID/resource/chars/10000116.png": b"x"},
+        )
+        == 0
+    )
+    assert gacha_summary_missing_icon_count([weapon_item], {FALLBACK_CHARACTER_ICON_URL: b"x"}) == 1
 
 
 def test_gacha_import_supports_uigf_v2(monkeypatch, tmp_path) -> None:

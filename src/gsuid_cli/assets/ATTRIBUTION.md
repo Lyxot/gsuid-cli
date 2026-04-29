@@ -8,9 +8,10 @@ rendering.
 - Daily note textures, daily materials textures, player character-list
   textures, player summary/exploration textures, player inventory textures,
   player calendar textures, player diary textures, event-list textures,
-  announcement-list textures, challenge textures, progress textures, shared
-  title/footer/mask textures, the shared v4 background, weapon rarity
-  backgrounds, character-card frame/background textures, and the bundled
+  announcement-list textures, gacha summary textures, challenge textures,
+  progress textures, shared title/footer/mask textures, the shared v4
+  background, weapon rarity backgrounds, character-card frame/background
+  textures, and the bundled
   Yuanshen font are from GenshinUID historical renderer assets.
 - Player character-list textures are copied from
   `GenshinUID/genshinuid_roleinfo/texture2d/`; the shared v4 background is
@@ -29,6 +30,9 @@ rendering.
   `GenshinUID/genshinuid_eventlist/texture2d/`.
 - Announcement-list textures are copied from
   `GenshinUID/genshinuid_ann/assets/`.
+- Gacha summary textures and emotion icons are copied from
+  `GenshinUID/genshinuid_gachalog/texture2d/`; character name/id maps are
+  copied from `GenshinUID/utils/map/data/`.
 - Challenge Abyss textures are copied from
   `GenshinUID/genshinuid_abyss/texture2D/`.
 - Challenge Theater textures are copied from

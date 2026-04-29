@@ -46,7 +46,7 @@ Generated from `gsuid meta capabilities`.
 | `gacha.export` | `none` | `data` | `off` | Export local gacha logs as UIGF JSON. |
 | `gacha.import` | `none` | `data` | `off` | Import UIGF JSON into local gacha storage. |
 | `gacha.refresh` | `gacha_url` | `data` | `off` | Refresh local gacha logs from a stored authkey URL. |
-| `gacha.summary` | `none` | `data` | `off` | Summarize local gacha logs. |
+| `gacha.summary` | `none` | `data, image, both` | `off` | Summarize local gacha logs. |
 | `guide.abyss` | `none` | `data, image, both` | `use` | Show public abyss guide data and GenshinUID-style monster layout. |
 | `guide.character` | `none` | `data, image, both` | `use` | Show public character guide facts and GenshinUID guide image. |
 | `guide.reference-panel` | `none` | `data, image, both` | `use` | Show the GenshinUID reference-panel image for a character. |

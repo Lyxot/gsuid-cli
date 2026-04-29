@@ -1164,6 +1164,33 @@ tests/
 - Next intended substage: continue with the next remaining public image-render
   group from PLAN coverage.
 
+- Stage 17l status: complete.
+- Stage 17l result: ported the GenshinUID gachalog summary image renderer to
+  `gacha summary --render image|both`.
+- Stage 17l notes:
+  - Bundled attributed GenshinUID gachalog textures, emotion icons, and the
+    avatar id/name map used for gacha character icon resolution.
+  - Preserved the existing JSON summary contract for `--render data` and
+    `--render both`.
+  - Character icon resolution keeps every exact id candidate for a mapped name
+    and renders the first candidate URL available from the GenshinUID resource
+    host; this handles duplicate map entries such as `伊涅芙` and `哥伦比娅`
+    without guessing from partial names.
+- Stage 17l verification:
+  - `.venv/bin/python -m pytest tests/test_gacha_log.py::test_gacha_summary_character_icon_urls_include_duplicate_name_candidates tests/test_gacha_log.py::test_gacha_summary_render_image_writes_card tests/test_gacha_log.py::test_gacha_summary_render_both_preserves_data -q`
+  - `.venv/bin/python -m pytest tests/test_gacha_log.py tests/test_meta_commands.py tests/test_docs.py tests/test_help_information.py -q`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `git diff --check`
+  - `.venv/bin/python -m build`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17l-gacha-summary-available-icons --cache refresh --render image gacha summary --uid <UID>`
+- Stage 17l live artifact:
+  `~/.gsuid-cli/artifacts/2026-05-03/stage17l-gacha-summary-available-icons/gacha-summary_102452098_all.png`
+- Next intended stage: Stage 8.5, auto-refresh expired gacha authkeys during
+  `gacha refresh`.
+
 ## MVP Cut Line
 
 The first usable MVP is complete after Stage 6 if these commands work:
