@@ -661,6 +661,36 @@ tests/
 ### Stage 7: Progress And Challenge Data — completed.
 ### Stage 8: Gacha Log — completed.
 ### Stage 8.1: Automatic Gacha Authkey URL — completed.
+### Stage 8.1a: Refresh Expired Gacha Authkeys During Refresh
+
+- Status: completed.
+- Result: `gacha refresh` now auto-recovers from an expired stored gacha
+  authkey by generating and storing a fresh authkey from cookie/stoken
+  credentials, then retrying the refresh once.
+- Scope:
+  - Preserved the existing `gacha refresh` JSON output contract.
+  - Did not print raw authkeys, generated gacha URLs, cookie, or stoken values.
+  - Recovery is triggered by the observed live expired-authkey provider
+    response: `UPSTREAM_REJECTED` with `category=gacha.refresh`,
+    `retcode=-101`, and `message=authkey timeout`; existing `AUTH_EXPIRED`
+    remains supported.
+  - If cookie/stoken are unavailable, recovery returns the structured missing
+    credential error.
+  - Adds the warning `gacha authkey expired; refreshed automatically` when
+    recovery succeeds.
+- Verification:
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage81a-live-expired-repro gacha refresh --uid <UID>`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage81a-live-auto-refresh gacha refresh --uid <UID>`
+  - `.venv/bin/python -m pytest tests/test_gacha_log.py::test_gacha_refresh_auto_refreshes_expired_authkey tests/test_gacha_log.py::test_gacha_refresh_expired_authkey_requires_recovery_credentials -q`
+  - `.venv/bin/python -m pytest tests/test_gacha_log.py -q`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+- Live notes: the first live run showed the current expired authkey returns
+  `UPSTREAM_REJECTED` with retcode `-101` and message `authkey timeout`. After
+  implementation, the second live run refreshed the authkey, retried
+  successfully, fetched 60 rows, inserted 0 new rows, and printed only redacted
+  credential metadata.
+
 ### Stage 8.2: Live Gacha Refresh Normalization — completed.
 ### Stage 8.3: Gacha Five-Star Intervals — completed.
 ### Stage 8.4: Gacha Refresh Gap Recovery — completed.

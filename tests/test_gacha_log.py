@@ -12,7 +12,7 @@ from PIL import Image
 
 from gsuid_cli.cli import run
 from gsuid_cli.commands import gacha
-from gsuid_cli.core.errors import EXIT_AUTH, CliError
+from gsuid_cli.core.errors import EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.secrets import SecretStore
@@ -603,7 +603,44 @@ def test_gacha_refresh_delays_after_terminal_pages(monkeypatch, tmp_path) -> Non
     assert sleeps == [gacha.GACHA_REFRESH_REQUEST_DELAY_SECONDS] * len(gacha.GACHA_TYPES)
 
 
-def test_gacha_refresh_expired_authkey_is_sanitized(monkeypatch, tmp_path) -> None:
+def test_gacha_refresh_auto_refreshes_expired_authkey(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    provider = _auto_refresh_authkey_provider()
+    monkeypatch.setattr(
+        "gsuid_cli.commands.gacha.provider_for_region",
+        lambda _region, _http_client: provider,
+    )
+    _disable_gacha_refresh_sleep(monkeypatch)
+    store = SecretStore()
+    store.set_secret(
+        "gacha_url",
+        "100000001",
+        "https://example.test/getGachaLog?authkey=expired-secret",
+    )
+    store.set_secret("cookie", "100000001", "account_id=1;cookie_token=cookie-secret")
+    store.set_secret("stoken", "100000001", "stuid=1;stoken=stoken-secret")
+
+    code, payload = _run_json(["gacha", "refresh", "--uid", "100000001"])
+
+    raw = json.dumps(payload, ensure_ascii=False)
+    assert code == 0
+    assert payload["data"]["inserted"] == 2
+    assert payload["data"]["credential_source"] == "keyring"
+    assert payload["warnings"] == ["gacha authkey expired; refreshed automatically"]
+    assert provider.generated == 1
+    assert any("expired-secret" in url for url in provider.gacha_urls)
+    assert any("fresh-authkey" in url for url in provider.gacha_urls)
+    assert "fresh-authkey" in (store.get_secret("gacha_url", "100000001") or "")
+    assert "expired-secret" not in raw
+    assert "fresh-authkey" not in raw
+    assert "cookie-secret" not in raw
+    assert "stoken-secret" not in raw
+
+
+def test_gacha_refresh_expired_authkey_requires_recovery_credentials(
+    monkeypatch,
+    tmp_path,
+) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands.gacha.provider_for_region", _expired_provider)
     SecretStore().set_secret(
@@ -615,7 +652,8 @@ def test_gacha_refresh_expired_authkey_is_sanitized(monkeypatch, tmp_path) -> No
     code, payload = _run_json(["gacha", "refresh", "--uid", "100000001"])
 
     assert code == 2
-    assert payload["error"]["code"] == "AUTH_EXPIRED"
+    assert payload["error"]["code"] == "AUTH_REQUIRED"
+    assert payload["error"]["details"]["credential_type"] == "cookie"
     raw = json.dumps(payload, ensure_ascii=False)
     assert "expired-secret" not in raw
     assert "cret" not in raw
@@ -827,12 +865,95 @@ def _expired_provider(_region: str, _http_client: HttpClient):
     class ExpiredProvider:
         def gacha_log_page(self, **_kwargs) -> CommandResult:
             raise CliError(
-                "AUTH_EXPIRED",
-                "The gacha authkey URL is expired or rejected by the provider.",
-                EXIT_AUTH,
+                "UPSTREAM_REJECTED",
+                "Provider rejected the request.",
+                EXIT_UPSTREAM,
+                {
+                    "provider": "mys",
+                    "region": "cn",
+                    "category": "gacha.refresh",
+                    "retcode": -101,
+                    "message": "authkey timeout",
+                },
+                retryable=False,
+                source=_source(),
             )
 
     return ExpiredProvider()
+
+
+def _auto_refresh_authkey_provider():
+    class AutoRefreshAuthkeyProvider:
+        def __init__(self) -> None:
+            self.generated = 0
+            self.gacha_urls: list[str] = []
+
+        def generate_gacha_authkey_url(
+            self,
+            *,
+            uid: str,
+            cookie: str,
+            stoken: str,
+            region: str,
+        ) -> CommandResult:
+            assert uid == "100000001"
+            assert cookie == "account_id=1;cookie_token=cookie-secret"
+            assert stoken == "stuid=1;stoken=stoken-secret"
+            assert region == "cn"
+            self.generated += 1
+            return CommandResult(
+                data={
+                    "uid": uid,
+                    "server": "cn_gf01",
+                    "game_biz": "hk4e_cn",
+                    "auth_appid": "webview_gacha",
+                    "account_id": "1",
+                    "gacha_url": (
+                        "https://public-operation-hk4e.mihoyo.com/gacha_info/api/getGachaLog"
+                        "?authkey=fresh-authkey"
+                    ),
+                    "redacted": "[REDACTED_URL]",
+                },
+                source=_source(),
+            )
+
+        def gacha_log_page(
+            self,
+            *,
+            uid: str,
+            authkey_url: str,
+            region: str,
+            gacha_type: str,
+            page: int,
+            end_id: str,
+        ) -> CommandResult:
+            assert uid == "100000001"
+            assert region == "cn"
+            self.gacha_urls.append(authkey_url)
+            if "expired-secret" in authkey_url:
+                raise CliError(
+                    "UPSTREAM_REJECTED",
+                    "Provider rejected the request.",
+                    EXIT_UPSTREAM,
+                    {
+                        "provider": "mys",
+                        "region": "cn",
+                        "category": "gacha.refresh",
+                        "retcode": -101,
+                        "message": "authkey timeout",
+                    },
+                    retryable=False,
+                    source=_source(),
+                )
+            assert "fresh-authkey" in authkey_url
+            if gacha_type == "301" and page == 1:
+                assert end_id == "0"
+                items = _items()[:2]
+                del items[0]["item_id"]
+                return CommandResult(data={"list": items}, source=_source())
+            return CommandResult(data={"list": []}, source=_source())
+
+    return AutoRefreshAuthkeyProvider()
 
 
 def _authkey_provider(_region: str, _http_client: HttpClient):

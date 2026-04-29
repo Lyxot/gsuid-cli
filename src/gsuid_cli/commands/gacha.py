@@ -172,6 +172,65 @@ def refresh_command(args: argparse.Namespace) -> CommandResult:
     uid, region = _uid_and_region(args)
     args.credential_kind = "gacha_url"
     authkey_url, credential_source, storage_backend = _credential(args, uid)
+    try:
+        return _refresh_with_authkey(
+            args,
+            uid=uid,
+            region=region,
+            authkey_url=authkey_url,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+        )
+    except CliError as exc:
+        if not _is_expired_gacha_authkey_error(exc):
+            raise
+        refreshed_url, refreshed = _refresh_gacha_authkey_url(args, uid, region)
+        refreshed_storage_backend = refreshed.data.get("storage_backend")
+        result = _refresh_with_authkey(
+            args,
+            uid=uid,
+            region=region,
+            authkey_url=refreshed_url,
+            credential_source="keyring",
+            storage_backend=(
+                refreshed_storage_backend if isinstance(refreshed_storage_backend, str) else None
+            ),
+        )
+        return CommandResult(
+            data=result.data,
+            source=result.source,
+            warnings=[
+                "gacha authkey expired; refreshed automatically",
+                *refreshed.warnings,
+                *result.warnings,
+            ],
+            artifacts=result.artifacts,
+            pagination=result.pagination,
+        )
+
+
+def _is_expired_gacha_authkey_error(error: CliError) -> bool:
+    if error.code == "AUTH_EXPIRED":
+        return True
+    if error.code != "UPSTREAM_REJECTED":
+        return False
+    details = error.details
+    return (
+        str(details.get("category") or "") == "gacha.refresh"
+        and str(details.get("retcode") or "") == "-101"
+        and str(details.get("message") or "").strip().lower() == "authkey timeout"
+    )
+
+
+def _refresh_with_authkey(
+    args: argparse.Namespace,
+    *,
+    uid: str,
+    region: str,
+    authkey_url: str,
+    credential_source: str,
+    storage_backend: str | None,
+) -> CommandResult:
     provider = provider_for_region(region, _http_client(args))
     totals = {"fetched": 0, "inserted": 0, "duplicates": 0}
     per_type = []
@@ -291,6 +350,15 @@ def authkey_command(args: argparse.Namespace) -> dict[str, object]:
 
 def authkey_refresh_command(args: argparse.Namespace) -> CommandResult:
     uid, region = _uid_and_region(args)
+    _gacha_url, result = _refresh_gacha_authkey_url(args, uid, region)
+    return result
+
+
+def _refresh_gacha_authkey_url(
+    args: argparse.Namespace,
+    uid: str,
+    region: str,
+) -> tuple[str, CommandResult]:
     args.credential_kind = "cookie"
     cookie, cookie_source, cookie_storage_backend = _credential(args, uid)
     args.credential_kind = "stoken"
@@ -305,7 +373,7 @@ def authkey_refresh_command(args: argparse.Namespace) -> CommandResult:
     gacha_url = _generated_gacha_url(result)
     store = SecretStore()
     store.set_secret("gacha_url", uid, gacha_url)
-    return CommandResult(
+    command_result = CommandResult(
         data={
             **result.data,
             "uid": uid,
@@ -326,6 +394,7 @@ def authkey_refresh_command(args: argparse.Namespace) -> CommandResult:
         source=result.source,
         warnings=result.warnings,
     )
+    return gacha_url, command_result
 
 
 def _http_client(args: argparse.Namespace) -> HttpClient:
