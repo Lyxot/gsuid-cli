@@ -661,36 +661,7 @@ tests/
 ### Stage 7: Progress And Challenge Data — completed.
 ### Stage 8: Gacha Log — completed.
 ### Stage 8.1: Automatic Gacha Authkey URL — completed.
-### Stage 8.1a: Refresh Expired Gacha Authkeys During Refresh
-
-- Status: completed.
-- Result: `gacha refresh` now auto-recovers from an expired stored gacha
-  authkey by generating and storing a fresh authkey from cookie/stoken
-  credentials, then retrying the refresh once.
-- Scope:
-  - Preserved the existing `gacha refresh` JSON output contract.
-  - Did not print raw authkeys, generated gacha URLs, cookie, or stoken values.
-  - Recovery is triggered by the observed live expired-authkey provider
-    response: `UPSTREAM_REJECTED` with `category=gacha.refresh`,
-    `retcode=-101`, and `message=authkey timeout`; existing `AUTH_EXPIRED`
-    remains supported.
-  - If cookie/stoken are unavailable, recovery returns the structured missing
-    credential error.
-  - Adds the warning `gacha authkey expired; refreshed automatically` when
-    recovery succeeds.
-- Verification:
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage81a-live-expired-repro gacha refresh --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage81a-live-auto-refresh gacha refresh --uid <UID>`
-  - `.venv/bin/python -m pytest tests/test_gacha_log.py::test_gacha_refresh_auto_refreshes_expired_authkey tests/test_gacha_log.py::test_gacha_refresh_expired_authkey_requires_recovery_credentials -q`
-  - `.venv/bin/python -m pytest tests/test_gacha_log.py -q`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-- Live notes: the first live run showed the current expired authkey returns
-  `UPSTREAM_REJECTED` with retcode `-101` and message `authkey timeout`. After
-  implementation, the second live run refreshed the authkey, retried
-  successfully, fetched 60 rows, inserted 0 new rows, and printed only redacted
-  credential metadata.
-
+### Stage 8.1a: Refresh Expired Gacha Authkeys During Refresh — completed.
 ### Stage 8.2: Live Gacha Refresh Normalization — completed.
 ### Stage 8.3: Gacha Five-Star Intervals — completed.
 ### Stage 8.4: Gacha Refresh Gap Recovery — completed.
@@ -1220,6 +1191,83 @@ tests/
   `~/.gsuid-cli/artifacts/2026-05-03/stage17l-gacha-summary-available-icons/gacha-summary_102452098_all.png`
 - Next intended stage: Stage 8.5, auto-refresh expired gacha authkeys during
   `gacha refresh`.
+
+- Stage 17m status: completed.
+- Stage 17m result: ported the GenshinUID Enka panel card renderer to
+  `panel show --render image|both`.
+- Stage 17m notes:
+  - Added attributed GenshinUID panel textures, Enka text maps, artifact/weapon
+    effect maps, damage action maps, and reference graduation data.
+  - Reused the Stage 9 Enka-backed `panel_cache` data source and Stage 16.5
+    static asset cache for character, weapon, skill, constellation, and
+    artifact UI assets.
+  - Added GenshinUID-style artifact effective stat counts, reference sequence
+    labels, graduation percent, weapon passive text enrichment, and damage
+    table rendering.
+  - Matched the GenshinUID panel calculator path for the current Enka build,
+    including reaction bonus `a`, `extraBonus`, `baseArea`, mixed ATK+EM base
+    scaling, and GenshinUID's single-character handling of generic `Resist`
+    and uppercase element `DmgBonus` entries.
+  - Preserved the structured `panel.show` JSON contract for `--render data`
+    and `--render both`; `--render image` returns artifact metadata only.
+- Stage 17m review:
+  - A standalone agent reviewed command/render integration and flagged generic
+    `Resist` / uppercase unprefixed `DmgBonus` concerns. Those were checked
+    against GenshinUID and kept as reference-compatible behavior; the real
+    remaining damage gaps were fixed and covered by focused tests.
+- Stage 17m verification:
+  - `.venv/bin/python -m pytest tests/test_panel_rank.py::test_panel_metric_damage_primitives_follow_genshinuid tests/test_panel_rank.py::test_panel_metric_sp_base_uses_atk_and_elemental_mastery tests/test_panel_rank.py::test_panel_metrics_match_genshinuid_reference_counts -q`
+  - `.venv/bin/python -m pytest tests/test_panel_rank.py tests/test_meta_commands.py tests/test_docs.py tests/test_help_information.py -q`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `git diff --check`
+  - `.venv/bin/python -m build`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17m-panel-damage-check --cache use --render image panel show --uid <UID> --character 温迪`
+- Stage 17m live artifact:
+  `~/.gsuid-cli/artifacts/2026-05-03/stage17m-panel-damage-check/panel-show_102452098_温迪.png`
+- Next intended stage: Stage 8.5, auto-refresh expired gacha authkeys during
+  `gacha refresh`.
+
+- Stage 17n status: completed.
+- Stage 17n result: ported the remaining GenshinUID panel-group image renderers.
+- Stage 17n scope:
+  - `panel.compare --render image|both`: compose multiple GenshinUID-style panel
+    cards side-by-side, matching GenshinUID `对比面板`.
+  - `panel.artifacts --render image|both`: render a GenshinUID-style artifact
+    warehouse page from the local Enka panel cache.
+  - `panel.showcase --render image|both`: render a GenshinUID-style cached
+    character showcase summary from local Enka panel data.
+  - Preserve existing structured JSON contracts for `--render data` and
+    `--render both`.
+- Stage 17n notes:
+  - Copied the additional attributed GenshinUID Enka textures for artifact
+    warehouse and compact showcase rendering.
+  - Reused the existing panel card renderer for `panel.compare`, the local Enka
+    cache for all panel images, and the Stage 16.5 asset fetch/cache path.
+- Stage 17n review:
+  - Standalone review found a `panel.artifacts --render both` order mismatch
+    between structured JSON and the GenshinUID CV-sorted image.
+  - Fixed by sorting `panel.artifacts` data by artifact score and adding a
+    regression test that covers the `both` path.
+- Stage 17n verification:
+  - `.venv/bin/python -m pytest tests/test_panel_rank.py tests/test_meta_commands.py`
+  - `.venv/bin/ruff check src/gsuid_cli/commands/panel.py src/gsuid_cli/renderers/panel.py tests/test_panel_rank.py tests/test_meta_commands.py`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `git diff --check`
+  - `.venv/bin/python -m build`
+  - `.venv/bin/python -m gsuid_cli --request-id smoke-panel-compare --format pretty-json panel compare --uid <UID> --build 温迪 --build 钟离 --render image`
+  - `.venv/bin/python -m gsuid_cli --request-id smoke-panel-artifacts --format pretty-json panel artifacts --uid <UID> --render image`
+  - `.venv/bin/python -m gsuid_cli --request-id smoke-panel-showcase --format pretty-json panel showcase --uid <UID> --render image`
+- Stage 17n live artifacts:
+  - `~/.gsuid-cli/artifacts/2026-05-03/smoke-panel-compare/panel-compare_温迪_钟离.png`
+  - `~/.gsuid-cli/artifacts/2026-05-03/smoke-panel-artifacts/panel-artifacts_102452098_p1.png`
+  - `~/.gsuid-cli/artifacts/2026-05-03/smoke-panel-showcase/panel-showcase_102452098.png`
+- Next intended stage: Stage 17o, port rank-group image renderers.
 
 ## MVP Cut Line
 

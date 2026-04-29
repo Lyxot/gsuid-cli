@@ -61,14 +61,14 @@ Generated from `gsuid meta capabilities`.
 | `meta.version` | `none` | `data` | `off` | Show package, Python, and git version metadata. |
 | `misc.primogems-plan` | `none` | `data` | `use` | Report public primogem estimate availability. |
 | `monitor.once` | `none` | `data` | `off` | Run one local health check pass with caller thresholds. |
-| `panel.artifacts` | `none` | `data` | `off` | List cached artifacts for a UID. |
-| `panel.compare` | `none` | `data` | `off` | Compare cached panel stats for two or more builds. |
+| `panel.artifacts` | `none` | `data, image, both` | `off` | List cached artifacts for a UID. |
+| `panel.compare` | `none` | `data, image, both` | `off` | Compare cached panel stats for two or more builds. |
 | `panel.graduation` | `none` | `data` | `off` | Summarize local cached graduation inputs. |
 | `panel.list` | `none` | `data` | `off` | List cached character panels for a UID. |
 | `panel.refresh` | `none` | `data` | `use` | Refresh Enka showcase panel data into the local cache. |
 | `panel.save` | `none` | `data` | `off` | Save one cached panel as a JSON artifact. |
-| `panel.show` | `none` | `data` | `off` | Show one cached character panel. |
-| `panel.showcase` | `none` | `data` | `off` | Show the cached public showcase summary. |
+| `panel.show` | `none` | `data, image, both` | `off` | Show one cached character panel. |
+| `panel.showcase` | `none` | `data, image, both` | `off` | Show the cached public showcase summary. |
 | `player.calendar` | `cookie` | `data, image, both` | `off` | Show authenticated player activity calendar data. |
 | `player.characters` | `cookie` | `data, image, both` | `off` | Show authenticated player character details. |
 | `player.diary` | `cookie` | `data, image, both` | `off` | Show authenticated monthly traveler diary data. |

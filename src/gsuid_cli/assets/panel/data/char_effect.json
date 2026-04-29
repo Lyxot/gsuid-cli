@@ -1,0 +1,5084 @@
+{
+  "莉奈娅": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "GeoResist+-30",
+        "70": "elementalMastery+5%def"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "critDmg+40;百万吨重锤:critDmg+150",
+        "3": "",
+        "4": "addDef+50",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "法尔伽": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "dmgBonus+0.01%atk",
+        "70": "ABE:dmgBonus+30"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "dmgBonus+20",
+        "5": "",
+        "6": "critDmg+80"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "哥伦比娅": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "critRate+15",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "moonExDmgBonus+1.5",
+        "2": "addHp+40;elementalMastery+0.35%hp;moonExDmgBonus+7",
+        "3": "moonExDmgBonus+1.5",
+        "4": "moonExDmgBonus+1.5",
+        "5": "moonExDmgBonus+1.5",
+        "6": "moonExDmgBonus+7;critDmg+80"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "moonExDmgBonus+1.5",
+        "2": "elementalMastery+0.35%hp;moonExDmgBonus+7",
+        "3": "moonExDmgBonus+1.5",
+        "4": "moonExDmgBonus+1.5",
+        "5": "moonExDmgBonus+1.5",
+        "6": "moonExDmgBonus+7;critDmg+80"
+      }
+    }
+  },
+  "兹白": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "灵驹飞踏第二段:addDmg+60%def",
+        "70": "addDef+30;elementalMastery+60"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "灵驹飞踏第二段:addDmg+490%def",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "moonExDmgBonus+48"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "叶洛亚": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "critRate+5;critDmg+10;elementalMastery+50",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "def+200",
+        "5": "",
+        "6": "critRate+5;critDmg+20"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "def+200",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "杜林": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "PyroResist+-35;DendroResist+-35",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "ABCE:addDmg+60%atk;Q:addDmg+150%atk",
+        "2": "dmgBonus+50",
+        "3": "",
+        "4": "Q:dmgBonus+40",
+        "5": "",
+        "6": "ignoreDef+30;Q:ignoreDef+40"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "ABCEQ:addDmg+60%atk",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "雅珂达": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "Q:dmgBonus+30",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "critRate+5;critDmg+40"
+      },
+      "group_skill": {
+        "50": "",
+        "70": "elementalMastery+100"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "奇偶·女性": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "奇偶·男性": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "奈芙尔": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "elementalMastery+100",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "幻戏:addDmg+60%elementalMastery",
+        "2": "elementalMastery+100",
+        "3": "",
+        "4": "DendroResist+-20",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "菈乌玛": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "E:dmgBonus+32%0.04%elementalMastery",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "爱诺": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "Q:addDmg+50%elementalMastery"
+      },
+      "fight_talent": {
+        "1": "elementalMastery+80",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "elementalMastery+80",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "菲林斯": {
+    "normal": {
+      "normal_skill": {
+        "50": "elementalMastery+160%0.08%atk",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "addAtk+20;elementalMastery+60%0.02%atk",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "ElectroResist+-25",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "伊涅芙": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "Q:elementalMastery+6%atk"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": "Q:elementalMastery+6%atk"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "丝柯克": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "E:extraBonus+70;Q:extraBonus+60",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "addAtk+70",
+        "3": "",
+        "4": "addAtk+40",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "塔利雅": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "shieldBonus+25",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "爱可菲": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "HydroResist+-55;CryoResist+-55"
+      },
+      "fight_talent": {
+        "1": "EQ:critDmg+60",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": "HydroResist+-55;CryoResist+-55"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "伊法": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "elementalMastery+80",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "elementalMastery+100",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "伊安珊": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "addAtk+20",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "dmgBonus+25"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "addAtk+30",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "dmgBonus+25"
+      }
+    }
+  },
+  "瓦雷莎": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "C:addDmg+180%atk",
+        "70": "addAtk+70"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "Q:dmgBonus+100;C:addDmg+20000%500%atk",
+        "5": "",
+        "6": "CQ:critDmg+100;CQ:critRate+10"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "梦见月瑞希": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "elementalMastery+100"
+      },
+      "fight_talent": {
+        "1": "扩散:addDmg+1100%elementalMastery",
+        "2": "CryoDmgBonus+0.04%elementalMastery;HydroDmgBonus+0.04%elementalMastery;PyroDmgBonus+0.04%elementalMastery;ElectroDmgBonus+0.04%elementalMastery",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "CryoDmgBonus+0.04%elementalMastery;HydroDmgBonus+0.04%elementalMastery;PyroDmgBonus+0.04%elementalMastery;ElectroDmgBonus+0.04%elementalMastery",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "旅行者(水)": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "旅行者(火)": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "dmgBonus+15",
+        "2": "",
+        "3": "",
+        "4": "PyroDmgBonus+20",
+        "5": "",
+        "6": "ABC:critDmg+40"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "dmgBonus+15",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "玛薇卡": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "addAtk+30",
+        "70": "dmgBonus+40"
+      },
+      "fight_talent": {
+        "1": "addAtk+40",
+        "2": "atk+200;ignoreDef+20",
+        "3": "",
+        "4": "Q:dmgBonus+10",
+        "5": "",
+        "6": "ignoreDef+20"
+      },
+      "group_skill": {
+        "50": "",
+        "70": "dmgBonus+40"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "茜特菈莉": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "elementalMastery+375",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "HydroResist+-30;PyroResist+-30",
+        "70": "霜陨风暴:addDmg+90%elementalMastery;冰风暴:addDmg+1200%elementalMastery"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "HydroResist+-20;PyroResist+-20",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "DmgBonus+100"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "elementalMastery+250",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "HydroDmgBonus+60;PyroDmgBonus+60"
+      }
+    }
+  },
+  "蓝砚": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "E:addDmg+309%elementalMastery;Q:addDmg+774%elementalMastery"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "elementalMastery+60",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "elementalMastery+60",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "恰斯卡": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "追影弹:dmgBonus+65",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "追影弹:critDmg+120"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "欧洛伦": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "ElectroDmgBonus+32",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "addAtk+30"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "addAtk+30"
+      }
+    }
+  },
+  "希诺宁": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "AC:dmgBonus+30",
+        "70": "addDef+20"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "dmgBonus+50",
+        "3": "",
+        "4": "ABC:addDmg+65%def",
+        "5": "",
+        "6": "AC:addDmg+300%def"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "玛拉妮": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "Q:addDmg+40%hp"
+      },
+      "fight_talent": {
+        "1": "E:addDmg+66%hp",
+        "2": "",
+        "3": "",
+        "4": "Q:dmgBonus+75",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "卡齐娜": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "dmgBonus+20",
+        "70": "E:addDmg+20%def"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "addDef+20",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "基尼奇": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "E:addDmg+320%atk"
+      },
+      "fight_talent": {
+        "1": "迴猎贯鳞炮伤害:critDmg+100",
+        "2": "DendroResist+-30",
+        "3": "",
+        "4": "Q:dmgBonus+70",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "希格雯": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "dmgBonus+8",
+        "70": "healBonus+30"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "HydroResist+-35",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "Q:critDmg+110;Q:critRate+20"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "赛索斯": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "贯影箭:addDmg+700%elementalMastery"
+      },
+      "fight_talent": {
+        "1": "贯影箭:critRate+15",
+        "2": "ElectroDmgBonus+30",
+        "3": "",
+        "4": "elementalMastery+80",
+        "5": "",
+        "6": "Q:addDmg+1400%atk;AQ:critDmg+70;AQ:critRate+10"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "克洛琳德": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "AQ:addDmg+1800%60%atk",
+        "70": "critRate+20"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "AQ:addDmg+2700%90%atk",
+        "3": "",
+        "4": "Q:dmgBonus+200",
+        "5": "",
+        "6": "critRate+10;critDmg+70"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "阿蕾奇诺": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "Q:addDmg+1400%atk;AQ:critDmg+70;AQ:critRate+10"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "千织": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "GeoDmgBonus+20"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "A:addDmg+235%def"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "闲云": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "C:critRate+10",
+        "70": "C:addDmg+9000%200%atk"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "addAtk+20;C:addDmg+9000%200%atk",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "E:critDmg+70"
+      },
+      "group_skill": {
+        "50": "C:critRate+10",
+        "70": "C:addDmg+9000%200%atk"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "C:addDmg+9000%200%atk",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "嘉明": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "E:dmgBonus+20"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "E:critDmg+40;E:critRate+20"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "娜维娅": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": "addAtk+40"
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "ABC:dmgBonus+40",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "E:critRate+24",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "Q:critDmg+105"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "夏沃蕾": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "PyroResist+-40;ElectroResist+-40",
+        "70": "addAtk+40%0.01%hp"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "PyroDmgBonus+20;ElectroDmgBonus+20"
+      },
+      "group_skill": {
+        "50": "PyroResist+-40;ElectroResist+-40",
+        "70": "addAtk+40%0.01%hp"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "PyroDmgBonus+20;ElectroDmgBonus+20"
+      }
+    }
+  },
+  "夏洛蒂": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "healBonus+15"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "addAtk+30",
+        "3": "",
+        "4": "dmgBonus+10",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "芙宁娜": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "E:dmgBonus+0.0007%hp"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "hp+140",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "A:addDmg+18%hp"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "莱欧斯利": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "B:dmgBonus+30",
+        "70": "addAtk+30"
+      },
+      "fight_talent": {
+        "1": "B:powerPlus+0.2",
+        "2": "Q:dmgBonus+200",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "B:critDmg+80;B:critRate+10"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "那维莱特": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": "HydroDmgBonus+30"
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "B:powerPlus+0.6",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "B:critDmg+42",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "琳妮特": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "addAtk+20",
+        "70": "Q:dmgBonus+15"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "AnemoDmgBonus+20"
+      },
+      "group_skill": {
+        "50": "addAtk+20",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "林尼": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "B:addDmg+80%atk",
+        "70": "PyroDmgBonus+100"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "critDmg+60",
+        "4": "PyroResist+-25",
+        "5": "",
+        "6": "礼花术弹:addDmg+100%atk"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "菲米尼": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "B:dmgBonus+40"
+      },
+      "fight_talent": {
+        "1": "E:critRate+15",
+        "2": "",
+        "3": "",
+        "4": "addAtk+18",
+        "5": "",
+        "6": "critDmg+36"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "神里绫华": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "AB:dmgBonus+30",
+        "70": "dmgBonus+18"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "d+30",
+        "5": "",
+        "6": "B:dmgBonus+298"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "琴": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "E:dmgBonus+40",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "旅行者": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "丽莎": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "d+15"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "芭芭拉": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "HydroDmgBonus+15",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "HydroDmgBonus+15",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "凯亚": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "AB:critRate+15",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "迪卢克": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "ABCE:dmgBonus+20"
+      },
+      "fight_talent": {
+        "1": "dmgBonus+15",
+        "2": "addAtk+30",
+        "3": "",
+        "4": "E:dmgBonus+40",
+        "5": "",
+        "6": "A:dmgBonus+30"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "雷泽": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "dmgBonus+10",
+        "2": "",
+        "3": "",
+        "4": "d+15",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "安柏": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "Q:critRate+10",
+        "70": "addAtk+15"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "E:dmgBonus+200",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "addAtk+15"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "温迪": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "AnemoResist+-12;PhysicalResist+-12",
+        "3": "",
+        "4": "dmgBonus+25",
+        "5": "",
+        "6": "Resist+-20"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "香菱": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "addAtk+10"
+      },
+      "fight_talent": {
+        "1": "PyroResist+-15",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "EQ:dmgBonus+15"
+      },
+      "group_skill": {
+        "50": "",
+        "70": "addAtk+10"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "北斗": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "AB:dmgBonus+15"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "ElectroResist+-15"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "行秋": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": "dmgBonus+20"
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "HydroResist+-15",
+        "3": "",
+        "4": "E:dmgBonus+50",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "魈": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "dmgBonus+15",
+        "70": "E:dmgBonus+15"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "addDef+100",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "凝光": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "dmgBonus+12"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": "GeoDmgBonus+12"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "可莉": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "B:dmgBonus+50",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "d+23",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "dmgBonus+10"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "PyroDmgBonus+10"
+      }
+    }
+  },
+  "钟离": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "ABC:addDmg+1.39%hp;E:addDmg+1.9%hp;Q:addDmg+33%hp"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "菲谢尔": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "A:addDmg+22%atk",
+        "2": "召唤伤害:addDmg+200%atk",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "班尼特": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "energyRecharge+30",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "dmgBonus+15"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "PyroDmgBonus+15"
+      }
+    }
+  },
+  "达达利亚": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "诺艾尔": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "B:dmgBonus+15",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "exAtk+50%def"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "七七": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "AB:dmgBonus+15",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "重云": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "CryoResist+-10"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "Q:dmgBonus+15"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "甘雨": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "B:critRate+20",
+        "70": "BE:dmgBonus+20"
+      },
+      "fight_talent": {
+        "1": "CryoResist+-15",
+        "2": "",
+        "3": "",
+        "4": "dmgBonus+15",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": "CryoDmgBonus+20"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "dmgBonus+15",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "阿贝多": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "E:dmgBonus+12",
+        "70": "elementalMastery+125"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "Q:addDmg+120%def",
+        "3": "",
+        "4": "C:dmgBonus+30",
+        "5": "",
+        "6": "dmgBonus+17"
+      },
+      "group_skill": {
+        "50": "",
+        "70": "elementalMastery+125"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "C:dmgBonus+30",
+        "5": "",
+        "6": "dmgBonus+17"
+      }
+    }
+  },
+  "迪奥娜": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "E:dmgBonus+15;shieldBonus+15",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "elementalMastery+200"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "elementalMastery+200"
+      }
+    }
+  },
+  "莫娜": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "dmgBonus+20%energyrecharge"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "B:dmgBonus+180"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "刻晴": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "Q:critRate+15;energyRecharge+15"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "addAtk+25",
+        "5": "",
+        "6": "dmgBonus+18"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "砂糖": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "elementalMastery+50",
+        "70": "elementalMastery+20%elementalMastery"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "dmgBonus+20"
+      }
+    }
+  },
+  "辛焱": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "physicalDmgBonus+15"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "Q:critRate+100",
+        "3": "",
+        "4": "PhysicalResist+-15",
+        "5": "",
+        "6": "B:exAtk+50%def"
+      },
+      "group_skill": {
+        "50": "",
+        "70": "physicalDmgBonus+15"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "罗莎莉亚": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "E:critRate+12",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "A:dmgBonus+10",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "PhysicalResist+-20"
+      },
+      "group_skill": {
+        "50": "",
+        "70": "critRate+15%critRate"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "胡桃": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "dmgBonus+33"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": "critRate+12"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "枫原万叶": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "dmgBonus+0.04%elementalMastery"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "elementalMastery+200",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "ABC:dmgBonus+0.2%elementalMastery"
+      },
+      "group_skill": {
+        "50": "",
+        "70": "dmgBonus+0.04%elementalMastery"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "elementalMastery+200",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "烟绯": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "B:dmgBonus+15",
+        "70": "B:addDmg+80%atk"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "B:critRate+20",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "B:dmgBonus+10"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "宵宫": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "dmgBonus+20",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "addAtk+20",
+        "2": "dmgBonus+25",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "A:dmgBonus+30"
+      },
+      "group_skill": {
+        "50": "",
+        "70": "addAtk+15"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "托马": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "E:addDmg+2.2%hp"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "ABC:dmgBonus+15"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "ABC:dmgBonus+15"
+      }
+    }
+  },
+  "优菈": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "dmgBonus+30",
+        "2": "",
+        "3": "",
+        "4": "Q:dmgBonus+25",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "雷电将军": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": "dmgBonus+40%energyRecharge"
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "Q:ignoreDef+60",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "addAtk+30",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "早柚": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "Q:addDmg+0.2%elementalMastery"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "珊瑚宫心海": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "dmgBonus+40"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "五郎": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "addDef+25",
+        "70": "E:addDmg+156%def;Q:addDmg+15.6%def"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "addDef+25",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "critDmg+40"
+      }
+    }
+  },
+  "九条裟罗": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "critDmg+60"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "critDmg+60"
+      }
+    }
+  },
+  "荒泷一斗": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "荒泷逆袈裟连斩伤害:addDmg+35%def;荒泷逆袈裟终结伤害:addDmg+35%def"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "addAtk+20;addDef+20",
+        "5": "",
+        "6": "B:critDmg+70"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "addAtk+20;addDef+20",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "八重神子": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "E:dmgBonus+0.15%elementalMastery"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "dmgBonus+20",
+        "5": "",
+        "6": "E:ignoreDef+60"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "ElectroDmgBonus+20",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "夜兰": {
+    "normal": {
+      "normal_skill": {
+        "50": "hp+52",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "dmgBonus+15"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "Q:addDmg+14%hp",
+        "3": "",
+        "4": "hp+20",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": "dmgBonus+15"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "hp+20",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "埃洛伊": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "addAtk+16",
+        "70": "BEQ:dmgBonus+35"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "申鹤": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "dmgBonus+15",
+        "70": "Q:dmgBonus+15"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "EQ:critDmg+15",
+        "3": "",
+        "4": "E:dmgBonus+105",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "dmgBonus+15",
+        "70": "ABC:dmgBonus+15"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "critDmg+15",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "云堇": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "A:dmgBonus+15",
+        "3": "",
+        "4": "addDef+20",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "A:dmgBonus+15",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "久岐忍": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "E:addDmg+25%elementalMastery;E:addHeal+75%elementalMastery"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "ABC:addDmg+9.7%hp",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "神里绫人": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "E:dmgBonus+40",
+        "2": "addHp+50",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "阿葵丽雅": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "鹿野院平藏": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "E:critDmg+32"
+      },
+      "group_skill": {
+        "50": "",
+        "70": "elementalMastery+80"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "柯莱": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "energyRecharge+20",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "elementalMastery+60",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "提纳里": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "elementalMastery+50",
+        "70": "B:dmgBonus+60%0.06%elementalMastery"
+      },
+      "fight_talent": {
+        "1": "B:critRate+15",
+        "2": "dmgBonus+20",
+        "3": "",
+        "4": "elementalMastery+60",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "多莉": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "赛诺": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "Q:addDmg+150%elementalMastery"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "dmgBonus+50",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "妮露": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "critRate+30%0.0006%hp;critDmg+60%0.0012%hp"
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "elementalMastery+100",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "水月:dmgBonus+65",
+        "2": "HydroResist+-35;DendroResist+-35",
+        "3": "",
+        "4": "Q:dmgBonus+50",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "elementalMastery+100",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "坎蒂丝": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "A:dmgBonus+0.05%hp"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "addHp+20",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": "A:dmgBonus+0.05%hp"
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "纳西妲": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "灭净三业:dmgBonus+80%10%elementalMastery;业障除:dmgBonus+80%10%elementalMastery"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "d+30",
+        "3": "",
+        "4": "elementalMastery+160",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "elementalMastery+25%elementalMastery",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "莱依拉": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "飞星伤害:addDmg+1.5%hp"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "AB:addDmg+5%hp",
+        "5": "",
+        "6": "飞星伤害:dmgBonus+40;星光弹伤害:dmgBonus+40"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "流浪者": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "Q:dmgBonus+200",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "珐露珊": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "addDmg+45.9%baseAtk"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "critDmg+40"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "旅行者(风)": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "energyRecharge+16",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "Resist+-20"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "旅行者(岩)": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "critRate+10",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "旅行者(雷)": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "ElectroResist+-15",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "旅行者(草)": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "elementalMastery+60",
+        "70": "Q:dmgBonus+0.12%elementalMastery;光幕攻击伤害:dmgBonus+0.12%elementalMastery"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "dmgBonus+12"
+      },
+      "group_skill": {
+        "50": "elementalMastery+60",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "dmgBonus+12"
+      }
+    }
+  },
+  "艾尔海森": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "E:dmgBonus+100%0.15%elementalMastery;Q:dmgBonus+100%0.1%elementalMastery"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "critDmg+70;critRate+10"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "elementalMastery+90",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "瑶瑶": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "DendroDmgBonus+15",
+        "2": "",
+        "3": "",
+        "4": "elementalMastery+120%0.3%hp",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "DendroDmgBonus+15",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "迪希雅": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "addHp+15;E:addDmg+5.2%hp;Q:addDmg+8.4%hp",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "Q:critRate+10;Q:critDmg+60"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "米卡": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "A:critDmg+60"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "卡维": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": ""
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": "elementalMastery+100"
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "白术": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": "DendroDmgBonus+25"
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "elementalMastery+80",
+        "5": "",
+        "6": "灵气脉:addDmg+6%hp"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "elementalMastery+80",
+        "5": "",
+        "6": ""
+      }
+    }
+  },
+  "绮良良": {
+    "normal": {
+      "normal_skill": {
+        "50": "",
+        "70": "E:dmgBonus+0.0004%hp;Q:dmgBonus+0.0003%hp"
+      },
+      "normal_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": ""
+      }
+    },
+    "fight": {
+      "fight_skill": {
+        "50": "",
+        "70": ""
+      },
+      "fight_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "EQ:dmgBonus+12"
+      },
+      "group_skill": {
+        "50": "",
+        "70": ""
+      },
+      "group_talent": {
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": "",
+        "5": "",
+        "6": "dmgBonus+12"
+      }
+    }
+  }
+}

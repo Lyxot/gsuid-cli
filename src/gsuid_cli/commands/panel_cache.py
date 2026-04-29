@@ -3,12 +3,15 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+from functools import lru_cache
+from pathlib import Path
 
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.time import utc_now
 
 JsonDict = dict[str, object]
 PanelCache = dict[str, object]
+PANEL_DATA = Path(__file__).resolve().parents[1] / "assets" / "panel" / "data"
 
 LEVEL_PROP_KEYS = ("4001", "level")
 FIGHT_PROP_LABELS = {
@@ -26,14 +29,14 @@ FIGHT_PROP_LABELS = {
     "23": "energy_recharge",
     "26": "healing_bonus",
     "28": "elemental_mastery",
-    "29": "physical_bonus",
-    "30": "pyro_bonus",
-    "40": "cryo_bonus",
-    "41": "hydro_bonus",
-    "42": "anemo_bonus",
-    "43": "geo_bonus",
-    "44": "electro_bonus",
-    "45": "dendro_bonus",
+    "30": "physical_bonus",
+    "40": "pyro_bonus",
+    "41": "electro_bonus",
+    "42": "hydro_bonus",
+    "43": "dendro_bonus",
+    "44": "anemo_bonus",
+    "45": "geo_bonus",
+    "46": "cryo_bonus",
 }
 CRIT_RATE_PROPS = {"FIGHT_PROP_CRITICAL", "crit_rate", "20"}
 CRIT_DAMAGE_PROPS = {"FIGHT_PROP_CRITICAL_HURT", "crit_damage", "22"}
@@ -244,18 +247,22 @@ def avatar_name(avatar: JsonDict) -> str:
         or avatar.get("avatarName")
         or avatar.get("character_name")
     )
-    return str(value or avatar_id(avatar))
+    if value:
+        return str(value)
+    mapped = _mapped_text("avatarId2Name_mapping_6.5.0.json", avatar_id(avatar))
+    return mapped or avatar_id(avatar)
 
 
 def avatar_aliases(avatar: JsonDict) -> list[str]:
     values = [
         avatar_id(avatar),
+        _mapped_text("avatarId2Name_mapping_6.5.0.json", avatar_id(avatar)),
         avatar.get("name"),
         avatar.get("route"),
         avatar.get("avatarName"),
         avatar.get("character_name"),
     ]
-    return [str(value) for value in values if value]
+    return list(dict.fromkeys(str(value) for value in values if value))
 
 
 def avatar_level(avatar: JsonDict) -> int | None:
@@ -292,9 +299,16 @@ def weapon_summary(avatar: JsonDict) -> JsonDict | None:
         flat = _dict_value(equip.get("flat"))
         if flat.get("itemType") == "ITEM_WEAPON" or isinstance(equip.get("weapon"), dict):
             weapon = _dict_value(equip.get("weapon"))
+            name = (
+                flat.get("name")
+                or _mapped_text("weaponHash2Name_mapping_6.5.0.json", flat.get("nameTextMapHash"))
+                or equip.get("name")
+                or equip.get("itemName")
+                or ""
+            )
             return {
                 "item_id": str(equip.get("itemId") or equip.get("id") or ""),
-                "name": str(flat.get("name") or equip.get("name") or equip.get("itemName") or ""),
+                "name": str(name),
                 "level": _optional_int(weapon.get("level") or equip.get("level")),
                 "rank": _optional_int(flat.get("rankLevel") or equip.get("rank")),
                 "stats": _list_of_dicts(flat.get("weaponStats") or equip.get("stats")),
@@ -312,11 +326,16 @@ def artifact_list(avatar: JsonDict) -> list[JsonDict]:
             continue
         substats = _list_of_dicts(flat.get("reliquarySubstats") or equip.get("substats"))
         main_stat = _dict_value(flat.get("reliquaryMainstat") or equip.get("main_stat"))
+        name = (
+            flat.get("name") or _mapped_text("icon2Name_mapping_6.5.0.json", flat.get("icon")) or ""
+        )
         artifact = {
             "item_id": str(equip.get("itemId") or equip.get("id") or ""),
-            "name": str(flat.get("name") or equip.get("name") or ""),
+            "name": str(name or equip.get("name") or ""),
             "slot": flat.get("equipType") or equip.get("slot"),
-            "set_name": flat.get("setName") or equip.get("set_name"),
+            "set_name": flat.get("setName")
+            or _mapped_text("artifact2attr_mapping_6.5.0.json", name)
+            or equip.get("set_name"),
             "rank": _optional_int(flat.get("rankLevel") or equip.get("rank")),
             "level": _optional_int(
                 _dict_value(equip.get("reliquary")).get("level") or equip.get("level")
@@ -410,3 +429,20 @@ def _fight_prop_value(label: str, value: object) -> object:
         return round(float(value) * 100, 4)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return value
+
+
+def _mapped_text(filename: str, key: object) -> str | None:
+    if key in (None, ""):
+        return None
+    value = _text_map(filename).get(str(key))
+    return str(value) if value not in (None, "") else None
+
+
+@lru_cache(maxsize=16)
+def _text_map(filename: str) -> dict[str, object]:
+    path = PANEL_DATA / filename
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}

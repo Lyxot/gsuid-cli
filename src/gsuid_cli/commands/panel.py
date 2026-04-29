@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 
 from gsuid_cli.commands.account import _validate_uid
@@ -10,6 +11,7 @@ from gsuid_cli.commands.auth import _uid_and_region
 from gsuid_cli.commands.panel_cache import (
     artifact_entries,
     avatar_summaries,
+    avatars,
     cache_source,
     find_avatar,
     load_panel_cache,
@@ -17,6 +19,7 @@ from gsuid_cli.commands.panel_cache import (
     player_summary,
     save_panel_cache,
 )
+from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.config import resolve_paths
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
@@ -25,6 +28,17 @@ from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.state import state_db
 from gsuid_cli.providers.enka import EnkaProvider
 from gsuid_cli.providers.public import AMBR_BASE_URL
+from gsuid_cli.renderers.panel import (
+    panel_artifacts_asset_urls,
+    panel_asset_urls,
+    panel_showcase_asset_urls,
+    render_panel_artifacts_library,
+    render_panel_compare_cards,
+    render_panel_show_card,
+    render_panel_showcase,
+)
+
+PANEL_IMAGE_WORKERS = 12
 
 CAPABILITIES = [
     {
@@ -48,7 +62,7 @@ CAPABILITIES = [
         "description": "Show one cached character panel.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "off",
     },
     {
@@ -56,7 +70,7 @@ CAPABILITIES = [
         "description": "Compare cached panel stats for two or more builds.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "off",
     },
     {
@@ -72,7 +86,7 @@ CAPABILITIES = [
         "description": "List cached artifacts for a UID.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "off",
     },
     {
@@ -80,7 +94,7 @@ CAPABILITIES = [
         "description": "Show the cached public showcase summary.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "off",
     },
     {
@@ -183,7 +197,7 @@ def list_command(args: argparse.Namespace) -> CommandResult:
 def showcase_command(args: argparse.Namespace) -> CommandResult:
     uid, _region = _uid_and_region(args)
     cache = _load(uid, args.output_dir)
-    return CommandResult(
+    result = CommandResult(
         data={
             "uid": uid,
             "player": player_summary(cache),
@@ -193,6 +207,9 @@ def showcase_command(args: argparse.Namespace) -> CommandResult:
         },
         source=cache_source(cache),
     )
+    if args.render == "data":
+        return result
+    return _showcase_render_result(args, result=result, uid=uid, cache=cache)
 
 
 def show_command(args: argparse.Namespace) -> CommandResult:
@@ -210,7 +227,307 @@ def show_command(args: argparse.Namespace) -> CommandResult:
     overrides = _requested_overrides(args)
     if overrides:
         data["requested_overrides"] = overrides
-    return CommandResult(data=data, warnings=warnings, source=cache_source(cache))
+    result = CommandResult(data=data, warnings=warnings, source=cache_source(cache))
+    if args.render == "data":
+        return result
+    return _show_render_result(args, result=result, uid=uid, cache=cache, avatar=avatar)
+
+
+def _show_render_result(
+    args: argparse.Namespace,
+    *,
+    result: CommandResult,
+    uid: str,
+    cache: dict[str, object],
+    avatar: dict[str, object],
+) -> CommandResult:
+    panel = result.data.get("panel")
+    if not isinstance(panel, dict):
+        raise CliError(
+            "UPSTREAM_INVALID_RESPONSE",
+            "Panel data did not contain a renderable character panel.",
+            EXIT_INVALID_INPUT,
+            {"command": "panel.show"},
+            source=result.source,
+        )
+    panel = _panel_with_weapon_effect(args, panel, avatar)
+    asset_images, image_warnings = fetch_render_images(
+        args,
+        panel_asset_urls(avatar, panel),
+        provider="panel",
+        region="cn",
+        category="panel.show.asset",
+        unavailable_warning="{count} panel images unavailable; rendered placeholders",
+        max_workers=PANEL_IMAGE_WORKERS,
+    )
+    png = render_panel_show_card(
+        uid=uid,
+        avatar=avatar,
+        panel=panel,
+        cached_at=str(cache.get("fetched_at") or ""),
+        asset_images=asset_images,
+    )
+    character_name = str(panel.get("name") or result.data.get("character") or "panel")
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="panel/show",
+        filename=f"panel-show_{_safe_filename(uid)}_{_safe_filename(character_name)}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style Enka character panel card",
+        kind="image",
+    )
+    render_data = {
+        "uid": uid,
+        "character": character_name,
+        "render": "panel/show",
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=[*result.warnings, *image_warnings],
+        pagination=result.pagination,
+    )
+
+
+def _compare_render_result(
+    args: argparse.Namespace,
+    *,
+    result: CommandResult,
+    render_builds: list[dict[str, object]],
+) -> CommandResult:
+    urls: list[str] = []
+    for build in render_builds:
+        avatar = build["avatar"]
+        panel = build["panel"]
+        if not isinstance(avatar, dict) or not isinstance(panel, dict):
+            continue
+        panel = _panel_with_weapon_effect(args, panel, avatar)
+        build["panel"] = panel
+        urls.extend(panel_asset_urls(avatar, panel))
+
+    asset_images, image_warnings = fetch_render_images(
+        args,
+        urls,
+        provider="panel",
+        region="cn",
+        category="panel.compare.asset",
+        unavailable_warning="{count} panel compare images unavailable; rendered placeholders",
+        max_workers=PANEL_IMAGE_WORKERS,
+    )
+
+    cards: list[bytes] = []
+    for build in render_builds:
+        avatar = build["avatar"]
+        panel = build["panel"]
+        cache = build["cache"]
+        if (
+            not isinstance(avatar, dict)
+            or not isinstance(panel, dict)
+            or not isinstance(cache, dict)
+        ):
+            continue
+        cards.append(
+            render_panel_show_card(
+                uid=str(build["uid"]),
+                avatar=avatar,
+                panel=panel,
+                cached_at=str(cache.get("fetched_at") or ""),
+                asset_images=asset_images,
+            )
+        )
+
+    png = render_panel_compare_cards(cards)
+    names = "_".join(_safe_filename(str(build["character"])) for build in render_builds)
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="panel/compare",
+        filename=f"panel-compare_{_safe_filename(names)}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style Enka panel comparison",
+        kind="image",
+    )
+    render_data = {
+        "render": "panel/compare",
+        "build_count": len(render_builds),
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=[*result.warnings, *image_warnings],
+        pagination=result.pagination,
+    )
+
+
+def _artifacts_render_result(
+    args: argparse.Namespace,
+    *,
+    result: CommandResult,
+    uid: str,
+    cache: dict[str, object],
+) -> CommandResult:
+    raw_avatars = avatars(cache)
+    panels = [normalized_avatar(avatar) for avatar in raw_avatars]
+    asset_images, image_warnings = fetch_render_images(
+        args,
+        panel_artifacts_asset_urls(raw_avatars, panels, page=args.page),
+        provider="panel",
+        region="cn",
+        category="panel.artifacts.asset",
+        unavailable_warning="{count} panel artifact images unavailable; rendered placeholders",
+        max_workers=PANEL_IMAGE_WORKERS,
+    )
+    png = render_panel_artifacts_library(
+        uid=uid,
+        avatars=raw_avatars,
+        panels=panels,
+        page=args.page,
+        asset_images=asset_images,
+    )
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="panel/artifacts",
+        filename=f"panel-artifacts_{_safe_filename(uid)}_p{args.page}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style Enka artifact warehouse",
+        kind="image",
+    )
+    render_data = {
+        "uid": uid,
+        "page": args.page,
+        "render": "panel/artifacts",
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=[*result.warnings, *image_warnings],
+        pagination=result.pagination,
+    )
+
+
+def _showcase_render_result(
+    args: argparse.Namespace,
+    *,
+    result: CommandResult,
+    uid: str,
+    cache: dict[str, object],
+) -> CommandResult:
+    raw_avatars = avatars(cache)
+    panels = [normalized_avatar(avatar) for avatar in raw_avatars]
+    asset_images, image_warnings = fetch_render_images(
+        args,
+        panel_showcase_asset_urls(raw_avatars, panels),
+        provider="panel",
+        region="cn",
+        category="panel.showcase.asset",
+        unavailable_warning="{count} panel showcase images unavailable; rendered placeholders",
+        max_workers=PANEL_IMAGE_WORKERS,
+    )
+    png = render_panel_showcase(
+        uid=uid,
+        player=player_summary(cache),
+        avatars=raw_avatars,
+        panels=panels,
+        asset_images=asset_images,
+    )
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="panel/showcase",
+        filename=f"panel-showcase_{_safe_filename(uid)}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style Enka showcase summary",
+        kind="image",
+    )
+    render_data = {
+        "uid": uid,
+        "render": "panel/showcase",
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=[*result.warnings, *image_warnings],
+        pagination=result.pagination,
+    )
+
+
+def _panel_with_weapon_effect(
+    args: argparse.Namespace,
+    panel: dict[str, object],
+    avatar: dict[str, object],
+) -> dict[str, object]:
+    weapon = panel.get("weapon")
+    if not isinstance(weapon, dict) or weapon.get("effect"):
+        return panel
+    weapon_id = str(weapon.get("item_id") or "")
+    if len(weapon_id) != 5 or not weapon_id.isdigit():
+        return panel
+    try:
+        response = HttpClient(
+            timeout=args.timeout,
+            cache_policy=args.cache,
+            output_dir=args.output_dir,
+            debug=args.debug,
+        ).request_json(
+            "GET",
+            f"{AMBR_BASE_URL}/api/v2/chs/weapon/{weapon_id}",
+            provider="ambr",
+            region="cn",
+            category="panel.weapon_effect",
+        )
+    except CliError:
+        return panel
+    data = response.payload.get("data")
+    if not isinstance(data, dict):
+        return panel
+    effect = _weapon_effect_text(data.get("affix"), _weapon_affix(avatar))
+    if not effect:
+        return panel
+    next_weapon = {**weapon, "effect": effect}
+    return {**panel, "weapon": next_weapon}
+
+
+def _weapon_affix(avatar: dict[str, object]) -> int:
+    equips = avatar.get("equipList")
+    if not isinstance(equips, list):
+        return 1
+    for equip in equips:
+        if not isinstance(equip, dict):
+            continue
+        weapon = equip.get("weapon")
+        if not isinstance(weapon, dict):
+            continue
+        affix_map = weapon.get("affixMap")
+        if isinstance(affix_map, dict) and affix_map:
+            return min(max(int(_number(next(iter(affix_map.values())))) + 1, 1), 5)
+    return 1
+
+
+def _weapon_effect_text(affix: object, rank: int) -> str | None:
+    if not isinstance(affix, dict):
+        return None
+    first = next((item for item in affix.values() if isinstance(item, dict)), None)
+    if not isinstance(first, dict):
+        return None
+    upgrade = first.get("upgrade")
+    if not isinstance(upgrade, dict):
+        return None
+    text = upgrade.get(str(max(min(rank, 5), 1) - 1))
+    if not isinstance(text, str):
+        return None
+    text = re.sub(r"<br\s*/?>", "\n", text)
+    text = re.sub(r"<.*?>", "", text)
+    return text.replace("@", "").replace("#", "").strip()
 
 
 def compare_command(args: argparse.Namespace) -> CommandResult:
@@ -223,9 +540,10 @@ def compare_command(args: argparse.Namespace) -> CommandResult:
             EXIT_INVALID_INPUT,
             {"build_count": len(build_specs)},
         )
-    builds = [_load_build(spec, default_uid, args.output_dir) for spec in build_specs]
+    render_builds = [_load_render_build(spec, default_uid, args.output_dir) for spec in build_specs]
+    builds = [_build_data(build) for build in render_builds]
     baseline = builds[0]
-    return CommandResult(
+    result = CommandResult(
         data={
             "baseline": baseline,
             "builds": builds,
@@ -233,6 +551,9 @@ def compare_command(args: argparse.Namespace) -> CommandResult:
         },
         source=baseline["source"],
     )
+    if args.render == "data":
+        return result
+    return _compare_render_result(args, result=result, render_builds=render_builds)
 
 
 def save_command(args: argparse.Namespace) -> CommandResult:
@@ -265,12 +586,12 @@ def artifacts_command(args: argparse.Namespace) -> CommandResult:
     _validate_page(args.page)
     uid, _region = _uid_and_region(args)
     cache = _load(uid, args.output_dir)
-    artifacts = artifact_entries(cache)
+    artifacts = _artifact_entries_by_score(cache)
     page_size = 20
     start = (args.page - 1) * page_size
     page_items = artifacts[start : start + page_size]
     total_pages = (len(artifacts) + page_size - 1) // page_size if artifacts else 0
-    return CommandResult(
+    result = CommandResult(
         data={
             "uid": uid,
             "page": args.page,
@@ -283,6 +604,9 @@ def artifacts_command(args: argparse.Namespace) -> CommandResult:
         },
         source=cache_source(cache),
     )
+    if args.render == "data":
+        return result
+    return _artifacts_render_result(args, result=result, uid=uid, cache=cache)
 
 
 def graduation_command(args: argparse.Namespace) -> CommandResult:
@@ -311,6 +635,12 @@ def graduation_command(args: argparse.Namespace) -> CommandResult:
         warnings=[message],
         source=cache_source(cache),
     )
+
+
+def _artifact_entries_by_score(cache: dict[str, object]) -> list[dict[str, object]]:
+    artifacts = artifact_entries(cache)
+    artifacts.sort(key=lambda item: _number(item.get("score")), reverse=True)
+    return artifacts
 
 
 def _provider(args: argparse.Namespace) -> EnkaProvider:
@@ -421,15 +751,26 @@ def _load(uid: str, output_dir: str | None) -> dict[str, object]:
         return load_panel_cache(conn, uid)
 
 
-def _load_build(spec: str, default_uid: str, output_dir: str | None) -> dict[str, object]:
+def _load_render_build(spec: str, default_uid: str, output_dir: str | None) -> dict[str, object]:
     uid, character = _parse_build_spec(spec, default_uid)
     cache = _load(uid, output_dir)
-    avatar = normalized_avatar(find_avatar(cache, character))
+    avatar = find_avatar(cache, character)
     return {
         "uid": uid,
         "character": character,
-        "panel": avatar,
+        "cache": cache,
+        "avatar": avatar,
+        "panel": normalized_avatar(avatar),
         "source": cache_source(cache),
+    }
+
+
+def _build_data(build: dict[str, object]) -> dict[str, object]:
+    return {
+        "uid": build["uid"],
+        "character": build["character"],
+        "panel": build["panel"],
+        "source": build["source"],
     }
 
 
