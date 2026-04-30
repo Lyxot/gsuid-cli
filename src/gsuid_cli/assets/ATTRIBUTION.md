@@ -37,10 +37,17 @@ rendering.
   `GenshinUID/utils/resource/texture2d/weapon_affix/`; compact panel text-map
   JSON files are copied from `GenshinUID/utils/map/data/`; reference scoring
   and damage-table JSON files are copied from `GenshinUID/genshinuid_enka/effect/`.
+- Panel graduation textures are copied from `GenshinUID/genshinuid_count/texture2d/`
+  and shared count/fetter badge textures are copied from
+  `GenshinUID/genshinuid_enka/count_texture2d/` and
+  `GenshinUID/utils/resource/texture2d/fetter/`.
 - Rank textures are copied from `GenshinUID/genshinuid_enka/rank_texture2d/`,
   `GenshinUID/genshinuid_enka/count_texture2d/`, and
   `GenshinUID/genshinuid_enka/texture2D/rank_img/`; rank badge textures are
   copied from `GenshinUID/utils/resource/texture2d/talent/`.
+- Rerun-list textures are copied from `GenshinUID/genshinuid_returnlist/texture2d/`.
+- Primogem-plan static images are copied from
+  `GenshinUID/genshinuid_etcimg/primogems_data/`.
 - Challenge Abyss textures are copied from
   `GenshinUID/genshinuid_abyss/texture2D/`.
 - Challenge Theater textures are copied from

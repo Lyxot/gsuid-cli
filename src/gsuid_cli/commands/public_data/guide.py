@@ -12,9 +12,9 @@ from gsuid_cli.commands.public_data._common import (
 )
 from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
-from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
+from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.providers.public import PublicDataProvider
+from gsuid_cli.providers.public import PRIMOGEMS_PLAN_ASSET_DIR, PublicDataProvider
 from gsuid_cli.renderers.guide import (
     guide_abyss_image_urls,
     guide_theater_image_urls,
@@ -25,6 +25,7 @@ from gsuid_cli.renderers.recommend import (
     render_recommend_build_card,
     render_recommend_holder_card,
 )
+from gsuid_cli.renderers.rerun import render_rerun_list, rerun_asset_urls
 
 WIKI_IMAGE_WORKERS = 8
 
@@ -95,18 +96,18 @@ CAPABILITIES = [
     },
     {
         "command": "rerun.list",
-        "description": "List wish-banner rows for rerun analysis.",
+        "description": "List rerun rows and render the GenshinUID return list.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "use",
     },
     {
         "command": "misc.primogems-plan",
-        "description": "Report public primogem estimate availability.",
+        "description": "Show the GenshinUID static version-plan primogem image.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "use",
     },
 ]
@@ -183,11 +184,17 @@ def map_find_command(args: argparse.Namespace) -> CommandResult:
 
 
 def rerun_list_command(args: argparse.Namespace) -> CommandResult:
-    return _provider(args).rerun_list(limit=_limit(args.limit))
+    result = _provider(args).rerun_list(limit=_limit(args.limit))
+    if args.render == "data":
+        return result
+    return _rerun_render_result(args, result)
 
 
 def primogems_plan_command(args: argparse.Namespace) -> CommandResult:
-    return _provider(args).primogems_plan(version=args.version)
+    result = _provider(args).primogems_plan(version=args.version)
+    if args.render == "data":
+        return result
+    return _primogems_plan_render_result(args, result)
 
 
 def register_guides(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -410,6 +417,89 @@ def _recommend_render_result(
     render_data = {
         "name": name,
         "render": render_name,
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=result.warnings,
+        pagination=result.pagination,
+    )
+
+
+def _rerun_render_result(args: argparse.Namespace, result: CommandResult) -> CommandResult:
+    asset_images, asset_warnings = fetch_render_images(
+        args,
+        rerun_asset_urls(result.data),
+        provider="rerun-assets",
+        region="cn",
+        category="rerun.list.asset",
+        unavailable_warning="{count} rerun images unavailable; rendered placeholders",
+        max_workers=WIKI_IMAGE_WORKERS,
+    )
+    png = render_rerun_list(result.data, asset_images=asset_images)
+    version = _optional_text(result.data.get("version")) or "rerun"
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="rerun/list",
+        filename=f"rerun-list_{_safe_filename(version)}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style rerun return list",
+        kind="image",
+    )
+    render_data = {
+        "version": result.data.get("version"),
+        "render": "rerun/list",
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=[*result.warnings, *asset_warnings],
+        pagination=result.pagination,
+    )
+
+
+def _primogems_plan_render_result(args: argparse.Namespace, result: CommandResult) -> CommandResult:
+    selected_version = _optional_text(result.data.get("selected_version"))
+    if selected_version is None:
+        raise CliError(
+            "NO_RESULT",
+            "No bundled GenshinUID primogem plan image matches the requested version.",
+            EXIT_NO_RESULT,
+            {
+                "version": result.data.get("version"),
+                "available_versions": result.data.get("available_versions"),
+            },
+            source=result.source,
+        )
+    image_path = PRIMOGEMS_PLAN_ASSET_DIR / f"{selected_version}.png"
+    try:
+        content = image_path.read_bytes()
+    except OSError as exc:
+        raise CliError(
+            "NO_RESULT",
+            "Bundled GenshinUID primogem plan image is missing.",
+            EXIT_NO_RESULT,
+            {"version": selected_version, "path": str(image_path)},
+            source=result.source,
+        ) from exc
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="misc/primogems-plan",
+        filename=f"primogems-plan_{_safe_filename(selected_version)}.png",
+        media_type="image/png",
+        content=content,
+        description="GenshinUID static version-plan primogem image",
+        kind="image",
+    )
+    render_data = {
+        "version": result.data.get("version"),
+        "selected_version": selected_version,
+        "render": "misc/primogems-plan",
         "artifact_sha256": artifact["sha256"],
     }
     data = {**result.data, **render_data} if args.render == "both" else render_data

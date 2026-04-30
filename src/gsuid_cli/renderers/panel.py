@@ -22,6 +22,11 @@ from gsuid_cli.renderers.panel_metrics import panel_reference_metrics
 
 TEXTURE = asset_path("panel", "textures")
 DATA = asset_path("panel", "data")
+RANK_TEXTURE = asset_path("rank", "textures")
+THEATER_TEXTURE = asset_path("challenge", "theater", "textures")
+HARD_TEXTURE = asset_path("challenge", "hard", "textures")
+GRADUATION_TEXTURE = TEXTURE / "graduation"
+FETTER_TEXTURE = TEXTURE / "fetter"
 GENSHINUID_RESOURCE_BASE = "https://example.test/GenshinUID/resource"
 ENKA_UI_BASE = "https://enka.network/ui"
 
@@ -207,6 +212,56 @@ def panel_showcase_asset_urls(
         for url in panel_asset_urls(avatar, panel):
             _append_url(urls, url)
     return urls
+
+
+def panel_graduation_asset_urls(
+    avatars: Sequence[Mapping[str, object]],
+    panels: Sequence[Mapping[str, object]],
+) -> list[str]:
+    urls: list[str] = []
+    for avatar, panel in zip(avatars, panels, strict=False):
+        _append_url(urls, character_icon_url(avatar, panel))
+        weapon = _weapon_equip(avatar)
+        _append_url(urls, _weapon_resource_url(_weapon_name(weapon, panel)))
+        _append_url(urls, _enka_icon_url(_flat_icon(weapon)))
+    return urls
+
+
+def render_panel_graduation(
+    *,
+    uid: str,
+    player: Mapping[str, object],
+    avatars: Sequence[Mapping[str, object]],
+    panels: Sequence[Mapping[str, object]],
+    asset_images: Mapping[str, bytes] | None = None,
+) -> bytes:
+    """Render GenshinUID-style local panel graduation rows."""
+    asset_images = asset_images or {}
+    rows = _graduation_rows(avatars, panels)
+    mode = 3 if len(rows) > 86 else 2
+    columns = mode
+    width = 2370 if mode == 3 else 1600
+    row_count = (len(rows) + columns - 1) // columns
+    height = 750 + 80 + 90 * max(row_count, 1)
+    image = v4_background(width, height, black_value=200)
+
+    title = _graduation_title(uid, player, avatars, panels, asset_images, mode=mode)
+    image.paste(title, (0, 0), title)
+    for index, row in enumerate(rows):
+        card = _graduation_card(row, asset_images)
+        image.paste(card, (50 + (index % columns) * 750, 750 + 90 * (index // columns)), card)
+
+    draw = ImageDraw.Draw(image)
+    div = open_rgba(RANK_TEXTURE / "div.png")
+    image.paste(div, (0, height - 61), div)
+    draw.text(
+        (900 if mode == 3 else 700, height - 30),
+        "Created by GenshinUID & Power by GsCore & Design by Wuyi无疑 & Data by Enka.network",
+        (200, 200, 200),
+        font(18),
+        "mm",
+    )
+    return png_bytes(image, rgb=True)
 
 
 def render_panel_compare_cards(cards: Sequence[bytes]) -> bytes:
@@ -465,6 +520,408 @@ def _showcase_items(
         reverse=True,
     )
     return items[:limit]
+
+
+def _graduation_rows(
+    avatars: Sequence[Mapping[str, object]],
+    panels: Sequence[Mapping[str, object]],
+) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for avatar, panel in zip(avatars, panels, strict=False):
+        metrics = panel_reference_metrics(avatar, panel)
+        value = round(_float_value(metrics.get("effective_stat_count")), 2)
+        skills = _graduation_skill_levels(avatar, panel)
+        weapon = _weapon_equip(avatar)
+        weapon_name = _weapon_name(weapon, panel) or ""
+        weapon_star = _weapon_rank(weapon, panel)
+        weapon_affix = _weapon_affix(weapon)
+        talent_num = _talent_count(avatar, panel)
+        char_star = _avatar_star(avatar, panel)
+        score = (
+            sum(skills)
+            + talent_num * max(char_star - 3, 0)
+            + weapon_affix * max(weapon_star - 3, 0)
+            + value
+        )
+        rows.append(
+            {
+                "avatar": avatar,
+                "panel": panel,
+                "avatar_id": _avatar_id(avatar, panel),
+                "name": _avatar_name(avatar, panel) or "",
+                "char_star": char_star,
+                "fetter": _friendship(avatar, panel),
+                "skills": skills,
+                "talent_num": talent_num,
+                "value": value,
+                "score": score,
+                "weapon_name": weapon_name,
+                "weapon_level": _weapon_level(weapon, panel),
+                "weapon_affix": weapon_affix,
+                "weapon_star": weapon_star,
+                "weapon_url": _weapon_resource_url(weapon_name)
+                or _enka_icon_url(_flat_icon(weapon))
+                or "",
+            }
+        )
+    rows.sort(key=lambda row: _float_value(row.get("score")), reverse=True)
+    return rows
+
+
+def _graduation_title(
+    uid: str,
+    player: Mapping[str, object],
+    avatars: Sequence[Mapping[str, object]],
+    panels: Sequence[Mapping[str, object]],
+    asset_images: Mapping[str, bytes],
+    *,
+    mode: int,
+) -> Image.Image:
+    width = 2370 if mode == 3 else 1600
+    title = Image.new("RGBA", (width, 750), (0, 0, 0, 0))
+    title_bg = open_rgba(RANK_TEXTURE / f"title_{mode}.png")
+    title_fg = open_rgba(RANK_TEXTURE / f"title_fg_{mode}.png")
+    profile = _graduation_profile_avatar(avatars, panels, asset_images)
+    title_bg.paste(profile, (117, 328) if mode == 3 else (88, 328), profile)
+    title_bg.paste(title_fg, (0, 0), title_fg)
+
+    draw = ImageDraw.Draw(title_bg)
+    nickname = text_value(player.get("nickname")) or "旅行者"
+    draw.text((360, 428) if mode == 3 else (331, 428), nickname, "white", font(40), "lm")
+    draw.text(
+        (456, 478) if mode == 3 else (427, 478),
+        f"UID {uid}",
+        (207, 207, 207),
+        font(30),
+        "mm",
+    )
+    _draw_graduation_title_badges(title_bg, player, mode=mode)
+    title.paste(title_bg, (0, 0), title_bg)
+
+    title_bar = open_rgba(RANK_TEXTURE / f"title_bar_{mode}.png")
+    title_bar_draw = ImageDraw.Draw(title_bar)
+    stats = _graduation_title_stats(avatars, panels, mode=mode)
+    start_x, offset = (181, 201.8) if mode == 3 else (142, 187.4)
+    for index, value in enumerate(stats):
+        title_bar_draw.text(
+            (int(start_x + index * offset), 52), str(value), "white", font(38), "mm"
+        )
+    title.paste(title_bar, (0, 600), title_bar)
+    return title
+
+
+def _draw_graduation_title_badges(
+    title: Image.Image, player: Mapping[str, object], *, mode: int
+) -> None:
+    draw = ImageDraw.Draw(title)
+    if mode == 3:
+        theater_pos = (1882, 438)
+        theater_text = (2033, 462)
+        hard_pos = (2057, 358)
+        hard_text = (2208, 383)
+        abyss_text = (2208, 462)
+    else:
+        theater_pos = (1151, 438)
+        theater_text = (1301, 462)
+        hard_pos = (1326, 358)
+        hard_text = (1476, 383)
+        abyss_text = (1476, 462)
+    theater_icon = _graduation_theater_icon(player)
+    title.paste(theater_icon, theater_pos, theater_icon)
+    hard_icon = _graduation_hard_icon(player)
+    title.paste(hard_icon, hard_pos, hard_icon)
+    draw.text(abyss_text, _graduation_abyss_label(player), "white", font(28), "mm")
+    draw.text(hard_text, _graduation_hard_label(player), "white", font(28), "mm")
+    draw.text(theater_text, _graduation_theater_label(player), "white", font(28), "mm")
+
+
+def _graduation_theater_icon(player: Mapping[str, object]) -> Image.Image:
+    theater = _dict(player.get("theater"))
+    difficulty = int_value(theater.get("difficulty_id"))
+    max_round = int_value(theater.get("max_round_id"))
+    tarot = int_value(theater.get("tarot_finished_cnt"))
+    if difficulty == 5:
+        name = "moon_yes.png" if max_round >= 10 and tarot >= 2 else "moon_no.png"
+    elif difficulty == 4:
+        name = "super_yes.png" if max_round >= 10 else "super_no.png"
+    elif difficulty == 3:
+        name = "gold_yes.png" if max_round >= 8 else "gold_no.png"
+    else:
+        name = "gold_no.png"
+    return open_rgba(THEATER_TEXTURE / name)
+
+
+def _graduation_hard_icon(player: Mapping[str, object]) -> Image.Image:
+    level = max(int_value(player.get("stygian_index"), 3), 3)
+    path = HARD_TEXTURE / f"medal_{min(level, 6)}.png"
+    if not path.exists():
+        path = HARD_TEXTURE / "medal_3.png"
+    return open_rgba(path).resize((52, 52), Image.Resampling.LANCZOS)
+
+
+def _graduation_abyss_label(player: Mapping[str, object]) -> str:
+    floor = int_value(player.get("abyss_floor"))
+    chamber = int_value(player.get("abyss_chamber"))
+    return f"深渊{floor}-{chamber}" if floor and chamber else "深渊--"
+
+
+def _graduation_hard_label(player: Mapping[str, object]) -> str:
+    return text_value(player.get("hard_name")) or "断玉之役"
+
+
+def _graduation_theater_label(player: Mapping[str, object]) -> str:
+    theater = _dict(player.get("theater"))
+    return f"第{int_value(theater.get('max_round_id'))}幕"
+
+
+def _graduation_title_stats(
+    avatars: Sequence[Mapping[str, object]],
+    panels: Sequence[Mapping[str, object]],
+    *,
+    mode: int,
+) -> list[object]:
+    rows = _graduation_rows(avatars, panels)
+    star5 = [row for row in rows if int_value(row.get("char_star")) == 5]
+    star4 = [row for row in rows if int_value(row.get("char_star")) == 4]
+    full_star5 = sum(1 for row in star5 if _panel_constellation(row) >= 6)
+    full_star4 = sum(1 for row in star4 if _panel_constellation(row) >= 6)
+    star5_weapon = [row for row in rows if int_value(row.get("weapon_star")) == 5]
+    star4_weapon = [row for row in rows if int_value(row.get("weapon_star")) == 4]
+    full_star5_weapon = sum(1 for row in star5_weapon if int_value(row.get("weapon_affix")) >= 5)
+    full_star4_weapon = sum(1 for row in star4_weapon if int_value(row.get("weapon_affix")) >= 5)
+    crown_cost = sum(
+        1 for row in rows for skill in _sequence(row.get("skills")) if int_value(skill) >= 10
+    )
+    full_fetter = sum(1 for row in rows if int_value(row.get("fetter")) >= 10)
+    high_score = sum(1 for row in rows if _float_value(row.get("value")) >= 27)
+    useful = sum(1 for row in rows if _graduation_row_done(row))
+    total_star5 = _total_avatar_star("5")
+    total_star4 = _total_avatar_star("4")
+    total_star5_weapon = _total_weapon_star("5")
+
+    if mode == 3:
+        return [
+            f"{crown_cost}/{crown_cost}",
+            f"{full_fetter}/{len(rows)}",
+            f"{full_star5}/{len(star5)}",
+            f"{full_star4}/{len(star4)}",
+            f"{len(star5)}/{total_star5}",
+            f"{len(star4)}/{total_star4}",
+            f"{len(star5_weapon)}/{total_star5_weapon}",
+            f"{full_star4_weapon}/{len(star4_weapon)}",
+            f"{full_star5_weapon}/{len(star5_weapon)}",
+            high_score,
+            useful,
+        ]
+    return [
+        f"{crown_cost}/{crown_cost}",
+        f"{full_fetter}/{len(rows)}",
+        f"{full_star4}/{len(star4)}",
+        f"{len(star5)}/{total_star5}",
+        f"{len(star4)}/{total_star4}",
+        f"{len(star5_weapon)}/{total_star5_weapon}",
+        high_score,
+        useful,
+    ]
+
+
+def _graduation_profile_avatar(
+    avatars: Sequence[Mapping[str, object]],
+    panels: Sequence[Mapping[str, object]],
+    asset_images: Mapping[str, bytes],
+) -> Image.Image:
+    avatar, panel = _first_avatar_panel(avatars, panels)
+    source = None
+    if avatar and panel:
+        source = _first_remote_image([character_icon_url(avatar, panel)], asset_images)
+    if source is None:
+        source = _placeholder_square("UID")
+    return _circle_crop(source, 180)
+
+
+def _graduation_card(row: Mapping[str, object], asset_images: Mapping[str, bytes]) -> Image.Image:
+    card = open_rgba(
+        GRADUATION_TEXTURE / ("char_rank_yes.png" if _graduation_row_done(row) else "char_rank.png")
+    )
+    avatar = row.get("avatar")
+    panel = row.get("panel")
+    avatar_map = avatar if isinstance(avatar, Mapping) else {}
+    panel_map = panel if isinstance(panel, Mapping) else {}
+    char_icon = _first_remote_image([character_icon_url(avatar_map, panel_map)], asset_images)
+    if char_icon is None:
+        char_icon = _placeholder_square(text_value(row.get("name")) or "?")
+    framed_character = _graduation_quality_icon(char_icon, int_value(row.get("char_star"), 5))
+    card.paste(framed_character, (8, 0), framed_character)
+
+    weapon_icon = _remote_image(text_value(row.get("weapon_url")), asset_images)
+    if weapon_icon is None:
+        weapon_icon = _placeholder_square(text_value(row.get("weapon_name")) or "?")
+    framed_weapon = _graduation_quality_icon(weapon_icon, int_value(row.get("weapon_star"), 5))
+    card.paste(framed_weapon, (472, 0), framed_weapon)
+
+    draw = ImageDraw.Draw(card)
+    draw.text(
+        (98, 31), _truncate(text_value(row.get("name")) or "未知", 4), "white", font(28), "lm"
+    )
+    skills = [int_value(value) for value in _sequence(row.get("skills"))][:3]
+    while len(skills) < 3:
+        skills.append(0)
+    skill_mask = open_rgba(GRADUATION_TEXTURE / "skill_mask.png")
+    for index, level in enumerate(skills):
+        x = 99 + index * 38
+        color = _graduation_level_color("skill", level)
+        color_img = Image.new("RGBA", (35, 28), color)
+        card.paste(color_img, (x, 48), skill_mask)
+        draw.text((x + 17, 62), str(level), (245, 245, 245), font(26), "mm")
+
+    value = _float_value(row.get("value"))
+    value_mask = open_rgba(GRADUATION_TEXTURE / "value_mask.png")
+    value_img = Image.new("RGBA", (77, 33), _graduation_level_color("equip", value))
+    card.paste(value_img, (225, 28), value_mask)
+    draw.text((263, 45), f"{_number_text(value, 2)[:4]}条", (245, 245, 245), font(24), "mm")
+
+    fetter_pic = _graduation_fetter_icon(int_value(row.get("fetter"))).resize(
+        (77, 33), Image.Resampling.LANCZOS
+    )
+    card.paste(fetter_pic, (308, 28), fetter_pic)
+    talent_pic = _graduation_talent_icon(int_value(row.get("talent_num"))).resize(
+        (66, 33), Image.Resampling.LANCZOS
+    )
+    card.paste(talent_pic, (391, 28), talent_pic)
+
+    affix_pic = open_rgba(
+        TEXTURE
+        / "weapon_affix"
+        / f"weapon_affix_{min(max(int_value(row.get('weapon_affix'), 1), 1), 5)}.png"
+    )
+    card.paste(affix_pic, (561, 47), affix_pic)
+    draw.text((635, 61), f"Lv.{int_value(row.get('weapon_level'))}", "white", font(26), "lm")
+    draw.text(
+        (559, 27),
+        _truncate(text_value(row.get("weapon_name")) or "未知武器", 7),
+        "white",
+        font(26),
+        "lm",
+    )
+    return card
+
+
+def _graduation_row_done(row: Mapping[str, object]) -> bool:
+    return _float_value(row.get("value")) >= 24 and any(
+        int_value(skill) >= 8 for skill in _sequence(row.get("skills"))
+    )
+
+
+def _graduation_skill_levels(
+    avatar: Mapping[str, object],
+    panel: Mapping[str, object],
+) -> list[int]:
+    skills = [int_value(skill.get("level")) for skill in _skill_entries(avatar)]
+    if not skills:
+        raw = panel.get("skill_levels")
+        if isinstance(raw, Mapping):
+            skills = [int_value(value) for value in raw.values()]
+    if len(skills) > 3:
+        skills = [skills[0], skills[1], skills[-1]]
+    return skills[:3]
+
+
+def _graduation_quality_icon(image: Image.Image, star: int) -> Image.Image:
+    star = min(max(star, 1), 5)
+    bg = open_rgba(RANK_TEXTURE / f"star_{star}.png").resize((90, 90), Image.Resampling.LANCZOS)
+    ring = open_rgba(RANK_TEXTURE / "ring.png").resize((90, 90), Image.Resampling.LANCZOS)
+    mask = open_rgba(RANK_TEXTURE / "ring_mask.png").resize((90, 90), Image.Resampling.LANCZOS)
+    inner = Image.new("RGBA", (90, 90), (0, 0, 0, 0))
+    inner.paste(crop_center(image, 90, 90), (0, 0), mask)
+    bg.paste(inner, (0, 0), inner)
+    bg.paste(ring, (0, 0), ring)
+    return bg
+
+
+def _graduation_fetter_icon(level: int) -> Image.Image:
+    path = FETTER_TEXTURE / f"fetter_{min(max(level, 0), 10)}.png"
+    if path.exists():
+        return open_rgba(path)
+    return _graduation_badge(str(level), (80, 50, 95))
+
+
+def _graduation_talent_icon(level: int) -> Image.Image:
+    path = RANK_TEXTURE / f"talent_{min(max(level, 0), 6)}.png"
+    if path.exists():
+        return open_rgba(path)
+    return _graduation_badge(str(level), (80, 50, 95))
+
+
+def _graduation_badge(text: str, color: tuple[int, int, int]) -> Image.Image:
+    image = Image.new("RGBA", (77, 33), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle((0, 0, 76, 32), 8, color)
+    draw.text((38, 16), text, "white", font(22), "mm")
+    return image
+
+
+def _graduation_level_color(kind: str, value: object) -> tuple[int, int, int]:
+    number = _float_value(value)
+    if kind == "skill":
+        thresholds = [(10, 5), (7, 4), (5, 3), (3, 2), (0, 1)]
+    elif kind == "equip":
+        thresholds = [(33, 5), (27, 4), (21, 3), (15, 2), (0, 1)]
+    else:
+        thresholds = [(99, 5), (90, 4), (85, 3), (70, 2), (0, 1)]
+    colors = {
+        5: (230, 0, 0),
+        4: (203, 131, 21),
+        3: (97, 17, 156),
+        2: (17, 105, 156),
+        1: (94, 96, 95),
+    }
+    for threshold, level in thresholds:
+        if number >= threshold:
+            return colors[level]
+    return colors[1]
+
+
+def _circle_crop(image: Image.Image, size: int) -> Image.Image:
+    image = crop_center(image, size, size)
+    mask = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, size - 1, size - 1), fill=255)
+    result = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    result.paste(image, (0, 0), mask)
+    return result
+
+
+def _talent_count(avatar: Mapping[str, object], panel: Mapping[str, object]) -> int:
+    talents = avatar.get("talentIdList")
+    if isinstance(talents, list):
+        return min(max(len(talents), 0), 6)
+    return min(max(int_value(panel.get("talent_num")), 0), 6)
+
+
+def _avatar_star(avatar: Mapping[str, object], panel: Mapping[str, object]) -> int:
+    mapped = _map("avatarId2Star_mapping_6.5.0.json").get(_avatar_id(avatar, panel))
+    return min(max(int_value(mapped, 5), 1), 5)
+
+
+def _panel_constellation(row: Mapping[str, object]) -> int:
+    panel = row.get("panel")
+    if isinstance(panel, Mapping):
+        return int_value(panel.get("constellation"))
+    return 0
+
+
+def _total_avatar_star(star: str) -> int:
+    return sum(
+        1 for value in _map("avatarId2Star_mapping_6.5.0.json").values() if str(value) == star
+    )
+
+
+def _total_weapon_star(star: str) -> int:
+    weapon_list = _map("weaponList_6.5.0.json")
+    count = 0
+    for value in weapon_list.values():
+        if isinstance(value, Mapping) and str(value.get("rank")) == star:
+            count += 1
+    return count
 
 
 def _showcase_card(
@@ -1463,6 +1920,14 @@ def _metric_scores(value: object) -> Mapping[str, float]:
     if not isinstance(value, Mapping):
         return {}
     return {str(key): _float_value(score) for key, score in value.items()}
+
+
+def _sequence(value: object) -> Sequence[object]:
+    return value if isinstance(value, list) else []
+
+
+def _dict(value: object) -> Mapping[str, object]:
+    return value if isinstance(value, Mapping) else {}
 
 
 def _float_value(value: object, default: float = 0.0) -> float:

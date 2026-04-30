@@ -26,8 +26,10 @@ GENSHINUID_ADV_LIST_URL = (
 )
 ASSETS_ROOT = Path(__file__).resolve().parents[1] / "assets"
 GENSHINUID_ABYSS_JS_PATH = ASSETS_ROOT / "guide" / "abyss" / "data" / "abyss.js"
+PRIMOGEMS_PLAN_ASSET_DIR = ASSETS_ROOT / "misc" / "primogems"
 GENSHINUID_RESOURCE_BASE = "https://example.test/GenshinUID"
 GENSHINUID_RESOURCE_ASSET_BASE = f"{GENSHINUID_RESOURCE_BASE}/resource"
+TEYVAT_RETURN_LIST_URL = "https://api.lelaer.com/ys/getRerunList.php"
 HAKUSH_ROLECOMBATS_URL = "https://api.hakush.in/gi/data/rolecombat.json"
 HAKUSH_ROLECOMBAT_URL = "https://api.hakush.in/gi/data/zh/rolecombat/{}.json"
 HAKUSH_UI_URL = "https://api.hakush.in/gi/UI"
@@ -522,36 +524,57 @@ class PublicDataProvider:
         )
 
     def rerun_list(self, *, limit: int) -> CommandResult:
-        result = self.event_banners(include_all=True, limit=1000)
-        banners = result.data.get("banners")
-        now = datetime.now(CN_TZ).replace(tzinfo=None)
-        rows = []
-        if isinstance(banners, list):
-            rows = [
-                _rerun_row(banner)
-                for banner in banners
-                if isinstance(banner, dict)
-                and datetime.min < _parse_time(banner.get("end_at")) <= now
-            ]
-        rows.sort(key=lambda row: str(row.get("last_banner_end_at") or ""), reverse=True)
+        response = self.http.request_json(
+            "GET",
+            TEYVAT_RETURN_LIST_URL,
+            provider="teyvat",
+            region="cn",
+            category="rerun.list",
+            headers={"User-Agent": "GenshinUID & GsCore"},
+        )
+        if int(response.payload.get("code") or 0) != 200:
+            raise CliError(
+                "UPSTREAM_REJECTED",
+                "Teyvat return-list provider rejected the request.",
+                EXIT_UPSTREAM,
+                {"code": response.payload.get("code")},
+                source=response.source,
+            )
+        all_groups = _teyvat_rerun_groups(response.payload, response.source)
+        all_rows = [item for group in all_groups for item in group["items"]]
+        all_rows.sort(key=lambda row: int(row.get("days_since_last_banner") or 0), reverse=True)
+        rows = all_rows[:limit]
+        groups = _teyvat_rerun_groups_from_rows(rows)
         return CommandResult(
-            data={"reruns": rows[:limit], "count": min(len(rows), limit)}, source=result.source
+            data={
+                "version": _text(response.payload.get("version")),
+                "groups": groups,
+                "reruns": rows[:limit],
+                "count": min(len(rows), limit),
+                "total_count": len(all_rows),
+            },
+            source=response.source,
         )
 
     def primogems_plan(self, *, version: str | None) -> CommandResult:
-        events = self.events_list(include_all=False, limit=100)
+        available_versions = _available_primogems_versions()
+        selected_version = _select_primogems_version(version, available_versions)
+        warnings = []
+        if selected_version is None:
+            warnings.append("primogem plan image unavailable for the requested version")
         return CommandResult(
             data={
                 "version": version,
-                "estimate_available": False,
+                "selected_version": selected_version,
+                "available_versions": available_versions,
+                "estimate_available": selected_version is not None,
                 "estimate": None,
-                "active_event_count": events.data.get("count", 0),
                 "source_limitations": [
-                    "public reward totals are not available from the configured sources"
+                    "GenshinUID provides this command as a static version-plan image"
                 ],
             },
-            warnings=["primogem estimate unavailable from configured public sources"],
-            source=events.source,
+            warnings=warnings,
+            source=_local_primogems_plan_source(),
         )
 
     def map_image(self, *, item: str, map_name: str, category: str = "map.find"):
@@ -1576,24 +1599,121 @@ def _merge_missing_announcement_fields(
             announcement[key] = value
 
 
-def _rerun_row(banner: dict[str, object]) -> dict[str, object]:
-    end_at = banner.get("end_at")
-    parsed_end = _parse_time(end_at)
-    days_since = (
-        None
-        if parsed_end == datetime.min
-        else (datetime.now(CN_TZ).replace(tzinfo=None) - parsed_end).days
+def _teyvat_rerun_groups(
+    payload: dict[str, object], source: dict[str, object]
+) -> list[dict[str, object]]:
+    result = payload.get("result")
+    if not isinstance(result, list) or len(result) < 4:
+        raise CliError(
+            "UPSTREAM_INVALID_RESPONSE",
+            "Teyvat return-list response did not contain four rerun groups.",
+            EXIT_UPSTREAM,
+            {"result_type": type(result).__name__},
+            source=source,
+        )
+    specs = [
+        ("character", 5, "五星角色"),
+        ("character", 4, "四星角色"),
+        ("weapon", 5, "五星武器"),
+        ("weapon", 4, "四星武器"),
+    ]
+    groups: list[dict[str, object]] = []
+    for index, (kind, rarity, label) in enumerate(specs):
+        raw_items = result[index]
+        items = [
+            _teyvat_rerun_item(item, kind=kind, rarity=rarity, group_index=index)
+            for item in raw_items
+            if isinstance(item, dict)
+        ]
+        items.sort(key=lambda item: int(item.get("days_since_last_banner") or 0), reverse=True)
+        groups.append({"kind": kind, "rarity": rarity, "label": label, "items": items})
+    return groups
+
+
+def _teyvat_rerun_item(
+    item: dict[str, object],
+    *,
+    kind: str,
+    rarity: int,
+    group_index: int,
+) -> dict[str, object]:
+    raw_history = item.get("history")
+    history = (
+        [str(value) for value in raw_history if value] if isinstance(raw_history, list) else []
     )
+    last_banner = history[-1] if history else None
+    days = _optional_int(item.get("days"))
+    role = _text(item.get("role"))
     return {
-        "entity": banner.get("name"),
+        "entity": role,
+        "kind": kind,
+        "rarity": rarity,
+        "group_index": group_index,
         "banner_type": "wish",
-        "last_banner_id": banner.get("id"),
-        "last_banner_start_at": banner.get("start_at"),
-        "last_banner_end_at": end_at,
-        "days_since_last_banner": days_since,
-        "source_limitations": [
-            "entity names are derived from banner titles; no character-level parsing is applied"
-        ],
+        "icon_url": _text(item.get("avatar")),
+        "days_since_last_banner": days,
+        "intro": _text(item.get("intro")),
+        "history": history,
+        "last_banner_version": last_banner,
+        "average_gap_days": _optional_int(item.get("avg_days")),
+        "up_times": _optional_int(item.get("up_times")),
+        "max_gap_days": _optional_int(item.get("max_gap_days")),
+        "max_gap_pool": _text(item.get("max_gap_pool")),
+        "min_gap_days": _optional_int(item.get("min_gap_days")),
+        "min_gap_pool": _text(item.get("min_gap_pool")),
+        "width": _optional_int(item.get("width")),
+        "width_rate": _optional_int(item.get("width_rate")),
+    }
+
+
+def _teyvat_rerun_groups_from_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    specs = [
+        (0, "character", 5, "五星角色"),
+        (1, "character", 4, "四星角色"),
+        (2, "weapon", 5, "五星武器"),
+        (3, "weapon", 4, "四星武器"),
+    ]
+    groups = []
+    for group_index, kind, rarity, label in specs:
+        groups.append(
+            {
+                "kind": kind,
+                "rarity": rarity,
+                "label": label,
+                "items": [row for row in rows if int(row.get("group_index") or 0) == group_index],
+            }
+        )
+    return groups
+
+
+def _available_primogems_versions() -> list[str]:
+    if not PRIMOGEMS_PLAN_ASSET_DIR.exists():
+        return []
+    versions = [path.stem for path in PRIMOGEMS_PLAN_ASSET_DIR.glob("*.png")]
+    versions.sort(key=_version_sort_key)
+    return versions
+
+
+def _select_primogems_version(version: str | None, available_versions: list[str]) -> str | None:
+    if version:
+        return version if version in available_versions else None
+    return available_versions[-1] if available_versions else None
+
+
+def _version_sort_key(version: str) -> tuple[int, ...]:
+    parts = []
+    for part in re.findall(r"\d+", version):
+        parts.append(int(part))
+    return tuple(parts)
+
+
+def _local_primogems_plan_source() -> dict[str, object]:
+    return {
+        "provider": "genshinuid",
+        "region": "cn",
+        "cached": True,
+        "fetched_at": None,
+        "path": "package:assets/misc/primogems",
     }
 
 

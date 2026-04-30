@@ -252,24 +252,27 @@ def test_provider_map_image_rejects_non_image() -> None:
     assert exc_info.value.details["media_type"] == "application/json"
 
 
-def test_provider_rerun_list_excludes_active_future_banners() -> None:
+def test_provider_rerun_list_uses_teyvat_return_groups() -> None:
     provider = PublicDataProvider(
         _sequence_client(
             [
                 _json_response(
                     {
-                        "old": _event_payload(
-                            1,
-                            "「旧祈愿」祈愿",
-                            "2000-01-01 00:00:00",
-                            "2000-01-21 00:00:00",
-                        ),
-                        "future": _event_payload(
-                            2,
-                            "「未来祈愿」祈愿",
-                            "2999-01-01 00:00:00",
-                            "2999-01-21 00:00:00",
-                        ),
+                        "code": 200,
+                        "version": "当前版本:9.9",
+                        "result": [
+                            [
+                                {
+                                    "role": "旧角色",
+                                    "avatar": "https://example.test/old.png",
+                                    "days": 120,
+                                    "history": ["9.0上半"],
+                                }
+                            ],
+                            [],
+                            [],
+                            [],
+                        ],
                     }
                 )
             ]
@@ -279,8 +282,9 @@ def test_provider_rerun_list_excludes_active_future_banners() -> None:
     result = provider.rerun_list(limit=5)
 
     assert result.data["count"] == 1
-    assert result.data["reruns"][0]["entity"] == "「旧祈愿」祈愿"
-    assert result.data["reruns"][0]["days_since_last_banner"] >= 0
+    assert result.data["version"] == "当前版本:9.9"
+    assert result.data["groups"][0]["items"][0]["entity"] == "旧角色"
+    assert result.data["reruns"][0]["days_since_last_banner"] == 120
 
 
 class FakeProvider:

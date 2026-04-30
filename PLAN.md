@@ -1352,8 +1352,94 @@ tests/
   - `/private/tmp/gsuid-rank-title-check2/2026-05-03/206819da-4d3f-48da-a93b-ba72220521ff/rank-list_102452098.png`
   - Live title counters for UID <UID>: `38/62` crown usage and `73/85`
     max-friendship characters.
-- Next intended stage: Stage 17p, port or replace remaining `rank` parity gaps
-  only if they are backed by GenshinUID's full local character-cache behavior.
+- Next intended stage: Stage 17p, port remaining GenshinUID image-capable
+  commands that are still data-only in the CLI.
+
+- Stage 17p status: completed.
+- Stage 17p goal: port the remaining three GenshinUID image-capable commands
+  that are present in the CLI but still data-only.
+- Stage 17p scope:
+  - `panel graduation`: port GenshinUID `毕业度统计` image behavior from
+    `genshinuid_count`.
+  - `rerun list`: port GenshinUID `未复刻列表` image behavior from
+    `genshinuid_returnlist`.
+  - `misc primogems-plan`: port GenshinUID `版本规划` / `原石预估` static-image
+    behavior from `genshinuid_etcimg`.
+- Stage 17p assumption:
+  - `codes list`, `daily signin`, `progress achievement-guide`, and
+    `progress commission-guide` remain data/text-only because the referenced
+    GenshinUID commands do not expose stable image renderers.
+  - `challenge hard-rank` remains source-limited/data-only until a matching
+    hard-rank leaderboard source is wired separately.
+- Stage 17p result:
+  - Ported `panel graduation --render image|both` using GenshinUID graduation
+    row textures, count title textures, fetter/talent/refinement badges, and
+    the flattened asset cache for character/weapon images.
+  - Replaced `rerun list`'s AMBR banner-title approximation with the same
+    Teyvat return-list source family used by GenshinUID, and added the
+    GenshinUID rerun-list image renderer.
+  - Added `misc primogems-plan --render image|both` using bundled GenshinUID
+    static version-plan images, defaulting to the latest bundled version when
+    no version is requested.
+  - Updated capabilities, command reference, package-data globs, attribution,
+    and focused tests.
+- Stage 17p review fixes:
+  - Normalized `rerun list` so `--limit` constrains the grouped render payload,
+    flat JSON rows, and fetched asset URLs consistently.
+  - Bundled the missing GenshinUID 3-column title assets for large
+    `panel graduation` renders and added a regression test for the mode-3 path.
+- Stage 17p known limitations:
+  - `panel graduation` title counters are derived from local Enka panel cache,
+    so unavailable MYS-only counters remain approximate in this command.
+  - `misc primogems-plan` can only render versions bundled from GenshinUID
+    (`4.8`, `5.0`, `6.0` at this stage).
+- Stage 17p verification:
+  - `.venv/bin/python -m pytest tests/test_panel_rank.py::test_panel_compare_artifacts_showcase_render_images tests/test_public_data.py::test_rerun_and_primogems_render_images_write_artifacts tests/test_public_data.py::test_rerun_list_uses_teyvat_return_list tests/test_public_data.py::test_primogems_plan_reports_bundled_versions -q`
+  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_panel_rank.py -q`
+  - `.venv/bin/python -m pytest -q`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check src/gsuid_cli/renderers/panel.py src/gsuid_cli/commands/panel.py src/gsuid_cli/providers/public.py src/gsuid_cli/commands/public_data/guide.py src/gsuid_cli/renderers/rerun.py tests/test_panel_rank.py tests/test_public_data.py tests/test_rich_public_data.py`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `.venv/bin/python -m build`
+  - `git diff --check`
+  - `.venv/bin/python -m gsuid_cli meta capabilities`
+  - `.venv/bin/python -m gsuid_cli --format json --output-dir /tmp/gsuid-stage17p-smoke rerun list --render image`
+  - `.venv/bin/python -m gsuid_cli --format json --output-dir /tmp/gsuid-stage17p-smoke rerun list --limit 1 --render both`
+  - `.venv/bin/python -m gsuid_cli --format json --output-dir /tmp/gsuid-stage17p-smoke misc primogems-plan --render image`
+  - `.venv/bin/python -m gsuid_cli --format json --output-dir /tmp/gsuid-stage17p-smoke panel graduation --uid <UID> --render image`
+  - Standalone review agent before commit; all actionable findings fixed.
+- Stage 17p verification note:
+  - `.venv/bin/ruff format --check .` still reports unrelated pre-existing
+    formatting drift in files outside this stage's write set; changed-file
+    format checks pass.
+- Stage 17p live artifacts:
+  - `/private/tmp/gsuid-stage17p-smoke/2026-05-04/fa309574-eaf7-442c-a188-d8710018126a/rerun-list_当前版本_6_5_76872632.png`
+  - `/private/tmp/gsuid-stage17p-smoke/2026-05-04/332c9ccc-5070-48eb-9ca3-0a1131cc6331/primogems-plan_6_0_2ce6ddc8.png`
+  - `/private/tmp/gsuid-stage17p-smoke/2026-05-04/a168e952-34ed-4e88-9245-bbd309bd463d/panel-graduation_102452098.png`
+- Stage 17p amend status: completed.
+- Stage 17p amend goal:
+  - Add the missing GenshinUID-style top-right `abyss`, `hard`, and
+    `imagination` title badges to `panel graduation`, using MYS summary data
+    when cookie credentials are available and Enka/placeholder title data
+    otherwise.
+- Stage 17p amend result:
+  - `panel graduation` now enriches its title context with MYS summary
+    `spiral_abyss`, `hard_challenge`, and `role_combat` fields when cookie
+    credentials are available, while preserving unauthenticated Enka-only
+    rendering as a fallback.
+  - The graduation title renderer now draws the same top-right abyss,
+    hard-challenge, and theater badge positions used by GenshinUID rank/count
+    title assets for both two-column and three-column layouts.
+- Stage 17p amend verification:
+  - `.venv/bin/python -m pytest tests/test_panel_rank.py::test_panel_graduation_render_handles_three_column_mode tests/test_panel_rank.py::test_panel_graduation_title_player_uses_mys_challenge_stats tests/test_panel_rank.py::test_panel_compare_artifacts_showcase_render_images -q`
+  - `.venv/bin/python -m pytest tests/test_panel_rank.py -q`
+  - `.venv/bin/ruff check src/gsuid_cli/commands/panel.py src/gsuid_cli/renderers/panel.py tests/test_panel_rank.py`
+  - `.venv/bin/ruff format --check src/gsuid_cli/commands/panel.py src/gsuid_cli/renderers/panel.py tests/test_panel_rank.py`
+  - `.venv/bin/python -m gsuid_cli --timeout 60 --format json --output-dir /tmp/gsuid-panel-grad-badge2 panel graduation --uid <UID> --render image`
+- Stage 17p amend live artifact:
+  - `/private/tmp/gsuid-panel-grad-badge2/2026-05-04/4fc926b7-9e36-4054-b064-3d0ed3a3dbe2/panel-graduation_102452098.png`
+- Next intended stage: revisit `challenge hard-rank` only after a matching
+  GenshinUID hard-rank leaderboard source is wired and verified.
 
 ## MVP Cut Line
 

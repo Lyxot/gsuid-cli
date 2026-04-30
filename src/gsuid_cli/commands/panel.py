@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 from gsuid_cli.commands.account import _validate_uid
-from gsuid_cli.commands.auth import _uid_and_region
+from gsuid_cli.commands.auth import _credential, _uid_and_region
 from gsuid_cli.commands.panel_cache import (
     artifact_entries,
     avatar_summaries,
@@ -26,14 +26,17 @@ from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.state import state_db
+from gsuid_cli.providers import provider_for_region
 from gsuid_cli.providers.enka import EnkaProvider
 from gsuid_cli.providers.public import AMBR_BASE_URL
 from gsuid_cli.renderers.panel import (
     panel_artifacts_asset_urls,
     panel_asset_urls,
+    panel_graduation_asset_urls,
     panel_showcase_asset_urls,
     render_panel_artifacts_library,
     render_panel_compare_cards,
+    render_panel_graduation,
     render_panel_show_card,
     render_panel_showcase,
 )
@@ -99,10 +102,10 @@ CAPABILITIES = [
     },
     {
         "command": "panel.graduation",
-        "description": "Summarize local cached graduation inputs.",
+        "description": "Summarize local cached graduation inputs and render GenshinUID-style rows.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "image", "both"],
         "cache": "off",
     },
 ]
@@ -461,6 +464,116 @@ def _showcase_render_result(
     )
 
 
+def _graduation_render_result(
+    args: argparse.Namespace,
+    *,
+    result: CommandResult,
+    uid: str,
+    region: str,
+    cache: dict[str, object],
+) -> CommandResult:
+    raw_avatars = avatars(cache)
+    panels = [normalized_avatar(avatar) for avatar in raw_avatars]
+    player, title_warnings = _graduation_title_player(args, uid=uid, region=region, cache=cache)
+    asset_images, image_warnings = fetch_render_images(
+        args,
+        panel_graduation_asset_urls(raw_avatars, panels),
+        provider="panel",
+        region="cn",
+        category="panel.graduation.asset",
+        unavailable_warning="{count} panel graduation images unavailable; rendered placeholders",
+        max_workers=PANEL_IMAGE_WORKERS,
+    )
+    png = render_panel_graduation(
+        uid=uid,
+        player=player,
+        avatars=raw_avatars,
+        panels=panels,
+        asset_images=asset_images,
+    )
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        name="panel/graduation",
+        filename=f"panel-graduation_{_safe_filename(uid)}.png",
+        media_type="image/png",
+        content=png,
+        description="GenshinUID-style Enka graduation summary",
+        kind="image",
+    )
+    render_data = {
+        "uid": uid,
+        "render": "panel/graduation",
+        "artifact_sha256": artifact["sha256"],
+    }
+    data = {**result.data, **render_data} if args.render == "both" else render_data
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=[*result.warnings, *title_warnings, *image_warnings],
+        pagination=result.pagination,
+    )
+
+
+def _graduation_title_player(
+    args: argparse.Namespace,
+    *,
+    uid: str,
+    region: str,
+    cache: dict[str, object],
+) -> tuple[dict[str, object], list[str]]:
+    player = player_summary(cache)
+    credential_args = argparse.Namespace(**vars(args))
+    credential_args.credential_kind = "cookie"
+    try:
+        cookie, credential_source, storage_backend = _credential(credential_args, uid)
+        provider = provider_for_region(
+            region,
+            HttpClient(
+                timeout=args.timeout,
+                cache_policy="off",
+                output_dir=args.output_dir,
+                debug=args.debug,
+            ),
+        )
+        summary_result = provider.player_summary(
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+        )
+    except CliError as exc:
+        if exc.code == "AUTH_REQUIRED":
+            return player, []
+        return player, [
+            "panel graduation title MYS enrichment unavailable; rendered Enka title data"
+        ]
+
+    summary = _dict(summary_result.data.get("summary"))
+    stats = _dict(summary.get("stats"))
+    challenge = _dict(summary.get("challenge"))
+    enriched = dict(player)
+    _merge_spiral_abyss(enriched, stats.get("spiral_abyss"))
+    role_combat = _dict(challenge.get("role_combat")) or _dict(stats.get("role_combat"))
+    if role_combat:
+        enriched["theater"] = role_combat
+    hard_challenge = _dict(challenge.get("hard_challenge")) or _dict(stats.get("hard_challenge"))
+    if hard_challenge:
+        enriched["stygian_index"] = hard_challenge.get("difficulty")
+        enriched["hard_name"] = hard_challenge.get("name")
+    return enriched, list(summary_result.warnings)
+
+
+def _merge_spiral_abyss(player: dict[str, object], value: object) -> None:
+    if not isinstance(value, str):
+        return
+    match = re.fullmatch(r"\s*(\d+)-(\d+)\s*", value)
+    if match is None:
+        return
+    player["abyss_floor"] = int(match.group(1))
+    player["abyss_chamber"] = int(match.group(2))
+
+
 def _panel_with_weapon_effect(
     args: argparse.Namespace,
     panel: dict[str, object],
@@ -610,7 +723,7 @@ def artifacts_command(args: argparse.Namespace) -> CommandResult:
 
 
 def graduation_command(args: argparse.Namespace) -> CommandResult:
-    uid, _region = _uid_and_region(args)
+    uid, region = _uid_and_region(args)
     cache = _load(uid, args.output_dir)
     characters = avatar_summaries(cache)
     rows = [
@@ -625,7 +738,7 @@ def graduation_command(args: argparse.Namespace) -> CommandResult:
     ]
     rows.sort(key=lambda row: _number(row["artifact_score"]), reverse=True)
     message = "graduation scoring requires curated per-character targets not configured here"
-    return CommandResult(
+    result = CommandResult(
         data={
             "uid": uid,
             "characters": rows,
@@ -635,6 +748,9 @@ def graduation_command(args: argparse.Namespace) -> CommandResult:
         warnings=[message],
         source=cache_source(cache),
     )
+    if args.render == "data":
+        return result
+    return _graduation_render_result(args, result=result, uid=uid, region=region, cache=cache)
 
 
 def _artifact_entries_by_score(cache: dict[str, object]) -> list[dict[str, object]]:
@@ -898,3 +1014,7 @@ def _is_number(value: object) -> bool:
 
 def _number(value: object) -> float:
     return float(value) if _is_number(value) else 0.0
+
+
+def _dict(value: object) -> dict[str, object]:
+    return value if isinstance(value, dict) else {}

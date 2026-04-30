@@ -20,6 +20,7 @@ from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.state import state_db
 from gsuid_cli.providers.akasha import AkashaProvider
 from gsuid_cli.providers.enka import EnkaProvider
+from gsuid_cli.renderers.panel import render_panel_graduation
 from gsuid_cli.renderers.panel_metrics import (
     _action_damage,
     _base_area,
@@ -232,6 +233,12 @@ def test_panel_compare_artifacts_showcase_render_images(monkeypatch, tmp_path) -
             "panel/showcase",
             (1950, 1330),
         ),
+        (
+            ["panel", "graduation", "--uid", "100000001", "--render", "image"],
+            "panel.graduation",
+            "panel/graduation",
+            (1600, 920),
+        ),
     ]
 
     for argv, command, render, size in cases:
@@ -260,6 +267,88 @@ def test_panel_showcase_render_both_preserves_structured_data(monkeypatch, tmp_p
     assert payload["data"]["showcase"][0]["name"] == "Amber"
     assert payload["data"]["render"] == "panel/showcase"
     assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
+
+
+def test_panel_graduation_render_handles_three_column_mode() -> None:
+    avatar_list = [
+        _avatar(
+            avatar_id=10000021 + index,
+            name=f"Amber{index}",
+            level=80,
+            weapon="Favonius Warbow",
+            substats=[("FIGHT_PROP_CRITICAL", 3.9), ("FIGHT_PROP_CRITICAL_HURT", 7.8)],
+            extra_artifact_score=0.0,
+        )
+        for index in range(87)
+    ]
+    panels = [normalized_avatar(avatar) for avatar in avatar_list]
+
+    png = render_panel_graduation(
+        uid="100000001",
+        player={"nickname": "Traveler"},
+        avatars=avatar_list,
+        panels=panels,
+    )
+
+    with Image.open(io.BytesIO(png)) as image:
+        assert image.size[0] == 2370
+        assert image.getbbox() is not None
+
+
+def test_panel_graduation_title_player_uses_mys_challenge_stats(monkeypatch, tmp_path) -> None:
+    class FakeMysProvider:
+        def player_summary(self, **kwargs) -> CommandResult:
+            assert kwargs["uid"] == "100000001"
+            assert kwargs["cookie"] == "cookie"
+            return CommandResult(
+                data={
+                    "summary": {
+                        "stats": {
+                            "spiral_abyss": "12-3",
+                            "role_combat": {
+                                "difficulty_id": 5,
+                                "max_round_id": 10,
+                                "tarot_finished_cnt": 2,
+                            },
+                            "hard_challenge": {"difficulty": 6, "name": "鏖战"},
+                        },
+                    }
+                },
+                source={"provider": "mys", "region": "cn", "cached": False},
+            )
+
+    monkeypatch.setattr(
+        panel_commands,
+        "_credential",
+        lambda _args, _uid: ("cookie", "environment", None),
+    )
+    monkeypatch.setattr(
+        panel_commands, "provider_for_region", lambda _region, _http: FakeMysProvider()
+    )
+    args = Namespace(timeout=1, cache="off", output_dir=str(tmp_path), debug=False)
+    cache = {
+        "uid": "100000001",
+        "player_info": {
+            "nickname": "Traveler",
+            "towerFloorIndex": 11,
+            "towerLevelIndex": 2,
+        },
+        "avatars": [],
+    }
+
+    player, warnings = panel_commands._graduation_title_player(
+        args,
+        uid="100000001",
+        region="cn",
+        cache=cache,
+    )
+
+    assert warnings == []
+    assert player["abyss_floor"] == 12
+    assert player["abyss_chamber"] == 3
+    assert player["theater"]["max_round_id"] == 10
+    assert player["stygian_index"] == 6
+    assert player["hard_name"] == "鏖战"
 
 
 def test_panel_artifacts_render_both_uses_image_order(monkeypatch, tmp_path) -> None:

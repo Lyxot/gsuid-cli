@@ -280,6 +280,38 @@ def test_recommend_render_images_write_cards(monkeypatch, tmp_path) -> None:
             assert image.getbbox() is not None
 
 
+def test_rerun_and_primogems_render_images_write_artifacts(monkeypatch, tmp_path) -> None:
+    requested_urls: list[str] = []
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.guide.fetch_render_images",
+        _fake_image_fetcher(requested_urls),
+    )
+
+    commands = [
+        (["rerun", "list"], "rerun.list", "rerun/list"),
+        (["misc", "primogems-plan"], "misc.primogems-plan", "misc/primogems-plan"),
+    ]
+
+    for argv, command, render in commands:
+        code, payload = _run_json([*argv, "--render", "image"])
+
+        assert code == 0
+        assert payload["command"] == command
+        assert payload["data"]["render"] == render
+        artifact = payload["artifacts"][0]
+        path = Path(artifact["path"])
+        assert artifact["media_type"] == "image/png"
+        assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        with Image.open(path) as image:
+            assert image.getbbox() is not None
+
+    assert "https://example.test/amber.png" in requested_urls
+
+
 def test_event_render_images_write_cards(monkeypatch, tmp_path) -> None:
     requested_urls: list[str] = []
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
@@ -901,6 +933,66 @@ def test_events_banners_filters_wish_rows() -> None:
     assert result.data["banners"][0]["id"] == "2"
 
 
+def test_rerun_list_uses_teyvat_return_list() -> None:
+    provider = PublicDataProvider(
+        _sequence_client(
+            [
+                _json_response(
+                    {
+                        "code": 200,
+                        "version": "当前版本:9.9",
+                        "result": [
+                            [
+                                {
+                                    "role": "安柏",
+                                    "avatar": "https://example.test/amber.png",
+                                    "star": 5,
+                                    "days": 100,
+                                    "history": ["9.0上半"],
+                                }
+                            ],
+                            [],
+                            [],
+                            [
+                                {
+                                    "role": "弓",
+                                    "avatar": "https://example.test/bow.png",
+                                    "star": 5,
+                                    "days": 80,
+                                    "history": ["9.1下半"],
+                                }
+                            ],
+                        ],
+                    }
+                )
+            ]
+        )
+    )
+
+    result = provider.rerun_list(limit=2)
+
+    assert result.source["provider"] == "teyvat"
+    assert result.data["version"] == "当前版本:9.9"
+    assert result.data["groups"][0]["items"][0]["entity"] == "安柏"
+    assert result.data["groups"][3]["items"][0]["rarity"] == 4
+    assert result.data["reruns"][1]["entity"] == "弓"
+
+
+def test_primogems_plan_reports_bundled_versions(monkeypatch, tmp_path) -> None:
+    image_dir = tmp_path / "primogems"
+    image_dir.mkdir()
+    (image_dir / "5.0.png").write_bytes(b"png")
+    (image_dir / "4.8.png").write_bytes(b"png")
+    monkeypatch.setattr(public_provider, "PRIMOGEMS_PLAN_ASSET_DIR", image_dir)
+    provider = PublicDataProvider(_sequence_client([]))
+
+    result = provider.primogems_plan(version=None)
+
+    assert result.data["available_versions"] == ["4.8", "5.0"]
+    assert result.data["selected_version"] == "5.0"
+    assert result.source["path"] == "package:assets/misc/primogems"
+
+
 def test_announcements_list_uses_mihoyo_announcement_api() -> None:
     provider = PublicDataProvider(
         _sequence_client(
@@ -1105,6 +1197,48 @@ def _fake_provider():
                     "item": item,
                     "matches": [{"kind": "weapon", "match": item, "holders": ["Amber"]}],
                     "count": 1,
+                },
+                source=_source("genshinuid"),
+            )
+
+        def rerun_list(self, *, limit: int) -> CommandResult:
+            row = {
+                "entity": "安柏",
+                "kind": "character",
+                "rarity": 4,
+                "icon_url": "https://example.test/amber.png",
+                "days_since_last_banner": 120,
+                "last_banner_version": "9.1上半",
+            }
+            return CommandResult(
+                data={
+                    "version": "当前版本:9.9",
+                    "groups": [
+                        {"kind": "character", "rarity": 5, "label": "五星角色", "items": []},
+                        {"kind": "character", "rarity": 4, "label": "四星角色", "items": [row]},
+                        {"kind": "weapon", "rarity": 5, "label": "五星武器", "items": []},
+                        {"kind": "weapon", "rarity": 4, "label": "四星武器", "items": []},
+                    ],
+                    "reruns": [row][:limit],
+                    "count": min(1, limit),
+                    "total_count": 1,
+                },
+                source=_source("teyvat"),
+            )
+
+        def primogems_plan(self, *, version: str | None) -> CommandResult:
+            available_versions = ["4.8", "5.0", "6.0"]
+            selected_version = version if version in available_versions else "6.0"
+            return CommandResult(
+                data={
+                    "version": version,
+                    "selected_version": selected_version,
+                    "available_versions": available_versions,
+                    "estimate_available": True,
+                    "estimate": None,
+                    "source_limitations": [
+                        "GenshinUID provides this command as a static version-plan image"
+                    ],
                 },
                 source=_source("genshinuid"),
             )
