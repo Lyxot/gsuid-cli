@@ -8,9 +8,9 @@ from argparse import Namespace
 from pathlib import Path
 
 import httpx
+from helpers import run_json as _run_json
 from PIL import Image
 
-from gsuid_cli.cli import run
 from gsuid_cli.commands import panel as panel_commands
 from gsuid_cli.commands import rank as rank_commands
 from gsuid_cli.commands.panel import _refresh_cache_policy
@@ -763,14 +763,6 @@ class FakeAkashaProvider:
             },
             source=_akasha_source(),
         )
-
-
-def _run_json(argv: list[str]) -> tuple[int, dict[str, object]]:
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    code = run(argv, stdout=stdout, stderr=stderr)
-    assert stderr.getvalue() == ""
-    return code, json.loads(stdout.getvalue())
 
 
 def _fake_image_fetcher(captured_urls: list[str]):

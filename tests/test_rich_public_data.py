@@ -17,7 +17,7 @@ from gsuid_cli.providers.public import PublicDataProvider
 
 def test_rich_public_commands_parse_and_return_json(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", FakeProvider)
+    monkeypatch.setattr("gsuid_cli.commands.public_data._common.PublicDataProvider", FakeProvider)
     monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
 
     commands = [
@@ -60,7 +60,7 @@ def test_rich_public_commands_parse_and_return_json(monkeypatch, tmp_path) -> No
 
 def test_map_find_writes_image_artifact(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", FakeProvider)
+    monkeypatch.setattr("gsuid_cli.commands.public_data._common.PublicDataProvider", FakeProvider)
     monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
 
     code, payload = _run_json(
@@ -94,7 +94,9 @@ def test_map_find_passes_global_cache_policy_to_asset_provider(monkeypatch, tmp_
             self.__class__.cache_policy = http_client.cache_policy
 
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", CaptureProvider)
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", CaptureProvider
+    )
 
     code, _payload = _run_json(["--cache", "only", "map", "find", "--item", "甜甜花"])
 
@@ -117,7 +119,9 @@ def test_guide_route_uses_route_provider_category(monkeypatch, tmp_path) -> None
             return super().map_image(item=item, map_name=map_name, category=category)
 
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", CaptureProvider)
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", CaptureProvider
+    )
 
     code, _payload = _run_json(["guide", "route", "--material", "甜甜花"])
 
@@ -127,7 +131,7 @@ def test_guide_route_uses_route_provider_category(monkeypatch, tmp_path) -> None
 
 def test_talent_index_must_be_positive(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", FakeProvider)
+    monkeypatch.setattr("gsuid_cli.commands.public_data._common.PublicDataProvider", FakeProvider)
 
     code, payload = _run_json(["wiki", "talent", "--character", "Amber", "--talent", "0"])
 

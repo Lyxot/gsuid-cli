@@ -2,16 +2,15 @@ from __future__ import annotations
 
 import hashlib
 import io
-import json
 from datetime import datetime
 from pathlib import Path
 
 import httpx
 import pytest
+from helpers import json_response as _json_response
+from helpers import run_json as _run_json
 from PIL import Image
 
-from gsuid_cli.cli import run
-from gsuid_cli.commands import public_data
 from gsuid_cli.core.errors import CliError
 from gsuid_cli.core.http import HttpClient, ProviderBytesResponse
 from gsuid_cli.core.models import CommandResult
@@ -21,7 +20,9 @@ from gsuid_cli.renderers import recommend as recommend_renderer
 
 
 def test_public_wiki_command_returns_json(monkeypatch) -> None:
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
 
     code, payload = _run_json(["wiki", "character", "--name", "Amber"])
 
@@ -32,7 +33,9 @@ def test_public_wiki_command_returns_json(monkeypatch) -> None:
 
 
 def test_public_commands_reject_unsupported_region(monkeypatch) -> None:
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
 
     code, payload = _run_json(["--region", "os", "wiki", "character", "--name", "Amber"])
 
@@ -49,7 +52,9 @@ def test_daily_materials_rejects_conflicting_day_selectors() -> None:
 
 
 def test_public_list_commands_return_json(monkeypatch) -> None:
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
 
     for argv, command, key in [
         (["events", "list"], "events.list", "events"),
@@ -67,9 +72,14 @@ def test_public_list_commands_return_json(monkeypatch) -> None:
 def test_daily_materials_render_image_writes_card(monkeypatch, tmp_path) -> None:
     requested_urls: list[str] = []
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
     monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
-    monkeypatch.setattr(public_data, "fetch_render_images", _fake_image_fetcher(requested_urls))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.daily.fetch_render_images",
+        _fake_image_fetcher(requested_urls),
+    )
 
     code, payload = _run_json(
         [
@@ -112,8 +122,12 @@ def test_daily_materials_render_image_writes_card(monkeypatch, tmp_path) -> None
 
 def test_daily_materials_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
-    monkeypatch.setattr(public_data, "fetch_render_images", _fake_image_fetcher([]))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.daily.fetch_render_images", _fake_image_fetcher([])
+    )
 
     code, payload = _run_json(["daily", "materials", "--day", "monday", "--render", "both"])
 
@@ -125,8 +139,12 @@ def test_daily_materials_render_both_preserves_structured_data(monkeypatch, tmp_
 
 def test_wiki_picwiki_renderers_write_cards(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
-    monkeypatch.setattr(public_data, "fetch_render_images", _fake_image_fetcher([]))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.wiki.fetch_render_images", _fake_image_fetcher([])
+    )
 
     commands = [
         (["wiki", "food", "--name", "Sweet Madame"], "wiki.food", "wiki/food"),
@@ -165,7 +183,9 @@ def test_wiki_picwiki_renderers_write_cards(monkeypatch, tmp_path) -> None:
 
 def test_guide_image_render_writes_resource_artifacts(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
     monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
 
     commands = [
@@ -207,8 +227,12 @@ def test_guide_image_render_writes_resource_artifacts(monkeypatch, tmp_path) -> 
 
 def test_guide_layout_renderers_write_cards(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
-    monkeypatch.setattr(public_data, "fetch_render_images", _fake_image_fetcher([]))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.guide.fetch_render_images", _fake_image_fetcher([])
+    )
 
     commands = [
         (["guide", "abyss", "--version", "9.9", "--floor", "12"], "guide.abyss", "guide/abyss"),
@@ -231,7 +255,9 @@ def test_guide_layout_renderers_write_cards(monkeypatch, tmp_path) -> None:
 
 def test_recommend_render_images_write_cards(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
     assert recommend_renderer.FOOTER_TEXT == "Created by gsuid-cli & Data by GenshinUID"
 
     commands = [
@@ -257,8 +283,13 @@ def test_recommend_render_images_write_cards(monkeypatch, tmp_path) -> None:
 def test_event_render_images_write_cards(monkeypatch, tmp_path) -> None:
     requested_urls: list[str] = []
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
-    monkeypatch.setattr(public_data, "fetch_render_images", _fake_image_fetcher(requested_urls))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.events.fetch_render_images",
+        _fake_image_fetcher(requested_urls),
+    )
 
     commands = [
         (["events", "list"], "events.list", "events/list"),
@@ -285,8 +316,13 @@ def test_event_render_images_write_cards(monkeypatch, tmp_path) -> None:
 def test_announcement_render_images_write_cards(monkeypatch, tmp_path) -> None:
     requested_urls: list[str] = []
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
-    monkeypatch.setattr(public_data, "fetch_render_images", _fake_image_fetcher(requested_urls))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.events.fetch_render_images",
+        _fake_image_fetcher(requested_urls),
+    )
 
     commands = [
         (["announcements", "list", "--limit", "3"], "announcements.list", "announcements/list"),
@@ -318,7 +354,9 @@ def test_announcement_render_images_write_cards(monkeypatch, tmp_path) -> None:
 
 def test_announcement_show_latest_uses_newest_list_row(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
 
     code, payload = _run_json(["announcements", "show", "--latest"])
 
@@ -334,8 +372,12 @@ def test_announcement_show_latest_uses_newest_list_row(monkeypatch, tmp_path) ->
 
 def test_wiki_constellation_render_both_preserves_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", _fake_provider())
-    monkeypatch.setattr(public_data, "fetch_render_images", _fake_image_fetcher([]))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.wiki.fetch_render_images", _fake_image_fetcher([])
+    )
 
     code, payload = _run_json(
         [
@@ -983,14 +1025,6 @@ def test_codes_parser_extracts_active_rows() -> None:
     assert codes[1]["servers"] == ["China"]
 
 
-def _run_json(argv: list[str]) -> tuple[int, dict[str, object]]:
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    code = run(argv, stdout=stdout, stderr=stderr)
-    assert stderr.getvalue() == ""
-    return code, json.loads(stdout.getvalue())
-
-
 def _fake_provider():
     class FakeProvider:
         def __init__(self, _http_client: HttpClient) -> None:
@@ -1439,10 +1473,6 @@ def _sequence_client(responses: list[httpx.Response]) -> HttpClient:
         cache_policy="off",
         transport=httpx.MockTransport(handler),
     )
-
-
-def _json_response(payload: dict[str, object]) -> httpx.Response:
-    return httpx.Response(200, json=payload)
 
 
 def _fake_image_fetcher(requested_urls: list[str]):

@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
-import re
 from collections.abc import Mapping
 
-from gsuid_cli.commands.auth import _credential, _uid_and_region
+from gsuid_cli.commands._shared import (
+    _add_uid,
+    _cookie_context,
+    _mapping_data,
+    _provider,
+    _safe_filename,
+    _write_image_artifact,
+)
 from gsuid_cli.commands.player import _player_title_render_context
 from gsuid_cli.commands.render_assets import fetch_render_images
-from gsuid_cli.core.artifacts import ArtifactManager
-from gsuid_cli.core.errors import EXIT_NO_RESULT, EXIT_UPSTREAM, CliError
-from gsuid_cli.core.http import HttpClient
+from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.region import ensure_supported_region
-from gsuid_cli.providers import provider_for_region
 from gsuid_cli.renderers.player.summary import player_summary_mys_icon_urls
 from gsuid_cli.renderers.progress.achievements import (
     progress_achievement_image_urls,
@@ -308,30 +309,6 @@ def gcg_deck_command(args: argparse.Namespace) -> CommandResult:
     )
 
 
-def _add_uid(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--uid", dest="command_uid")
-
-
-def _provider(args: argparse.Namespace, region: str):
-    return provider_for_region(
-        region,
-        HttpClient(
-            timeout=args.timeout,
-            cache_policy="off",
-            output_dir=args.output_dir,
-            debug=args.debug,
-        ),
-    )
-
-
-def _cookie_context(args: argparse.Namespace) -> tuple[str, str, str, str, str | None]:
-    uid, region = _uid_and_region(args)
-    ensure_supported_region(region)
-    args.credential_kind = "cookie"
-    cookie, credential_source, storage_backend = _credential(args, uid)
-    return uid, region, cookie, credential_source, storage_backend
-
-
 def _source_limited_guide(kind: str, query: str) -> CommandResult:
     message = f"{kind} guide data is not available from configured sources"
     return CommandResult(
@@ -408,7 +385,7 @@ def _exploration_render_result(
 ) -> CommandResult:
     _mapping_data(result, "exploration", "progress.exploration")
     completion = _mapping_data(completion_result, "completion", "progress.exploration.completion")
-    summary, title_images, title_avatar_url, title_warnings = _title_context(
+    summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
         args,
         provider=provider,
         uid=uid,
@@ -459,7 +436,7 @@ def _collection_render_result(
     storage_backend: str | None,
 ) -> CommandResult:
     collection = _mapping_data(result, "collection", "progress.collection")
-    summary, title_images, title_avatar_url, title_warnings = _title_context(
+    summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
         args,
         provider=provider,
         uid=uid,
@@ -510,7 +487,7 @@ def _achievements_render_result(
     storage_backend: str | None,
 ) -> CommandResult:
     achievements = _mapping_sequence(result.data.get("achievements"))
-    summary, title_images, title_avatar_url, title_warnings = _title_context(
+    summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
         args,
         provider=provider,
         uid=uid,
@@ -628,7 +605,7 @@ def _gcg_deck_render_result(
             {"uid": uid, "deck_id": result.data.get("deck_id")},
             source=result.source,
         )
-    summary, title_images, title_avatar_url, title_warnings = _title_context(
+    summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
         args,
         provider=provider,
         uid=uid,
@@ -678,60 +655,6 @@ def _gcg_deck_render_result(
     )
 
 
-def _title_context(
-    args: argparse.Namespace,
-    *,
-    provider,
-    uid: str,
-    region: str,
-    cookie: str,
-    credential_source: str,
-    storage_backend: str | None,
-    category_prefix: str,
-) -> tuple[Mapping[str, object], dict[str, bytes], str | None, list[str]]:
-    return _player_title_render_context(
-        args,
-        provider=provider,
-        uid=uid,
-        region=region,
-        cookie=cookie,
-        credential_source=credential_source,
-        storage_backend=storage_backend,
-        category_prefix=category_prefix,
-    )
-
-
-def _write_image_artifact(
-    args: argparse.Namespace,
-    *,
-    name: str,
-    filename: str,
-    description: str,
-    content: bytes,
-) -> dict[str, object]:
-    return ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name=name,
-        filename=filename,
-        media_type="image/png",
-        content=content,
-        description=description,
-        kind="image",
-    )
-
-
-def _mapping_data(result: CommandResult, field: str, command: str) -> Mapping[str, object]:
-    value = result.data.get(field)
-    if isinstance(value, Mapping):
-        return value
-    raise CliError(
-        "UPSTREAM_INVALID_RESPONSE",
-        f"Provider returned {command} data without a renderable {field}.",
-        EXIT_UPSTREAM,
-        {"command": command},
-        source=result.source,
-    )
-
-
 def _mapping_sequence(value: object) -> list[Mapping[str, object]]:
     return [item for item in value if isinstance(item, Mapping)] if isinstance(value, list) else []
 
@@ -741,8 +664,3 @@ def _first_mapping(value: object) -> Mapping[str, object]:
     return values[0] if values else {}
 
 
-def _safe_filename(value: str) -> str:
-    safe = re.sub(r"[^A-Za-z0-9_.-]+", "-", value).strip("-")
-    if safe:
-        return safe[:80]
-    return hashlib.sha1(value.encode("utf-8")).hexdigest()[:16]

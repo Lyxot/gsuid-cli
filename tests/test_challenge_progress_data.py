@@ -9,9 +9,11 @@ from urllib.parse import parse_qsl
 
 import httpx
 import pytest
+from helpers import json_response as _json_response
+from helpers import mock_client as _mock_client
+from helpers import run_json as _run_json
 from PIL import Image
 
-from gsuid_cli.cli import run
 from gsuid_cli.commands import challenge as challenge_commands
 from gsuid_cli.commands import progress as progress_commands
 from gsuid_cli.core.http import HttpClient
@@ -43,8 +45,7 @@ def test_challenge_abyss_validates_floor_before_cookie_lookup(monkeypatch, tmp_p
 
 def test_challenge_and_progress_commands_use_stored_cookie(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.challenge.provider_for_region", _fake_provider)
-    monkeypatch.setattr("gsuid_cli.commands.progress.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
     commands = [
@@ -74,7 +75,7 @@ def test_challenge_and_progress_commands_use_stored_cookie(monkeypatch, tmp_path
 def test_challenge_render_images(monkeypatch, tmp_path) -> None:
     captured_urls: list[str] = []
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.challenge.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr(
         challenge_commands,
         "fetch_render_images",
@@ -133,7 +134,7 @@ def test_challenge_render_images(monkeypatch, tmp_path) -> None:
 
 def test_challenge_abyss_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.challenge.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr(challenge_commands, "fetch_render_images", _fake_image_fetcher([]))
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
@@ -148,7 +149,7 @@ def test_progress_render_images(monkeypatch, tmp_path) -> None:
     captured_urls: list[str] = []
     fetcher = _fake_image_fetcher(captured_urls)
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.progress.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr(progress_commands, "fetch_render_images", fetcher)
     monkeypatch.setattr("gsuid_cli.commands.player.fetch_render_images", fetcher)
     monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
@@ -226,7 +227,7 @@ def test_progress_render_images(monkeypatch, tmp_path) -> None:
 
 def test_challenge_abyss_render_image_requires_floor_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.challenge.provider_for_region", _empty_abyss_provider)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _empty_abyss_provider)
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
     code, payload = _run_json(["challenge", "abyss", "--uid", "100000001", "--render", "image"])
@@ -542,14 +543,6 @@ def test_challenge_title_context_uses_player_profile_picture_when_role_avatar_mi
     assert avatar_url == "https://enka.example.test/profile.png"
     assert avatar_url in images
     assert warnings == ["profile", "profile image"]
-
-
-def _run_json(argv: list[str]) -> tuple[int, dict[str, object]]:
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    code = run(argv, stdout=stdout, stderr=stderr)
-    assert stderr.getvalue() == ""
-    return code, json.loads(stdout.getvalue())
 
 
 def _fake_provider(_region: str, _http_client: HttpClient):
@@ -938,14 +931,6 @@ def _png_bytes() -> bytes:
     return output.getvalue()
 
 
-def _mock_client(handler) -> HttpClient:
-    return HttpClient(
-        timeout=1,
-        cache_policy="off",
-        transport=httpx.MockTransport(handler),
-    )
-
-
 def _sequence_client(responses: list[httpx.Response]) -> HttpClient:
     remaining = list(responses)
 
@@ -953,10 +938,6 @@ def _sequence_client(responses: list[httpx.Response]) -> HttpClient:
         return remaining.pop(0)
 
     return _mock_client(handler)
-
-
-def _json_response(payload: dict[str, object]) -> httpx.Response:
-    return httpx.Response(200, json=payload)
 
 
 def _device_fp_response() -> httpx.Response:

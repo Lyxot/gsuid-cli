@@ -1,17 +1,13 @@
 # Credential Safety
 
-`gsuid` handles cookies, stokens, gacha authkey URLs, QR login tickets, device
-fingerprints, and derived tokens. Treat all of them as secrets or private local
-account data.
+`gsuid` handles cookies, stokens, gacha authkey URLs, QR login tickets, device fingerprints, and derived tokens. Treat all of them as secrets or private local account data.
 
 ## Storage Rules
 
 - Stored credentials must use the operating-system keyring.
 - The CLI does not provide a plaintext credential fallback.
-- If keyring access fails, credential read/write commands fail with
-  `KEYRING_UNAVAILABLE`.
-- One-shot environment variables may supply credentials for a single command,
-  but they are not persisted.
+- If keyring access fails, credential read/write commands fail with `KEYRING_UNAVAILABLE`.
+- One-shot environment variables may supply credentials for a single command, but they are not persisted.
 
 Supported one-shot variables:
 
@@ -23,12 +19,9 @@ GSUID_GACHA_URL
 
 ## Redaction Rules
 
-The CLI must not print full cookies, stokens, gacha authkey URLs, game tokens,
-QR tickets, device fingerprints, or URLs containing authkey query parameters.
-Success output may include redacted previews and storage status.
+The CLI must not print full cookies, stokens, gacha authkey URLs, game tokens, QR tickets, device fingerprints, or URLs containing authkey query parameters. Success output may include redacted previews and storage status.
 
-Do not paste full secrets into issues, logs, commits, screenshots, or batch
-files. Prefer QR login or environment variables for local testing.
+Do not paste full secrets into issues, logs, commits, screenshots, or batch files. Prefer QR login or environment variables for local testing.
 
 ## Recommended Login Flow
 
@@ -38,8 +31,7 @@ Use interactive QR login when possible:
 .venv/bin/python -m gsuid_cli auth qrcode login --uid <UID>
 ```
 
-This prints scan instructions to stderr, returns one JSON envelope on stdout,
-and stores cookie/stoken credentials in keyring.
+This prints scan instructions to stderr, returns one JSON envelope on stdout, and stores cookie/stoken credentials in keyring.
 
 Manual QR flow is also available for non-interactive orchestration:
 
@@ -49,18 +41,13 @@ Manual QR flow is also available for non-interactive orchestration:
 .venv/bin/python -m gsuid_cli auth qrcode complete --uid <UID> --app-id APP --ticket TICKET --device DEVICE
 ```
 
-QR image artifacts for `auth qrcode start --render image|both` are temporarily
-disabled during Stage 17 while generated renderers are replaced with
-GenshinUID-parity versions.
+QR image artifacts for `auth qrcode start --render image|both` are not yet supported. Use `auth qrcode login` for the full interactive flow.
 
-The ticket expires quickly. For humans, prefer `auth qrcode login` so polling
-starts immediately after the QR code is shown.
+The ticket expires quickly. For humans, prefer `auth qrcode login` so polling starts immediately after the QR code is shown.
 
 ## Batch Files
 
-Batch files can invoke authenticated commands. Avoid embedding secrets in batch
-input. Reference stored credentials through profile/account state, or pass
-short-lived secrets through environment variables outside the JSONL file.
+Batch files can invoke authenticated commands. Avoid embedding secrets in batch input. Reference stored credentials through profile/account state, or pass short-lived secrets through environment variables outside the JSONL file.
 
 Bad:
 
@@ -87,9 +74,4 @@ artifacts/
 logs/
 ```
 
-The SQLite state file stores non-secret account/profile metadata. The asset
-cache stores reusable static files and retry metadata. Artifacts can include
-rendered account data, exported gacha logs, and map images; treat the artifact
-directory as local private data. Stage 17 is porting GenshinUID-parity
-renderers group by group, so `meta capabilities` is the source of truth for
-which commands currently return image artifacts.
+The SQLite state file stores non-secret account/profile metadata. The asset cache stores reusable static files and retry metadata. Artifacts can include rendered account data, exported gacha logs, and map images; treat the artifact directory as local private data. Run `meta capabilities` to see which commands currently return image artifacts.

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import io
 import json
 
-from gsuid_cli.cli import run
+from helpers import run_json as _run_json
+from helpers import run_json_with_stderr as _run_json_with_stderr
+
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.secrets import SecretStore, redact_secret
 
@@ -214,21 +215,6 @@ def test_gacha_url_auth_commands_fully_redact_url(monkeypatch, tmp_path) -> None
 def test_redact_secret_never_returns_short_secret() -> None:
     assert redact_secret("short") == "[REDACTED]"
     assert redact_secret("123456789") == "1234...6789"
-
-
-def _run_json(argv: list[str]) -> tuple[int, dict[str, object]]:
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    code = run(argv, stdout=stdout, stderr=stderr)
-    assert stderr.getvalue() == ""
-    return code, json.loads(stdout.getvalue())
-
-
-def _run_json_with_stderr(argv: list[str]) -> tuple[int, dict[str, object], str]:
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    code = run(argv, stdout=stdout, stderr=stderr)
-    return code, json.loads(stdout.getvalue()), stderr.getvalue()
 
 
 def _provider(status: str):

@@ -1,16 +1,8 @@
 # gsuid-cli
 
-`gsuid` is an agent-oriented CLI for Genshin Impact account, public data,
-panel, gacha-log, and event workflows. It is CN-only for the current MVP.
+`gsuid` is an agent-oriented CLI for Genshin Impact account, public data, panel, gacha-log, and event workflows. It is CN-only for the current MVP.
 
-The stable contract is JSON on stdout. Warnings, progress, and human scan
-instructions go to stderr. Files such as rendered images, map images, and
-exports are written to disk and returned as absolute artifact paths in the JSON
-envelope.
-
-Image rendering is being reworked for GenshinUID visual parity. During the
-temporary Stage 17 port, `meta capabilities` is the source of truth for which
-commands currently return image artifacts.
+The stable contract is JSON on stdout. Warnings, progress, and human scan instructions go to stderr. Files such as rendered images, map images, and exports are written to disk and returned as absolute artifact paths in the JSON envelope. Run `meta capabilities` to see which commands currently return image artifacts.
 
 ## Install For Development
 
@@ -108,8 +100,7 @@ Successful JSON output uses the envelope:
 }
 ```
 
-On failure, JSON mode still writes a JSON error envelope to stdout and exits
-non-zero.
+On failure, JSON mode still writes a JSON error envelope to stdout and exits non-zero.
 
 Useful metadata commands:
 
@@ -123,7 +114,6 @@ Useful metadata commands:
 
 - [Command reference](docs/commands.md)
 - [Credential safety](docs/credential-safety.md)
-- [Project plan](PLAN.md)
 
 Regenerate command docs after capability changes:
 

@@ -6,6 +6,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
+from gsuid_cli.commands._shared import _safe_filename
 from gsuid_cli.commands.auth import _credential, _uid_and_region
 from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
@@ -652,11 +653,6 @@ def _total_weapon_count(star: str) -> int:
         for item in _json_map("weaponList_6.5.0.json").values()
         if str(_dict(item).get("rank")) == star
     )
-
-
-def _safe_filename(value: str) -> str:
-    safe = re.sub(r"[^A-Za-z0-9_.-]+", "-", value.strip())
-    return safe.strip("-") or "rank"
 
 
 def _player_asset_urls(player: dict[str, object]) -> list[str]:

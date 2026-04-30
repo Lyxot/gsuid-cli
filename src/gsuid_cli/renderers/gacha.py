@@ -21,7 +21,7 @@ from gsuid_cli.renderers.common import (
 )
 
 TEXTURE = asset_path("gacha", "textures")
-DATA = asset_path("gacha", "data")
+DATA = asset_path("panel", "data")
 PUBLIC_TEXTURE = asset_path("public", "textures")
 GENSHINUID_RESOURCE_BASE = "https://example.test/GenshinUID/resource"
 FALLBACK_CHARACTER_ID = "10000007"

@@ -3,6 +3,8 @@ from __future__ import annotations
 import io
 import json
 
+from helpers import run_json_with_stderr as _run_json
+
 from gsuid_cli.cli import run
 from gsuid_cli.core.models import CommandResult
 
@@ -111,7 +113,7 @@ def test_profile_and_uid_work_after_command_tokens(monkeypatch, tmp_path) -> Non
                 source={"provider": "mys", "region": "cn", "cached": False, "fetched_at": "now"},
             )
 
-    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", lambda *_: FakeProvider())
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", lambda *_: FakeProvider())
 
     code, _payload, _stderr = _run_json(["profile", "init", "--name", "alt"])
     assert code == 0
@@ -143,7 +145,9 @@ def test_cache_timeout_region_and_debug_reach_provider(monkeypatch) -> None:
                 }
             )
 
-    monkeypatch.setattr("gsuid_cli.commands.public_data.PublicDataProvider", FakePublicDataProvider)
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", FakePublicDataProvider
+    )
 
     code, payload, stderr = _run_json(
         [
@@ -257,8 +261,3 @@ def _source(region: str) -> dict[str, object]:
     }
 
 
-def _run_json(argv: list[str]) -> tuple[int, dict[str, object], str]:
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    code = run(argv, stdout=stdout, stderr=stderr)
-    return code, json.loads(stdout.getvalue()), stderr.getvalue()

@@ -8,6 +8,8 @@ from urllib.parse import parse_qs, urlsplit
 
 import httpx
 import pytest
+from helpers import mock_client as _mock_client
+from helpers import run_json as _run_json
 from PIL import Image
 
 from gsuid_cli.cli import run
@@ -763,14 +765,6 @@ def _capture_request(captured: dict[str, httpx.Request], request: httpx.Request)
     captured["request"] = request
 
 
-def _run_json(argv: list[str]) -> tuple[int, dict[str, object]]:
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    code = run(argv, stdout=stdout, stderr=stderr)
-    assert stderr.getvalue() == ""
-    return code, json.loads(stdout.getvalue())
-
-
 def _disable_gacha_refresh_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(gacha, "GACHA_REFRESH_REQUEST_DELAY_SECONDS", 0)
     monkeypatch.setattr(gacha, "GACHA_REFRESH_CONTINUE_DELAY_SECONDS", 0)
@@ -996,10 +990,6 @@ def _source() -> dict[str, object]:
         "cached": False,
         "fetched_at": "2026-04-29T10:30:00Z",
     }
-
-
-def _mock_client(handler) -> HttpClient:
-    return HttpClient(timeout=1, cache_policy="off", transport=httpx.MockTransport(handler))
 
 
 def _uigf_v4() -> dict[str, object]:

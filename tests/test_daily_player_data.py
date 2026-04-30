@@ -8,11 +8,12 @@ from pathlib import Path
 
 import httpx
 import pytest
+from helpers import json_response as _json_response
+from helpers import mock_client as _mock_client
+from helpers import run_json as _run_json
 from PIL import Image
 
-from gsuid_cli.cli import run
 from gsuid_cli.commands import player as player_commands
-from gsuid_cli.commands import public_data
 from gsuid_cli.core.errors import EXIT_AUTH, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
@@ -50,8 +51,7 @@ def test_player_source_backed_commands_require_cookie(monkeypatch, tmp_path) -> 
 
 def test_daily_and_player_commands_use_stored_cookie(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.provider_for_region", _fake_provider)
-    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
     current_month = f"{datetime.now(UTC).year}-04"
@@ -85,8 +85,7 @@ def test_daily_and_player_commands_use_stored_cookie(monkeypatch, tmp_path) -> N
 
 def test_daily_note_render_image_writes_daily_note_card(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.provider_for_region", _fake_provider)
-    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
@@ -125,8 +124,7 @@ def test_daily_note_render_image_writes_daily_note_card(monkeypatch, tmp_path) -
 
 def test_daily_note_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.provider_for_region", _fake_provider)
-    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
     code, payload = _run_json(["daily", "note", "--uid", "100000001", "--render", "both"])
@@ -143,14 +141,17 @@ def test_daily_note_render_uses_player_summary_and_daily_signin_status(
     calls: list[str] = []
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr(
-        "gsuid_cli.commands.public_data.provider_for_region",
+        "gsuid_cli.commands._shared.provider_for_region",
         _sign_status_provider(calls, already_signed=True, signed=False),
     )
     monkeypatch.setattr(
-        "gsuid_cli.commands.public_data.player_commands.summary_command",
+        "gsuid_cli.commands.public_data.daily.player_commands.summary_command",
         _player_summary_command(calls),
     )
-    monkeypatch.setattr(public_data, "render_daily_note_card", _capturing_renderer(captured))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.daily.render_daily_note_card",
+        _capturing_renderer(captured),
+    )
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
     code, payload = _run_json(["daily", "note", "--uid", "100000001", "--render", "image"])
@@ -168,14 +169,17 @@ def test_daily_note_render_falls_back_when_player_summary_fails(monkeypatch, tmp
     calls: list[str] = []
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr(
-        "gsuid_cli.commands.public_data.provider_for_region",
+        "gsuid_cli.commands._shared.provider_for_region",
         _sign_status_provider(calls, already_signed=False, signed=False),
     )
     monkeypatch.setattr(
-        "gsuid_cli.commands.public_data.player_commands.summary_command",
+        "gsuid_cli.commands.public_data.daily.player_commands.summary_command",
         _failing_player_summary_command(calls),
     )
-    monkeypatch.setattr(public_data, "render_daily_note_card", _capturing_renderer(captured))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.daily.render_daily_note_card",
+        _capturing_renderer(captured),
+    )
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
     code, payload = _run_json(["daily", "note", "--uid", "100000001", "--render", "image"])
@@ -192,13 +196,13 @@ def test_daily_note_render_fetches_expedition_avatar_urls(monkeypatch, tmp_path)
     avatar_url = "https://upload.example.test/UI_AvatarIcon_Side_Ambor.png"
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr(
-        "gsuid_cli.commands.public_data.provider_for_region",
+        "gsuid_cli.commands._shared.provider_for_region",
         _avatar_provider(avatar_url),
     )
     monkeypatch.setattr(
-        "gsuid_cli.commands.player.provider_for_region", _avatar_provider(avatar_url)
+        "gsuid_cli.commands.public_data.daily.fetch_render_images",
+        _fake_image_fetcher(captured_urls),
     )
-    monkeypatch.setattr(public_data, "fetch_render_images", _fake_image_fetcher(captured_urls))
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
     code, payload = _run_json(["daily", "note", "--uid", "100000001", "--render", "image"])
@@ -215,7 +219,7 @@ def test_daily_note_render_fetches_expedition_avatar_urls(monkeypatch, tmp_path)
 def test_player_characters_render_image_writes_character_card(monkeypatch, tmp_path) -> None:
     captured_urls: list[str] = []
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher(captured_urls))
     monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
@@ -261,7 +265,7 @@ def test_player_characters_render_image_writes_character_card(monkeypatch, tmp_p
 
 def test_player_characters_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher([]))
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
@@ -283,7 +287,7 @@ def test_player_summary_render_image_writes_full_role_card(monkeypatch, tmp_path
         original_paste_footer(image)
 
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher(captured_urls))
     monkeypatch.setattr(player_summary_renderer, "_paste_footer", spy_paste_footer)
     monkeypatch.setattr(
@@ -345,7 +349,7 @@ def test_player_summary_render_image_writes_full_role_card(monkeypatch, tmp_path
 
 def test_player_summary_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher([]))
     monkeypatch.setattr(
         player_commands,
@@ -364,7 +368,7 @@ def test_player_summary_render_both_preserves_structured_data(monkeypatch, tmp_p
 def test_player_inventory_calendar_diary_render_images(monkeypatch, tmp_path) -> None:
     captured_urls: list[str] = []
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher(captured_urls))
     monkeypatch.setattr(
         player_commands,
@@ -422,7 +426,7 @@ def test_player_inventory_calendar_diary_render_images(monkeypatch, tmp_path) ->
 
 def test_player_inventory_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher([]))
     monkeypatch.setattr(
         player_commands,
@@ -486,7 +490,7 @@ def test_player_summary_render_skips_profile_lookup_when_role_avatar_exists(
 ) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr(
-        "gsuid_cli.commands.player.provider_for_region",
+        "gsuid_cli.commands._shared.provider_for_region",
         _summary_provider_with_role_avatar,
     )
     monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher([]))
@@ -646,7 +650,7 @@ def test_player_characters_render_fetches_mys_fallbacks_for_missing_resources(
 ) -> None:
     captured_urls: list[str] = []
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.player.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr(
         player_commands,
         "fetch_render_images",
@@ -669,7 +673,7 @@ def test_player_characters_render_fetches_mys_fallbacks_for_missing_resources(
 
 def test_daily_command_surfaces_expired_cookie(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data.provider_for_region", _expired_provider)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _expired_provider)
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
     code, payload = _run_json(["daily", "note", "--uid", "100000001"])
@@ -1204,13 +1208,6 @@ def test_mys_player_diary_rejects_invalid_month() -> None:
     assert exc.value.code == "INVALID_ARGUMENT"
 
 
-def _run_json(argv: list[str]) -> tuple[int, dict[str, object]]:
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    code = run(argv, stdout=stdout, stderr=stderr)
-    assert stderr.getvalue() == ""
-    return code, json.loads(stdout.getvalue())
-
 
 def _fake_provider(_region: str, _http_client: HttpClient):
     class FakeProvider:
@@ -1731,19 +1728,6 @@ def _source(region: str) -> dict[str, object]:
     }
 
 
-def _mock_client(handler) -> HttpClient:
-    return HttpClient(
-        timeout=1,
-        cache_policy="off",
-        transport=httpx.MockTransport(handler),
-    )
-
-
-def _json_response(
-    payload: dict[str, object],
-    headers: dict[str, str] | None = None,
-) -> httpx.Response:
-    return httpx.Response(200, json=payload, headers=headers)
 
 
 def _device_fp_response() -> httpx.Response:

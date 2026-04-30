@@ -1,20 +1,22 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import re
 from collections.abc import Mapping
 from datetime import UTC, datetime
 
-from gsuid_cli.commands.auth import _credential, _uid_and_region
+from gsuid_cli.commands._shared import (
+    _cookie_context,
+    _mapping_data,
+    _provider,
+    _safe_filename,
+)
 from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.region import ensure_supported_region
-from gsuid_cli.providers import provider_for_region
 from gsuid_cli.providers.enka import EnkaProvider
 from gsuid_cli.renderers.player.calendar import (
     player_calendar_icon_urls,
@@ -261,26 +263,6 @@ def register_time_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-
-
-def _provider(args: argparse.Namespace, region: str):
-    return provider_for_region(
-        region,
-        HttpClient(
-            timeout=args.timeout,
-            cache_policy="off",
-            output_dir=args.output_dir,
-            debug=args.debug,
-        ),
-    )
-
-
-def _cookie_context(args: argparse.Namespace) -> tuple[str, str, str, str, str | None]:
-    uid, region = _uid_and_region(args)
-    ensure_supported_region(region)
-    args.credential_kind = "cookie"
-    cookie, credential_source, storage_backend = _credential(args, uid)
-    return uid, region, cookie, credential_source, storage_backend
 
 
 def _validate_month_arg(month: str | None) -> None:
@@ -697,19 +679,6 @@ def _player_title_mys_icon_urls(summary: Mapping[str, object]) -> list[str]:
     return [role_avatar_url] if role_avatar_url else []
 
 
-def _mapping_data(result: CommandResult, field: str, command: str) -> Mapping[str, object]:
-    value = result.data.get(field)
-    if isinstance(value, Mapping):
-        return value
-    raise CliError(
-        "UPSTREAM_INVALID_RESPONSE",
-        f"Provider returned {command} data without a renderable {field}.",
-        EXIT_UPSTREAM,
-        {"command": command},
-        source=result.source,
-    )
-
-
 def _player_profile_title_avatar_url(
     args: argparse.Namespace, uid: str, region: str
 ) -> tuple[str | None, list[str]]:
@@ -902,8 +871,3 @@ def _optional_text(value: object) -> str | None:
     return text or None
 
 
-def _safe_filename(value: str) -> str:
-    safe = re.sub(r"[^A-Za-z0-9_.-]+", "-", value).strip("-")
-    if safe:
-        return safe[:80]
-    return hashlib.sha1(value.encode("utf-8")).hexdigest()[:16]

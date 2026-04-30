@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import io
 import json
 
-from gsuid_cli.cli import run
+from helpers import run_json_with_stderr as _run_json
 
 
 def test_batch_run_mixes_success_and_failure(tmp_path, monkeypatch) -> None:
@@ -203,8 +202,3 @@ def test_monitor_once_reports_threshold_warnings(tmp_path, monkeypatch) -> None:
     assert payload["warnings"]
 
 
-def _run_json(argv: list[str]) -> tuple[int, dict[str, object], str]:
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    code = run(argv, stdout=stdout, stderr=stderr)
-    return code, json.loads(stdout.getvalue()), stderr.getvalue()

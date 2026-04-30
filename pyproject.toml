@@ -82,7 +82,7 @@ gsuid_cli = [
 ]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "tests"]
 testpaths = ["tests"]
 
 [tool.ruff]

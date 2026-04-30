@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import io
-import json
 import os
 import sqlite3
 import stat
 
-from gsuid_cli.cli import run
+from helpers import run_json as _run_json
+
 from gsuid_cli.core.state import state_db
 
 
@@ -150,9 +149,3 @@ def test_state_v3_migrates_to_account_device_columns(monkeypatch, tmp_path) -> N
     assert {"device_id", "device_fp", "device_info", "device_updated_at"}.issubset(columns)
 
 
-def _run_json(argv: list[str]) -> tuple[int, dict[str, object]]:
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    code = run(argv, stdout=stdout, stderr=stderr)
-    assert stderr.getvalue() == ""
-    return code, json.loads(stdout.getvalue())

@@ -227,45 +227,38 @@ class HttpClient:
                             status_code=_metadata_status_code(cached.metadata),
                         )
 
-                if self.cache_policy == "only":
-                    raise CliError(
-                        "CACHE_MISS",
-                        "No cached asset is available for this request.",
-                        EXIT_CACHE,
-                        details,
+                if self.cache_policy != "only":
+                    return self._request_bytes_uncached(
+                        method,
+                        url,
+                        provider=provider,
+                        region=region,
+                        category=category,
+                        params=params,
+                        headers=headers,
+                        expected_media_types=expected_media_types,
+                        asset_cache=asset_cache,
+                        asset_key=key,
                     )
-
-                return self._request_bytes_uncached(
-                    method,
-                    url,
-                    provider=provider,
-                    region=region,
-                    category=category,
-                    params=params,
-                    headers=headers,
-                    expected_media_types=expected_media_types,
-                    asset_cache=asset_cache,
-                    asset_key=key,
-                )
-
-        if self.cache_policy == "only":
-            raise CliError(
-                "CACHE_MISS",
-                "No cached asset is available for this request.",
-                EXIT_CACHE,
-                details,
+        elif self.cache_policy != "only":
+            return self._request_bytes_uncached(
+                method,
+                url,
+                provider=provider,
+                region=region,
+                category=category,
+                params=params,
+                headers=headers,
+                expected_media_types=expected_media_types,
+                asset_cache=None,
+                asset_key=None,
             )
-        return self._request_bytes_uncached(
-            method,
-            url,
-            provider=provider,
-            region=region,
-            category=category,
-            params=params,
-            headers=headers,
-            expected_media_types=expected_media_types,
-            asset_cache=None,
-            asset_key=None,
+
+        raise CliError(
+            "CACHE_MISS",
+            "No cached asset is available for this request.",
+            EXIT_CACHE,
+            details,
         )
 
     def _request_bytes_uncached(
