@@ -12,11 +12,13 @@ from PIL import Image
 
 from gsuid_cli.cli import run
 from gsuid_cli.commands import panel as panel_commands
+from gsuid_cli.commands import rank as rank_commands
 from gsuid_cli.commands.panel import _refresh_cache_policy
 from gsuid_cli.commands.panel_cache import find_avatar, normalized_avatar
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.state import state_db
+from gsuid_cli.providers.akasha import AkashaProvider
 from gsuid_cli.providers.enka import EnkaProvider
 from gsuid_cli.renderers.panel_metrics import (
     _action_damage,
@@ -438,46 +440,132 @@ def test_panel_refresh_fetches_fresh_by_default() -> None:
     assert _refresh_cache_policy(Namespace(force=False, cache="off")) == "off"
 
 
-def test_rank_commands_use_local_panel_cache(monkeypatch, tmp_path) -> None:
+def test_rank_commands_use_akasha_provider(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
-
-    code, _payload = _run_json(["panel", "refresh", "--uid", "100000001"])
-    assert code == 0
-
-    code, payload = _run_json(["rank", "summary", "--uid", "100000001"])
-
-    assert code == 0
-    assert payload["data"]["source"] == "local-panel-cache"
-    assert payload["data"]["character_count"] == 2
-    assert payload["data"]["max_artifact_score"] == 25.6
+    monkeypatch.setattr("gsuid_cli.commands.rank.AkashaProvider", FakeAkashaProvider)
+    monkeypatch.setattr(rank_commands, "fetch_render_images", _fake_image_fetcher([]))
 
     code, payload = _run_json(["rank", "list", "--uid", "100000001"])
 
     assert code == 0
-    assert payload["data"]["characters"][0]["name"] == "Amber"
+    assert payload["data"]["characters"][0]["avatar_id"] == "10000022"
+    assert payload["source"]["provider"] == "akasha"
+
+    code, payload = _run_json(["rank", "list", "--uid", "100000001", "--render", "image"])
+
+    assert code == 0
+    assert payload["data"]["render"] == "rank/list"
+    assert payload["artifacts"][0]["media_type"] == "image/png"
+
+    def enriched_title_context(args, *, uid, region, player, characters):
+        enriched = dict(player)
+        enriched["title_stats"] = ["1/2", "3/4", "5/6", "7/8", "9/10", "11/12", 13, 14]
+        return enriched, ["title enriched"]
+
+    monkeypatch.setattr(rank_commands, "_rank_list_title_context", enriched_title_context)
+    code, payload = _run_json(["rank", "list", "--uid", "100000001", "--render", "both"])
+
+    assert code == 0
+    assert payload["warnings"] == ["title enriched"]
+    assert payload["data"]["render"] == "rank/list"
+    assert payload["data"]["player"]["title_stats"][0] == "1/2"
+
+    code, payload = _run_json(["rank", "character", "--character", "Venti"])
+
+    assert code == 0
+    assert payload["data"]["character"] == "温迪"
+    assert payload["data"]["tag"] == "前20"
+    assert payload["data"]["entries"][0]["uid"] == "200000001"
 
     code, payload = _run_json(
-        ["rank", "character", "--uid", "100000001", "--character", "Venti", "--nearby"]
+        ["rank", "character", "--uid", "100000001", "--character", "温迪", "--nearby"]
     )
 
     assert code == 0
-    assert payload["warnings"] == ["nearby rank lookup is not implemented for local cache rankings"]
-    assert payload["data"]["rank"]["name"] == "Venti"
-    assert payload["data"]["rank"]["percentile"] is None
+    assert payload["data"]["selected_uid"] == "100000001"
+    assert payload["data"]["tag"] == "角色附近"
 
-    code, payload = _run_json(["rank", "artifact", "--uid", "100000001", "--character", "Amber"])
+    code, payload = _run_json(["rank", "artifact", "--sort", "crit-rate"])
 
     assert code == 0
-    assert payload["data"]["count"] == 2
-    assert payload["data"]["artifacts"][0]["score"] == 15.6
+    assert payload["data"]["sort"] == "暴击率"
+    assert payload["data"]["akasha_sort"] == "substats.Crit RATE"
+    assert payload["data"]["artifacts"][0]["uid"] == "300000001"
 
-    code, payload = _run_json(
-        ["rank", "artifact", "--uid", "100000001", "--character", "Amber", "--sort", "crit-rate"]
+
+def test_rank_title_stats_use_mys_character_count_and_crown_stat() -> None:
+    stats = rank_commands._title_stats_from_mys(
+        {"role": {"nickname": "派蒙", "level": 60, "region": "cn_gf01"}},
+        [
+            {
+                "rarity": 4,
+                "actived_constellation_num": 6,
+                "fetter": 10,
+                "weapon": {"rarity": 4},
+            },
+            {
+                "rarity": 5,
+                "actived_constellation_num": 0,
+                "fetter": 9,
+                "weapon": {"rarity": 5},
+            },
+        ],
+        [
+            {"stats": {"critValue": 210}},
+            {"stats": {"critValue": 180}},
+        ],
+        crown_stat="53/77",
     )
 
-    assert code == 0
-    assert payload["data"]["artifacts"][0]["name"] == "Amber Plume"
+    assert stats[0] == "53/77"
+    assert stats[1] == "1/2"
+    assert stats[-2:] == [1, 2]
+
+
+def test_rank_crown_cost_counts_crowned_combat_talents_only() -> None:
+    assert (
+        rank_commands._crown_cost_from_character_details(
+            [
+                {
+                    "constellations": [
+                        {
+                            "pos": 3,
+                            "is_actived": True,
+                            "effect": "<color=#FFD780FF>Burst</color>的技能等级提高3级。",
+                        }
+                    ],
+                    "skills": [
+                        {"skill_type": 1, "level": 10},
+                        {"skill_type": 1, "level": 9},
+                        {"skill_type": 1, "name": "Burst", "level": 12},
+                        {"skill_type": 2, "level": 10},
+                    ],
+                }
+            ]
+        )
+        == 1
+    )
+
+
+def test_rank_crown_owned_reads_calculator_skill_material_bucket() -> None:
+    assert (
+        rank_commands._crown_owned_from_calculator_data(
+            {
+                "overall_material_consume": {
+                    "avatar_skill_consume": [
+                        {"id": 104319, "num": 10, "lack_num": 3},
+                    ]
+                }
+            }
+        )
+        == 7
+    )
+    assert (
+        rank_commands._crown_owned_from_calculator_data(
+            {"overall_consume": [{"id": 104319, "num": 24, "lack_num": 0}]}
+        )
+        == 24
+    )
 
 
 def test_state_v2_migrates_to_panel_cache(monkeypatch, tmp_path) -> None:
@@ -564,6 +652,24 @@ def test_enka_provider_uses_canonical_uid_endpoint() -> None:
     assert captured["request"].headers["user-agent"].startswith("gsuid-cli/")
 
 
+def test_akasha_provider_uses_http_client_transport() -> None:
+    captured: dict[str, httpx.Request] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["request"] = request
+        return httpx.Response(200, json={"data": [_akasha_artifact()]})
+
+    provider = AkashaProvider(
+        HttpClient(timeout=1, cache_policy="off", transport=httpx.MockTransport(handler))
+    )
+
+    result = provider.artifact_leaderboard(sort_by="crit-rate", region="cn")
+
+    assert result.data["sort"] == "暴击率"
+    assert captured["request"].url.path == "/api/artifacts"
+    assert captured["request"].headers["user-agent"] == "GsCore / GenshinUID / 6.2.0"
+
+
 class FakeEnkaProvider:
     def __init__(self, _http_client) -> None:
         pass
@@ -572,6 +678,91 @@ class FakeEnkaProvider:
         assert uid == "100000001"
         assert region == "cn"
         return CommandResult(data=_enka_payload(), source=_source())
+
+
+class FakeAkashaProvider:
+    def __init__(self, _http_client) -> None:
+        pass
+
+    def user_rank(self, *, uid: str, region: str) -> CommandResult:
+        assert uid == "100000001"
+        assert region == "cn"
+        return CommandResult(
+            data={
+                "uid": uid,
+                "source": "akasha",
+                "player": {"nickname": "Traveler"},
+                "rank_data": {
+                    "10000022": {
+                        "calculations": {
+                            "fit": {
+                                "calculationId": "1000002200",
+                                "short": "COMBO",
+                                "result": 12345.6,
+                                "ranking": 12,
+                                "outOf": 1000,
+                                "weapon": {
+                                    "name": "The Stringless",
+                                    "rarity": 4,
+                                    "refinement": 5,
+                                },
+                                "stats": {
+                                    "maxHP": 15000,
+                                    "maxATK": 1800,
+                                    "critRate": 0.7,
+                                    "critDMG": 1.6,
+                                    "critValue": 300,
+                                },
+                            }
+                        },
+                        "time": "2026-04-29T10:30:00Z",
+                    }
+                },
+                "characters": [_akasha_character_summary()],
+                "count": 1,
+            },
+            source=_akasha_source(),
+        )
+
+    def character_leaderboard(
+        self,
+        *,
+        character_id: str,
+        region: str,
+        calculation_id: str | None = None,
+        combo: float | None = None,
+    ) -> CommandResult:
+        assert character_id == "10000022"
+        assert region == "cn"
+        if calculation_id is not None:
+            assert calculation_id == "1000002200"
+            assert combo and combo > 12345
+        return CommandResult(
+            data={
+                "source": "akasha",
+                "character_id": character_id,
+                "calculation_id": calculation_id or "1000002200",
+                "total_count": 1000,
+                "entries": [_akasha_leaderboard_entry()],
+                "count": 1,
+            },
+            source=_akasha_source(),
+        )
+
+    def artifact_leaderboard(self, *, sort_by: str, region: str) -> CommandResult:
+        assert sort_by == "crit-rate"
+        assert region == "cn"
+        return CommandResult(
+            data={
+                "source": "akasha",
+                "sort": "暴击率",
+                "sort_input": sort_by,
+                "akasha_sort": "substats.Crit RATE",
+                "artifacts": [_akasha_artifact()],
+                "count": 1,
+            },
+            source=_akasha_source(),
+        )
 
 
 def _run_json(argv: list[str]) -> tuple[int, dict[str, object]]:
@@ -600,6 +791,72 @@ def _source() -> dict[str, object]:
         "region": "cn",
         "cached": False,
         "fetched_at": "2026-04-29T10:30:00Z",
+    }
+
+
+def _akasha_source() -> dict[str, object]:
+    return {
+        "provider": "akasha",
+        "region": "cn",
+        "cached": False,
+        "fetched_at": "2026-04-29T10:30:00Z",
+    }
+
+
+def _akasha_character_summary() -> dict[str, object]:
+    return {
+        "avatar_id": "10000022",
+        "name": "Venti",
+        "calculation_id": "1000002200",
+        "short": "COMBO",
+        "result": 12345.6,
+        "rank": 12,
+        "out_of": 1000,
+        "percent": 1.2,
+        "constellation": 2,
+        "weapon": {"name": "The Stringless", "rarity": 4, "refinement": 5},
+        "stats": {
+            "maxHP": 15000,
+            "maxATK": 1800,
+            "critRate": 0.7,
+            "critDMG": 1.6,
+            "critValue": 300,
+        },
+        "artifact_sets": {"Viridescent Venerer": {"icon": "UI_RelicIcon_15002_4", "count": 4}},
+    }
+
+
+def _akasha_leaderboard_entry() -> dict[str, object]:
+    return {
+        "uid": "200000001",
+        "index": 1,
+        "constellation": 2,
+        "critValue": 300,
+        "owner": {"region": "CN", "nickname": "Ranker"},
+        "weapon": {"weaponInfo": {"refinementLevel": {"value": 4}}},
+        "stats": {
+            "maxHp": {"value": 15000},
+            "atk": {"value": 1800},
+            "critRate": {"value": 0.7},
+            "critDamage": {"value": 1.6},
+        },
+        "artifactSets": {"Viridescent Venerer": {"icon": "UI_RelicIcon_15002_4", "count": 4}},
+    }
+
+
+def _akasha_artifact() -> dict[str, object]:
+    return {
+        "uid": "300000001",
+        "critValue": 54.4,
+        "equipType": "EQUIP_NECKLACE",
+        "icon": "https://enka.network/ui/UI_RelicIcon_15021_2.png",
+        "level": 21,
+        "mainStatKey": "Flat ATK",
+        "mainStatValue": 311,
+        "name": "Plume of Luxury",
+        "owner": {"region": "NA", "nickname": "Night"},
+        "stars": 5,
+        "substats": {"Crit RATE": 23.3, "Crit DMG": 7.8},
     }
 
 

@@ -424,7 +424,6 @@ gsuid panel artifacts [--uid UID] [--page N]
 gsuid panel showcase [--uid UID]
 gsuid panel graduation [--uid UID]
 
-gsuid rank summary [--uid UID]
 gsuid rank list [--uid UID]
 gsuid rank character --character NAME [--uid UID] [--nearby]
 gsuid rank artifact [--sort crit|crit-rate|crit-damage|em|recharge|atk]
@@ -439,7 +438,6 @@ Source mapping from GenshinUID:
 - `panel artifacts`: `圣遗物仓库`.
 - `panel showcase`: `角色橱窗`.
 - `panel graduation`: `毕业度统计`.
-- `rank summary`: `排名统计`.
 - `rank list`: `排名列表`.
 - `rank character`: `角色排名`, `角色排行榜`.
 - `rank artifact`: `圣遗物排名`.
@@ -1268,6 +1266,94 @@ tests/
   - `~/.gsuid-cli/artifacts/2026-05-03/smoke-panel-artifacts/panel-artifacts_102452098_p1.png`
   - `~/.gsuid-cli/artifacts/2026-05-03/smoke-panel-showcase/panel-showcase_102452098.png`
 - Next intended stage: Stage 17o, port rank-group image renderers.
+
+- Stage 17o status: completed.
+- Stage 17o goal: redesign and port the `rank` command group to match
+  GenshinUID rank behavior before reimplementing image output.
+- Stage 17o design decision:
+  - The previous local-panel-cache-only rank interpretation was rejected because
+    it did not match GenshinUID result semantics or images.
+  - `rank` is a GenshinUID Akasha/CV leaderboard feature, not a local ranking of
+    cached Enka panel scores.
+  - `panel` remains responsible for local Enka panel cache summaries; `rank`
+    should fetch/normalize leaderboard data from the same Akasha/CV API family
+    used by GenshinUID.
+- Stage 17o intended command mapping:
+  - `rank list`: mirror GenshinUID `排名列表` for a UID, using the user rank
+    objects returned by the Akasha/CV endpoint.
+  - `rank character --character NAME [--uid UID] [--nearby]`: mirror
+    GenshinUID `角色排行` and `我的角色排行`; without `--uid`, show top entries
+    for a character, with `--uid`/`--nearby`, show entries around that UID's
+    current rank when available.
+  - `rank artifact --sort KEY`: mirror GenshinUID `圣遗物排行` global artifact
+    leaderboard for the selected sort key.
+- Stage 17o data contract:
+  - Preserve the CLI envelope, but expose upstream leaderboard objects and
+    normalized summaries that correspond to the rendered image.
+  - Do not label global-rank data as local panel cache.
+  - Use optional authenticated MYS enrichment for `rank list` title counters
+    when a cookie is available; keep unauthenticated Akasha rank data usable.
+- Stage 17o implementation note:
+  - Re-check GenshinUID API endpoints and request/response shapes before code;
+    do not infer endpoint behavior from current local-cache rank tests.
+- Stage 17o correction:
+  - Remove `rank summary`; it is only a text duplicate of the UID rank list and
+    does not add a distinct GenshinUID image-capable command.
+  - Replace the simplified `rank list` header with the GenshinUID Enka title
+    and title-bar assets, GenshinUID quality icon frames, Akasha rank rows, and
+    MYS-enriched title counters where the CLI can derive them.
+  - Normalize artifact sort display labels to Chinese, e.g. `crit-rate` ->
+    `暴击率`, while preserving English aliases as input.
+- Stage 17o result:
+  - Replaced the earlier local-panel-cache rank group with Akasha/CV-backed
+    `rank list`, `rank character`, and `rank artifact`.
+  - Removed `rank summary` from parser, capabilities, docs, and tests.
+  - Ported rank-list, character-leaderboard, and artifact-leaderboard image
+    renderers using GenshinUID rank/count textures and flattened asset cache
+    fetching.
+  - Added Chinese artifact sort display labels while preserving English aliases
+    as accepted input.
+  - Kept `--render both` structured data consistent with the enriched image
+    title context, and kept Akasha HTTP calls on the shared `HttpClient` path so
+    transport/testing behavior matches other providers.
+- Stage 17o known limitations:
+  - `rank list` title avatar cannot match GenshinUID's QQ sender avatar in this
+    CLI; it uses Akasha/Enka player profile data.
+  - High-score/useful counters remain Akasha-rank-list-derived because they are
+    rank-feature counters, not full local panel-cache counters.
+- Stage 17o amend status: completed.
+- Stage 17o amend result:
+  - Replaced the placeholder crown counter with MYS character-detail crowned
+    talent count, subtracting active C3/C5 talent-level bonuses, plus MYS
+    calculator unused-crown count. The calculator extraction accepts both
+    `overall_consume` and the skill-material bucket.
+  - Fixed the max-friendship denominator to use owned MYS characters instead of
+    the role-profile object length.
+  - Replaced hand-scaled rank-list constellation/refinement badges with
+    GenshinUID native 60x30 badge textures.
+- Stage 17o verification:
+  - `.venv/bin/python -m pytest tests/test_panel_rank.py tests/test_meta_commands.py -q`
+  - `.venv/bin/python -m pytest`
+  - `.venv/bin/ruff check src/gsuid_cli/providers/akasha.py src/gsuid_cli/commands/rank.py src/gsuid_cli/renderers/rank.py tests/test_panel_rank.py tests/test_meta_commands.py`
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check .`
+  - `git diff --check`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - standalone review agent before commit; actionable findings fixed except the
+    documented full title-counter parity gap.
+  - `.venv/bin/python -m gsuid_cli meta capabilities`
+  - `.venv/bin/python -m gsuid_cli --timeout 60 --format json --output-dir /tmp/gsuid-rank-smoke11 rank list --uid <UID> --render image`
+  - `.venv/bin/python -m gsuid_cli --timeout 45 --format json rank list --uid <UID> --render both`
+  - `.venv/bin/python -m pytest tests/test_panel_rank.py::test_rank_commands_use_akasha_provider tests/test_panel_rank.py::test_rank_title_stats_use_mys_character_count_and_crown_stat tests/test_panel_rank.py::test_rank_crown_cost_counts_crowned_combat_talents_only -q`
+  - `.venv/bin/python -m gsuid_cli --timeout 60 --format json --output-dir /tmp/gsuid-rank-title-check2 rank list --uid <UID> --render both`
+  - `.venv/bin/python -m gsuid_cli --timeout 30 --format json rank artifact --sort crit-rate`
+- Stage 17o live artifact:
+  - `/private/tmp/gsuid-rank-smoke11/2026-05-03/9e1d762f-352d-4e6d-920d-99d2f8501f6f/rank-list_102452098.png`
+  - `/private/tmp/gsuid-rank-title-check2/2026-05-03/206819da-4d3f-48da-a93b-ba72220521ff/rank-list_102452098.png`
+  - Live title counters for UID <UID>: `38/62` crown usage and `73/85`
+    max-friendship characters.
+- Next intended stage: Stage 17p, port or replace remaining `rank` parity gaps
+  only if they are backed by GenshinUID's full local character-cache behavior.
 
 ## MVP Cut Line
 
