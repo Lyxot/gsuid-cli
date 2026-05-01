@@ -39,14 +39,14 @@ def test_panel_refresh_list_show_compare_and_save(monkeypatch, tmp_path) -> None
     assert payload["data"]["character_count"] == 2
     assert payload["data"]["cache"]["backend"] == "sqlite"
     assert payload["data"]["failures"] == []
-    assert payload["source"]["provider"] == "enka"
+    assert payload["sources"][0]["provider"] == "enka"
 
     code, payload = _run_json(["panel", "list", "--uid", "100000001"])
 
     assert code == 0
     assert payload["data"]["count"] == 2
     assert payload["data"]["characters"][0]["name"] == "Amber"
-    assert payload["source"]["cached"] is True
+    assert payload["sources"][0]["cached"] is True
 
     code, payload = _run_json(
         [
@@ -177,7 +177,7 @@ def test_panel_show_render_image_writes_card(monkeypatch, tmp_path) -> None:
         assert image.getbbox() is not None
 
 
-def test_panel_show_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
+def test_panel_show_render_data_image_preserves_structured_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
     monkeypatch.setattr(panel_commands, "fetch_render_images", _fake_image_fetcher([]))
@@ -186,7 +186,7 @@ def test_panel_show_render_both_preserves_structured_data(monkeypatch, tmp_path)
     assert code == 0
 
     code, payload = _run_json(
-        ["panel", "show", "--uid", "100000001", "--character", "Amber", "--render", "both"]
+        ["panel", "show", "--uid", "100000001", "--character", "Amber", "--render", "data,image"]
     )
 
     assert code == 0
@@ -253,7 +253,7 @@ def test_panel_compare_artifacts_showcase_render_images(monkeypatch, tmp_path) -
             assert image.getbbox() is not None
 
 
-def test_panel_showcase_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
+def test_panel_showcase_render_data_image_preserves_structured_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
     monkeypatch.setattr(panel_commands, "fetch_render_images", _fake_image_fetcher([]))
@@ -261,7 +261,7 @@ def test_panel_showcase_render_both_preserves_structured_data(monkeypatch, tmp_p
     code, _payload = _run_json(["panel", "refresh", "--uid", "100000001"])
     assert code == 0
 
-    code, payload = _run_json(["panel", "showcase", "--uid", "100000001", "--render", "both"])
+    code, payload = _run_json(["panel", "showcase", "--uid", "100000001", "--render", "data,image"])
 
     assert code == 0
     assert payload["data"]["showcase"][0]["name"] == "Amber"
@@ -351,7 +351,7 @@ def test_panel_graduation_title_player_uses_mys_challenge_stats(monkeypatch, tmp
     assert player["hard_name"] == "鏖战"
 
 
-def test_panel_artifacts_render_both_uses_image_order(monkeypatch, tmp_path) -> None:
+def test_panel_artifacts_render_data_image_uses_image_order(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
     monkeypatch.setattr(panel_commands, "fetch_render_images", _fake_image_fetcher([]))
@@ -359,7 +359,9 @@ def test_panel_artifacts_render_both_uses_image_order(monkeypatch, tmp_path) -> 
     code, _payload = _run_json(["panel", "refresh", "--uid", "100000001"])
     assert code == 0
 
-    code, payload = _run_json(["panel", "artifacts", "--uid", "100000001", "--render", "both"])
+    code, payload = _run_json(
+        ["panel", "artifacts", "--uid", "100000001", "--render", "data,image"]
+    )
 
     assert code == 0
     assert payload["data"]["artifacts"][0]["character"] == "Venti"
@@ -538,7 +540,7 @@ def test_rank_commands_use_akasha_provider(monkeypatch, tmp_path) -> None:
 
     assert code == 0
     assert payload["data"]["characters"][0]["avatar_id"] == "10000022"
-    assert payload["source"]["provider"] == "akasha"
+    assert payload["sources"][0]["provider"] == "akasha"
 
     code, payload = _run_json(["rank", "list", "--uid", "100000001", "--render", "image"])
 
@@ -552,7 +554,7 @@ def test_rank_commands_use_akasha_provider(monkeypatch, tmp_path) -> None:
         return enriched, ["title enriched"]
 
     monkeypatch.setattr(rank_commands, "_rank_list_title_context", enriched_title_context)
-    code, payload = _run_json(["rank", "list", "--uid", "100000001", "--render", "both"])
+    code, payload = _run_json(["rank", "list", "--uid", "100000001", "--render", "data,image"])
 
     assert code == 0
     assert payload["warnings"] == ["title enriched"]

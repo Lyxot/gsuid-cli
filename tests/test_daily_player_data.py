@@ -122,12 +122,12 @@ def test_daily_note_render_image_writes_daily_note_card(monkeypatch, tmp_path) -
         assert image.getbbox() is not None
 
 
-def test_daily_note_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
+def test_daily_note_render_data_image_preserves_structured_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
-    code, payload = _run_json(["daily", "note", "--uid", "100000001", "--render", "both"])
+    code, payload = _run_json(["daily", "note", "--uid", "100000001", "--render", "data,image"])
 
     assert code == 0
     assert payload["data"]["note"]["current_resin"] == 1
@@ -263,13 +263,17 @@ def test_player_characters_render_image_writes_character_card(monkeypatch, tmp_p
         assert image.getbbox() is not None
 
 
-def test_player_characters_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
+def test_player_characters_render_data_image_preserves_structured_data(
+    monkeypatch, tmp_path
+) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher([]))
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
-    code, payload = _run_json(["player", "characters", "--uid", "100000001", "--render", "both"])
+    code, payload = _run_json(
+        ["player", "characters", "--uid", "100000001", "--render", "data,image"]
+    )
 
     assert code == 0
     assert payload["data"]["characters"][0]["name"] == "Amber"
@@ -347,7 +351,7 @@ def test_player_summary_render_image_writes_full_role_card(monkeypatch, tmp_path
         assert image.getbbox() is not None
 
 
-def test_player_summary_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
+def test_player_summary_render_data_image_preserves_structured_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher([]))
@@ -358,7 +362,7 @@ def test_player_summary_render_both_preserves_structured_data(monkeypatch, tmp_p
     )
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
-    code, payload = _run_json(["player", "summary", "--uid", "100000001", "--render", "both"])
+    code, payload = _run_json(["player", "summary", "--uid", "100000001", "--render", "data,image"])
 
     assert code == 0
     assert payload["data"]["summary"]["role"]["nickname"] == "派蒙"
@@ -424,7 +428,9 @@ def test_player_inventory_calendar_diary_render_images(monkeypatch, tmp_path) ->
     )
 
 
-def test_player_inventory_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
+def test_player_inventory_render_data_image_preserves_structured_data(
+    monkeypatch, tmp_path
+) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher([]))
@@ -435,7 +441,9 @@ def test_player_inventory_render_both_preserves_structured_data(monkeypatch, tmp
     )
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
-    code, payload = _run_json(["player", "inventory", "--uid", "100000001", "--render", "both"])
+    code, payload = _run_json(
+        ["player", "inventory", "--uid", "100000001", "--render", "data,image"]
+    )
 
     assert code == 0
     assert payload["data"]["inventory"]["count"] == 1

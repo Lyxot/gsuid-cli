@@ -4,6 +4,11 @@
 
 The stable contract is JSON on stdout. Warnings, progress, and human scan instructions go to stderr. Files such as rendered images, map images, and exports are written to disk and returned as absolute artifact paths in the JSON envelope. Run `meta capabilities` to see which commands currently return image artifacts.
 
+The default render selection is `data`, so JSON output includes normalized `data`
+and `sources`. Select only non-data renders, such as `--render image`, when you
+want a compact artifact-only envelope. Add `--debug` to write a redacted
+`debug-envelope.json` artifact.
+
 ## Install For Development
 
 ```sh
@@ -62,12 +67,15 @@ Write GenshinUID-style daily image artifacts:
 ```sh
 .venv/bin/python -m gsuid_cli --render image daily materials
 .venv/bin/python -m gsuid_cli --render image daily note --uid <UID>
+.venv/bin/python -m gsuid_cli --render data,image daily note --uid <UID>
+.venv/bin/python -m gsuid_cli --render all daily note --uid <UID>
 ```
 
 Global options can be placed before, between, or after command tokens:
 
 ```sh
 .venv/bin/python -m gsuid_cli meta version --format pretty-json
+.venv/bin/python -m gsuid_cli meta version --format plain
 .venv/bin/python -m gsuid_cli player summary --uid <UID> --timeout 30
 ```
 
@@ -95,7 +103,14 @@ Successful JSON output uses the envelope:
   "warnings": [],
   "data": {},
   "artifacts": [],
-  "source": {"provider": "local", "region": "cn", "cached": false, "fetched_at": "2026-04-29T10:30:00Z"},
+  "sources": [
+    {
+      "provider": "local",
+      "region": "cn",
+      "cached": false,
+      "fetched_at": "2026-04-29T10:30:00Z"
+    }
+  ],
   "pagination": null
 }
 ```

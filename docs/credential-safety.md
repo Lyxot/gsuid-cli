@@ -41,7 +41,7 @@ Manual QR flow is also available for non-interactive orchestration:
 .venv/bin/python -m gsuid_cli auth qrcode complete --uid <UID> --app-id APP --ticket TICKET --device DEVICE
 ```
 
-QR image artifacts for `auth qrcode start --render image|both` are not yet supported. Use `auth qrcode login` for the full interactive flow.
+QR image artifacts for `auth qrcode start --render image` or `--render all` are not yet supported. Use `auth qrcode login` for the full interactive flow.
 
 The ticket expires quickly. For humans, prefer `auth qrcode login` so polling starts immediately after the QR code is shown.
 

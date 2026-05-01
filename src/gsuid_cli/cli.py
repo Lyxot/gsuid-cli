@@ -7,6 +7,7 @@ import sys
 import time
 import uuid
 from collections.abc import Sequence
+from copy import deepcopy
 from typing import TextIO
 
 from gsuid_cli import __version__
@@ -27,6 +28,7 @@ from gsuid_cli.commands import (
     rank,
     resources,
 )
+from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.envelope import error_envelope, success_envelope
 from gsuid_cli.core.errors import (
     EXIT_INTERNAL_BUG,
@@ -34,7 +36,10 @@ from gsuid_cli.core.errors import (
     EXIT_INVALID_INPUT,
     CliError,
 )
+from gsuid_cli.core.http import begin_source_capture, end_source_capture
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.render import normalize_render_modes, render_data_enabled
+from gsuid_cli.core.secrets import redact_secret
 
 GLOBAL_VALUE_OPTIONS = {
     "--profile",
@@ -49,7 +54,17 @@ GLOBAL_VALUE_OPTIONS = {
 }
 GLOBAL_FLAG_OPTIONS = {"--quiet", "--debug", "--help", "--version"}
 HOISTED_GLOBAL_FLAG_OPTIONS = {"--quiet", "--debug"}
-OUTPUT_FORMATS = {"json", "pretty-json", "text"}
+OUTPUT_FORMATS = {"json", "pretty-json", "plain"}
+SENSITIVE_KEY_PARTS = (
+    "authkey",
+    "cookie",
+    "device_fp",
+    "device_id",
+    "gacha_url",
+    "secret",
+    "stoken",
+    "token",
+)
 OPTION_HELP = {
     "--all": "Include normally omitted rows.",
     "--app-id": "QR login app id from auth.qrcode.start.",
@@ -94,7 +109,7 @@ OPTION_HELP = {
     "--query": "Search query.",
     "--quiet": "Suppress non-result stderr logs.",
     "--region": "Target API region.",
-    "--render": "Data/artifact preference.",
+    "--render": "Comma-separated render modes. Repeat to select multiple modes.",
     "--request-id": "Caller-supplied request id.",
     "--scope": "Operation scope.",
     "--season": "Challenge season selector.",
@@ -118,7 +133,7 @@ DEST_HELP = {
     "account_uid": "Account Genshin UID.",
     "command_uid": "Target Genshin UID. Overrides the profile default.",
     "export_format": "Gacha export format.",
-    "format": "Output format.",
+    "format": "Stdout output format.",
     "import_format": "Gacha import format.",
     "profile_region": "Profile default API region.",
     "query": "Search query or lookup name.",
@@ -144,10 +159,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--format",
-        choices=("json", "pretty-json", "text"),
+        choices=("json", "pretty-json", "plain"),
         default=os.environ.get("GSUID_FORMAT", "json"),
     )
-    parser.add_argument("--render", choices=("data", "image", "both"), default="data")
+    parser.add_argument("--render", action="append", metavar="data|image|all")
     parser.add_argument("--output-dir", default=os.environ.get("GSUID_OUTPUT_DIR"))
     parser.add_argument("--cache", choices=("use", "refresh", "only", "off"), default="use")
     parser.add_argument("--timeout", type=float, default=20.0)
@@ -190,6 +205,7 @@ def run(
     stdout = sys.stdout if stdout is None else stdout
     stderr = sys.stderr if stderr is None else stderr
     started = time.perf_counter()
+    captured_sources: list[dict[str, object]] = []
 
     try:
         parser = build_parser()
@@ -204,7 +220,11 @@ def run(
         args.request_id = request_id
         args.stdout = stdout
         args.stderr = stderr
-        result = args.handler(args)
+        source_capture = begin_source_capture()
+        try:
+            result = args.handler(args)
+        finally:
+            captured_sources = end_source_capture(source_capture)
         if not isinstance(result, CommandResult):
             result = CommandResult(data=result)
         payload = success_envelope(
@@ -215,10 +235,19 @@ def run(
             region=args.region,
             warnings=result.warnings,
             artifacts=result.artifacts,
-            source=result.source,
+            sources=_result_sources(result, captured_sources),
             pagination=result.pagination,
         )
-        _write_payload(payload, args.format, stdout, stderr)
+        _write_payload(
+            payload,
+            args.format,
+            stdout,
+            stderr,
+            debug=args.debug,
+            request_id=request_id,
+            output_dir=args.output_dir,
+            include_details=render_data_enabled(args),
+        )
         return 0
     except SystemExit as exc:
         return _system_exit_code(exc)
@@ -230,8 +259,18 @@ def run(
             duration_ms=_duration_ms(started),
             error=exc,
             region=context["region"],
+            sources=captured_sources,
         )
-        _write_payload(payload, context["format"], stdout, stderr)
+        _write_payload(
+            payload,
+            context["format"],
+            stdout,
+            stderr,
+            debug=bool(context["debug"]),
+            request_id=str(context["request_id"]),
+            output_dir=_optional_str(context["output_dir"]),
+            include_details=bool(context["include_details"]),
+        )
         return exc.exit_code
     except KeyboardInterrupt:
         context = _error_context(args_list)
@@ -242,8 +281,18 @@ def run(
             duration_ms=_duration_ms(started),
             error=error,
             region=context["region"],
+            sources=captured_sources,
         )
-        _write_payload(payload, context["format"], stdout, stderr)
+        _write_payload(
+            payload,
+            context["format"],
+            stdout,
+            stderr,
+            debug=bool(context["debug"]),
+            request_id=str(context["request_id"]),
+            output_dir=_optional_str(context["output_dir"]),
+            include_details=bool(context["include_details"]),
+        )
         return EXIT_INTERRUPTED
     except Exception as exc:  # pragma: no cover - defensive command boundary.
         context = _error_context(args_list)
@@ -257,8 +306,18 @@ def run(
             duration_ms=_duration_ms(started),
             error=error,
             region=context["region"],
+            sources=captured_sources,
         )
-        _write_payload(payload, context["format"], stdout, stderr)
+        _write_payload(
+            payload,
+            context["format"],
+            stdout,
+            stderr,
+            debug=bool(context["debug"]),
+            request_id=str(context["request_id"]),
+            output_dir=_optional_str(context["output_dir"]),
+            include_details=bool(context["include_details"]),
+        )
         return EXIT_INTERNAL_BUG
 
 
@@ -328,6 +387,7 @@ def _validate_runtime_defaults(args: argparse.Namespace) -> None:
             EXIT_INVALID_INPUT,
             {"format": args.format},
         )
+    args.render = normalize_render_modes(args.render)
     if args.timeout <= 0:
         raise CliError(
             "INVALID_ARGUMENT",
@@ -342,8 +402,24 @@ def _write_payload(
     output_format: str,
     stdout: TextIO,
     stderr: TextIO,
+    *,
+    debug: bool = False,
+    request_id: str | None = None,
+    output_dir: str | None = None,
+    include_details: bool = False,
 ) -> None:
+    if debug:
+        payload = _payload_with_debug_artifact(
+            payload,
+            request_id=request_id,
+            output_dir=output_dir,
+        )
     if output_format in {"json", "pretty-json"}:
+        payload = _json_payload_for_output(
+            payload,
+            debug=debug,
+            include_details=include_details,
+        )
         indent = 2 if output_format == "pretty-json" else None
         stdout.write(json.dumps(payload, ensure_ascii=False, indent=indent))
         stdout.write("\n")
@@ -357,6 +433,104 @@ def _write_payload(
     error = payload["error"]
     if isinstance(error, dict):
         stderr.write(f"{error['code']}: {error['message']}\n")
+
+
+def _json_payload_for_output(
+    payload: dict[str, object],
+    *,
+    debug: bool,
+    include_details: bool,
+) -> dict[str, object]:
+    result = dict(payload)
+    result["artifacts"] = list(_artifact_list(payload))
+    if not (debug or include_details):
+        result.pop("data", None)
+        result.pop("sources", None)
+    return result
+
+
+def _payload_with_debug_artifact(
+    payload: dict[str, object],
+    *,
+    request_id: str | None,
+    output_dir: str | None,
+) -> dict[str, object]:
+    result = dict(payload)
+    result["artifacts"] = list(_artifact_list(payload))
+    if not request_id:
+        return result
+    debug_payload = _redacted_debug_payload(result)
+    content = json.dumps(debug_payload, ensure_ascii=False, indent=2)
+    try:
+        artifact = ArtifactManager(request_id, output_dir).write_text(
+            name="debug-envelope",
+            filename="debug-envelope.json",
+            content=content,
+            description="Debug envelope with data and sources",
+            media_type="application/json; charset=utf-8",
+            kind="debug",
+        )
+    except OSError as exc:
+        warnings = result.setdefault("warnings", [])
+        if isinstance(warnings, list):
+            warnings.append(f"debug artifact write failed: {type(exc).__name__}")
+        return result
+    result["artifacts"] = [*_artifact_list(result), artifact]
+    return result
+
+
+def _redacted_debug_payload(payload: dict[str, object]) -> dict[str, object]:
+    return _redact_value(deepcopy(payload))
+
+
+def _redact_value(value: object) -> object:
+    if isinstance(value, dict):
+        result: dict[str, object] = {}
+        for key, item in value.items():
+            key_text = str(key)
+            result[key_text] = (
+                _redacted_secret_value(item) if _sensitive_key(key_text) else _redact_value(item)
+            )
+        return result
+    if isinstance(value, list):
+        return [_redact_value(item) for item in value]
+    return value
+
+
+def _sensitive_key(key: str) -> bool:
+    folded = key.casefold()
+    return any(part in folded for part in SENSITIVE_KEY_PARTS)
+
+
+def _redacted_secret_value(value: object) -> object:
+    if isinstance(value, str):
+        if "authkey=" in value or value.startswith(("http://", "https://")):
+            return "[REDACTED_URL]"
+        return redact_secret(value)
+    if isinstance(value, list):
+        return [_redacted_secret_value(item) for item in value]
+    if isinstance(value, dict):
+        return {str(key): _redacted_secret_value(item) for key, item in value.items()}
+    if value is None:
+        return None
+    return "[REDACTED]"
+
+
+def _artifact_list(payload: dict[str, object]) -> list[dict[str, object]]:
+    artifacts = payload.get("artifacts")
+    if not isinstance(artifacts, list):
+        return []
+    return [artifact for artifact in artifacts if isinstance(artifact, dict)]
+
+
+def _result_sources(
+    result: CommandResult,
+    captured_sources: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    sources = [*captured_sources, *result.sources]
+    if result.source is not None:
+        sources.append(result.source)
+    return sources
 
 
 def _duration_ms(started: float) -> int:
@@ -383,6 +557,9 @@ def _error_context(argv: Sequence[str]) -> dict[str, object]:
         if region in {"cn", "os"}
         else _valid_env("GSUID_REGION", {"cn", "os"}, "cn"),
         "debug": "--debug" in argv,
+        "output_dir": _global_option_value(argv, "--output-dir")
+        or os.environ.get("GSUID_OUTPUT_DIR"),
+        "include_details": _context_render_data_enabled(argv),
     }
 
 
@@ -393,7 +570,15 @@ def _context_from_args(args: argparse.Namespace) -> dict[str, object]:
         "format": args.format,
         "region": args.region,
         "debug": args.debug,
+        "output_dir": args.output_dir,
+        "include_details": _safe_render_data_enabled(args),
     }
+
+
+def _optional_str(value: object) -> str | None:
+    if value is None:
+        return None
+    return str(value)
 
 
 def _valid_env(name: str, allowed: set[str], default: str) -> str:
@@ -642,7 +827,6 @@ def _validate_global_value(option: str, value: str) -> None:
     choices = {
         "--region": {"cn", "os"},
         "--format": OUTPUT_FORMATS,
-        "--render": {"data", "image", "both"},
         "--cache": {"use", "refresh", "only", "off"},
     }.get(option)
     if choices is not None and value not in choices:
@@ -668,6 +852,50 @@ def _validate_global_value(option: str, value: str) -> None:
                 EXIT_INVALID_INPUT,
                 {"timeout": timeout},
             )
+    if option == "--render":
+        normalize_render_modes(value)
+
+
+def _context_render_data_enabled(argv: Sequence[str]) -> bool:
+    values = _global_option_values(argv, "--render")
+    if not values:
+        return True
+    return _safe_render_data_enabled(values)
+
+
+def _safe_render_data_enabled(value: object) -> bool:
+    try:
+        if hasattr(value, "render"):
+            return render_data_enabled(value)
+        return "data" in normalize_render_modes(value)
+    except CliError:
+        return False
+
+
+def _global_option_values(argv: Sequence[str], option: str) -> list[str]:
+    argv = _canonicalize_global_options(argv)
+    values: list[str] = []
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        if token.startswith(f"{option}="):
+            values.append(token.split("=", 1)[1])
+            index += 1
+            continue
+        if token == option and index + 1 < len(argv):
+            values.append(argv[index + 1])
+            index += 2
+            continue
+        if token in GLOBAL_VALUE_OPTIONS:
+            index += 2
+            continue
+        if token in GLOBAL_FLAG_OPTIONS:
+            index += 1
+            continue
+        if not token.startswith("-"):
+            return values
+        index += 1
+    return values
 
 
 def _guess_command(argv: Sequence[str]) -> str:

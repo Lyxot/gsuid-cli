@@ -12,6 +12,7 @@ from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.render import render_image_enabled, render_result_data
 from gsuid_cli.renderers.wiki.picwiki import (
     render_wiki_artifact_card,
     render_wiki_character_materials_card,
@@ -38,7 +39,7 @@ CAPABILITIES = [
         "description": "Look up public weapon data.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -46,7 +47,7 @@ CAPABILITIES = [
         "description": "Look up public artifact set data.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -62,7 +63,7 @@ CAPABILITIES = [
         "description": "Look up public food data.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -78,7 +79,7 @@ CAPABILITIES = [
         "description": "Look up public character constellation data.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -86,7 +87,7 @@ CAPABILITIES = [
         "description": "Show public character material data.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -94,7 +95,7 @@ CAPABILITIES = [
         "description": "Show public weapon material data.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
 ]
@@ -105,7 +106,7 @@ def wiki_command(args: argparse.Namespace) -> CommandResult:
     if getattr(args, "level", None) is not None:
         result.data["requested_level"] = args.level
         result.warnings.append("level-specific stats are not implemented; returned base wiki data")
-    if args.render != "data" and args.wiki_kind in WIKI_LOOKUP_IMAGE_KINDS:
+    if render_image_enabled(args) and args.wiki_kind in WIKI_LOOKUP_IMAGE_KINDS:
         return _wiki_render_result(args, result, args.wiki_kind)
     return result
 
@@ -125,7 +126,7 @@ def constellation_command(args: argparse.Namespace) -> CommandResult:
         character=args.character,
         constellation=constellation,
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     full = provider.wiki_lookup(kind="character", query=args.character)
     return _wiki_render_result(
@@ -140,7 +141,7 @@ def constellation_command(args: argparse.Namespace) -> CommandResult:
 def character_materials_command(args: argparse.Namespace) -> CommandResult:
     provider = _provider(args)
     result = provider.character_materials(character=args.character)
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     full = provider.wiki_lookup(kind="character", query=args.character)
     return _wiki_render_result(args, result, "character-materials", item_result=full)
@@ -149,7 +150,7 @@ def character_materials_command(args: argparse.Namespace) -> CommandResult:
 def weapon_materials_command(args: argparse.Namespace) -> CommandResult:
     provider = _provider(args)
     result = provider.weapon_materials(weapon=args.weapon)
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     full = provider.wiki_lookup(kind="weapon", query=args.weapon)
     return _wiki_render_result(
@@ -239,7 +240,7 @@ def _wiki_render_result(
     }
     if constellation is not None:
         render_data["requested_constellation"] = constellation
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     warnings = [*result.warnings, *asset_warnings]
     if item_result is not None:
         warnings.extend(item_result.warnings)

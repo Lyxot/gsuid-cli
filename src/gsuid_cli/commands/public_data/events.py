@@ -14,6 +14,7 @@ from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.render import render_image_enabled, render_result_data
 from gsuid_cli.renderers.events import (
     announcement_detail_image_urls,
     event_image_urls,
@@ -31,7 +32,7 @@ CAPABILITIES = [
         "description": "List public event announcements.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -39,7 +40,7 @@ CAPABILITIES = [
         "description": "List public event banner artwork URLs.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -55,7 +56,7 @@ CAPABILITIES = [
         "description": "List public game announcement rows.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -63,7 +64,7 @@ CAPABILITIES = [
         "description": "Show one public game announcement row.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
 ]
@@ -71,14 +72,14 @@ CAPABILITIES = [
 
 def events_list_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).events_list(include_all=args.all, limit=_limit(args.limit))
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _events_render_result(args, result, "events")
 
 
 def events_banners_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).event_banners(include_all=args.all, limit=_limit(args.limit))
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _events_render_result(args, result, "banners")
 
@@ -89,7 +90,7 @@ def codes_list_command(args: argparse.Namespace) -> CommandResult:
 
 def announcements_list_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).announcements_list(limit=_limit(args.limit))
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _announcements_list_render_result(args, result)
 
@@ -110,7 +111,7 @@ def announcements_show_command(args: argparse.Namespace) -> CommandResult:
             "start_at": start_at,
         }
         result.warnings[:0] = warnings
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _announcement_detail_render_result(args, result)
 
@@ -192,7 +193,7 @@ def _events_render_result(
         "render": render_name,
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -219,7 +220,7 @@ def _announcements_list_render_result(
         "render": "announcements/list",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -258,7 +259,7 @@ def _announcement_detail_render_result(
         "render": "announcements/show",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],

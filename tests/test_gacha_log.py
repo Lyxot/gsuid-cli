@@ -164,7 +164,7 @@ def test_gacha_summary_render_image_writes_card(monkeypatch, tmp_path) -> None:
         assert image.getbbox() is not None
 
 
-def test_gacha_summary_render_both_preserves_data(monkeypatch, tmp_path) -> None:
+def test_gacha_summary_render_data_image_preserves_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr(gacha, "fetch_render_images", lambda *args, **kwargs: ({}, []))
     import_file = tmp_path / "uigf-v4.json"
@@ -175,7 +175,7 @@ def test_gacha_summary_render_both_preserves_data(monkeypatch, tmp_path) -> None
     )
     assert code == 0
 
-    code, payload = _run_json(["gacha", "summary", "--uid", "100000001", "--render", "both"])
+    code, payload = _run_json(["gacha", "summary", "--uid", "100000001", "--render", "data,image"])
 
     assert code == 0
     assert payload["data"]["summary"]["total"] == 3

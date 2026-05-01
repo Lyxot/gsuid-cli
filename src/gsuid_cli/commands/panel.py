@@ -25,6 +25,7 @@ from gsuid_cli.core.config import resolve_paths
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.render import render_image_enabled, render_result_data
 from gsuid_cli.core.state import state_db
 from gsuid_cli.providers import provider_for_region
 from gsuid_cli.providers.enka import EnkaProvider
@@ -65,7 +66,7 @@ CAPABILITIES = [
         "description": "Show one cached character panel.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -73,7 +74,7 @@ CAPABILITIES = [
         "description": "Compare cached panel stats for two or more builds.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -89,7 +90,7 @@ CAPABILITIES = [
         "description": "List cached artifacts for a UID.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -97,7 +98,7 @@ CAPABILITIES = [
         "description": "Show the cached public showcase summary.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -105,7 +106,7 @@ CAPABILITIES = [
         "description": "Summarize local cached graduation inputs and render GenshinUID-style rows.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
 ]
@@ -210,7 +211,7 @@ def showcase_command(args: argparse.Namespace) -> CommandResult:
         },
         source=cache_source(cache),
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _showcase_render_result(args, result=result, uid=uid, cache=cache)
 
@@ -231,7 +232,7 @@ def show_command(args: argparse.Namespace) -> CommandResult:
     if overrides:
         data["requested_overrides"] = overrides
     result = CommandResult(data=data, warnings=warnings, source=cache_source(cache))
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _show_render_result(args, result=result, uid=uid, cache=cache, avatar=avatar)
 
@@ -285,7 +286,7 @@ def _show_render_result(
         "render": "panel/show",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -357,7 +358,7 @@ def _compare_render_result(
         "build_count": len(render_builds),
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -406,7 +407,7 @@ def _artifacts_render_result(
         "render": "panel/artifacts",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -454,7 +455,7 @@ def _showcase_render_result(
         "render": "panel/showcase",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -504,7 +505,7 @@ def _graduation_render_result(
         "render": "panel/graduation",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -664,7 +665,7 @@ def compare_command(args: argparse.Namespace) -> CommandResult:
         },
         source=baseline["source"],
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _compare_render_result(args, result=result, render_builds=render_builds)
 
@@ -717,7 +718,7 @@ def artifacts_command(args: argparse.Namespace) -> CommandResult:
         },
         source=cache_source(cache),
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _artifacts_render_result(args, result=result, uid=uid, cache=cache)
 
@@ -748,7 +749,7 @@ def graduation_command(args: argparse.Namespace) -> CommandResult:
         warnings=[message],
         source=cache_source(cache),
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _graduation_render_result(args, result=result, uid=uid, region=region, cache=cache)
 

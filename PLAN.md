@@ -74,8 +74,8 @@ Cache system decisions:
 --profile NAME                 Local profile name. Default: default.
 --uid UID                      Target Genshin UID. Overrides profile default.
 --region cn|os                 Target API region. Default: infer from profile, then UID.
---format json|pretty-json|text Output format. Default: json.
---render data|image|both       Data/artifact preference. Default: data.
+--format json|pretty-json|plain Output format. Default: json.
+--render data|image|all        Result surface selection. Repeatable; comma-separated values allowed. Default: data.
 --output-dir PATH              Artifact output directory. Default: $GSUID_HOME/artifacts.
 --cache use|refresh|only|off   Cache policy. Default: use.
 --timeout SECONDS              HTTP timeout. Default: 20.
@@ -149,15 +149,23 @@ All JSON command results must use this envelope:
   "warnings": [],
   "data": {},
   "artifacts": [],
-  "source": {
-    "provider": "mys",
-    "region": "cn",
-    "cached": false,
-    "fetched_at": "2026-04-29T10:29:59Z"
-  },
+  "sources": [
+    {
+      "provider": "mys",
+      "region": "cn",
+      "category": "daily.note",
+      "cached": false,
+      "status_code": 200,
+      "retcode": 0,
+      "fetched_at": "2026-04-29T10:29:59Z"
+    }
+  ],
   "pagination": null
 }
 ```
+
+When `--render data` is not selected, `data` and `sources` are omitted from
+stdout unless `--debug` is enabled.
 
 ### JSON Error Envelope
 
@@ -182,18 +190,23 @@ Even on failure, JSON mode writes the error envelope to stdout and exits non-zer
     "retryable": false
   },
   "artifacts": [],
-  "source": {
-    "provider": "mys",
-    "region": "cn",
-    "cached": false,
-    "fetched_at": null
-  }
+  "sources": [
+    {
+      "provider": "mys",
+      "region": "cn",
+      "category": "auth.cookie.test",
+      "cached": false,
+      "status_code": 200,
+      "retcode": -100,
+      "fetched_at": "2026-04-29T10:30:00Z"
+    }
+  ]
 }
 ```
 
 ### Artifact Format
 
-Images, JSON exports, and downloaded files are returned by path:
+Text, images, JSON exports, and downloaded files are returned by path:
 
 ```json
 {
@@ -214,11 +227,33 @@ Artifact rules:
 - Use stable filenames per command.
 - Include `sha256` after file creation.
 - `--render data` should not create images unless the command has no structured implementation yet.
-- `--render both` should return structured `data` and rendered artifacts when both are implemented.
+- `--render data,image` should return structured `data` plus image artifacts
+  when both are implemented.
+- `--render all` expands to all currently supported render modes.
 
-### Text Output
+### Output Model
 
-Text mode is for humans and is not a compatibility contract. JSON mode is the only stable contract.
+- `data` is the normalized command result. It should not be a dump of every
+  provider response.
+- `sources` records every upstream/local source that materially contributed to
+  the command result. It should contain metadata, not raw response bodies.
+- `artifacts` are the user-facing result surfaces that agents can show or read,
+  including text, image, JSON export, and debug JSON artifacts.
+- Full raw provider responses are opt-in debug artifacts only, and must be
+  redacted before writing.
+- `--render data` includes `data` and `sources` in JSON stdout without creating
+  a debug artifact. Artifact-only render selections omit `data` and `sources`
+  unless `--debug` is enabled.
+- `--debug` writes a redacted full-envelope debug artifact and restores
+  `data`/`sources` in stdout for diagnostics.
+- `--format` controls stdout emission (`json`, `pretty-json`, or direct
+  terminal plain text). `--render` controls what representation is produced
+  (`data`, later `text`, `image`, or `all`).
+
+### Plain Output
+
+Plain mode is for humans and is not a compatibility contract. JSON mode is the
+only stable contract.
 
 ## Command Set
 
@@ -673,773 +708,82 @@ tests/
 ### Stage 15: Full Global Options — completed.
 ### Stage 16: Help Information Coverage — completed.
 ### Stage 16.5: Cache System Redesign — completed.
-### Stage 17: GenshinUID Image Parity
+### Stage 17: GenshinUID Image Parity — completed.
+### Stage 18: Text Output And Result Surface Refactor
 
-- Status: in progress.
-- Goal: replace the first-pass local image generation with GenshinUID-parity
-  rendering, implemented in small reviewable substages.
-- Stage 17a status: completed.
-- Stage 17a result: temporarily removed existing generated-image paths for QR start,
-  daily note, Spiral Abyss, and panel show; deleted the local Pillow card
-  renderer; removed the Pillow runtime dependency; downgraded those command
-  capabilities to data-only; and kept non-generated artifact flows such as
-  MiniGG map images, JSON exports, and saved panel JSON artifacts intact.
-- Verification:
-  - `.venv/bin/python -m pytest tests/test_meta_commands.py tests/test_global_options.py tests/test_auth_secrets.py tests/test_rich_public_data.py`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-- Review: standalone review agents found stale QR preservation/example wording;
-  documentation now states generated renderers are temporarily disabled during
-  Stage 17.
-- Next intended substage: Stage 17b, choose the first GenshinUID renderer group
-  to port and document source/license attribution before adding code.
-
-- Stage 17b status: completed.
-- Stage 17b goal: port the `daily` image renderer group from the referenced
-  historical GenshinUID-parity commits, starting with `daily.note` and
-  `daily.materials`, while adapting all remote asset fetches to the Stage 16.5
-  static asset cache.
-- Stage 17b scope note: extract only the common renderer and render-asset fetch
-  helpers needed by the daily note/materials ports so later image groups can
-  reuse the same packaged asset, font, PNG, and static-asset cache paths.
-- Stage 17b result: restored attributed GenshinUID daily note/materials assets,
-  added shared renderer helpers and common static-image fetch helpers, re-enabled
-  `--render image|both` for `daily.note` and `daily.materials`, enriched daily
-  materials with AMBR upgrade/icon metadata, and added the read-only MYS daily
-  sign-in status used by the note card. Amended with a shared optimized PNG
-  compression pass for generated renderer output before writing artifacts.
-- Verification:
-  - `.venv/bin/python -m pip install -e '.[dev]'`
-  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_daily_player_data.py tests/test_meta_commands.py -q`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17b-materials --render image daily materials --day wednesday`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17b-note --render image daily note --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17b-compress-materials --render image daily materials --day wednesday`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17b-compress-note --render image daily note --uid <UID>`
-- Live artifacts:
-  - `~/.gsuid-cli/artifacts/2026-05-01/stage17b-materials/daily-materials_wednesday_c1b89f84.png`
-  - `~/.gsuid-cli/artifacts/2026-05-01/stage17b-note/daily-note_102452098_68affdf2.png`
-- Next intended substage: Stage 17c, port the next GenshinUID image renderer
-  group after confirming priority.
-
-- Stage 17c status: completed.
-- Stage 17c goal: port the GenshinUID `角色列表` player character-list
-  renderer to `player characters --render image|both`.
-- Stage 17c scope note: adapt the GenshinUID `draw_all_char.py` layout to the
-  existing `player.characters` provider data and Stage 16.5 static asset fetch
-  strategy, including GenshinUID resource-mirror character portraits, weapon
-  icons, and namecard backgrounds; leave the larger full player summary /
-  role-info card for a later focused substage.
-- Stage 17c result: restored attributed GenshinUID player character-list
-  textures and shared v4 background asset, added a reusable v4 background
-  helper, added the `player.characters` renderer, fetched GenshinUID
-  character/weapon/namecard resources through the static asset cache with MYS
-  image fallback, and re-enabled `--render image|both` for the player character
-  list.
-- Verification:
-  - `.venv/bin/python -m pytest tests/test_daily_player_data.py tests/test_meta_commands.py -q`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17c-player-characters --render image player characters --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17c-player-characters-v2 --render image player characters --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17c-player-characters-v3 --render image player characters --uid <UID>`
-- Live artifact:
-  - `~/.gsuid-cli/artifacts/2026-05-01/stage17c-player-characters/player-characters_102452098.png`
-  - `~/.gsuid-cli/artifacts/2026-05-01/stage17c-player-characters-v2/player-characters_102452098.png`
-  - `~/.gsuid-cli/artifacts/2026-05-01/stage17c-player-characters-v3/player-characters_102452098.png`
-- Next intended substage: Stage 17d, port the larger full player summary /
-  role-info card after confirming its data and asset scope.
-
-- Stage 17d status: completed.
-- Stage 17d goal: port the GenshinUID full player role-info card to
-  `player summary --render image|both`.
-- Stage 17d scope note: compose the GenshinUID title, exploration, and
-  character-list sections using existing `player.summary` and
-  `player.characters` provider data; use deterministic account/avatar assets
-  instead of chat-event avatars because the CLI has no bot event context.
-- Stage 17d result: restored attributed GenshinUID title/footer/mask and
-  exploration assets, added the full player summary renderer, re-enabled
-  `--render image|both` for `player.summary`, reused the Stage 17c character
-  resource fetch strategy, prefer `role.avatar_icon` for the title avatar and
-  fall back to the public player profile picture because the CLI cannot access
-  QQ profile images, resolve Enka profile-picture ids through live profile
-  picture config data instead of hardcoded profile mappings, made
-  missing/future oculus icon assets degrade to placeholders, draw the footer as
-  `Created by gsuid-cli & Render style/assets by GenshinUID & Data by 米游社`,
-  and forced internal daily-note player-summary lookup to data mode so
-  unrelated render modes do not create nested artifacts.
-- Verification:
-  - `.venv/bin/python -m pytest tests/test_daily_player_data.py::test_player_summary_render_image_writes_full_role_card -q`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17d-player-summary-footer --render image player summary --uid <UID>`
-  - `.venv/bin/python -m pytest tests/test_daily_player_data.py tests/test_meta_commands.py -q`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17d-player-summary --render image player summary --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17d-player-summary-profile --render image player summary --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17d-player-summary-final --render image player summary --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17d-player-summary-pfp-config --render image player summary --uid <UID>`
-- Live artifact:
-  - `~/.gsuid-cli/artifacts/2026-05-01/stage17d-player-summary/player-summary_102452098.png`
-  - `~/.gsuid-cli/artifacts/2026-05-01/stage17d-player-summary-profile/player-summary_102452098.png`
-  - `~/.gsuid-cli/artifacts/2026-05-01/stage17d-player-summary-final/player-summary_102452098.png`
-  - `~/.gsuid-cli/artifacts/2026-05-01/stage17d-player-summary-pfp-config/player-summary_102452098.png`
-- Next intended substage: Stage 17e, port the next GenshinUID image renderer
-  group after confirming priority.
-
-- Stage 17e status: completed.
-- Stage 17e goal: finish GenshinUID-parity image rendering for the `player`
-  command group by porting the remaining GenshinUID player-related renderers.
-- Stage 17e result:
-  - Add `player inventory --render image|both` from GenshinUID `我的背包`.
-  - Add `player calendar --render image|both` from GenshinUID `个人日历`.
-  - Add `player diary --render image|both` from GenshinUID `原石札记`.
-  - Reused shared player title/avatar/footer helpers for the new renderers,
-    packaged and attributed the copied GenshinUID assets, and updated
-    capabilities/docs to advertise the new image render support.
-  - Keep `player register-time` data-only because GenshinUID returns text for
-    `原神注册时间` and no GenshinUID image renderer is available to port.
-- Stage 17e review:
-  - Standalone review agent completed; two medium visual-parity gaps were fixed
-    before commit: diary now uses the GenshinUID color background/avatar ring,
-    and calendar no longer truncates pool items after the fourth entry.
-- Stage 17e verification:
-  - `.venv/bin/python -m pytest tests/test_daily_player_data.py::test_player_inventory_calendar_diary_render_images tests/test_daily_player_data.py::test_player_calendar_renderer_keeps_pool_items_after_four tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `git diff --check`
-  - `.venv/bin/python -m build`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17e-inventory-final --render image player inventory --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17e-calendar-final --render image player calendar --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17e-diary-final --render image player diary --uid <UID>`
-- Stage 17e live artifacts:
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17e-inventory-final/player-inventory_102452098.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17e-calendar-final/player-calendar_102452098.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17e-diary-final/player-diary_102452098.png`
-- Next intended substage: Stage 17f, continue porting the next image-render
-  group selected from the remaining PLAN coverage.
-
-- Stage 17f status: completed.
-- Stage 17f goal: port GenshinUID-style image rendering for the `challenge`
-  command group.
-- Stage 17f result:
-  - Add `challenge abyss --render image|both` using the GenshinUID Spiral Abyss
-    renderer layout and assets, adapted to the CLI's normalized abyss payload.
-  - Add `challenge theater --render image|both` using the GenshinUID
-    `幻想真境剧诗` renderer layout and assets, adapted to the selected theater
-    session payload.
-  - Add `challenge hard --render image|both` using the GenshinUID
-    `新新深渊`/`幽境危战` renderer layout and assets.
-  - Keep `challenge hard-rank` data-only because the configured source still
-    reports ranking support as unavailable.
-  - Reuse shared GenshinUID-style challenge render helpers, copied/attributed
-    GenshinUID challenge textures and character-card assets, and package them in
-    the wheel/sdist.
-  - Fix Abyss image overview parity so lower floors omitted by skipped or
-    floor-filtered payloads render as skipped rather than locked.
-  - Switch `challenge hard` to the same `/hard_challenge?need_detail=true`
-    endpoint used by GenshinUID `新新深渊`/`幽境危战`, normalize the
-    `data[0].single.challenge` payload, and render the fixed 900x1900
-    GenshinUID hard-challenge card for the current three-boss layout.
-  - Do not emit an Abyss image artifact when the provider returns no Abyss floor
-    data; return `NO_RESULT` with no artifacts instead.
-  - Use the same title profile-image selection logic as `player summary`, with
-    role avatar first and Enka profile-picture fallback when the role avatar is
-    absent.
-- Stage 17f review:
-  - Standalone review agent completed. One medium Abyss visual-parity issue was
-    fixed before commit: missing lower floors now synthesize GenshinUID-style
-    skipped floor slots for the overview.
-  - A second standalone review after the hard-endpoint/profile-image correction
-    found no blocking issues.
-- Stage 17f verification:
-  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py::test_challenge_abyss_overview_marks_missing_lower_floors_as_skipped tests/test_challenge_progress_data.py::test_challenge_render_images -q`
-  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py tests/test_meta_commands.py tests/test_docs.py -q`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `git diff --check`
-  - `.venv/bin/python -m build`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17f-hard-data-v2 challenge hard --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17f-hard-image-v5 --render image challenge hard --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17f-abyss-no-data-v2 --render image challenge abyss --uid <UID>` exits 6 with `NO_RESULT` and no artifacts for the current no-floor data.
-  - `.venv/bin/python -m gsuid_cli --request-id stage17f-theater-final --render image challenge theater --uid <UID>`
-- Stage 17f live artifacts:
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17f-hard-image-v5/challenge-hard_102452098.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17f-theater-final/challenge-theater_102452098.png`
-- Next intended substage: Stage 17g, port GenshinUID-style progress image
-  renderers.
-
-- Stage 17g status: completed.
-- Stage 17g goal: port GenshinUID-style image rendering for the `progress`
-  command group.
-- Stage 17g result:
-  - Add `progress completion --render image|both` using the shared
-    GenshinUID-style player exploration/completion section.
-  - Add `progress exploration --render image|both` using the GenshinUID old
-    `查询探索` slider layout, including the `获得角色数` row and player-summary
-    title avatar fallback logic.
-  - Add `progress collection --render image|both` using the GenshinUID old
-    `查询收集` slider layout.
-  - Add `progress achievements --render image|both` using the GenshinUID
-    `我的成就` category renderer layout and textures.
-  - Add `progress gcg --render image|both` and
-    `progress gcg-deck --render image|both` using the GenshinUID
-    `七圣召唤` overview/deck renderer layouts and textures.
-  - Keep `progress achievement-guide` and `progress commission-guide`
-    data-only because they are guide/status lookups without compatible live
-    renderer payloads.
-  - Copy and attribute progress achievement, collection/exploration slider, and
-    GCG textures from GenshinUID, and package them in wheel/sdist.
-  - Match GenshinUID `get_color_bg` backgrounds and white-ring title avatars
-    for the old collection/exploration and GCG-deck renderers.
-- Stage 17g review:
-  - Standalone review agent found three issues before commit; all were fixed:
-    missing `获得角色数` row in exploration, ambiguous default GCG deck image
-    metadata, and unclamped malformed achievement percentages.
-- Stage 17g verification:
-  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py::test_progress_render_images tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `git diff --check`
-  - `.venv/bin/python -m build`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17g-completion-final --render image progress completion --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17g-exploration-reviewfix --render image progress exploration --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17g-collection-final --render image progress collection --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17g-achievements-final --render image progress achievements --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17g-gcg-final --render image progress gcg --uid <UID>`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17g-gcg-deck-reviewfix --render image progress gcg-deck --uid <UID>`
-- Stage 17g live artifacts:
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17g-completion-final/progress-completion_102452098.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17g-exploration-reviewfix/progress-exploration_102452098.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17g-collection-final/progress-collection_102452098.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17g-achievements-final/progress-achievements_102452098.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17g-gcg-final/progress-gcg_102452098.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17g-gcg-deck-reviewfix/progress-gcg-deck_102452098.png`
-- Next intended substage: Stage 17h, select the next remaining GenshinUID image
-  renderer group from PLAN coverage.
-
-- Stage 17h status: completed.
-- Stage 17h goal: port the GenshinUID PicWiki renderers for the `wiki` command
-  group.
-- Stage 17h scope: add GenshinUID-style image artifacts for `wiki food`,
-  `wiki artifact`, `wiki weapon`, `wiki weapon-materials`,
-  `wiki character-materials`, and `wiki constellation`, using the existing
-  AMBR-backed public data and Stage 16.5 static asset cache. Keep
-  `wiki character`, `wiki talent`, and `wiki enemy` data-only because
-  GenshinUID implements those paths as text/data responses rather than PicWiki
-  image renderers.
-- Stage 17h result:
-  - Added GenshinUID PicWiki-style renderers and packaged/attributed wiki
-    textures for `wiki food`, `wiki artifact`, `wiki weapon`,
-    `wiki weapon-materials`, `wiki character-materials`, and
-    `wiki constellation`.
-  - Reused the Stage 16.5 static asset cache for AMBR icons and GenshinUID
-    resource-mirror character/weapon images.
-  - Preserved the existing data-only JSON contract for `wiki food` by keeping
-    raw AMBR `recipe` data in provider output and doing renderer-only recipe
-    normalization.
-  - Kept `wiki character`, `wiki talent`, and `wiki enemy` data-only because
-    GenshinUID implements those paths as text/data responses rather than
-    PicWiki image renderers.
-  - `wiki weapon` images use AMBR public weapon data and warn that
-    level-specific stats are unavailable from the current public source.
-  - Amended `wiki artifact` text layout to align wrapped bonus text beside the
-    GenshinUID suitbar label and vertically center each part-detail text block.
-- Stage 17h review:
-  - Standalone review agent found three issues before commit; all were fixed:
-    food recipe data-shape regression, `wiki.weapon-materials` artifact identity,
-    and missing completed PLAN verification.
-- Stage 17h verification:
-  - `.venv/bin/python -m pytest tests/test_public_data.py::test_wiki_picwiki_renderers_write_cards tests/test_public_data.py::test_ambr_food_recipe_data_shape_stays_raw -q`
-  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_rich_public_data.py tests/test_meta_commands.py -q`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `git diff --check`
-  - `.venv/bin/python -m build`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17h-caps meta capabilities`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17h-food --render image wiki food --name '甜甜花酿鸡'`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17h-artifact-v2 --render image wiki artifact --name '角斗士的终幕礼'`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17h-artifact-align-v2 --render image wiki artifact --name '角斗士的终幕礼'`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17h-weapon --render image wiki weapon --name '无锋剑'`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17h-weapon-materials-v2 --render image wiki weapon-materials --weapon '无锋剑'`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17h-char-materials --render image wiki character-materials --character '安柏'`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17h-constellation --render image wiki constellation --character '安柏' --constellation 1`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17h-constellation-all --render image wiki constellation --character '安柏'`
-  - `.venv/bin/python -m gsuid_cli --format pretty-json --cache refresh wiki food --name '甜甜花酿鸡'`
-- Stage 17h live artifacts:
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17h-food/wiki-food_甜甜花酿鸡_4276073d.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17h-artifact-v2/wiki-artifact_角斗士的终幕礼_0043ab6b.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17h-artifact-align-v2/wiki-artifact_角斗士的终幕礼_0043ab6b.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17h-weapon/wiki-weapon_无锋剑_5ab3d022.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17h-weapon-materials-v2/wiki-weapon-materials_无锋剑_5ab3d022.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17h-char-materials/wiki-character-materials_安柏_3aa0a86d.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17h-constellation/wiki-constellation_安柏_3aa0a86d_c1.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17h-constellation-all/wiki-constellation_安柏_3aa0a86d.png`
-- Next intended substage: choose the next remaining GenshinUID image renderer
-  group from PLAN coverage.
-
-- Stage 17i status: completed.
-- Stage 17i goal: add image artifact support for the remaining simple
-  GenshinUID guide/recommendation flows.
-- Stage 17i scope:
-  - `guide character --render image|both`: fetch and return the stored
-    GenshinUID `wiki/guide/{角色}.png` guide image.
-  - `guide reference-panel --render image|both`: fetch and return the stored
-    GenshinUID `wiki/ref/{角色}.jpg` reference-panel image.
-  - `guide route` remains covered by the existing image-only MiniGG map artifact
-    flow.
-  - `recommend build --render image|both` and
-    `recommend holder --render image|both`: port GenshinUID `文字推荐` data from
-    `char_adv_list.json`, expose structured recommendation data, and render a
-    GenshinUID-style text card.
-  - Keep `guide abyss` and `guide theater` data-only in this substage; upstream
-    implements them as separate generated monster-layout renderers with larger
-    static data/assets and they should be ported in a later focused substage.
-- Stage 17i result:
-  - Added `guide character --render image|both` by fetching the stored
-    GenshinUID `wiki/guide/{角色}.png` guide image through the static asset
-    cache and writing it as a CLI artifact.
-  - Added `guide reference-panel --render image|both` by fetching the stored
-    GenshinUID `wiki/ref/{角色}.jpg` reference-panel image through the static
-    asset cache and writing it as a CLI artifact.
-  - Ported GenshinUID `文字推荐` data from upstream `char_adv_list.json` as a
-    static cached asset, replacing placeholder recommendation availability
-    responses for `recommend build` and `recommend holder`.
-  - Added GenshinUID-style text-card renderers for
-    `recommend build --render image|both` and
-    `recommend holder --render image|both`.
-  - Use recommendation-specific footer attribution:
-    `Created by gsuid-cli & Data by GenshinUID char_adv_list`.
-  - Kept `guide abyss` and `guide theater` data-only; their upstream image
-    paths are separate generated monster-layout renderers and remain a later
-    focused substage.
-- Stage 17i verification:
-  - `.venv/bin/python -m pytest tests/test_public_data.py::test_guide_image_render_writes_resource_artifacts tests/test_public_data.py::test_recommend_render_images_write_cards tests/test_public_data.py::test_recommend_build_uses_genshinuid_adv_data tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
-  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_rich_public_data.py tests/test_meta_commands.py -q`
-  - `.venv/bin/ruff check src/gsuid_cli/providers/public.py src/gsuid_cli/commands/public_data.py src/gsuid_cli/renderers/recommend.py tests/test_public_data.py tests/test_meta_commands.py`
-  - `.venv/bin/ruff format --check src/gsuid_cli/providers/public.py src/gsuid_cli/commands/public_data.py src/gsuid_cli/renderers/recommend.py tests/test_public_data.py tests/test_meta_commands.py`
-  - `.venv/bin/python scripts/generate_command_reference.py`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17i-guide-character --render image guide character --name '安柏'`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17i-guide-reference --render image guide reference-panel --character '安柏'`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17i-recommend-build --render image recommend build --character '安柏'`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17i-recommend-holder --render image recommend holder --item '西风剑'`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17i-recommend-build-footer --render image recommend build --character '安柏'`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17i-recommend-holder-footer --render image recommend holder --item '西风剑'`
-  - `.venv/bin/python -m gsuid_cli --format pretty-json --cache use recommend build --character '安柏'`
-  - `.venv/bin/python -m gsuid_cli --format pretty-json --cache use guide reference-panel --character '安柏'`
-- Stage 17i live artifacts:
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17i-guide-character/guide-character_安柏_3aa0a86d.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17i-guide-reference/guide-reference-panel_安柏_3aa0a86d.jpg`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17i-recommend-build/recommend-build_安柏_3aa0a86d.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17i-recommend-holder/recommend-holder_西风剑_8014054b.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17i-recommend-build-footer/recommend-build_安柏_3aa0a86d.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17i-recommend-holder-footer/recommend-holder_西风剑_8014054b.png`
-- Next intended substage: decide whether to port guide abyss/theater renderers
-  separately.
-
-- Stage 17j status: completed.
-- Stage 17j goal: port the remaining GenshinUID public guide image renderers for
-  `guide abyss` and `guide theater`.
-- Stage 17j result:
-  - `guide abyss --render image|both`: use the GenshinUID `abyss.js` schedule
-    and monster data bundled with the package, normalize the selected
-    floor/chamber/wave payload, render the GenshinUID-style abyss monster
-    layout, and show the same `数据 妮可少年` source label.
-  - `guide theater --render image|both`: use the Hakush rolecombat data source
-    used by GenshinUID, normalize the selected event/room/avatar payload, and
-    render the GenshinUID-style theater monster layout.
-  - If no current abyss schedule matches today's date, fall back to the latest
-    bundled GenshinUID schedule and warn because the upstream static data can be
-    stale.
-  - Guide abyss/theater images omit the extra CLI footer to match GenshinUID
-    guide output; abyss monster card backgrounds are alpha-adjusted so they do
-    not obscure the shared panel background.
-  - Non-`UI_` abyss monster icon ids render placeholders rather than incorrect
-    AMBR icons; theater non-`UI_` icon ids fall through to the Hakush UI URL.
-  - The recommendation footer was reverted to
-    `Created by gsuid-cli & Data by GenshinUID`.
-- Stage 17j review:
-  - Standalone review agent found two issues before commit; both were fixed:
-    non-`UI_` monster icon ids no longer map to a wrong tanuki icon, and guide
-    images no longer reuse the challenge footer that credits MYS data.
-  - Re-review found no remaining blocking or nonblocking findings.
-- Stage 17j verification:
-  - `.venv/bin/python -m pytest tests/test_public_data.py::test_guide_layout_renderers_write_cards tests/test_public_data.py::test_guide_abyss_uses_genshinuid_abyss_js_data tests/test_public_data.py::test_guide_theater_uses_hakush_rolecombat_data -q`
-  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_rich_public_data.py tests/test_meta_commands.py tests/test_docs.py -q`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `git diff --check`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/python -m build`
-  - `.venv/bin/python -m gsuid_cli --request-id stage17j-caps meta capabilities`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17j-abyss-data --format pretty-json guide abyss --floor 12`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17j-abyss-image-placeholder --render image guide abyss --floor 12`
-  - `.venv/bin/python -m gsuid_cli --timeout 10 --request-id stage17j-theater-data --format pretty-json guide theater` currently exits with `NETWORK_ERROR` because `https://api.hakush.in/gi/data/rolecombat.json` fails TLS/network from this machine.
-- Stage 17j live artifacts:
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17j-abyss-image-placeholder/guide-abyss_6_0B_floor12_f203e878.png`
-- Stage 17j amend verification:
-  - Standalone review agent found no issues and marked the amend safe to include
-    in the current Stage 17j commit.
-  - `.venv/bin/python -m pytest tests/test_public_data.py::test_guide_layout_renderers_write_cards tests/test_public_data.py::test_guide_abyss_uses_genshinuid_abyss_js_data tests/test_public_data.py::test_recommend_render_images_write_cards -q`
-  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_rich_public_data.py tests/test_meta_commands.py tests/test_docs.py -q`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `git diff --check`
-  - `.venv/bin/python -m build` confirms
-    `gsuid_cli/assets/guide/abyss/data/abyss.js` is included in the wheel.
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17j-abyss-local-source --format pretty-json guide abyss --floor 12`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17j-abyss-local-image --render image guide abyss --floor 12`
-- Stage 17j amend live artifact:
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17j-abyss-local-image/guide-abyss_6_0B_floor12_f203e878.png`
-- Next intended substage: continue with the next remaining image-render group
-  from PLAN coverage.
-
-- Stage 17k status: completed.
-- Stage 17k goal: port GenshinUID public event and announcement rendering.
-- Stage 17k result:
-  - `events list --render image|both`: render the GenshinUID-style activity
-    list card using `genshinuid_eventlist/texture2d` assets and current AMBR
-    event rows.
-  - `events banners --render image|both`: render the GenshinUID-style wish
-    banner list card using the matching GenshinUID assets.
-  - `announcements list/show --render image|both`: use the miHoYo
-    announcement endpoints used by GenshinUID, normalize list/detail JSON for
-    the CLI envelope, and render GenshinUID-style list/detail cards.
-  - `announcements show --latest`: selects the announcement row with the newest
-    parseable `start_at`, then fetches that row by id.
-  - `announcements show` merges list metadata into detail output so detail rows
-    retain `start_at`, `end_at`, type, tag, and reminder fields when the
-    content endpoint omits them.
-  - Announcement HTML cleanup strips both real and escaped inline tags before
-    drawing detail cards.
-  - Announcement list rendering includes every source section pair and wraps
-    item titles away from the id label.
-  - `meta capabilities` and `docs/commands.md` now advertise image/both render
-    support for `events.*` and `announcements.*`.
-- Stage 17k verification:
-  - `.venv/bin/python -m pytest tests/test_public_data.py::test_events_banners_filters_wish_rows tests/test_public_data.py::test_announcements_list_uses_mihoyo_announcement_api tests/test_public_data.py::test_announcement_show_normalizes_content_html tests/test_public_data.py::test_event_render_images_write_cards tests/test_public_data.py::test_announcement_render_images_write_cards tests/test_public_data.py::test_announcement_show_latest_uses_newest_list_row -q`
-  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_rich_public_data.py tests/test_meta_commands.py tests/test_docs.py tests/test_help_information.py -q`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `git diff --check`
-  - `.venv/bin/python -m build` confirms the new event and announcement
-    texture assets are included in the wheel.
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-events-list --render image events list --limit 5`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-events-banners --render image events banners --limit 5`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-ann-list-data --format json announcements list --limit 2`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-ann-list-image --render image announcements list --limit 10`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-ann-list-aligned --cache refresh --render image announcements list --limit 30`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-ann-show-latest-start-at --cache refresh announcements show --latest`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-ann-show-latest-start-at-merged --cache refresh announcements show --latest`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-ann-show-latest-start-at-image --cache refresh --render image announcements show --latest`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17k-ann-show-image-clean --cache refresh --render image announcements show --id 21647`
-- Stage 17k live artifacts:
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17k-events-list/events-list.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17k-events-banners/events-banners.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17k-ann-list-image/announcements-list.png`
-  - `~/.gsuid-cli/artifacts/2026-05-03/stage17k-ann-list-aligned/2026-05-02/stage17k-ann-list-aligned/announcements-list.png`
-  - `~/.gsuid-cli/artifacts/2026-05-03/stage17k-ann-show-latest-start-at/2026-05-02/stage17k-ann-show-latest-start-at-image/announcements-show_21652_f9dcddb4.png`
-  - `~/.gsuid-cli/artifacts/2026-05-02/stage17k-ann-show-image-clean/announcements-show_21647_9bb44cf6.png`
-- Next intended substage: continue with the next remaining public image-render
-  group from PLAN coverage.
-
-- Stage 17l status: complete.
-- Stage 17l result: ported the GenshinUID gachalog summary image renderer to
-  `gacha summary --render image|both`.
-- Stage 17l notes:
-  - Bundled attributed GenshinUID gachalog textures, emotion icons, and the
-    avatar id/name map used for gacha character icon resolution.
-  - Preserved the existing JSON summary contract for `--render data` and
-    `--render both`.
-  - Character icon resolution keeps every exact id candidate for a mapped name
-    and renders the first candidate URL available from the GenshinUID resource
-    host; this handles duplicate map entries such as `伊涅芙` and `哥伦比娅`
-    without guessing from partial names.
-- Stage 17l verification:
-  - `.venv/bin/python -m pytest tests/test_gacha_log.py::test_gacha_summary_character_icon_urls_include_duplicate_name_candidates tests/test_gacha_log.py::test_gacha_summary_render_image_writes_card tests/test_gacha_log.py::test_gacha_summary_render_both_preserves_data -q`
-  - `.venv/bin/python -m pytest tests/test_gacha_log.py tests/test_meta_commands.py tests/test_docs.py tests/test_help_information.py -q`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `git diff --check`
-  - `.venv/bin/python -m build`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17l-gacha-summary-available-icons --cache refresh --render image gacha summary --uid <UID>`
-- Stage 17l live artifact:
-  `~/.gsuid-cli/artifacts/2026-05-03/stage17l-gacha-summary-available-icons/gacha-summary_102452098_all.png`
-- Next intended stage: Stage 8.5, auto-refresh expired gacha authkeys during
-  `gacha refresh`.
-
-- Stage 17m status: completed.
-- Stage 17m result: ported the GenshinUID Enka panel card renderer to
-  `panel show --render image|both`.
-- Stage 17m notes:
-  - Added attributed GenshinUID panel textures, Enka text maps, artifact/weapon
-    effect maps, damage action maps, and reference graduation data.
-  - Reused the Stage 9 Enka-backed `panel_cache` data source and Stage 16.5
-    static asset cache for character, weapon, skill, constellation, and
-    artifact UI assets.
-  - Added GenshinUID-style artifact effective stat counts, reference sequence
-    labels, graduation percent, weapon passive text enrichment, and damage
-    table rendering.
-  - Matched the GenshinUID panel calculator path for the current Enka build,
-    including reaction bonus `a`, `extraBonus`, `baseArea`, mixed ATK+EM base
-    scaling, and GenshinUID's single-character handling of generic `Resist`
-    and uppercase element `DmgBonus` entries.
-  - Preserved the structured `panel.show` JSON contract for `--render data`
-    and `--render both`; `--render image` returns artifact metadata only.
-- Stage 17m review:
-  - A standalone agent reviewed command/render integration and flagged generic
-    `Resist` / uppercase unprefixed `DmgBonus` concerns. Those were checked
-    against GenshinUID and kept as reference-compatible behavior; the real
-    remaining damage gaps were fixed and covered by focused tests.
-- Stage 17m verification:
-  - `.venv/bin/python -m pytest tests/test_panel_rank.py::test_panel_metric_damage_primitives_follow_genshinuid tests/test_panel_rank.py::test_panel_metric_sp_base_uses_atk_and_elemental_mastery tests/test_panel_rank.py::test_panel_metrics_match_genshinuid_reference_counts -q`
-  - `.venv/bin/python -m pytest tests/test_panel_rank.py tests/test_meta_commands.py tests/test_docs.py tests/test_help_information.py -q`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `git diff --check`
-  - `.venv/bin/python -m build`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --request-id stage17m-panel-damage-check --cache use --render image panel show --uid <UID> --character 温迪`
-- Stage 17m live artifact:
-  `~/.gsuid-cli/artifacts/2026-05-03/stage17m-panel-damage-check/panel-show_102452098_温迪.png`
-- Next intended stage: Stage 8.5, auto-refresh expired gacha authkeys during
-  `gacha refresh`.
-
-- Stage 17n status: completed.
-- Stage 17n result: ported the remaining GenshinUID panel-group image renderers.
-- Stage 17n scope:
-  - `panel.compare --render image|both`: compose multiple GenshinUID-style panel
-    cards side-by-side, matching GenshinUID `对比面板`.
-  - `panel.artifacts --render image|both`: render a GenshinUID-style artifact
-    warehouse page from the local Enka panel cache.
-  - `panel.showcase --render image|both`: render a GenshinUID-style cached
-    character showcase summary from local Enka panel data.
-  - Preserve existing structured JSON contracts for `--render data` and
-    `--render both`.
-- Stage 17n notes:
-  - Copied the additional attributed GenshinUID Enka textures for artifact
-    warehouse and compact showcase rendering.
-  - Reused the existing panel card renderer for `panel.compare`, the local Enka
-    cache for all panel images, and the Stage 16.5 asset fetch/cache path.
-- Stage 17n review:
-  - Standalone review found a `panel.artifacts --render both` order mismatch
-    between structured JSON and the GenshinUID CV-sorted image.
-  - Fixed by sorting `panel.artifacts` data by artifact score and adding a
-    regression test that covers the `both` path.
-- Stage 17n verification:
-  - `.venv/bin/python -m pytest tests/test_panel_rank.py tests/test_meta_commands.py`
-  - `.venv/bin/ruff check src/gsuid_cli/commands/panel.py src/gsuid_cli/renderers/panel.py tests/test_panel_rank.py tests/test_meta_commands.py`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `git diff --check`
-  - `.venv/bin/python -m build`
-  - `.venv/bin/python -m gsuid_cli --request-id smoke-panel-compare --format pretty-json panel compare --uid <UID> --build 温迪 --build 钟离 --render image`
-  - `.venv/bin/python -m gsuid_cli --request-id smoke-panel-artifacts --format pretty-json panel artifacts --uid <UID> --render image`
-  - `.venv/bin/python -m gsuid_cli --request-id smoke-panel-showcase --format pretty-json panel showcase --uid <UID> --render image`
-- Stage 17n live artifacts:
-  - `~/.gsuid-cli/artifacts/2026-05-03/smoke-panel-compare/panel-compare_温迪_钟离.png`
-  - `~/.gsuid-cli/artifacts/2026-05-03/smoke-panel-artifacts/panel-artifacts_102452098_p1.png`
-  - `~/.gsuid-cli/artifacts/2026-05-03/smoke-panel-showcase/panel-showcase_102452098.png`
-- Next intended stage: Stage 17o, port rank-group image renderers.
-
-- Stage 17o status: completed.
-- Stage 17o goal: redesign and port the `rank` command group to match
-  GenshinUID rank behavior before reimplementing image output.
-- Stage 17o design decision:
-  - The previous local-panel-cache-only rank interpretation was rejected because
-    it did not match GenshinUID result semantics or images.
-  - `rank` is a GenshinUID Akasha/CV leaderboard feature, not a local ranking of
-    cached Enka panel scores.
-  - `panel` remains responsible for local Enka panel cache summaries; `rank`
-    should fetch/normalize leaderboard data from the same Akasha/CV API family
-    used by GenshinUID.
-- Stage 17o intended command mapping:
-  - `rank list`: mirror GenshinUID `排名列表` for a UID, using the user rank
-    objects returned by the Akasha/CV endpoint.
-  - `rank character --character NAME [--uid UID] [--nearby]`: mirror
-    GenshinUID `角色排行` and `我的角色排行`; without `--uid`, show top entries
-    for a character, with `--uid`/`--nearby`, show entries around that UID's
-    current rank when available.
-  - `rank artifact --sort KEY`: mirror GenshinUID `圣遗物排行` global artifact
-    leaderboard for the selected sort key.
-- Stage 17o data contract:
-  - Preserve the CLI envelope, but expose upstream leaderboard objects and
-    normalized summaries that correspond to the rendered image.
-  - Do not label global-rank data as local panel cache.
-  - Use optional authenticated MYS enrichment for `rank list` title counters
-    when a cookie is available; keep unauthenticated Akasha rank data usable.
-- Stage 17o implementation note:
-  - Re-check GenshinUID API endpoints and request/response shapes before code;
-    do not infer endpoint behavior from current local-cache rank tests.
-- Stage 17o correction:
-  - Remove `rank summary`; it is only a text duplicate of the UID rank list and
-    does not add a distinct GenshinUID image-capable command.
-  - Replace the simplified `rank list` header with the GenshinUID Enka title
-    and title-bar assets, GenshinUID quality icon frames, Akasha rank rows, and
-    MYS-enriched title counters where the CLI can derive them.
-  - Normalize artifact sort display labels to Chinese, e.g. `crit-rate` ->
-    `暴击率`, while preserving English aliases as input.
-- Stage 17o result:
-  - Replaced the earlier local-panel-cache rank group with Akasha/CV-backed
-    `rank list`, `rank character`, and `rank artifact`.
-  - Removed `rank summary` from parser, capabilities, docs, and tests.
-  - Ported rank-list, character-leaderboard, and artifact-leaderboard image
-    renderers using GenshinUID rank/count textures and flattened asset cache
-    fetching.
-  - Added Chinese artifact sort display labels while preserving English aliases
-    as accepted input.
-  - Kept `--render both` structured data consistent with the enriched image
-    title context, and kept Akasha HTTP calls on the shared `HttpClient` path so
-    transport/testing behavior matches other providers.
-- Stage 17o known limitations:
-  - `rank list` title avatar cannot match GenshinUID's QQ sender avatar in this
-    CLI; it uses Akasha/Enka player profile data.
-  - High-score/useful counters remain Akasha-rank-list-derived because they are
-    rank-feature counters, not full local panel-cache counters.
-- Stage 17o amend status: completed.
-- Stage 17o amend result:
-  - Replaced the placeholder crown counter with MYS character-detail crowned
-    talent count, subtracting active C3/C5 talent-level bonuses, plus MYS
-    calculator unused-crown count. The calculator extraction accepts both
-    `overall_consume` and the skill-material bucket.
-  - Fixed the max-friendship denominator to use owned MYS characters instead of
-    the role-profile object length.
-  - Replaced hand-scaled rank-list constellation/refinement badges with
-    GenshinUID native 60x30 badge textures.
-- Stage 17o verification:
-  - `.venv/bin/python -m pytest tests/test_panel_rank.py tests/test_meta_commands.py -q`
-  - `.venv/bin/python -m pytest`
-  - `.venv/bin/ruff check src/gsuid_cli/providers/akasha.py src/gsuid_cli/commands/rank.py src/gsuid_cli/renderers/rank.py tests/test_panel_rank.py tests/test_meta_commands.py`
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check .`
-  - `git diff --check`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - standalone review agent before commit; actionable findings fixed except the
-    documented full title-counter parity gap.
-  - `.venv/bin/python -m gsuid_cli meta capabilities`
-  - `.venv/bin/python -m gsuid_cli --timeout 60 --format json --output-dir /tmp/gsuid-rank-smoke11 rank list --uid <UID> --render image`
-  - `.venv/bin/python -m gsuid_cli --timeout 45 --format json rank list --uid <UID> --render both`
-  - `.venv/bin/python -m pytest tests/test_panel_rank.py::test_rank_commands_use_akasha_provider tests/test_panel_rank.py::test_rank_title_stats_use_mys_character_count_and_crown_stat tests/test_panel_rank.py::test_rank_crown_cost_counts_crowned_combat_talents_only -q`
-  - `.venv/bin/python -m gsuid_cli --timeout 60 --format json --output-dir /tmp/gsuid-rank-title-check2 rank list --uid <UID> --render both`
-  - `.venv/bin/python -m gsuid_cli --timeout 30 --format json rank artifact --sort crit-rate`
-- Stage 17o live artifact:
-  - `/private/tmp/gsuid-rank-smoke11/2026-05-03/9e1d762f-352d-4e6d-920d-99d2f8501f6f/rank-list_102452098.png`
-  - `/private/tmp/gsuid-rank-title-check2/2026-05-03/206819da-4d3f-48da-a93b-ba72220521ff/rank-list_102452098.png`
-  - Live title counters for UID <UID>: `38/62` crown usage and `73/85`
-    max-friendship characters.
-- Next intended stage: Stage 17p, port remaining GenshinUID image-capable
-  commands that are still data-only in the CLI.
-
-- Stage 17p status: completed.
-- Stage 17p goal: port the remaining three GenshinUID image-capable commands
-  that are present in the CLI but still data-only.
-- Stage 17p scope:
-  - `panel graduation`: port GenshinUID `毕业度统计` image behavior from
-    `genshinuid_count`.
-  - `rerun list`: port GenshinUID `未复刻列表` image behavior from
-    `genshinuid_returnlist`.
-  - `misc primogems-plan`: port GenshinUID `版本规划` / `原石预估` static-image
-    behavior from `genshinuid_etcimg`.
-- Stage 17p assumption:
-  - `codes list`, `daily signin`, `progress achievement-guide`, and
-    `progress commission-guide` remain data/text-only because the referenced
-    GenshinUID commands do not expose stable image renderers.
-  - `challenge hard-rank` remains source-limited/data-only until a matching
-    hard-rank leaderboard source is wired separately.
-- Stage 17p result:
-  - Ported `panel graduation --render image|both` using GenshinUID graduation
-    row textures, count title textures, fetter/talent/refinement badges, and
-    the flattened asset cache for character/weapon images.
-  - Replaced `rerun list`'s AMBR banner-title approximation with the same
-    Teyvat return-list source family used by GenshinUID, and added the
-    GenshinUID rerun-list image renderer.
-  - Added `misc primogems-plan --render image|both` using bundled GenshinUID
-    static version-plan images, defaulting to the latest bundled version when
-    no version is requested.
-  - Updated capabilities, command reference, package-data globs, attribution,
-    and focused tests.
-- Stage 17p review fixes:
-  - Normalized `rerun list` so `--limit` constrains the grouped render payload,
-    flat JSON rows, and fetched asset URLs consistently.
-  - Bundled the missing GenshinUID 3-column title assets for large
-    `panel graduation` renders and added a regression test for the mode-3 path.
-- Stage 17p known limitations:
-  - `panel graduation` title counters are derived from local Enka panel cache,
-    so unavailable MYS-only counters remain approximate in this command.
-  - `misc primogems-plan` can only render versions bundled from GenshinUID
-    (`4.8`, `5.0`, `6.0` at this stage).
-- Stage 17p verification:
-  - `.venv/bin/python -m pytest tests/test_panel_rank.py::test_panel_compare_artifacts_showcase_render_images tests/test_public_data.py::test_rerun_and_primogems_render_images_write_artifacts tests/test_public_data.py::test_rerun_list_uses_teyvat_return_list tests/test_public_data.py::test_primogems_plan_reports_bundled_versions -q`
-  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_panel_rank.py -q`
+- Stage 18a status: completed.
+- Stage 18a goal:
+  - Keep `data` as normalized command output, add a `sources` array for
+    multi-request source metadata, remove the duplicate public `source` field,
+    and add the artifact writer groundwork needed for text render artifacts.
+  - Record the new `data` / `sources` / `artifacts` output model
+    before command-specific text ports begin.
+- Stage 18a non-goal:
+  - Do not add `--render text` globally until command-level support and
+    validation exist, because existing image-capable commands currently treat
+    any non-`data` render as image.
+- Stage 18a result:
+  - Removed public `source` from success and error envelopes; `sources` is now
+    the only source metadata field in JSON output and schemas.
+  - `data` and `sources` remain in stdout whenever `--render data` is selected,
+    including the default render selection, without creating debug artifacts.
+  - Artifact-only selections such as `--render image` omit `data` and `sources`
+    from stdout unless `--debug` is enabled.
+  - `--debug` writes a redacted `debug-envelope.json` artifact for JSON, pretty
+    JSON, and plain stdout formats, and restores `data`/`sources` in stdout for
+    diagnostics.
+  - Renamed direct stdout mode from `--format text` to `--format plain`.
+  - Changed `--render` from a scalar to a repeatable/comma-separated list:
+    `data`, `image`, or `all`. Removed `both`; `all` expands to all currently
+    supported render modes.
+  - Added per-command HTTP source capture for non-raw request metadata,
+    including provider, region, category, cache status, fetched time, HTTP
+    status, and retcode when available.
+  - Review fix: cached JSON sources now preserve retcode metadata, upstream
+    HTTP/invalid-response sources retain known fetch timestamps, and render
+    asset workers receive the current source-capture context.
+  - Kept `CommandResult.source` as an internal compatibility bridge while the
+    CLI boundary folds it into `sources`.
+  - Added `ArtifactManager.write_text(...)` as the groundwork for text render
+    artifacts in later Stage 18 substages.
+  - Envelope schemas now treat `data` and `sources` as optional fields because
+    artifact-only renders intentionally omit them from stdout.
+- Stage 18a verification:
+  - `.venv/bin/python -m pytest tests/test_artifacts.py tests/test_envelope.py tests/test_meta_commands.py tests/test_provider_foundation.py tests/test_global_options.py tests/test_public_data.py::test_public_wiki_command_returns_json tests/test_auth_secrets.py::test_cookie_keyring_lifecycle tests/test_panel_rank.py::test_panel_refresh_list_show_compare_and_save tests/test_panel_rank.py::test_rank_commands_use_akasha_provider -q`
+  - `.venv/bin/python -m pytest tests/test_global_options.py tests/test_meta_commands.py tests/test_agent_hardening.py tests/test_envelope.py -q`
+  - `.venv/bin/python -m pytest tests/test_global_options.py tests/test_challenge_progress_data.py::test_challenge_abyss_render_data_image_preserves_structured_data tests/test_daily_player_data.py::test_player_characters_render_data_image_preserves_structured_data tests/test_daily_player_data.py::test_player_inventory_render_data_image_preserves_structured_data tests/test_panel_rank.py::test_panel_artifacts_render_data_image_uses_image_order -q`
   - `.venv/bin/python -m pytest -q`
   - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check src/gsuid_cli/renderers/panel.py src/gsuid_cli/commands/panel.py src/gsuid_cli/providers/public.py src/gsuid_cli/commands/public_data/guide.py src/gsuid_cli/renderers/rerun.py tests/test_panel_rank.py tests/test_public_data.py tests/test_rich_public_data.py`
+  - `.venv/bin/ruff format --check src/gsuid_cli/core/http.py src/gsuid_cli/cli.py src/gsuid_cli/core/envelope.py src/gsuid_cli/core/schemas.py src/gsuid_cli/core/models.py src/gsuid_cli/core/artifacts.py tests/test_artifacts.py tests/test_envelope.py tests/test_meta_commands.py tests/test_provider_foundation.py tests/test_global_options.py tests/test_public_data.py tests/test_auth_secrets.py tests/test_panel_rank.py`
   - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `.venv/bin/python -m build`
-  - `git diff --check`
-  - `.venv/bin/python -m gsuid_cli meta capabilities`
-  - `.venv/bin/python -m gsuid_cli --format json --output-dir /tmp/gsuid-stage17p-smoke rerun list --render image`
-  - `.venv/bin/python -m gsuid_cli --format json --output-dir /tmp/gsuid-stage17p-smoke rerun list --limit 1 --render both`
-  - `.venv/bin/python -m gsuid_cli --format json --output-dir /tmp/gsuid-stage17p-smoke misc primogems-plan --render image`
-  - `.venv/bin/python -m gsuid_cli --format json --output-dir /tmp/gsuid-stage17p-smoke panel graduation --uid <UID> --render image`
-  - Standalone review agent before commit; all actionable findings fixed.
-- Stage 17p verification note:
-  - `.venv/bin/ruff format --check .` still reports unrelated pre-existing
-    formatting drift in files outside this stage's write set; changed-file
-    format checks pass.
-- Stage 17p live artifacts:
-  - `/private/tmp/gsuid-stage17p-smoke/2026-05-04/fa309574-eaf7-442c-a188-d8710018126a/rerun-list_当前版本_6_5_76872632.png`
-  - `/private/tmp/gsuid-stage17p-smoke/2026-05-04/332c9ccc-5070-48eb-9ca3-0a1131cc6331/primogems-plan_6_0_2ce6ddc8.png`
-  - `/private/tmp/gsuid-stage17p-smoke/2026-05-04/a168e952-34ed-4e88-9245-bbd309bd463d/panel-graduation_102452098.png`
-- Stage 17p amend status: completed.
-- Stage 17p amend goal:
-  - Add the missing GenshinUID-style top-right `abyss`, `hard`, and
-    `imagination` title badges to `panel graduation`, using MYS summary data
-    when cookie credentials are available and Enka/placeholder title data
-    otherwise.
-- Stage 17p amend result:
-  - `panel graduation` now enriches its title context with MYS summary
-    `spiral_abyss`, `hard_challenge`, and `role_combat` fields when cookie
-    credentials are available, while preserving unauthenticated Enka-only
-    rendering as a fallback.
-  - The graduation title renderer now draws the same top-right abyss,
-    hard-challenge, and theater badge positions used by GenshinUID rank/count
-    title assets for both two-column and three-column layouts.
-- Stage 17p amend verification:
-  - `.venv/bin/python -m pytest tests/test_panel_rank.py::test_panel_graduation_render_handles_three_column_mode tests/test_panel_rank.py::test_panel_graduation_title_player_uses_mys_challenge_stats tests/test_panel_rank.py::test_panel_compare_artifacts_showcase_render_images -q`
-  - `.venv/bin/python -m pytest tests/test_panel_rank.py -q`
-  - `.venv/bin/ruff check src/gsuid_cli/commands/panel.py src/gsuid_cli/renderers/panel.py tests/test_panel_rank.py`
-  - `.venv/bin/ruff format --check src/gsuid_cli/commands/panel.py src/gsuid_cli/renderers/panel.py tests/test_panel_rank.py`
-  - `.venv/bin/python -m gsuid_cli --timeout 60 --format json --output-dir /tmp/gsuid-panel-grad-badge2 panel graduation --uid <UID> --render image`
-- Stage 17p amend live artifact:
-  - `/private/tmp/gsuid-panel-grad-badge2/2026-05-04/4fc926b7-9e36-4054-b064-3d0ed3a3dbe2/panel-graduation_102452098.png`
-- Next intended stage: revisit `challenge hard-rank` only after a matching
-  GenshinUID hard-rank leaderboard source is wired and verified.
+  - `.venv/bin/python -m gsuid_cli --request-id stage18a-version meta version`
+  - `.venv/bin/python -m gsuid_cli --request-id stage18a-schema meta schema --command meta.version`
+  - `.venv/bin/python -m gsuid_cli --timeout 20 --format json wiki character --name Amber --cache off`
+  - `.venv/bin/python -m gsuid_cli --request-id stage18a-render-data meta version`
+  - `.venv/bin/python -m gsuid_cli --request-id stage18a-render-image --render image meta version`
+  - `.venv/bin/python -m gsuid_cli --request-id stage18a-render-list --render data --render image meta version`
+  - `.venv/bin/python -m gsuid_cli --request-id stage18a-render-all --render all meta version`
+  - `.venv/bin/python -m gsuid_cli --debug --output-dir /tmp/gsuid-stage18a-debug --request-id stage18a-debug meta version`
+  - `.venv/bin/python -m gsuid_cli --format plain meta version`
+  - `.venv/bin/python -m gsuid_cli --format text meta version` exits `1` with
+    `INVALID_ARGUMENT`.
+  - `.venv/bin/python -m gsuid_cli --render both meta version` exits `1` with
+    `INVALID_ARGUMENT`.
+  - standalone review agent before commit; no Stage 18a output/render contract
+    issues found.
+- Stage 18a verification note:
+  - `.venv/bin/ruff format --check .` still reports the unrelated pre-existing
+    formatting drift in `src/gsuid_cli/commands/challenge.py`,
+    `src/gsuid_cli/commands/player.py`, `src/gsuid_cli/commands/progress.py`,
+    `tests/test_daily_player_data.py`, `tests/test_missing_command_contracts.py`,
+    and `tests/test_profile_account_state.py`. Line-level lint and tests pass;
+    the formatter-only drift is left untouched to keep this stage surgical.
+- Stage 18a review note:
+  - Standalone review verified `--render data`, `--render image`, image plus
+    debug, `--render both` rejection, `meta capabilities`, and current-facing
+    docs/source files for stale `both` render support.
+- Next intended stage: Stage 18b, add validated `--render text` support and the
+  first command-level text artifact renderer.
 
 ## MVP Cut Line
 

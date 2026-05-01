@@ -13,6 +13,7 @@ from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.http import HttpClient, raise_for_retcode
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.render import render_image_enabled, render_result_data
 from gsuid_cli.providers import provider_for_region
 from gsuid_cli.providers.akasha import AkashaProvider
 from gsuid_cli.providers.mys import (
@@ -43,7 +44,7 @@ CAPABILITIES = [
         "description": "Render a UID's Akasha rank list.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -51,7 +52,7 @@ CAPABILITIES = [
         "description": "Show a character Akasha leaderboard or nearby UID rank rows.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -59,7 +60,7 @@ CAPABILITIES = [
         "description": "Show the Akasha global artifact leaderboard.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
 ]
@@ -91,7 +92,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 def list_command(args: argparse.Namespace) -> CommandResult:
     uid, region = _uid_and_region(args)
     result = _provider(args).user_rank(uid=uid, region=region)
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _list_render_result(args, result=result, uid=uid, region=region)
 
@@ -126,7 +127,7 @@ def character_command(args: argparse.Namespace) -> CommandResult:
         "selected_uid": selected_uid,
     }
     result = CommandResult(data=data, source=result.source or base_source)
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _character_render_result(
         args,
@@ -140,7 +141,7 @@ def character_command(args: argparse.Namespace) -> CommandResult:
 
 def artifact_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).artifact_leaderboard(sort_by=args.sort, region=args.region)
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _artifact_render_result(args, result=result, region=args.region)
 
@@ -189,7 +190,7 @@ def _list_render_result(
         "artifact_sha256": artifact["sha256"],
     }
     result_data = {**result.data, "player": player}
-    data = {**result_data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result_data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -523,7 +524,7 @@ def _character_render_result(
         "render": "rank/character",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -568,7 +569,7 @@ def _artifact_render_result(
         "render": "rank/artifact",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],

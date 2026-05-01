@@ -14,6 +14,7 @@ from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.render import render_image_enabled, render_result_data
 from gsuid_cli.core.secrets import SecretStore
 from gsuid_cli.core.state import state_db
 from gsuid_cli.core.time import utc_now
@@ -38,7 +39,7 @@ CAPABILITIES = [
         "description": "Summarize local gacha logs.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -297,7 +298,7 @@ def summary_command(args: argparse.Namespace) -> CommandResult | dict[str, objec
         rows = _item_rows(conn, uid, args.banner)
         summary = _summary_from_rows(rows)
     data = {"uid": uid, "banner": args.banner, "summary": summary}
-    if args.render == "data":
+    if not render_image_enabled(args):
         return data
     return _summary_render_result(args, data, [_row_item(row) for row in rows])
 
@@ -774,7 +775,7 @@ def _summary_render_result(
         "artifact_sha256": artifact["sha256"],
     }
     return CommandResult(
-        data={**data, **render_data} if args.render == "both" else render_data,
+        data=render_result_data(args, data, render_data),
         artifacts=[artifact],
         warnings=asset_warnings,
     )

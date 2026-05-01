@@ -14,6 +14,7 @@ from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.render import render_image_enabled, render_result_data
 from gsuid_cli.providers.public import PRIMOGEMS_PLAN_ASSET_DIR, PublicDataProvider
 from gsuid_cli.renderers.guide import (
     guide_abyss_image_urls,
@@ -35,7 +36,7 @@ CAPABILITIES = [
         "description": "Show public character guide facts and GenshinUID guide image.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -43,7 +44,7 @@ CAPABILITIES = [
         "description": "Show the GenshinUID reference-panel image for a character.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -51,7 +52,7 @@ CAPABILITIES = [
         "description": "Fetch a public material route map artifact.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -59,7 +60,7 @@ CAPABILITIES = [
         "description": "Show public abyss guide data and GenshinUID-style monster layout.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -67,7 +68,7 @@ CAPABILITIES = [
         "description": "Show public theater guide data and GenshinUID-style monster layout.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -75,7 +76,7 @@ CAPABILITIES = [
         "description": "Show GenshinUID character build recommendations.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -83,7 +84,7 @@ CAPABILITIES = [
         "description": "Show GenshinUID holder recommendations for a weapon or artifact.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -91,7 +92,7 @@ CAPABILITIES = [
         "description": "Fetch a public MiniGG material map artifact.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -99,7 +100,7 @@ CAPABILITIES = [
         "description": "List rerun rows and render the GenshinUID return list.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -107,7 +108,7 @@ CAPABILITIES = [
         "description": "Show the GenshinUID static version-plan primogem image.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
 ]
@@ -116,7 +117,7 @@ CAPABILITIES = [
 def guide_character_command(args: argparse.Namespace) -> CommandResult:
     provider = _provider(args)
     result = provider.guide_character(character=args.name)
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     character = _optional_text(result.data.get("character")) or args.name
     return _guide_image_result(
@@ -127,7 +128,7 @@ def guide_character_command(args: argparse.Namespace) -> CommandResult:
 def reference_panel_command(args: argparse.Namespace) -> CommandResult:
     provider = _provider(args)
     result = provider.reference_panel(character=args.character)
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     character = _optional_text(result.data.get("character")) or args.character
     return _guide_image_result(
@@ -147,28 +148,28 @@ def guide_route_command(args: argparse.Namespace) -> CommandResult:
 
 def guide_abyss_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).guide_abyss(version=args.version, floor=args.floor)
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _guide_abyss_render_result(args, result)
 
 
 def guide_theater_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).guide_theater(version=args.version)
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _guide_theater_render_result(args, result)
 
 
 def recommend_build_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).recommend_build(character=args.character)
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _recommend_render_result(args, result, "build")
 
 
 def recommend_holder_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).recommend_holder(item=args.item)
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _recommend_render_result(args, result, "holder")
 
@@ -185,14 +186,14 @@ def map_find_command(args: argparse.Namespace) -> CommandResult:
 
 def rerun_list_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).rerun_list(limit=_limit(args.limit))
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _rerun_render_result(args, result)
 
 
 def primogems_plan_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).primogems_plan(version=args.version)
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _primogems_plan_render_result(args, result)
 
@@ -296,7 +297,7 @@ def _guide_image_result(
             "format": "image",
             "artifact_sha256": artifact["sha256"],
         }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -337,7 +338,7 @@ def _guide_abyss_render_result(args: argparse.Namespace, result: CommandResult) 
         "render": "guide/abyss",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -374,7 +375,7 @@ def _guide_theater_render_result(args: argparse.Namespace, result: CommandResult
         "render": "guide/theater",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -419,7 +420,7 @@ def _recommend_render_result(
         "render": render_name,
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -454,7 +455,7 @@ def _rerun_render_result(args: argparse.Namespace, result: CommandResult) -> Com
         "render": "rerun/list",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -502,7 +503,7 @@ def _primogems_plan_render_result(args: argparse.Namespace, result: CommandResul
         "render": "misc/primogems-plan",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],

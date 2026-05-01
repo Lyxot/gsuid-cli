@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 class CommandResult:
     data: dict[str, object]
     source: dict[str, object] | None = None
+    sources: list[dict[str, object]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     artifacts: list[dict[str, object]] = field(default_factory=list)
     pagination: dict[str, object] | None = None

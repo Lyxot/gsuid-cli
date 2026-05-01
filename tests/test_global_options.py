@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+from pathlib import Path
 
 from helpers import run_json_with_stderr as _run_json
 
@@ -27,6 +28,174 @@ def test_pretty_json_and_request_id_work_after_command_tokens() -> None:
     payload = json.loads(raw)
     assert payload["request_id"] == "req-pretty"
     assert payload["command"] == "meta.version"
+
+
+def test_default_render_data_shows_data_and_sources() -> None:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(["meta", "version", "--request-id=req-compact"], stdout=stdout, stderr=stderr)
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    payload = json.loads(stdout.getvalue())
+    assert payload["ok"] is True
+    assert payload["command"] == "meta.version"
+    assert payload["data"]["package"] == "gsuid-cli"
+    assert payload["sources"][0]["provider"] == "local"
+
+
+def test_render_image_hides_data_and_sources() -> None:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        ["meta", "version", "--request-id=req-compact", "--render=image"],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    payload = json.loads(stdout.getvalue())
+    assert payload["ok"] is True
+    assert payload["command"] == "meta.version"
+    assert "data" not in payload
+    assert "sources" not in payload
+
+
+def test_render_all_shows_data_and_sources() -> None:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(["meta", "version", "--render=all"], stdout=stdout, stderr=stderr)
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    payload = json.loads(stdout.getvalue())
+    assert payload["data"]["package"] == "gsuid-cli"
+    assert payload["sources"][0]["provider"] == "local"
+
+
+def test_repeated_render_values_can_include_data(tmp_path) -> None:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "--output-dir",
+            str(tmp_path),
+            "--render",
+            "image",
+            "--render",
+            "data",
+            "meta",
+            "version",
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    payload = json.loads(stdout.getvalue())
+    assert payload["data"]["package"] == "gsuid-cli"
+    assert payload["sources"][0]["provider"] == "local"
+    assert list(tmp_path.glob("*/debug-envelope.json")) == []
+
+
+def test_debug_restores_data_sources_and_writes_debug_artifact(tmp_path) -> None:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "--debug",
+            "--output-dir",
+            str(tmp_path),
+            "--request-id=req-debug",
+            "meta",
+            "version",
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    payload = json.loads(stdout.getvalue())
+    assert payload["data"]["package"] == "gsuid-cli"
+    assert payload["sources"][0]["provider"] == "local"
+    debug_artifact = payload["artifacts"][0]
+    assert debug_artifact["kind"] == "debug"
+    debug_payload = json.loads(Path(debug_artifact["path"]).read_text(encoding="utf-8"))
+    assert debug_payload["data"]["package"] == "gsuid-cli"
+    assert debug_payload["sources"][0]["provider"] == "local"
+
+
+def test_plain_format_prints_direct_result_data() -> None:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(["meta", "version", "--format=plain"], stdout=stdout, stderr=stderr)
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    payload = json.loads(stdout.getvalue())
+    assert payload["package"] == "gsuid-cli"
+    assert "ok" not in payload
+
+
+def test_debug_plain_format_still_writes_debug_artifact(tmp_path) -> None:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "--debug",
+            "--format=plain",
+            "--output-dir",
+            str(tmp_path),
+            "--request-id=req-debug-plain",
+            "meta",
+            "version",
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    payload = json.loads(stdout.getvalue())
+    assert payload["package"] == "gsuid-cli"
+    debug_artifacts = list(tmp_path.glob("*/req-debug-plain/debug-envelope.json"))
+    assert len(debug_artifacts) == 1
+
+
+def test_text_format_name_is_rejected() -> None:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(["--format", "text", "meta", "version"], stdout=stdout, stderr=stderr)
+
+    assert code == 1
+    assert stderr.getvalue() == ""
+    payload = json.loads(stdout.getvalue())
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "INVALID_ARGUMENT"
+
+
+def test_render_both_name_is_rejected() -> None:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(["--render", "both", "meta", "version"], stdout=stdout, stderr=stderr)
+
+    assert code == 1
+    assert stderr.getvalue() == ""
+    payload = json.loads(stdout.getvalue())
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "INVALID_ARGUMENT"
 
 
 def test_empty_cli_shows_root_help() -> None:
@@ -167,7 +336,7 @@ def test_cache_timeout_region_and_debug_reach_provider(monkeypatch) -> None:
 
     assert code == 0
     assert stderr == ""
-    assert payload["source"]["region"] == "cn"
+    assert payload["sources"][0]["region"] == "cn"
     assert payload["data"]["timeout"] == 7
     assert payload["data"]["cache_policy"] == "off"
     assert payload["data"]["debug"] is True
@@ -259,5 +428,3 @@ def _source(region: str) -> dict[str, object]:
         "cached": False,
         "fetched_at": "2026-04-29T00:00:00Z",
     }
-
-

@@ -20,6 +20,7 @@ from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.render import render_image_enabled, render_result_data
 from gsuid_cli.renderers.challenge.abyss import (
     challenge_abyss_image_urls,
     render_challenge_abyss_card,
@@ -41,7 +42,7 @@ CAPABILITIES = [
         "description": "Show authenticated Spiral Abyss data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -49,7 +50,7 @@ CAPABILITIES = [
         "description": "Show authenticated Imaginarium Theater data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -57,7 +58,7 @@ CAPABILITIES = [
         "description": "Show authenticated Stygian Onslaught hard challenge data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -113,7 +114,7 @@ def abyss_command(args: argparse.Namespace) -> CommandResult:
         season=args.season,
         floor=args.floor,
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _abyss_render_result(
         args,
@@ -138,7 +139,7 @@ def theater_command(args: argparse.Namespace) -> CommandResult:
         storage_backend=storage_backend,
         season=args.season,
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _theater_render_result(
         args,
@@ -163,7 +164,7 @@ def hard_command(args: argparse.Namespace) -> CommandResult:
         storage_backend=storage_backend,
         season=args.season,
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _hard_render_result(
         args,
@@ -269,7 +270,7 @@ def _abyss_render_result(
         "floor_count": abyss.get("floor_count"),
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -330,7 +331,7 @@ def _theater_render_result(
         "session_count": theater.get("count"),
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -390,7 +391,7 @@ def _hard_render_result(
         "render": "challenge/hard",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -458,5 +459,4 @@ def _has_abyss_floor_data(abyss: Mapping[str, object]) -> bool:
     if not isinstance(floors, list):
         return False
     return any(isinstance(floor, Mapping) for floor in floors)
-
 

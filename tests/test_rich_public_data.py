@@ -7,6 +7,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from helpers import debug_json_argv, strip_debug_artifacts
 
 from gsuid_cli.cli import run
 from gsuid_cli.core.errors import CliError
@@ -449,9 +450,9 @@ def _event_payload(
 def _run_json(argv: list[str]) -> tuple[int, dict[str, object]]:
     stdout = io.StringIO()
     stderr = io.StringIO()
-    code = run(argv, stdout=stdout, stderr=stderr)
+    code = run(debug_json_argv(argv), stdout=stdout, stderr=stderr)
     assert stderr.getvalue() == ""
-    return code, json.loads(stdout.getvalue())
+    return code, strip_debug_artifacts(json.loads(stdout.getvalue()))
 
 
 def _source(provider: str) -> dict[str, object]:

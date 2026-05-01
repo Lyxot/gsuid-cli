@@ -16,9 +16,7 @@ def command_envelope_schema(command: str) -> dict[str, object]:
             "generated_at",
             "duration_ms",
             "warnings",
-            "data",
             "artifacts",
-            "source",
             "pagination",
         ],
         "properties": {
@@ -34,7 +32,10 @@ def command_envelope_schema(command: str) -> dict[str, object]:
                 "type": "array",
                 "items": {"type": "object", "additionalProperties": True},
             },
-            "source": {"type": "object", "additionalProperties": True},
+            "sources": {
+                "type": "array",
+                "items": {"type": "object", "additionalProperties": True},
+            },
             "pagination": {
                 "anyOf": [
                     {"type": "object", "additionalProperties": True},
@@ -61,7 +62,6 @@ def error_envelope_schema() -> dict[str, object]:
             "warnings",
             "error",
             "artifacts",
-            "source",
         ],
         "properties": {
             "ok": {"const": False},
@@ -83,7 +83,10 @@ def error_envelope_schema() -> dict[str, object]:
                 "additionalProperties": False,
             },
             "artifacts": {"type": "array"},
-            "source": {"type": "object", "additionalProperties": True},
+            "sources": {
+                "type": "array",
+                "items": {"type": "object", "additionalProperties": True},
+            },
         },
         "additionalProperties": False,
     }

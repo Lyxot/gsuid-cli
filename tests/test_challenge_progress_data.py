@@ -132,13 +132,15 @@ def test_challenge_render_images(monkeypatch, tmp_path) -> None:
     assert "https://upload.example.test/amber.png" in captured_urls
 
 
-def test_challenge_abyss_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
+def test_challenge_abyss_render_data_image_preserves_structured_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr(challenge_commands, "fetch_render_images", _fake_image_fetcher([]))
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
-    code, payload = _run_json(["challenge", "abyss", "--uid", "100000001", "--render", "both"])
+    code, payload = _run_json(
+        ["challenge", "abyss", "--uid", "100000001", "--render", "data,image"]
+    )
 
     assert code == 0
     assert payload["data"]["abyss"]["floor_count"] == 1

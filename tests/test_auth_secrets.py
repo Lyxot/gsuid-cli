@@ -26,7 +26,7 @@ def test_cookie_keyring_lifecycle(monkeypatch, tmp_path) -> None:
     assert code == 0
     assert payload["data"]["validity_status"] == "valid"
     assert payload["data"]["source"] == "keyring"
-    assert payload["source"]["provider"] == "mys"
+    assert payload["sources"][0]["provider"] == "mys"
 
     code, payload = _run_json(["account", "add", "--uid", "100000001"])
     assert code == 0

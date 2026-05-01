@@ -52,7 +52,7 @@ def run_command(args: argparse.Namespace) -> CommandResult:
     for index, row in enumerate(rows):
         request_id = _request_id(row, args.request_id, index)
         try:
-            argv = _normalized_argv(_row_argv(row), request_id=request_id)
+            argv = _normalized_argv(_row_argv(row), request_id=request_id, debug=args.debug)
             exit_code, payload, stderr = _run_inner(argv)
             ok = bool(payload.get("ok")) if isinstance(payload, dict) else False
             if ok:
@@ -103,7 +103,7 @@ def plan_command(args: argparse.Namespace) -> CommandResult:
     for index, row in enumerate(rows):
         request_id = _request_id(row, args.request_id, index)
         try:
-            argv = _normalized_argv(_row_argv(row), request_id=request_id)
+            argv = _normalized_argv(_row_argv(row), request_id=request_id, debug=args.debug)
             parsed = _parse_inner(argv)
             steps.append(
                 {
@@ -192,13 +192,15 @@ def _row_argv(row: object) -> list[str]:
     )
 
 
-def _normalized_argv(argv: list[str], *, request_id: str) -> list[str]:
+def _normalized_argv(argv: list[str], *, request_id: str, debug: bool) -> list[str]:
     from gsuid_cli.cli import _canonicalize_global_options, _global_option_value
 
     normalized = _without_global_output_format(_canonicalize_global_options(argv))
     if _global_option_value(normalized, "--request-id") is None:
         normalized = ["--request-id", request_id, *normalized]
     normalized = ["--format", "json", *normalized]
+    if debug and "--debug" not in normalized:
+        normalized = ["--debug", *normalized]
     if _argv_command(normalized).startswith("batch."):
         raise CliError(
             "INVALID_ARGUMENT",

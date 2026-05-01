@@ -35,6 +35,25 @@ class ArtifactManager:
             "description": description,
         }
 
+    def write_text(
+        self,
+        *,
+        name: str,
+        filename: str,
+        content: str,
+        description: str,
+        media_type: str = "text/plain; charset=utf-8",
+        kind: str = "text",
+    ) -> dict[str, object]:
+        return self.write_bytes(
+            name=name,
+            filename=filename,
+            media_type=media_type,
+            content=content.encode("utf-8"),
+            description=description,
+            kind=kind,
+        )
+
     def _request_dir(self) -> Path:
         today = utc_now()[:10]
         path = resolve_paths(self.output_dir).artifacts / today / self.request_id

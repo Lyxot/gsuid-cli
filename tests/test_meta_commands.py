@@ -16,6 +16,8 @@ def test_meta_version_outputs_json_envelope() -> None:
     assert payload["request_id"] == "req-version"
     assert payload["data"]["package"] == "gsuid-cli"
     assert payload["data"]["version"]
+    assert payload["sources"][0]["provider"] == "local"
+    assert "source" not in payload
 
 
 def test_meta_paths_respects_home_and_output_dir(monkeypatch, tmp_path) -> None:
@@ -97,50 +99,50 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert {"rank.list", "rank.character", "rank.artifact"}.issubset(commands)
     assert "rank.summary" not in commands
     capability_by_command = {command["command"]: command for command in payload["data"]["commands"]}
-    assert capability_by_command["daily.materials"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["daily.note"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["guide.character"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["guide.reference-panel"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["guide.abyss"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["guide.theater"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["recommend.build"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["recommend.holder"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["player.summary"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["player.characters"]["render"] == ["data", "image", "both"]
+    assert capability_by_command["daily.materials"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["daily.note"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["guide.character"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["guide.reference-panel"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["guide.abyss"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["guide.theater"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["recommend.build"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["recommend.holder"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["player.summary"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["player.characters"]["render"] == ["data", "image", "all"]
     assert capability_by_command["player.inventory"]["auth"] == "cookie"
-    assert capability_by_command["player.inventory"]["render"] == ["data", "image", "both"]
+    assert capability_by_command["player.inventory"]["render"] == ["data", "image", "all"]
     assert (
         capability_by_command["player.inventory"]["coverage"]
         == "owned_character_ascension_and_equipped_weapon_materials"
     )
     assert capability_by_command["player.calendar"]["auth"] == "cookie"
-    assert capability_by_command["player.calendar"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["player.diary"]["render"] == ["data", "image", "both"]
+    assert capability_by_command["player.calendar"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["player.diary"]["render"] == ["data", "image", "all"]
     assert capability_by_command["player.register-time"]["auth"] == "cookie"
     assert capability_by_command["player.register-time"]["availability"] == "upstream-limited"
-    assert capability_by_command["challenge.abyss"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["challenge.theater"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["challenge.hard"]["render"] == ["data", "image", "both"]
+    assert capability_by_command["challenge.abyss"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["challenge.theater"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["challenge.hard"]["render"] == ["data", "image", "all"]
     assert capability_by_command["challenge.hard-rank"]["render"] == ["data"]
-    assert capability_by_command["progress.completion"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["progress.exploration"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["progress.collection"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["progress.achievements"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["progress.gcg"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["progress.gcg-deck"]["render"] == ["data", "image", "both"]
+    assert capability_by_command["progress.completion"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["progress.exploration"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["progress.collection"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["progress.achievements"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["progress.gcg"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["progress.gcg-deck"]["render"] == ["data", "image", "all"]
     assert capability_by_command["progress.achievement-guide"]["render"] == ["data"]
     assert capability_by_command["progress.commission-guide"]["render"] == ["data"]
-    assert capability_by_command["panel.show"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["panel.compare"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["panel.artifacts"]["render"] == ["data", "image", "both"]
-    assert capability_by_command["panel.showcase"]["render"] == ["data", "image", "both"]
+    assert capability_by_command["panel.show"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["panel.compare"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["panel.artifacts"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["panel.showcase"]["render"] == ["data", "image", "all"]
     assert capability_by_command["map.find"]["cache"] == "use"
     assert "data" in capability_by_command["map.find"]["render"]
     assert payload["data"]["regions"] == ["cn"]
-    assert payload["data"]["formats"] == ["json", "pretty-json", "text"]
+    assert payload["data"]["formats"] == ["json", "pretty-json", "plain"]
     global_options = {option["name"]: option for option in payload["data"]["global_options"]}
     assert global_options["--uid"]["placement"] == "anywhere"
-    assert global_options["--format"]["value"] == "json|pretty-json|text"
+    assert global_options["--format"]["value"] == "json|pretty-json|plain"
 
 
 def test_invalid_command_returns_json_error_envelope() -> None:
@@ -163,7 +165,12 @@ def test_meta_schema_for_command() -> None:
     assert stderr == ""
     assert payload["data"]["command"] == "meta.version"
     assert payload["data"]["success"]["properties"]["command"]["const"] == "meta.version"
+    assert "data" not in payload["data"]["success"]["required"]
+    assert "sources" not in payload["data"]["success"]["required"]
+    assert "source" not in payload["data"]["success"]["properties"]
     assert payload["data"]["error"]["properties"]["ok"]["const"] is False
+    assert "sources" not in payload["data"]["error"]["required"]
+    assert "source" not in payload["data"]["error"]["properties"]
 
 
 def test_meta_errors_catalog() -> None:
@@ -196,5 +203,3 @@ def _emitted_error_codes() -> set[str]:
             if isinstance(code, ast.Constant) and isinstance(code.value, str):
                 codes.add(code.value)
     return codes - {"<dynamic>"}
-
-

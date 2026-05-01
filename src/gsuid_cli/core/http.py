@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
+from threading import Lock
 from typing import Any
 
 import httpx
@@ -18,6 +20,24 @@ from gsuid_cli.core.time import utc_now
 
 AUTH_RETCODES = {-100, 10001, 10102}
 VERIFICATION_RETCODES = {10035, 5003, 10041, 1034}
+_SOURCE_CAPTURE: ContextVar[_SourceCapture | None] = ContextVar(
+    "gsuid_source_capture",
+    default=None,
+)
+
+
+@dataclass
+class _SourceCapture:
+    sources: list[dict[str, object]] = field(default_factory=list)
+    lock: Lock = field(default_factory=Lock)
+
+    def add(self, source: dict[str, object]) -> None:
+        with self.lock:
+            self.sources.append(source)
+
+    def snapshot(self) -> list[dict[str, object]]:
+        with self.lock:
+            return list(self.sources)
 
 
 @dataclass(frozen=True)
@@ -34,6 +54,17 @@ class ProviderBytesResponse:
     media_type: str
     source: dict[str, object]
     status_code: int
+
+
+def begin_source_capture() -> Token[_SourceCapture | None]:
+    return _SOURCE_CAPTURE.set(_SourceCapture())
+
+
+def end_source_capture(token: Token[_SourceCapture | None]) -> list[dict[str, object]]:
+    capture = _SOURCE_CAPTURE.get()
+    sources = capture.snapshot() if capture is not None else []
+    _SOURCE_CAPTURE.reset(token)
+    return sources
 
 
 class HttpClient:
@@ -73,7 +104,17 @@ class HttpClient:
             if cached is not None:
                 return ProviderResponse(
                     payload=cached.payload,
-                    source=_source(provider, region, True, cached.fetched_at),
+                    source=_record_source(
+                        _source(
+                            provider,
+                            region,
+                            True,
+                            cached.fetched_at,
+                            category=category,
+                            status_code=cached.status_code,
+                            retcode=cached.payload.get("retcode"),
+                        )
+                    ),
                     status_code=cached.status_code,
                 )
 
@@ -137,6 +178,7 @@ class HttpClient:
                 body=response.text,
                 retryable=response.status_code >= 500,
                 debug=self.debug,
+                fetched_at=fetched_at,
             )
 
         try:
@@ -155,6 +197,7 @@ class HttpClient:
                 body=response.text,
                 retryable=False,
                 debug=self.debug,
+                fetched_at=fetched_at,
             ) from exc
 
         if not isinstance(payload, dict):
@@ -171,6 +214,7 @@ class HttpClient:
                 body=response.text,
                 retryable=False,
                 debug=self.debug,
+                fetched_at=fetched_at,
             )
 
         if method == "GET" and self.cache is not None and self.cache_policy in {"use", "refresh"}:
@@ -183,7 +227,17 @@ class HttpClient:
 
         return ProviderResponse(
             payload=payload,
-            source=_source(provider, region, False, fetched_at),
+            source=_record_source(
+                _source(
+                    provider,
+                    region,
+                    False,
+                    fetched_at,
+                    category=category,
+                    status_code=response.status_code,
+                    retcode=payload.get("retcode"),
+                )
+            ),
             status_code=response.status_code,
             cookies=dict(response.cookies.items()),
         )
@@ -218,11 +272,15 @@ class HttpClient:
                         return ProviderBytesResponse(
                             content=cached.content,
                             media_type=cached.media_type,
-                            source=_source(
-                                provider,
-                                region,
-                                True,
-                                _metadata_text(cached.metadata, "fetched_at"),
+                            source=_record_source(
+                                _source(
+                                    provider,
+                                    region,
+                                    True,
+                                    _metadata_text(cached.metadata, "fetched_at"),
+                                    category=category,
+                                    status_code=_metadata_status_code(cached.metadata),
+                                )
                             ),
                             status_code=_metadata_status_code(cached.metadata),
                         )
@@ -348,6 +406,7 @@ class HttpClient:
                 body=response.text,
                 retryable=response.status_code >= 500,
                 debug=self.debug,
+                fetched_at=fetched_at,
             )
 
         media_type = (
@@ -376,7 +435,16 @@ class HttpClient:
                 EXIT_UPSTREAM,
                 details,
                 retryable=False,
-                source=_source(provider, region, False, fetched_at),
+                source=_record_source(
+                    _source(
+                        provider,
+                        region,
+                        False,
+                        fetched_at,
+                        category=category,
+                        status_code=response.status_code,
+                    )
+                ),
             )
         if asset_cache is not None and asset_key is not None:
             asset_cache.store_success(
@@ -391,7 +459,16 @@ class HttpClient:
         return ProviderBytesResponse(
             content=response.content,
             media_type=media_type,
-            source=_source(provider, region, False, fetched_at),
+            source=_record_source(
+                _source(
+                    provider,
+                    region,
+                    False,
+                    fetched_at,
+                    category=category,
+                    status_code=response.status_code,
+                )
+            ),
             status_code=response.status_code,
         )
 
@@ -455,13 +532,36 @@ def raise_for_retcode(
     )
 
 
-def _source(provider: str, region: str, cached: bool, fetched_at: str | None) -> dict[str, object]:
-    return {
+def _source(
+    provider: str,
+    region: str,
+    cached: bool,
+    fetched_at: str | None,
+    *,
+    category: str | None = None,
+    status_code: int | None = None,
+    retcode: object = None,
+) -> dict[str, object]:
+    source: dict[str, object] = {
         "provider": provider,
         "region": region,
         "cached": cached,
         "fetched_at": fetched_at,
     }
+    if category is not None:
+        source["category"] = category
+    if status_code is not None:
+        source["status_code"] = status_code
+    if retcode is not None:
+        source["retcode"] = retcode
+    return source
+
+
+def _record_source(source: dict[str, object]) -> dict[str, object]:
+    capture = _SOURCE_CAPTURE.get()
+    if capture is not None:
+        capture.add(source)
+    return source
 
 
 def _metadata_text(metadata: dict[str, object], key: str) -> str | None:
@@ -499,13 +599,14 @@ def _network_error(
     params: dict[str, object] | None,
     retryable: bool,
 ) -> CliError:
+    source = _record_source(_source(provider, region, False, None, category=category))
     return CliError(
         code,
         message,
         EXIT_NETWORK,
         _request_details(provider, region, category, method, url, params),
         retryable=retryable,
-        source=_source(provider, region, False, None),
+        source=source,
     )
 
 
@@ -523,18 +624,29 @@ def _upstream_error(
     body: str,
     retryable: bool,
     debug: bool,
+    fetched_at: str | None,
 ) -> CliError:
     details = _request_details(provider, region, category, method, url, params)
     details["status_code"] = status_code
     if debug:
         details["body_preview"] = body[:200]
+    source = _record_source(
+        _source(
+            provider,
+            region,
+            False,
+            fetched_at,
+            category=category,
+            status_code=status_code,
+        )
+    )
     return CliError(
         code,
         message,
         EXIT_UPSTREAM,
         details,
         retryable=retryable,
-        source=_source(provider, region, False, None),
+        source=source,
     )
 
 

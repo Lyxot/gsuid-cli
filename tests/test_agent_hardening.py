@@ -40,7 +40,7 @@ def test_batch_run_forces_json_and_blocks_nested_batch(tmp_path, monkeypatch) ->
     batch_file.write_text(
         "\n".join(
             [
-                json.dumps({"id": "text", "argv": ["--format=text", "meta", "version"]}),
+                json.dumps({"id": "plain", "argv": ["--format=plain", "meta", "version"]}),
                 json.dumps({"id": "nested", "argv": ["batch", "run", "--file", str(batch_file)]}),
             ]
         ),
@@ -200,5 +200,3 @@ def test_monitor_once_reports_threshold_warnings(tmp_path, monkeypatch) -> None:
     assert by_name["cache.asset_files"]["status"] == "warn"
     assert payload["data"]["thresholds"]["max_asset_cache_files"] == 0
     assert payload["warnings"]
-
-

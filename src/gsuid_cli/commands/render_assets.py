@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextvars import copy_context
 
 from gsuid_cli.core.errors import CliError
 from gsuid_cli.core.http import HttpClient
@@ -26,10 +27,12 @@ def fetch_render_images(
     unavailable = 0
     workers = min(max(max_workers, 1), len(unique_urls))
     with ThreadPoolExecutor(max_workers=workers) as executor:
-        futures = [
-            executor.submit(_fetch_image, args, url, provider, region, category)
-            for url in unique_urls
-        ]
+        futures = []
+        for url in unique_urls:
+            context = copy_context()
+            futures.append(
+                executor.submit(context.run, _fetch_image, args, url, provider, region, category)
+            )
         for future in as_completed(futures):
             url, content = future.result()
             if content is None:

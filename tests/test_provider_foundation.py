@@ -8,7 +8,12 @@ import pytest
 
 from gsuid_cli.core.cache import cache_key, sanitized_url
 from gsuid_cli.core.errors import CliError
-from gsuid_cli.core.http import HttpClient, raise_for_retcode
+from gsuid_cli.core.http import (
+    HttpClient,
+    begin_source_capture,
+    end_source_capture,
+    raise_for_retcode,
+)
 from gsuid_cli.providers.mys import MysProvider
 
 
@@ -27,6 +32,91 @@ def test_mys_cookie_validation_success() -> None:
     assert result.data["provider_response"]["retcode"] == 0
     assert result.data["provider_response"]["role"]["game_role_id"] == "100000001"
     assert result.source["provider"] == "mys"
+
+
+def test_http_client_source_capture_records_request_metadata() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"retcode": 0, "data": {}})
+
+    token = begin_source_capture()
+    try:
+        response = HttpClient(
+            timeout=1,
+            cache_policy="off",
+            transport=httpx.MockTransport(handler),
+        ).request_json(
+            "GET",
+            "https://example.test/data",
+            provider="test",
+            region="cn",
+            category="unit.capture",
+        )
+    finally:
+        sources = end_source_capture(token)
+
+    assert sources == [response.source]
+    assert sources[0]["category"] == "unit.capture"
+    assert sources[0]["status_code"] == 200
+    assert sources[0]["retcode"] == 0
+
+
+def test_http_client_cached_source_capture_keeps_retcode(tmp_path) -> None:
+    calls = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(200, json={"retcode": 0, "data": {"ok": True}})
+
+    client = HttpClient(
+        timeout=1,
+        cache_policy="use",
+        output_dir=str(tmp_path),
+        transport=httpx.MockTransport(handler),
+    )
+    kwargs = {
+        "provider": "test",
+        "region": "cn",
+        "category": "unit.cached",
+    }
+    client.request_json("GET", "https://example.test/data", **kwargs)
+
+    token = begin_source_capture()
+    try:
+        response = client.request_json("GET", "https://example.test/data", **kwargs)
+    finally:
+        sources = end_source_capture(token)
+
+    assert calls == 1
+    assert sources == [response.source]
+    assert sources[0]["cached"] is True
+    assert sources[0]["retcode"] == 0
+
+
+def test_http_client_upstream_error_source_keeps_fetched_at() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(503, text="unavailable")
+
+    token = begin_source_capture()
+    try:
+        with pytest.raises(CliError):
+            HttpClient(
+                timeout=1,
+                cache_policy="off",
+                transport=httpx.MockTransport(handler),
+            ).request_json(
+                "GET",
+                "https://example.test/data",
+                provider="test",
+                region="cn",
+                category="unit.error",
+            )
+    finally:
+        sources = end_source_capture(token)
+
+    assert sources[0]["category"] == "unit.error"
+    assert sources[0]["status_code"] == 503
+    assert sources[0]["fetched_at"] is not None
 
 
 def test_mys_cookie_validation_uses_record_headers() -> None:

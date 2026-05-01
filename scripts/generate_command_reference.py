@@ -48,6 +48,9 @@ def render_command_reference() -> str:
             "Notes:",
             "",
             "- JSON mode is the stable machine contract.",
+            "- `--render data` includes `data` and `sources`; artifact-only renders "
+            "keep stdout compact.",
+            "- `--debug` writes a redacted debug artifact.",
             "- `auth` describes required credential type, not whether a command can fail upstream.",
             "- `render` lists supported result modes; artifacts are returned by absolute path.",
             "- Stage 17 is porting GenshinUID-parity renderers group by group; "

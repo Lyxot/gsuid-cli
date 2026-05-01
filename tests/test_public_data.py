@@ -29,7 +29,7 @@ def test_public_wiki_command_returns_json(monkeypatch) -> None:
     assert code == 0
     assert payload["command"] == "wiki.character"
     assert payload["data"]["item"]["name"] == "Amber"
-    assert payload["source"]["provider"] == "ambr"
+    assert payload["sources"][0]["provider"] == "ambr"
 
 
 def test_public_commands_reject_unsupported_region(monkeypatch) -> None:
@@ -120,7 +120,7 @@ def test_daily_materials_render_image_writes_card(monkeypatch, tmp_path) -> None
         assert image.getbbox() is not None
 
 
-def test_daily_materials_render_both_preserves_structured_data(monkeypatch, tmp_path) -> None:
+def test_daily_materials_render_data_image_preserves_structured_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr(
         "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
@@ -129,7 +129,7 @@ def test_daily_materials_render_both_preserves_structured_data(monkeypatch, tmp_
         "gsuid_cli.commands.public_data.daily.fetch_render_images", _fake_image_fetcher([])
     )
 
-    code, payload = _run_json(["daily", "materials", "--day", "monday", "--render", "both"])
+    code, payload = _run_json(["daily", "materials", "--day", "monday", "--render", "data,image"])
 
     assert code == 0
     assert payload["data"]["domains"][0]["items"][0]["name"] == "安柏"
@@ -402,7 +402,7 @@ def test_announcement_show_latest_uses_newest_list_row(monkeypatch, tmp_path) ->
     }
 
 
-def test_wiki_constellation_render_both_preserves_data(monkeypatch, tmp_path) -> None:
+def test_wiki_constellation_render_data_image_preserves_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr(
         "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
@@ -420,7 +420,7 @@ def test_wiki_constellation_render_both_preserves_data(monkeypatch, tmp_path) ->
             "--constellation",
             "1",
             "--render",
-            "both",
+            "data,image",
         ]
     )
 

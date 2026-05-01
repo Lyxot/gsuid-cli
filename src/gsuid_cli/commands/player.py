@@ -17,6 +17,7 @@ from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.render import render_image_enabled, render_result_data
 from gsuid_cli.providers.enka import EnkaProvider
 from gsuid_cli.renderers.player.calendar import (
     player_calendar_icon_urls,
@@ -55,7 +56,7 @@ CAPABILITIES = [
         "description": "Show authenticated player profile summary data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -63,7 +64,7 @@ CAPABILITIES = [
         "description": "Show authenticated player character details.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -71,7 +72,7 @@ CAPABILITIES = [
         "description": "Show owned-character and equipped-weapon material counts.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
         "coverage": "owned_character_ascension_and_equipped_weapon_materials",
     },
@@ -80,7 +81,7 @@ CAPABILITIES = [
         "description": "Show authenticated player activity calendar data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -88,7 +89,7 @@ CAPABILITIES = [
         "description": "Show authenticated monthly traveler diary data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -152,7 +153,7 @@ def summary_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _summary_render_result(
         args,
@@ -175,7 +176,7 @@ def characters_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _characters_render_result(args, result=result, uid=uid, region=region)
 
@@ -190,7 +191,7 @@ def inventory_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _inventory_render_result(
         args,
@@ -214,7 +215,7 @@ def calendar_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _calendar_render_result(
         args,
@@ -240,7 +241,7 @@ def diary_command(args: argparse.Namespace) -> CommandResult:
         storage_backend=storage_backend,
         month=args.month,
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _diary_render_result(
         args,
@@ -327,7 +328,7 @@ def _characters_render_result(
         "character_count": len(characters),
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -417,7 +418,7 @@ def _summary_render_result(
         "character_count": len(characters),
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -486,7 +487,7 @@ def _inventory_render_result(
         "item_count": inventory.get("count"),
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -549,7 +550,7 @@ def _calendar_render_result(
         "act_count": counts.get("act_list"),
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -602,7 +603,7 @@ def _diary_render_result(
         "month": diary.get("month"),
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -869,5 +870,4 @@ def _optional_text(value: object) -> str | None:
         return None
     text = str(value).strip()
     return text or None
-
 

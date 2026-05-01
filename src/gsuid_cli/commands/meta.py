@@ -129,7 +129,7 @@ def capabilities_command(_args: argparse.Namespace) -> dict[str, object]:
     return {
         "schema": SCHEMA,
         "regions": ["cn"],
-        "formats": ["json", "pretty-json", "text"],
+        "formats": ["json", "pretty-json", "plain"],
         "default_format": "json",
         "global_options": _global_options(),
         "commands": commands,
@@ -220,17 +220,17 @@ def _global_options() -> list[dict[str, object]]:
         },
         {
             "name": "--format",
-            "value": "json|pretty-json|text",
+            "value": "json|pretty-json|plain",
             "default": "json",
             "placement": "anywhere",
-            "description": "Output format.",
+            "description": "Stdout output format.",
         },
         {
             "name": "--render",
-            "value": "data|image|both",
+            "value": "data|image|all",
             "default": "data",
             "placement": "anywhere",
-            "description": "Data/artifact preference.",
+            "description": "Comma-separated render modes. Repeatable.",
         },
         {
             "name": "--output-dir",

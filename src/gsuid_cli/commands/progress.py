@@ -15,6 +15,7 @@ from gsuid_cli.commands.player import _player_title_render_context
 from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.render import render_image_enabled, render_result_data
 from gsuid_cli.renderers.player.summary import player_summary_mys_icon_urls
 from gsuid_cli.renderers.progress.achievements import (
     progress_achievement_image_urls,
@@ -41,7 +42,7 @@ CAPABILITIES = [
         "description": "Show authenticated account completion summary data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -49,7 +50,7 @@ CAPABILITIES = [
         "description": "Show authenticated world exploration data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -57,7 +58,7 @@ CAPABILITIES = [
         "description": "Show authenticated collection count data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -65,7 +66,7 @@ CAPABILITIES = [
         "description": "Show authenticated achievement category data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -89,7 +90,7 @@ CAPABILITIES = [
         "description": "Show authenticated Genius Invokation TCG data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -97,7 +98,7 @@ CAPABILITIES = [
         "description": "Show authenticated Genius Invokation TCG deck data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
 ]
@@ -164,7 +165,7 @@ def completion_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _completion_render_result(args, result=result, uid=uid, region=region)
 
@@ -179,7 +180,7 @@ def exploration_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     completion_result = provider.progress_completion(
         uid=uid,
@@ -211,7 +212,7 @@ def collection_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _collection_render_result(
         args,
@@ -247,7 +248,7 @@ def achievements_command(args: argparse.Namespace) -> CommandResult:
         result.data["query"] = args.query
         result.data["achievements"] = matches
         result.data["count"] = len(matches)
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _achievements_render_result(
         args,
@@ -279,7 +280,7 @@ def gcg_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _gcg_render_result(args, result=result, uid=uid, region=region)
 
@@ -295,7 +296,7 @@ def gcg_deck_command(args: argparse.Namespace) -> CommandResult:
         storage_backend=storage_backend,
         deck_id=args.deck_id,
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _gcg_deck_render_result(
         args,
@@ -361,7 +362,7 @@ def _completion_render_result(
         "exploration_count": completion.get("exploration_count"),
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -414,7 +415,7 @@ def _exploration_render_result(
         "render": "progress/exploration",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -465,7 +466,7 @@ def _collection_render_result(
         "render": "progress/collection",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -526,7 +527,7 @@ def _achievements_render_result(
         "count": len(achievements),
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -575,7 +576,7 @@ def _gcg_render_result(
         "deck_count": gcg.get("deck_count"),
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -645,7 +646,7 @@ def _gcg_deck_render_result(
         "deck_name": deck.get("name"),
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -662,5 +663,4 @@ def _mapping_sequence(value: object) -> list[Mapping[str, object]]:
 def _first_mapping(value: object) -> Mapping[str, object]:
     values = _mapping_sequence(value)
     return values[0] if values else {}
-
 

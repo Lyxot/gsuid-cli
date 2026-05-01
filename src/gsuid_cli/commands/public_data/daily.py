@@ -18,6 +18,7 @@ from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_UPSTREAM, CliError
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
+from gsuid_cli.core.render import render_image_enabled, render_result_data
 from gsuid_cli.providers.public import DAY_NAMES
 from gsuid_cli.renderers.daily.materials import render_daily_materials_card
 from gsuid_cli.renderers.daily.note import render_daily_note_card
@@ -31,7 +32,7 @@ CAPABILITIES = [
         "description": "List daily talent and weapon material domains.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "use",
     },
     {
@@ -39,7 +40,7 @@ CAPABILITIES = [
         "description": "Show current resin, commissions, expeditions, and teapot status.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "both"],
+        "render": ["data", "image", "all"],
         "cache": "off",
     },
     {
@@ -65,9 +66,9 @@ def daily_materials_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).daily_materials(
         day=args.day,
         date=args.date,
-        require_upgrade=args.render != "data",
+        require_upgrade=render_image_enabled(args),
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _daily_materials_render_result(args, result)
 
@@ -82,7 +83,7 @@ def daily_note_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if args.render == "data":
+    if not render_image_enabled(args):
         return result
     return _daily_note_render_result(
         args,
@@ -186,7 +187,7 @@ def _daily_materials_render_result(
         "render": "daily/materials",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],
@@ -271,7 +272,7 @@ def _daily_note_render_result(
         "render": "daily/note",
         "artifact_sha256": artifact["sha256"],
     }
-    data = {**result.data, **render_data} if args.render == "both" else render_data
+    data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
         artifacts=[artifact],

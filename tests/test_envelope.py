@@ -24,14 +24,38 @@ def test_success_envelope_shape() -> None:
         "warnings": [],
         "data": {"version": "0.1.0"},
         "artifacts": [],
-        "source": {
-            "provider": "local",
-            "region": "cn",
-            "cached": False,
-            "fetched_at": "2026-04-29T10:30:00Z",
-        },
+        "sources": [
+            {
+                "provider": "local",
+                "region": "cn",
+                "cached": False,
+                "fetched_at": "2026-04-29T10:30:00Z",
+            }
+        ],
         "pagination": None,
     }
+    assert "source" not in payload
+
+
+def test_success_envelope_uses_sources_without_public_source_field() -> None:
+    payload = success_envelope(
+        command="daily.note",
+        request_id="req-sources",
+        duration_ms=1,
+        data={},
+        region="cn",
+        source={"provider": "mys", "region": "cn", "cached": False, "fetched_at": "now"},
+        sources=[
+            {"provider": "mys", "region": "cn", "cached": False, "fetched_at": "now"},
+            {"provider": "ambr", "region": "cn", "cached": True, "fetched_at": "then"},
+        ],
+    )
+
+    assert "source" not in payload
+    assert payload["sources"] == [
+        {"provider": "mys", "region": "cn", "cached": False, "fetched_at": "now"},
+        {"provider": "ambr", "region": "cn", "cached": True, "fetched_at": "then"},
+    ]
 
 
 def test_error_envelope_shape() -> None:
@@ -59,4 +83,5 @@ def test_error_envelope_shape() -> None:
         "details": {"argument": "command"},
         "retryable": False,
     }
-    assert payload["source"]["fetched_at"] is None
+    assert payload["sources"][0]["fetched_at"] is None
+    assert "source" not in payload
