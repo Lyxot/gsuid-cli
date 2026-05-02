@@ -99,6 +99,21 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert {"rank.list", "rank.character", "rank.artifact"}.issubset(commands)
     assert "rank.summary" not in commands
     capability_by_command = {command["command"]: command for command in payload["data"]["commands"]}
+    assert capability_by_command["events.list"]["render"] == ["data", "image", "text", "all"]
+    assert capability_by_command["events.banners"]["render"] == ["data", "image", "text", "all"]
+    assert capability_by_command["codes.list"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["announcements.list"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["announcements.show"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
     assert capability_by_command["daily.materials"]["render"] == ["data", "image", "text", "all"]
     assert capability_by_command["daily.note"]["render"] == ["data", "image", "text", "all"]
     assert capability_by_command["daily.signin"]["render"] == ["data", "text", "all"]

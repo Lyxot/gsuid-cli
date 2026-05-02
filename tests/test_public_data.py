@@ -497,6 +497,230 @@ def test_event_render_images_write_cards(monkeypatch, tmp_path) -> None:
     assert "https://example.test/a.jpg" in requested_urls
 
 
+def test_event_render_text_writes_artifacts(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+
+    commands = [
+        (["events", "list"], "events.list", "events/list-text", "活动列表 - 进行中", "普通活动"),
+        (
+            ["events", "banners"],
+            "events.banners",
+            "events/banners-text",
+            "活动祈愿 - 进行中",
+            "角色活动祈愿",
+        ),
+    ]
+
+    for argv, command, render, title, row_name in commands:
+        code, payload = _run_json([*argv, "--render", "text"])
+
+        assert code == 0
+        assert payload["command"] == command
+        assert payload["data"]["render"] == render
+        artifact = payload["artifacts"][0]
+        path = Path(artifact["path"])
+        assert artifact["kind"] == "text"
+        assert artifact["media_type"] == "text/plain; charset=utf-8"
+        assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        text = path.read_text(encoding="utf-8")
+        assert text.startswith(f"{title}\n")
+        assert row_name in text
+        assert "时间: 2026-04-01 10:00:00 至 2026-05-01 03:59:59" in text
+        assert "图片: https://example.test/a.jpg" in text
+        assert "ID:" not in text
+
+
+def test_events_render_text_plain_prints_text(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        ["events", "list", "--render", "text", "--format", "plain"],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    text = stdout.getvalue()
+    assert text.startswith("活动列表 - 进行中\n")
+    assert "普通活动" in text
+    assert "render" not in text
+
+
+def test_events_plain_text_image_prints_image_path(monkeypatch, tmp_path) -> None:
+    requested_urls: list[str] = []
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.events.fetch_render_images",
+        _fake_image_fetcher(requested_urls),
+    )
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+            "events",
+            "banners",
+            "--render",
+            "text,image",
+            "--format",
+            "plain",
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    text = stdout.getvalue()
+    assert text.startswith("活动祈愿 - 进行中\n")
+    assert "\n\n图片已保存至: " in text
+    assert "events-banners.png" in text
+    assert requested_urls == ["https://example.test/a.jpg"]
+
+
+def test_codes_render_text_writes_artifact(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+
+    code, payload = _run_json(["codes", "list", "--render", "text"])
+
+    assert code == 0
+    assert payload["command"] == "codes.list"
+    assert payload["data"]["render"] == "codes/list-text"
+    artifact = payload["artifacts"][0]
+    path = Path(artifact["path"])
+    assert artifact["kind"] == "text"
+    assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+    text = path.read_text(encoding="utf-8")
+    assert text.startswith("兑换码\n")
+    assert "可用兑换码\n  - GENSHINGIFT" in text
+    assert "    服务器: 美服、欧服、亚服、港澳台服" in text
+    assert "    奖励: 原石 x50、Jueyun Chili Chicken x5、Stir-Fried Fish Noodles x5" in text
+
+
+def test_codes_render_text_plain_prints_text(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        ["codes", "list", "--render", "text", "--format", "plain"], stdout=stdout, stderr=stderr
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    assert stdout.getvalue().startswith("兑换码\n")
+    assert "  - GENSHINGIFT" in stdout.getvalue()
+    assert "render" not in stdout.getvalue()
+
+
+def test_announcements_render_text_writes_artifacts(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+
+    commands = [
+        (
+            ["announcements", "list", "--limit", "3"],
+            "announcements.list",
+            "announcements/list-text",
+            "公告列表",
+            "公告\n",
+            "公告ID: 1003",
+        ),
+        (
+            ["announcements", "show", "--id", "1003"],
+            "announcements.show",
+            "announcements/show-text",
+            "公告详情",
+            "旅行者好。",
+            None,
+        ),
+    ]
+
+    for argv, command, render, title, expected, optional_expected in commands:
+        code, payload = _run_json([*argv, "--render", "text"])
+
+        assert code == 0
+        assert payload["command"] == command
+        assert payload["data"]["render"] == render
+        artifact = payload["artifacts"][0]
+        path = Path(artifact["path"])
+        assert artifact["kind"] == "text"
+        assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        text = path.read_text(encoding="utf-8")
+        assert text.startswith(f"{title}\n")
+        assert expected in text
+        if optional_expected is not None:
+            assert optional_expected in text
+            assert "公告 - 版本更新说明" not in text
+        else:
+            assert "公告ID:" not in text
+
+
+def test_announcements_plain_text_image_prints_image_path(monkeypatch, tmp_path) -> None:
+    requested_urls: list[str] = []
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.events.fetch_render_images",
+        _fake_image_fetcher(requested_urls),
+    )
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+            "announcements",
+            "show",
+            "--id",
+            "1003",
+            "--render",
+            "text,image",
+            "--format",
+            "plain",
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    text = stdout.getvalue()
+    assert text.startswith("公告详情\n")
+    assert "旅行者好。" in text
+    assert "\n\n图片已保存至: " in text
+    assert "announcements-show_1003" in text
+    assert requested_urls == [
+        "https://example.test/banner.jpg",
+        "https://example.test/detail.jpg",
+    ]
+
+
 def test_announcement_render_images_write_cards(monkeypatch, tmp_path) -> None:
     requested_urls: list[str] = []
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
@@ -1594,6 +1818,7 @@ def _fake_provider():
                         "content_html": (
                             '<p>旅行者好。</p><p><img src="https://example.test/detail.jpg" /></p>'
                         ),
+                        "text": "旅行者好。",
                         "image_urls": ["https://example.test/detail.jpg"],
                     }
                 },
@@ -1602,7 +1827,20 @@ def _fake_provider():
 
         def codes_list(self) -> CommandResult:
             return CommandResult(
-                data={"codes": [{"codes": ["GENSHINGIFT"]}], "count": 1},
+                data={
+                    "codes": [
+                        {
+                            "codes": ["GENSHINGIFT"],
+                            "servers": ["America", "Europe", "Asia", "TW/HK/Macao"],
+                            "rewards": [
+                                {"name": "Primogem", "count": 50},
+                                {"name": "Jueyun Chili Chicken", "count": 5},
+                                {"name": "Stir-Fried Fish Noodles", "count": 5},
+                            ],
+                        }
+                    ],
+                    "count": 1,
+                },
                 source=_source("fandom"),
             )
 

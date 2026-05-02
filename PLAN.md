@@ -710,110 +710,76 @@ tests/
 ### Stage 16.5: Cache System Redesign — completed.
 ### Stage 17: GenshinUID Image Parity — completed.
 ### Stage 18: Text Output And Result Surface Refactor — completed.
-### Stage 18b: Text Render Artifacts
+### Stage 18b: Text Render Artifacts — completed.
+### Stage 18c: Public Data Text Render Artifacts
 
-- Stage 18b status: daily pilot approved by user, separately reviewed, and
-  ready to commit before broadening to the next command group.
-- Stage 18b current refinement:
-  - Daily plain text should use compact Chinese CLI formatting:
-    `实时便笺 - 昵称`, `每日材料 - 周一`, one status per line, and sign-in
-    lines such as `✓ 今日已签到`.
-  - Daily material rows should use human names plus star ranks, with domain
-    headers shaped like `地区 副本名 - 副本类型`.
-  - Plain warnings should be printed in yellow.
-  - Plain image paths should be printed as `图片已保存至: ...`.
-  - Leave one blank line before `图片已保存至: ...` in plain image output.
-- Stage 18b goal:
-  - Add `--render text` as a first-class render mode while preserving the
-    JSON-first stdout contract.
-  - Commands that already have image renderers should derive structured,
-    CLI-readable text from the same normalized data shown in the image.
-  - Commands without image renderers should port or adapt the corresponding
-    GenshinUID text message when a stable text behavior exists; otherwise use a
-    concise structured status message from the command's existing data contract.
-  - Text renders should be emitted as UTF-8 text artifacts and returned in the
-    JSON envelope, matching the existing artifact model for non-data renders.
-  - When `--format plain` is combined with a text render, stdout should print
-    the human-readable text content directly instead of the text artifact
-    metadata.
-  - Plain text render output should be Chinese-first for the current CN MVP and
-    should not expose internal IDs when a human-readable name is available.
-  - Plain output should print warnings to stderr and print image artifact paths
-    whenever `--render image` is selected.
-- Stage 18b pilot scope:
-  - Start with the `daily` group only: `daily.materials`, `daily.note`,
-    `daily.signin`, and `daily.bbs-coin`.
-  - Do not commit this pilot until reviewed by the user.
-- Stage 18b success criteria for the daily pilot:
-  - `--render text` writes a text artifact for every `daily.*` command.
-  - `--render data,text` preserves normalized JSON data and adds the text
-    artifact.
-  - Existing `--render image` behavior for `daily.materials` and `daily.note`
-    remains unchanged.
-  - `meta capabilities` and generated command docs report daily text support.
-  - Focused daily tests, render-mode tests, lint, and command-doc checks pass.
-- Stage 18b daily pilot result:
-  - Added global `text` render-mode parsing and `render_text_enabled(...)`.
-  - Added `src/gsuid_cli/renderers/daily/text.py` with structured text
-    renderers for `daily.materials`, `daily.note`, `daily.signin`, and
-    `daily.bbs-coin`.
-  - `daily.materials` and `daily.note` now derive text from the same normalized
-    data used by their image renderers.
-  - `daily.signin` and `daily.bbs-coin` now emit concise status text from their
-    existing command data contracts, using GenshinUID-style sign-in semantics
-    where applicable.
-  - Image-only daily output remains unchanged; combined image+text renders keep
-    the image artifact hash as `artifact_sha256` and add
-    `text_artifact_sha256`.
-  - `--format plain --render text` now prints the text artifact content directly
-    for daily commands.
-  - Daily text output is now Chinese-first, omits internal domain/reward/item
-    IDs, maps known city IDs to region names, and maps item types to Chinese
-    labels.
-  - Daily note text now uses compact one-line status rows and titles such as
-    `实时便笺 - 昵称`.
-  - Daily sign-in text now uses compact status lines such as `✓ 今日已签到`.
-  - Daily material text now uses headers such as `挪德卡莱 明辉 - 炼武秘境`
-    and item rows with star ranks such as `谧音吹哨 ★★★★☆`.
-  - Plain output now prints command warnings to stderr and appends image paths
-    as `图片已保存至: ...` when image artifacts are produced.
-  - Plain image output leaves one blank line before the image path tip.
-  - Plain warning lines are ANSI-yellow for terminal readability.
-  - Plain text output only prints render text artifacts whose names follow the
-    `*-text` convention, avoiding accidental display of non-render text
-    artifacts.
-  - Separate review findings were resolved: image-only plain output now gets
-    the image-tip blank line, BBS coin user-facing text is Chinese, non-render
-    text artifacts are ignored for plain text display, and direct plain tests
-    now cover `daily.note` and `daily.signin`.
-  - `meta capabilities`, README render examples, and generated command docs now
-    include daily text support.
-- Stage 18b daily pilot verification:
-  - `.venv/bin/python -m pytest tests/test_public_data.py::test_daily_materials_render_image_writes_card tests/test_public_data.py::test_daily_materials_render_data_image_preserves_structured_data tests/test_public_data.py::test_daily_materials_render_text_writes_artifact tests/test_daily_player_data.py::test_daily_note_render_image_writes_daily_note_card tests/test_daily_player_data.py::test_daily_note_render_data_image_preserves_structured_data tests/test_daily_player_data.py::test_daily_note_render_text_writes_artifact tests/test_daily_player_data.py::test_daily_signin_render_text_writes_artifact tests/test_daily_player_data.py::test_daily_bbs_coin_render_text_writes_artifact tests/test_global_options.py::test_render_text_hides_data_and_sources tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
-  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_daily_player_data.py tests/test_global_options.py tests/test_meta_commands.py tests/test_docs.py -q`
-  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_global_options.py tests/test_daily_player_data.py::test_daily_note_render_text_writes_artifact tests/test_daily_player_data.py::test_daily_signin_render_text_writes_artifact tests/test_daily_player_data.py::test_daily_bbs_coin_render_text_writes_artifact -q`
-  - `.venv/bin/python -m pytest tests/test_public_data.py::test_daily_materials_render_text_writes_artifact tests/test_public_data.py::test_daily_materials_render_text_plain_prints_text tests/test_public_data.py::test_daily_materials_plain_prints_image_path_when_render_image tests/test_daily_player_data.py::test_daily_note_render_text_writes_artifact tests/test_daily_player_data.py::test_daily_signin_render_text_writes_artifact tests/test_daily_player_data.py::test_daily_bbs_coin_render_text_writes_artifact tests/test_daily_player_data.py::test_daily_bbs_coin_plain_prints_warning -q`
-  - `.venv/bin/python -m pytest -q`
+- Stage 18c status: implemented and reviewed; ready to amend into the public
+  data text-render commit.
+- Stage 18c scope:
+  - Add `--render text` support for `events.list`, `events.banners`,
+    `codes.list`, `announcements.list`, and `announcements.show`.
+- Stage 18c requirements:
+  - Text output is Chinese-first and compact for CLI reading.
+  - Existing image renders should remain unchanged and should still be the
+    primary artifact hash when combined with text.
+  - Text output should use names, titles, status/date ranges, rewards, and URLs
+    when useful, but should not surface internal event or announcement IDs
+    unless an ID is the command's explicit selector.
+  - `--format plain --render text` should print public-data text directly.
+  - `--format plain --render text,image` should print public-data text, a blank
+    line, then `图片已保存至: ...`.
+- Stage 18c verification target:
+  - Focused events/codes/announcements text artifact/plain tests.
+  - Existing events and announcements image tests.
+  - `meta capabilities`, generated command docs, ruff, and pytest as appropriate.
+- Stage 18c result:
+  - Added `src/gsuid_cli/renderers/events_text.py` for compact Chinese
+    `events.list`, `events.banners`, `codes.list`, `announcements.list`, and
+    `announcements.show` text.
+  - `events.list`, `events.banners`, `announcements.list`, and
+    `announcements.show` now support `data`, `image`, `text`, and `all` render
+    modes.
+  - `codes.list` now supports `data`, `text`, and `all` render modes.
+  - Text-only render writes a `*-text` artifact and plain mode prints it
+    directly.
+  - Combined text+image render keeps the image hash as `artifact_sha256`, adds
+    `text_artifact_sha256`, and plain mode prints the text followed by
+    `图片已保存至: ...`.
+  - Event text uses names, date ranges, and banner URLs; code text uses codes,
+    localized server labels, common Chinese reward names, and expiry status;
+    announcement text uses titles, date ranges, body text, and image URLs.
+  - Provider event and announcement IDs stay out of the human text output.
+- Stage 18c verification:
+  - `.venv/bin/python -m pytest tests/test_public_data.py::test_event_render_images_write_cards tests/test_public_data.py::test_event_render_text_writes_artifacts tests/test_public_data.py::test_events_render_text_plain_prints_text tests/test_public_data.py::test_events_plain_text_image_prints_image_path tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
+  - `.venv/bin/python -m pytest tests/test_public_data.py::test_event_render_images_write_cards tests/test_public_data.py::test_event_render_text_writes_artifacts tests/test_public_data.py::test_events_render_text_plain_prints_text tests/test_public_data.py::test_events_plain_text_image_prints_image_path tests/test_public_data.py::test_codes_render_text_writes_artifact tests/test_public_data.py::test_codes_render_text_plain_prints_text tests/test_public_data.py::test_announcements_render_text_writes_artifacts tests/test_public_data.py::test_announcements_plain_text_image_prints_image_path tests/test_public_data.py::test_announcement_render_images_write_cards tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
+  - `.venv/bin/python -m pytest -q` (`250 passed, 1 skipped`)
   - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check src/gsuid_cli/cli.py src/gsuid_cli/renderers/daily/text.py tests/test_public_data.py tests/test_daily_player_data.py`
-  - `.venv/bin/ruff format --check src/gsuid_cli/core/render.py src/gsuid_cli/cli.py src/gsuid_cli/commands/meta.py src/gsuid_cli/commands/public_data/daily.py src/gsuid_cli/renderers/daily/text.py tests/test_public_data.py tests/test_global_options.py tests/test_meta_commands.py scripts/generate_command_reference.py`
+  - `.venv/bin/ruff format --check src/gsuid_cli/commands/public_data/events.py src/gsuid_cli/renderers/events_text.py tests/test_public_data.py tests/test_meta_commands.py`
   - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `.venv/bin/python -m gsuid_cli daily materials --day monday --render text --format plain --output-dir /tmp/gsuid-daily-plain-smoke`
-  - `.venv/bin/python -m gsuid_cli daily materials --day monday --render image --format plain --output-dir /tmp/gsuid-daily-plain-smoke`
-  - `.venv/bin/python -m gsuid_cli daily materials --day monday --render text,image --format plain --output-dir /tmp/gsuid-daily-plain-smoke`
-  - `.venv/bin/python -m gsuid_cli daily bbs-coin --uid 100000001 --render text --format plain --output-dir /tmp/gsuid-daily-plain-smoke`
-- Stage 18b daily pilot verification note:
-  - Full pytest passes with `243 passed, 1 skipped`.
-  - Refined smoke output now starts with `每日材料 - 周一`, prints image-only
-    output with a blank line before `图片已保存至: ...`, ends combined text+image
-    output with a blank line before `图片已保存至: ...`, and prints BBS warnings
-    in yellow Chinese text.
-  - `ruff format --check .` is still not used as a completion gate here because
-    the repo has known pre-existing formatter drift in unrelated files, already
-    recorded under Stage 18a. The changed Python files excluding that known
-    drift pass targeted formatter checks.
-- Next intended stage: wait for user review of the daily text output, then apply
-  the approved pattern to the next command group.
+  - `.venv/bin/python -m gsuid_cli events list --limit 2 --render text --format plain --output-dir /tmp/gsuid-events-plain-smoke`
+  - `.venv/bin/python -m gsuid_cli events banners --limit 1 --render text,image --format plain --output-dir /tmp/gsuid-events-plain-smoke`
+  - `.venv/bin/python -m gsuid_cli codes list --render text --format plain --output-dir /tmp/gsuid-public-plain-smoke`
+  - `.venv/bin/python -m gsuid_cli announcements list --limit 2 --render text --format plain --output-dir /tmp/gsuid-public-plain-smoke`
+  - `.venv/bin/python -m gsuid_cli announcements show --latest --render text,image --format plain --output-dir /tmp/gsuid-public-plain-smoke`
+- Stage 18c verification note:
+  - Live smoke on 2026-05-05 printed current Chinese event/code/announcement
+    rows and saved an `announcements-show_*.png` image path after a blank line.
+  - Pre-commit review found and fixed noisy codes text output: upstream
+    `unknown` is rendered as `未知`, common reward names are localized, and
+    free-form source notes are omitted from plain text.
+- Stage 18c follow-up refinement:
+  - Keep `Jueyun Chili Chicken` and `Stir-Fried Fish Noodles` in their original
+    upstream English names.
+  - Make `codes.list` text use the same section and indented bullet layout as
+    `announcements.list`.
+  - Include announcement IDs in `announcements.list` text because they are
+    useful selectors for `announcements show --id`.
+  - Keep only the announcement row title in `announcements.list`; omit the
+    subtitle suffix after ` - `.
+  - Separate-agent review completed with no findings; reviewer confirmed the
+    reward-name preservation, codes layout, announcement-list IDs, and unchanged
+    announcement-detail title behavior.
+- Next intended stage: continue with the next command group after user review.
 
 ## MVP Cut Line
 

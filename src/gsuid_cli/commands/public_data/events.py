@@ -14,13 +14,19 @@ from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.render import render_image_enabled, render_result_data
+from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
 from gsuid_cli.renderers.events import (
     announcement_detail_image_urls,
     event_image_urls,
     render_announcement_detail_card,
     render_announcements_list_card,
     render_events_card,
+)
+from gsuid_cli.renderers.events_text import (
+    render_announcement_detail_text,
+    render_announcements_list_text,
+    render_codes_text,
+    render_events_text,
 )
 
 EVENT_IMAGE_WORKERS = 6
@@ -32,7 +38,7 @@ CAPABILITIES = [
         "description": "List public event announcements.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "use",
     },
     {
@@ -40,7 +46,7 @@ CAPABILITIES = [
         "description": "List public event banner artwork URLs.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "use",
     },
     {
@@ -48,7 +54,7 @@ CAPABILITIES = [
         "description": "List public active redeem-code rows.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "use",
     },
     {
@@ -56,7 +62,7 @@ CAPABILITIES = [
         "description": "List public game announcement rows.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "use",
     },
     {
@@ -64,7 +70,7 @@ CAPABILITIES = [
         "description": "Show one public game announcement row.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "use",
     },
 ]
@@ -72,25 +78,35 @@ CAPABILITIES = [
 
 def events_list_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).events_list(include_all=args.all, limit=_limit(args.limit))
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _events_render_result(args, result, "events")
 
 
 def events_banners_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).event_banners(include_all=args.all, limit=_limit(args.limit))
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _events_render_result(args, result, "banners")
 
 
 def codes_list_command(args: argparse.Namespace) -> CommandResult:
-    return _provider(args).codes_list()
+    result = _provider(args).codes_list()
+    if not render_text_enabled(args):
+        return result
+    return _text_render_result(
+        args,
+        result=result,
+        render_name="codes/list-text",
+        filename="codes-list.txt",
+        content=render_codes_text(result.data),
+        description="Human-readable redeem code list",
+    )
 
 
 def announcements_list_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).announcements_list(limit=_limit(args.limit))
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _announcements_list_render_result(args, result)
 
@@ -111,7 +127,7 @@ def announcements_show_command(args: argparse.Namespace) -> CommandResult:
             "start_at": start_at,
         }
         result.warnings[:0] = warnings
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _announcement_detail_render_result(args, result)
 
@@ -170,35 +186,95 @@ def _events_render_result(
 ) -> CommandResult:
     key = "banners" if render_kind == "banners" else "events"
     command_segment = "banners" if render_kind == "banners" else "list"
-    asset_images, asset_warnings = fetch_render_images(
-        args,
-        event_image_urls(result.data, key),
-        provider="event-assets",
-        region="cn",
-        category=f"events.{command_segment}.asset",
-        unavailable_warning="{count} event banner images unavailable; rendered placeholders",
-        max_workers=EVENT_IMAGE_WORKERS,
-    )
-    png = render_events_card(result.data, kind=render_kind, asset_images=asset_images)
     render_name = "events/banners" if render_kind == "banners" else "events/list"
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name=render_name,
-        filename=f"{render_name.replace('/', '-')}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style event list card",
-        kind="image",
-    )
-    render_data = {
-        "render": render_name,
-        "artifact_sha256": artifact["sha256"],
-    }
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {}
+    if render_image_enabled(args):
+        asset_images, asset_warnings = fetch_render_images(
+            args,
+            event_image_urls(result.data, key),
+            provider="event-assets",
+            region="cn",
+            category=f"events.{command_segment}.asset",
+            unavailable_warning="{count} event banner images unavailable; rendered placeholders",
+            max_workers=EVENT_IMAGE_WORKERS,
+        )
+        png = render_events_card(result.data, kind=render_kind, asset_images=asset_images)
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name=render_name,
+            filename=f"{render_name.replace('/', '-')}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style event list card",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend(asset_warnings)
+        render_data.update(
+            {
+                "render": render_name,
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_render_name = f"{render_name}-text"
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name=text_render_name,
+            filename=f"{render_name.replace('/', '-')}.txt",
+            content=render_events_text(result.data, kind=render_kind),
+            description="Human-readable event list text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": text_render_name,
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
+    return CommandResult(
+        data=data,
+        artifacts=artifacts,
+        source=result.source,
+        warnings=warnings,
+        pagination=result.pagination,
+    )
+
+
+def _text_render_result(
+    args: argparse.Namespace,
+    *,
+    result: CommandResult,
+    render_name: str,
+    filename: str,
+    content: str,
+    description: str,
+) -> CommandResult:
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        name=render_name,
+        filename=filename,
+        content=content,
+        description=description,
+        kind="text",
+    )
+    data = render_result_data(
+        args,
+        result.data,
+        {
+            "render": render_name,
+            "artifact_sha256": artifact["sha256"],
+        },
+    )
     return CommandResult(
         data=data,
         artifacts=[artifact],
         source=result.source,
-        warnings=[*result.warnings, *asset_warnings],
+        warnings=result.warnings,
         pagination=result.pagination,
     )
 
@@ -207,23 +283,48 @@ def _announcements_list_render_result(
     args: argparse.Namespace,
     result: CommandResult,
 ) -> CommandResult:
-    png = render_announcements_list_card(result.data)
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="announcements/list",
-        filename="announcements-list.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style announcement list card",
-        kind="image",
-    )
-    render_data = {
-        "render": "announcements/list",
-        "artifact_sha256": artifact["sha256"],
-    }
+    artifacts: list[dict[str, object]] = []
+    render_data: dict[str, object] = {}
+    if render_image_enabled(args):
+        png = render_announcements_list_card(result.data)
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="announcements/list",
+            filename="announcements-list.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style announcement list card",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        render_data.update(
+            {
+                "render": "announcements/list",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_render_name = "announcements/list-text"
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name=text_render_name,
+            filename="announcements-list.txt",
+            content=render_announcements_list_text(result.data),
+            description="Human-readable announcement list text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": text_render_name,
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
         warnings=result.warnings,
         pagination=result.pagination,
@@ -235,36 +336,62 @@ def _announcement_detail_render_result(
     result: CommandResult,
 ) -> CommandResult:
     announcement = _mapping_data(result, "announcement", "announcements.show")
-    asset_images, asset_warnings = fetch_render_images(
-        args,
-        announcement_detail_image_urls(announcement),
-        provider="announcement-assets",
-        region="cn",
-        category="announcements.show.asset",
-        unavailable_warning="{count} announcement images unavailable; omitted from render",
-        max_workers=EVENT_IMAGE_WORKERS,
-    )
-    png = render_announcement_detail_card(announcement, asset_images=asset_images)
     ann_id = _optional_text(announcement.get("id")) or "announcement"
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="announcements/show",
-        filename=f"announcements-show_{_safe_filename(ann_id)}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style announcement detail card",
-        kind="image",
-    )
-    render_data = {
-        "id": ann_id,
-        "render": "announcements/show",
-        "artifact_sha256": artifact["sha256"],
-    }
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {"id": ann_id}
+    if render_image_enabled(args):
+        asset_images, asset_warnings = fetch_render_images(
+            args,
+            announcement_detail_image_urls(announcement),
+            provider="announcement-assets",
+            region="cn",
+            category="announcements.show.asset",
+            unavailable_warning="{count} announcement images unavailable; omitted from render",
+            max_workers=EVENT_IMAGE_WORKERS,
+        )
+        png = render_announcement_detail_card(announcement, asset_images=asset_images)
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="announcements/show",
+            filename=f"announcements-show_{_safe_filename(ann_id)}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style announcement detail card",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend(asset_warnings)
+        render_data.update(
+            {
+                "render": "announcements/show",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_render_name = "announcements/show-text"
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name=text_render_name,
+            filename=f"announcements-show_{_safe_filename(ann_id)}.txt",
+            content=render_announcement_detail_text(announcement),
+            description="Human-readable announcement detail text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": text_render_name,
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *asset_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
 
