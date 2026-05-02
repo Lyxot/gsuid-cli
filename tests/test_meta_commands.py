@@ -118,6 +118,30 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert capability_by_command["daily.note"]["render"] == ["data", "image", "text", "all"]
     assert capability_by_command["daily.signin"]["render"] == ["data", "text", "all"]
     assert capability_by_command["daily.bbs-coin"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["wiki.character"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["wiki.weapon"]["render"] == ["data", "image", "text", "all"]
+    assert capability_by_command["wiki.artifact"]["render"] == ["data", "image", "text", "all"]
+    assert capability_by_command["wiki.enemy"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["wiki.food"]["render"] == ["data", "image", "text", "all"]
+    assert capability_by_command["wiki.talent"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["wiki.constellation"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["wiki.character-materials"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["wiki.weapon-materials"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
     assert capability_by_command["guide.character"]["render"] == ["data", "image", "all"]
     assert capability_by_command["guide.reference-panel"]["render"] == ["data", "image", "all"]
     assert capability_by_command["guide.abyss"]["render"] == ["data", "image", "all"]

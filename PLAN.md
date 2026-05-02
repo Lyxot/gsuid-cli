@@ -711,76 +711,42 @@ tests/
 ### Stage 17: GenshinUID Image Parity — completed.
 ### Stage 18: Text Output And Result Surface Refactor — completed.
 ### Stage 18b: Text Render Artifacts — completed.
-### Stage 18c: Public Data Text Render Artifacts
+### Stage 18c: Public Data Text Render Artifacts — completed.
+### Stage 18d: Wiki Text Render Artifacts
 
-- Stage 18c status: implemented and reviewed; ready to amend into the public
-  data text-render commit.
-- Stage 18c scope:
-  - Add `--render text` support for `events.list`, `events.banners`,
-    `codes.list`, `announcements.list`, and `announcements.show`.
-- Stage 18c requirements:
-  - Text output is Chinese-first and compact for CLI reading.
-  - Existing image renders should remain unchanged and should still be the
-    primary artifact hash when combined with text.
-  - Text output should use names, titles, status/date ranges, rewards, and URLs
-    when useful, but should not surface internal event or announcement IDs
-    unless an ID is the command's explicit selector.
-  - `--format plain --render text` should print public-data text directly.
-  - `--format plain --render text,image` should print public-data text, a blank
-    line, then `图片已保存至: ...`.
-- Stage 18c verification target:
-  - Focused events/codes/announcements text artifact/plain tests.
-  - Existing events and announcements image tests.
-  - `meta capabilities`, generated command docs, ruff, and pytest as appropriate.
-- Stage 18c result:
-  - Added `src/gsuid_cli/renderers/events_text.py` for compact Chinese
-    `events.list`, `events.banners`, `codes.list`, `announcements.list`, and
-    `announcements.show` text.
-  - `events.list`, `events.banners`, `announcements.list`, and
-    `announcements.show` now support `data`, `image`, `text`, and `all` render
-    modes.
-  - `codes.list` now supports `data`, `text`, and `all` render modes.
-  - Text-only render writes a `*-text` artifact and plain mode prints it
-    directly.
-  - Combined text+image render keeps the image hash as `artifact_sha256`, adds
-    `text_artifact_sha256`, and plain mode prints the text followed by
-    `图片已保存至: ...`.
-  - Event text uses names, date ranges, and banner URLs; code text uses codes,
-    localized server labels, common Chinese reward names, and expiry status;
-    announcement text uses titles, date ranges, body text, and image URLs.
-  - Provider event and announcement IDs stay out of the human text output.
-- Stage 18c verification:
-  - `.venv/bin/python -m pytest tests/test_public_data.py::test_event_render_images_write_cards tests/test_public_data.py::test_event_render_text_writes_artifacts tests/test_public_data.py::test_events_render_text_plain_prints_text tests/test_public_data.py::test_events_plain_text_image_prints_image_path tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
-  - `.venv/bin/python -m pytest tests/test_public_data.py::test_event_render_images_write_cards tests/test_public_data.py::test_event_render_text_writes_artifacts tests/test_public_data.py::test_events_render_text_plain_prints_text tests/test_public_data.py::test_events_plain_text_image_prints_image_path tests/test_public_data.py::test_codes_render_text_writes_artifact tests/test_public_data.py::test_codes_render_text_plain_prints_text tests/test_public_data.py::test_announcements_render_text_writes_artifacts tests/test_public_data.py::test_announcements_plain_text_image_prints_image_path tests/test_public_data.py::test_announcement_render_images_write_cards tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
-  - `.venv/bin/python -m pytest -q` (`250 passed, 1 skipped`)
+- Stage 18d status: completed and committed.
+- Commit: `feat: add wiki text renders`.
+- Stage 18d scope:
+  - Add `--render text` support for the `wiki` group:
+    `wiki.character`, `wiki.weapon`, `wiki.artifact`, `wiki.enemy`,
+    `wiki.food`, `wiki.talent`, `wiki.constellation`,
+    `wiki.character-materials`, and `wiki.weapon-materials`.
+  - Keep existing wiki image renderers unchanged and make combined
+    `text,image` output keep the image artifact hash as primary data.
+- Stage 18d verification target:
+  - Focused wiki text artifact/plain tests.
+  - Existing wiki image tests.
+  - `meta capabilities`, generated command docs, ruff, and pytest.
+- Stage 18d result:
+  - Added compact Chinese text renderers for all `wiki` commands.
+  - Combined wiki `text,image` output keeps the image artifact hash as primary
+    data and records `text_artifact_sha256`.
+  - `wiki.character` and `wiki.enemy` stay text/data-only; existing wiki image
+    renderers are unchanged.
+  - Text output maps element, weapon, region, talent type, and material ids to
+    readable Chinese names when the provider exposes a material name index.
+  - Separate-agent review found no blocking issues; added a focused JSON test
+    for combined wiki `text,image` primary artifact behavior.
+- Stage 18d verification:
+  - `.venv/bin/python -m pytest tests/test_public_data.py::test_wiki_render_text_writes_artifacts tests/test_public_data.py::test_wiki_plain_text_image_prints_image_path tests/test_public_data.py::test_wiki_picwiki_renderers_write_cards tests/test_public_data.py::test_wiki_constellation_render_data_image_preserves_data tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands tests/test_docs.py -q`
+  - `.venv/bin/python -m pytest -q` (`253 passed, 1 skipped`)
   - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check src/gsuid_cli/commands/public_data/events.py src/gsuid_cli/renderers/events_text.py tests/test_public_data.py tests/test_meta_commands.py`
+  - `.venv/bin/ruff format --check src/gsuid_cli/commands/public_data/wiki.py src/gsuid_cli/renderers/wiki/text.py src/gsuid_cli/providers/public.py tests/test_public_data.py tests/test_meta_commands.py`
   - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `.venv/bin/python -m gsuid_cli events list --limit 2 --render text --format plain --output-dir /tmp/gsuid-events-plain-smoke`
-  - `.venv/bin/python -m gsuid_cli events banners --limit 1 --render text,image --format plain --output-dir /tmp/gsuid-events-plain-smoke`
-  - `.venv/bin/python -m gsuid_cli codes list --render text --format plain --output-dir /tmp/gsuid-public-plain-smoke`
-  - `.venv/bin/python -m gsuid_cli announcements list --limit 2 --render text --format plain --output-dir /tmp/gsuid-public-plain-smoke`
-  - `.venv/bin/python -m gsuid_cli announcements show --latest --render text,image --format plain --output-dir /tmp/gsuid-public-plain-smoke`
-- Stage 18c verification note:
-  - Live smoke on 2026-05-05 printed current Chinese event/code/announcement
-    rows and saved an `announcements-show_*.png` image path after a blank line.
-  - Pre-commit review found and fixed noisy codes text output: upstream
-    `unknown` is rendered as `未知`, common reward names are localized, and
-    free-form source notes are omitted from plain text.
-- Stage 18c follow-up refinement:
-  - Keep `Jueyun Chili Chicken` and `Stir-Fried Fish Noodles` in their original
-    upstream English names.
-  - Make `codes.list` text use the same section and indented bullet layout as
-    `announcements.list`.
-  - Include announcement IDs in `announcements.list` text because they are
-    useful selectors for `announcements show --id`.
-  - Keep only the announcement row title in `announcements.list`; omit the
-    subtitle suffix after ` - `.
-  - Separate-agent review completed with no findings; reviewer confirmed the
-    reward-name preservation, codes layout, announcement-list IDs, and unchanged
-    announcement-detail title behavior.
-- Next intended stage: continue with the next command group after user review.
-
+  - `git diff --check`
+  - Live plain smokes for `wiki character --name 安柏`, `wiki talent --character 安柏 --talent 1`, `wiki character-materials --character 安柏`, and `wiki food --name 甜甜花酿鸡 --render text,image`.
+- Next intended stage: review Stage 18d output with the user, then continue to
+  the next command group.
 ## MVP Cut Line
 
 The first usable MVP is complete after Stage 6 if these commands work:

@@ -278,6 +278,19 @@ class PublicDataProvider:
             source=base.source,
         )
 
+    def material_names_by_id(self) -> dict[str, str]:
+        response = self._ambr_json(
+            f"{AMBR_BASE_URL}/api/v2/chs/material",
+            category="wiki.material.names",
+        )
+        names: dict[str, str] = {}
+        for item in _items(response.payload, "wiki.material.names", response.source):
+            item_id = str(item.get("id") or "")
+            name = _text(item.get("name"))
+            if item_id and name:
+                names[item_id] = name
+        return names
+
     def guide_character(self, *, character: str) -> CommandResult:
         base = self.wiki_lookup(kind="character", query=character)
         item = _dict_value(base.data.get("item"))

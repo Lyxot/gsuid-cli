@@ -95,15 +95,15 @@ Generated from `gsuid meta capabilities`.
 | `recommend.holder` | `none` | `data, image, all` | `use` | Show GenshinUID holder recommendations for a weapon or artifact. |
 | `rerun.list` | `none` | `data, image, all` | `use` | List rerun rows and render the GenshinUID return list. |
 | `resources.sync` | `none` | `data` | `memory` | Fetch public resource metadata and warm process-local JSON cache. |
-| `wiki.artifact` | `none` | `data, image, all` | `use` | Look up public artifact set data. |
-| `wiki.character` | `none` | `data` | `use` | Look up public character data. |
-| `wiki.character-materials` | `none` | `data, image, all` | `use` | Show public character material data. |
-| `wiki.constellation` | `none` | `data, image, all` | `use` | Look up public character constellation data. |
-| `wiki.enemy` | `none` | `data` | `use` | Look up public enemy data. |
-| `wiki.food` | `none` | `data, image, all` | `use` | Look up public food data. |
-| `wiki.talent` | `none` | `data` | `use` | Look up public character talent data. |
-| `wiki.weapon` | `none` | `data, image, all` | `use` | Look up public weapon data. |
-| `wiki.weapon-materials` | `none` | `data, image, all` | `use` | Show public weapon material data. |
+| `wiki.artifact` | `none` | `data, image, text, all` | `use` | Look up public artifact set data. |
+| `wiki.character` | `none` | `data, text, all` | `use` | Look up public character data. |
+| `wiki.character-materials` | `none` | `data, image, text, all` | `use` | Show public character material data. |
+| `wiki.constellation` | `none` | `data, image, text, all` | `use` | Look up public character constellation data. |
+| `wiki.enemy` | `none` | `data, text, all` | `use` | Look up public enemy data. |
+| `wiki.food` | `none` | `data, image, text, all` | `use` | Look up public food data. |
+| `wiki.talent` | `none` | `data, text, all` | `use` | Look up public character talent data. |
+| `wiki.weapon` | `none` | `data, image, text, all` | `use` | Look up public weapon data. |
+| `wiki.weapon-materials` | `none` | `data, image, text, all` | `use` | Show public weapon material data. |
 
 Notes:
 

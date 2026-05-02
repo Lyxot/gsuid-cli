@@ -333,6 +333,152 @@ def test_wiki_picwiki_renderers_write_cards(monkeypatch, tmp_path) -> None:
             assert image.getbbox() is not None
 
 
+def test_wiki_render_text_writes_artifacts(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+
+    commands = [
+        (
+            ["wiki", "character", "--name", "Amber"],
+            "wiki.character",
+            "wiki/character-text",
+            "角色资料 - Amber",
+        ),
+        (
+            ["wiki", "weapon", "--name", "Dull Blade"],
+            "wiki.weapon",
+            "wiki/weapon-text",
+            "武器资料 - Dull Blade",
+        ),
+        (
+            ["wiki", "artifact", "--name", "Gladiator"],
+            "wiki.artifact",
+            "wiki/artifact-text",
+            "圣遗物资料 - Gladiator",
+        ),
+        (["wiki", "enemy", "--name", "Slime"], "wiki.enemy", "wiki/enemy-text", "原魔资料 - Slime"),
+        (
+            ["wiki", "food", "--name", "Sweet Madame"],
+            "wiki.food",
+            "wiki/food-text",
+            "食物资料 - Sweet Madame",
+        ),
+        (
+            ["wiki", "talent", "--character", "Amber", "--talent", "1"],
+            "wiki.talent",
+            "wiki/talent-text",
+            "角色天赋 - Amber",
+        ),
+        (
+            ["wiki", "constellation", "--character", "Amber", "--constellation", "1"],
+            "wiki.constellation",
+            "wiki/constellation-text",
+            "角色命座 - Amber",
+        ),
+        (
+            ["wiki", "character-materials", "--character", "Amber"],
+            "wiki.character-materials",
+            "wiki/character-materials-text",
+            "角色材料 - Amber",
+        ),
+        (
+            ["wiki", "weapon-materials", "--weapon", "Dull Blade"],
+            "wiki.weapon-materials",
+            "wiki/weapon-materials-text",
+            "武器材料 - Dull Blade",
+        ),
+    ]
+
+    for argv, command, render, title in commands:
+        code, payload = _run_json([*argv, "--render", "text"])
+
+        assert code == 0
+        assert payload["command"] == command
+        assert payload["data"]["render"] == render
+        artifact = payload["artifacts"][0]
+        path = Path(artifact["path"])
+        assert artifact["kind"] == "text"
+        assert artifact["media_type"] == "text/plain; charset=utf-8"
+        assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        text = path.read_text(encoding="utf-8")
+        assert text.startswith(f"{title}\n")
+        assert "10000021" not in text
+        assert "1001" not in text
+        if command in {"wiki.talent", "wiki.character-materials", "wiki.weapon-materials"}:
+            assert "Small Lamp Grass x3" in text
+        if command == "wiki.weapon":
+            assert "副属性: None" not in text
+        if command == "wiki.artifact":
+            assert "2件: ATK +18%." in text
+            assert "4件: Normal Attack DMG +35%." in text
+            assert "2150010" not in text
+
+
+def test_wiki_plain_text_image_prints_image_path(monkeypatch, tmp_path) -> None:
+    requested_urls: list[str] = []
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.wiki.fetch_render_images",
+        _fake_image_fetcher(requested_urls),
+    )
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+            "wiki",
+            "food",
+            "--name",
+            "Sweet Madame",
+            "--render",
+            "text,image",
+            "--format",
+            "plain",
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    text = stdout.getvalue()
+    assert text.startswith("食物资料 - Sweet Madame\n")
+    assert "Flower x2" in text
+    assert "\n\n图片已保存至: " in text
+    assert "wiki-food_Sweet_Madame_" in text
+    assert ".png" in text
+    assert requested_urls
+
+
+def test_wiki_render_text_image_preserves_image_primary_artifact(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.wiki.fetch_render_images",
+        _fake_image_fetcher([]),
+    )
+
+    code, payload = _run_json(["wiki", "food", "--name", "Sweet Madame", "--render", "text,image"])
+
+    assert code == 0
+    assert payload["command"] == "wiki.food"
+    assert payload["data"]["render"] == "wiki/food"
+    image_artifact, text_artifact = payload["artifacts"]
+    assert image_artifact["kind"] == "image"
+    assert text_artifact["kind"] == "text"
+    assert payload["data"]["artifact_sha256"] == image_artifact["sha256"]
+    assert payload["data"]["text_artifact_sha256"] == text_artifact["sha256"]
+
+
 def test_guide_image_render_writes_resource_artifacts(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr(
@@ -1509,6 +1655,24 @@ def _fake_provider():
                 source=_source("ambr"),
             )
 
+        def material_names_by_id(self) -> dict[str, str]:
+            return {"1001": "Small Lamp Grass"}
+
+        def character_talent(self, *, character: str, talent: int) -> CommandResult:
+            return CommandResult(
+                data={
+                    "character": character,
+                    "talent": {
+                        "index": talent,
+                        "name": "Sharpshooter",
+                        "type": "普通攻击",
+                        "description": "Fires arrows.",
+                        "promote": {"2": {"costItems": {"1001": 3}}},
+                    },
+                },
+                source=_source("ambr"),
+            )
+
         def character_constellation(
             self,
             *,
@@ -1923,7 +2087,7 @@ def _fake_wiki_item(kind: str, query: str) -> dict[str, object]:
             "id": "15001",
             "name": query,
             "level_list": [4, 5],
-            "bonuses": {"2": "ATK +18%.", "4": "Normal Attack DMG +35%."},
+            "bonuses": {"2150010": "ATK +18%.", "2150011": "Normal Attack DMG +35%."},
             "suit": [
                 {
                     "slot": "flower",
@@ -1941,7 +2105,7 @@ def _fake_wiki_item(kind: str, query: str) -> dict[str, object]:
             "icon_url": "https://example.test/weapon.png",
             "weapon_type": "单手剑",
             "description": "A sword.",
-            "special_prop": None,
+            "special_prop": "None",
             "affixes": [],
             "ascension": {"1001": 3},
             "upgrade": {
