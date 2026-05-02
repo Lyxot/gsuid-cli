@@ -6,7 +6,7 @@ from pathlib import Path
 
 from helpers import run_json_with_stderr as _run_json
 
-from gsuid_cli.cli import run
+from gsuid_cli.cli import _write_payload, run
 from gsuid_cli.core.models import CommandResult
 
 
@@ -51,6 +51,25 @@ def test_render_image_hides_data_and_sources() -> None:
 
     code = run(
         ["meta", "version", "--request-id=req-compact", "--render=image"],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    payload = json.loads(stdout.getvalue())
+    assert payload["ok"] is True
+    assert payload["command"] == "meta.version"
+    assert "data" not in payload
+    assert "sources" not in payload
+
+
+def test_render_text_hides_data_and_sources() -> None:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        ["meta", "version", "--request-id=req-compact", "--render=text"],
         stdout=stdout,
         stderr=stderr,
     )
@@ -144,6 +163,36 @@ def test_plain_format_prints_direct_result_data() -> None:
     payload = json.loads(stdout.getvalue())
     assert payload["package"] == "gsuid-cli"
     assert "ok" not in payload
+
+
+def test_plain_format_ignores_non_render_text_artifacts(tmp_path) -> None:
+    artifact_path = tmp_path / "debug.txt"
+    artifact_path.write_text("debug details", encoding="utf-8")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    _write_payload(
+        {
+            "ok": True,
+            "warnings": [],
+            "data": {"package": "gsuid-cli"},
+            "artifacts": [
+                {
+                    "kind": "text",
+                    "name": "debug-envelope",
+                    "path": str(artifact_path),
+                }
+            ],
+        },
+        "plain",
+        stdout,
+        stderr,
+    )
+
+    assert stderr.getvalue() == ""
+    payload = json.loads(stdout.getvalue())
+    assert payload == {"package": "gsuid-cli"}
+    assert "debug details" not in stdout.getvalue()
 
 
 def test_debug_plain_format_still_writes_debug_artifact(tmp_path) -> None:

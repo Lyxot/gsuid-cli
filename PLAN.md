@@ -75,7 +75,7 @@ Cache system decisions:
 --uid UID                      Target Genshin UID. Overrides profile default.
 --region cn|os                 Target API region. Default: infer from profile, then UID.
 --format json|pretty-json|plain Output format. Default: json.
---render data|image|all        Result surface selection. Repeatable; comma-separated values allowed. Default: data.
+--render data|image|text|all   Result surface selection. Repeatable; comma-separated values allowed. Default: data.
 --output-dir PATH              Artifact output directory. Default: $GSUID_HOME/artifacts.
 --cache use|refresh|only|off   Cache policy. Default: use.
 --timeout SECONDS              HTTP timeout. Default: 20.
@@ -709,81 +709,111 @@ tests/
 ### Stage 16: Help Information Coverage — completed.
 ### Stage 16.5: Cache System Redesign — completed.
 ### Stage 17: GenshinUID Image Parity — completed.
-### Stage 18: Text Output And Result Surface Refactor
+### Stage 18: Text Output And Result Surface Refactor — completed.
+### Stage 18b: Text Render Artifacts
 
-- Stage 18a status: completed.
-- Stage 18a goal:
-  - Keep `data` as normalized command output, add a `sources` array for
-    multi-request source metadata, remove the duplicate public `source` field,
-    and add the artifact writer groundwork needed for text render artifacts.
-  - Record the new `data` / `sources` / `artifacts` output model
-    before command-specific text ports begin.
-- Stage 18a non-goal:
-  - Do not add `--render text` globally until command-level support and
-    validation exist, because existing image-capable commands currently treat
-    any non-`data` render as image.
-- Stage 18a result:
-  - Removed public `source` from success and error envelopes; `sources` is now
-    the only source metadata field in JSON output and schemas.
-  - `data` and `sources` remain in stdout whenever `--render data` is selected,
-    including the default render selection, without creating debug artifacts.
-  - Artifact-only selections such as `--render image` omit `data` and `sources`
-    from stdout unless `--debug` is enabled.
-  - `--debug` writes a redacted `debug-envelope.json` artifact for JSON, pretty
-    JSON, and plain stdout formats, and restores `data`/`sources` in stdout for
-    diagnostics.
-  - Renamed direct stdout mode from `--format text` to `--format plain`.
-  - Changed `--render` from a scalar to a repeatable/comma-separated list:
-    `data`, `image`, or `all`. Removed `both`; `all` expands to all currently
-    supported render modes.
-  - Added per-command HTTP source capture for non-raw request metadata,
-    including provider, region, category, cache status, fetched time, HTTP
-    status, and retcode when available.
-  - Review fix: cached JSON sources now preserve retcode metadata, upstream
-    HTTP/invalid-response sources retain known fetch timestamps, and render
-    asset workers receive the current source-capture context.
-  - Kept `CommandResult.source` as an internal compatibility bridge while the
-    CLI boundary folds it into `sources`.
-  - Added `ArtifactManager.write_text(...)` as the groundwork for text render
-    artifacts in later Stage 18 substages.
-  - Envelope schemas now treat `data` and `sources` as optional fields because
-    artifact-only renders intentionally omit them from stdout.
-- Stage 18a verification:
-  - `.venv/bin/python -m pytest tests/test_artifacts.py tests/test_envelope.py tests/test_meta_commands.py tests/test_provider_foundation.py tests/test_global_options.py tests/test_public_data.py::test_public_wiki_command_returns_json tests/test_auth_secrets.py::test_cookie_keyring_lifecycle tests/test_panel_rank.py::test_panel_refresh_list_show_compare_and_save tests/test_panel_rank.py::test_rank_commands_use_akasha_provider -q`
-  - `.venv/bin/python -m pytest tests/test_global_options.py tests/test_meta_commands.py tests/test_agent_hardening.py tests/test_envelope.py -q`
-  - `.venv/bin/python -m pytest tests/test_global_options.py tests/test_challenge_progress_data.py::test_challenge_abyss_render_data_image_preserves_structured_data tests/test_daily_player_data.py::test_player_characters_render_data_image_preserves_structured_data tests/test_daily_player_data.py::test_player_inventory_render_data_image_preserves_structured_data tests/test_panel_rank.py::test_panel_artifacts_render_data_image_uses_image_order -q`
+- Stage 18b status: daily pilot approved by user, separately reviewed, and
+  ready to commit before broadening to the next command group.
+- Stage 18b current refinement:
+  - Daily plain text should use compact Chinese CLI formatting:
+    `实时便笺 - 昵称`, `每日材料 - 周一`, one status per line, and sign-in
+    lines such as `✓ 今日已签到`.
+  - Daily material rows should use human names plus star ranks, with domain
+    headers shaped like `地区 副本名 - 副本类型`.
+  - Plain warnings should be printed in yellow.
+  - Plain image paths should be printed as `图片已保存至: ...`.
+  - Leave one blank line before `图片已保存至: ...` in plain image output.
+- Stage 18b goal:
+  - Add `--render text` as a first-class render mode while preserving the
+    JSON-first stdout contract.
+  - Commands that already have image renderers should derive structured,
+    CLI-readable text from the same normalized data shown in the image.
+  - Commands without image renderers should port or adapt the corresponding
+    GenshinUID text message when a stable text behavior exists; otherwise use a
+    concise structured status message from the command's existing data contract.
+  - Text renders should be emitted as UTF-8 text artifacts and returned in the
+    JSON envelope, matching the existing artifact model for non-data renders.
+  - When `--format plain` is combined with a text render, stdout should print
+    the human-readable text content directly instead of the text artifact
+    metadata.
+  - Plain text render output should be Chinese-first for the current CN MVP and
+    should not expose internal IDs when a human-readable name is available.
+  - Plain output should print warnings to stderr and print image artifact paths
+    whenever `--render image` is selected.
+- Stage 18b pilot scope:
+  - Start with the `daily` group only: `daily.materials`, `daily.note`,
+    `daily.signin`, and `daily.bbs-coin`.
+  - Do not commit this pilot until reviewed by the user.
+- Stage 18b success criteria for the daily pilot:
+  - `--render text` writes a text artifact for every `daily.*` command.
+  - `--render data,text` preserves normalized JSON data and adds the text
+    artifact.
+  - Existing `--render image` behavior for `daily.materials` and `daily.note`
+    remains unchanged.
+  - `meta capabilities` and generated command docs report daily text support.
+  - Focused daily tests, render-mode tests, lint, and command-doc checks pass.
+- Stage 18b daily pilot result:
+  - Added global `text` render-mode parsing and `render_text_enabled(...)`.
+  - Added `src/gsuid_cli/renderers/daily/text.py` with structured text
+    renderers for `daily.materials`, `daily.note`, `daily.signin`, and
+    `daily.bbs-coin`.
+  - `daily.materials` and `daily.note` now derive text from the same normalized
+    data used by their image renderers.
+  - `daily.signin` and `daily.bbs-coin` now emit concise status text from their
+    existing command data contracts, using GenshinUID-style sign-in semantics
+    where applicable.
+  - Image-only daily output remains unchanged; combined image+text renders keep
+    the image artifact hash as `artifact_sha256` and add
+    `text_artifact_sha256`.
+  - `--format plain --render text` now prints the text artifact content directly
+    for daily commands.
+  - Daily text output is now Chinese-first, omits internal domain/reward/item
+    IDs, maps known city IDs to region names, and maps item types to Chinese
+    labels.
+  - Daily note text now uses compact one-line status rows and titles such as
+    `实时便笺 - 昵称`.
+  - Daily sign-in text now uses compact status lines such as `✓ 今日已签到`.
+  - Daily material text now uses headers such as `挪德卡莱 明辉 - 炼武秘境`
+    and item rows with star ranks such as `谧音吹哨 ★★★★☆`.
+  - Plain output now prints command warnings to stderr and appends image paths
+    as `图片已保存至: ...` when image artifacts are produced.
+  - Plain image output leaves one blank line before the image path tip.
+  - Plain warning lines are ANSI-yellow for terminal readability.
+  - Plain text output only prints render text artifacts whose names follow the
+    `*-text` convention, avoiding accidental display of non-render text
+    artifacts.
+  - Separate review findings were resolved: image-only plain output now gets
+    the image-tip blank line, BBS coin user-facing text is Chinese, non-render
+    text artifacts are ignored for plain text display, and direct plain tests
+    now cover `daily.note` and `daily.signin`.
+  - `meta capabilities`, README render examples, and generated command docs now
+    include daily text support.
+- Stage 18b daily pilot verification:
+  - `.venv/bin/python -m pytest tests/test_public_data.py::test_daily_materials_render_image_writes_card tests/test_public_data.py::test_daily_materials_render_data_image_preserves_structured_data tests/test_public_data.py::test_daily_materials_render_text_writes_artifact tests/test_daily_player_data.py::test_daily_note_render_image_writes_daily_note_card tests/test_daily_player_data.py::test_daily_note_render_data_image_preserves_structured_data tests/test_daily_player_data.py::test_daily_note_render_text_writes_artifact tests/test_daily_player_data.py::test_daily_signin_render_text_writes_artifact tests/test_daily_player_data.py::test_daily_bbs_coin_render_text_writes_artifact tests/test_global_options.py::test_render_text_hides_data_and_sources tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
+  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_daily_player_data.py tests/test_global_options.py tests/test_meta_commands.py tests/test_docs.py -q`
+  - `.venv/bin/python -m pytest tests/test_public_data.py tests/test_global_options.py tests/test_daily_player_data.py::test_daily_note_render_text_writes_artifact tests/test_daily_player_data.py::test_daily_signin_render_text_writes_artifact tests/test_daily_player_data.py::test_daily_bbs_coin_render_text_writes_artifact -q`
+  - `.venv/bin/python -m pytest tests/test_public_data.py::test_daily_materials_render_text_writes_artifact tests/test_public_data.py::test_daily_materials_render_text_plain_prints_text tests/test_public_data.py::test_daily_materials_plain_prints_image_path_when_render_image tests/test_daily_player_data.py::test_daily_note_render_text_writes_artifact tests/test_daily_player_data.py::test_daily_signin_render_text_writes_artifact tests/test_daily_player_data.py::test_daily_bbs_coin_render_text_writes_artifact tests/test_daily_player_data.py::test_daily_bbs_coin_plain_prints_warning -q`
   - `.venv/bin/python -m pytest -q`
   - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check src/gsuid_cli/core/http.py src/gsuid_cli/cli.py src/gsuid_cli/core/envelope.py src/gsuid_cli/core/schemas.py src/gsuid_cli/core/models.py src/gsuid_cli/core/artifacts.py tests/test_artifacts.py tests/test_envelope.py tests/test_meta_commands.py tests/test_provider_foundation.py tests/test_global_options.py tests/test_public_data.py tests/test_auth_secrets.py tests/test_panel_rank.py`
+  - `.venv/bin/ruff format --check src/gsuid_cli/cli.py src/gsuid_cli/renderers/daily/text.py tests/test_public_data.py tests/test_daily_player_data.py`
+  - `.venv/bin/ruff format --check src/gsuid_cli/core/render.py src/gsuid_cli/cli.py src/gsuid_cli/commands/meta.py src/gsuid_cli/commands/public_data/daily.py src/gsuid_cli/renderers/daily/text.py tests/test_public_data.py tests/test_global_options.py tests/test_meta_commands.py scripts/generate_command_reference.py`
   - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `.venv/bin/python -m gsuid_cli --request-id stage18a-version meta version`
-  - `.venv/bin/python -m gsuid_cli --request-id stage18a-schema meta schema --command meta.version`
-  - `.venv/bin/python -m gsuid_cli --timeout 20 --format json wiki character --name Amber --cache off`
-  - `.venv/bin/python -m gsuid_cli --request-id stage18a-render-data meta version`
-  - `.venv/bin/python -m gsuid_cli --request-id stage18a-render-image --render image meta version`
-  - `.venv/bin/python -m gsuid_cli --request-id stage18a-render-list --render data --render image meta version`
-  - `.venv/bin/python -m gsuid_cli --request-id stage18a-render-all --render all meta version`
-  - `.venv/bin/python -m gsuid_cli --debug --output-dir /tmp/gsuid-stage18a-debug --request-id stage18a-debug meta version`
-  - `.venv/bin/python -m gsuid_cli --format plain meta version`
-  - `.venv/bin/python -m gsuid_cli --format text meta version` exits `1` with
-    `INVALID_ARGUMENT`.
-  - `.venv/bin/python -m gsuid_cli --render both meta version` exits `1` with
-    `INVALID_ARGUMENT`.
-  - standalone review agent before commit; no Stage 18a output/render contract
-    issues found.
-- Stage 18a verification note:
-  - `.venv/bin/ruff format --check .` still reports the unrelated pre-existing
-    formatting drift in `src/gsuid_cli/commands/challenge.py`,
-    `src/gsuid_cli/commands/player.py`, `src/gsuid_cli/commands/progress.py`,
-    `tests/test_daily_player_data.py`, `tests/test_missing_command_contracts.py`,
-    and `tests/test_profile_account_state.py`. Line-level lint and tests pass;
-    the formatter-only drift is left untouched to keep this stage surgical.
-- Stage 18a review note:
-  - Standalone review verified `--render data`, `--render image`, image plus
-    debug, `--render both` rejection, `meta capabilities`, and current-facing
-    docs/source files for stale `both` render support.
-- Next intended stage: Stage 18b, add validated `--render text` support and the
-  first command-level text artifact renderer.
+  - `.venv/bin/python -m gsuid_cli daily materials --day monday --render text --format plain --output-dir /tmp/gsuid-daily-plain-smoke`
+  - `.venv/bin/python -m gsuid_cli daily materials --day monday --render image --format plain --output-dir /tmp/gsuid-daily-plain-smoke`
+  - `.venv/bin/python -m gsuid_cli daily materials --day monday --render text,image --format plain --output-dir /tmp/gsuid-daily-plain-smoke`
+  - `.venv/bin/python -m gsuid_cli daily bbs-coin --uid 100000001 --render text --format plain --output-dir /tmp/gsuid-daily-plain-smoke`
+- Stage 18b daily pilot verification note:
+  - Full pytest passes with `243 passed, 1 skipped`.
+  - Refined smoke output now starts with `每日材料 - 周一`, prints image-only
+    output with a blank line before `图片已保存至: ...`, ends combined text+image
+    output with a blank line before `图片已保存至: ...`, and prints BBS warnings
+    in yellow Chinese text.
+  - `ruff format --check .` is still not used as a completion gate here because
+    the repo has known pre-existing formatter drift in unrelated files, already
+    recorded under Stage 18a. The changed Python files excluding that known
+    drift pass targeted formatter checks.
+- Next intended stage: wait for user review of the daily text output, then apply
+  the approved pattern to the next command group.
 
 ## MVP Cut Line
 

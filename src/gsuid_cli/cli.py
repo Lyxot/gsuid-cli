@@ -8,6 +8,7 @@ import time
 import uuid
 from collections.abc import Sequence
 from copy import deepcopy
+from pathlib import Path
 from typing import TextIO
 
 from gsuid_cli import __version__
@@ -55,6 +56,8 @@ GLOBAL_VALUE_OPTIONS = {
 GLOBAL_FLAG_OPTIONS = {"--quiet", "--debug", "--help", "--version"}
 HOISTED_GLOBAL_FLAG_OPTIONS = {"--quiet", "--debug"}
 OUTPUT_FORMATS = {"json", "pretty-json", "plain"}
+ANSI_YELLOW = "\033[33m"
+ANSI_RESET = "\033[0m"
 SENSITIVE_KEY_PARTS = (
     "authkey",
     "cookie",
@@ -162,7 +165,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("json", "pretty-json", "plain"),
         default=os.environ.get("GSUID_FORMAT", "json"),
     )
-    parser.add_argument("--render", action="append", metavar="data|image|all")
+    parser.add_argument("--render", action="append", metavar="data|image|text|all")
     parser.add_argument("--output-dir", default=os.environ.get("GSUID_OUTPUT_DIR"))
     parser.add_argument("--cache", choices=("use", "refresh", "only", "off"), default="use")
     parser.add_argument("--timeout", type=float, default=20.0)
@@ -426,6 +429,32 @@ def _write_payload(
         return
 
     if payload["ok"]:
+        _write_plain_warnings(payload, stderr)
+        text = _plain_render_text_artifact_content(payload)
+        image_paths = _plain_artifact_paths(payload, kind="image")
+        if text is not None:
+            stdout.write(text)
+            if not text.endswith("\n"):
+                stdout.write("\n")
+            _write_plain_artifact_paths(
+                stdout,
+                image_paths,
+                label="图片已保存至",
+                leading_blank=True,
+            )
+            return
+        if image_paths:
+            leading_blank = True
+            if include_details and "data" in payload:
+                stdout.write(json.dumps(payload["data"], ensure_ascii=False, indent=2))
+                stdout.write("\n")
+            _write_plain_artifact_paths(
+                stdout,
+                image_paths,
+                label="图片已保存至",
+                leading_blank=leading_blank,
+            )
+            return
         stdout.write(json.dumps(payload["data"], ensure_ascii=False, indent=2))
         stdout.write("\n")
         return
@@ -447,6 +476,56 @@ def _json_payload_for_output(
         result.pop("data", None)
         result.pop("sources", None)
     return result
+
+
+def _plain_render_text_artifact_content(payload: dict[str, object]) -> str | None:
+    for artifact in _artifact_list(payload):
+        if artifact.get("kind") != "text":
+            continue
+        name = artifact.get("name")
+        if not isinstance(name, str) or not name.endswith("-text"):
+            continue
+        path = artifact.get("path")
+        if not isinstance(path, str) or not path:
+            continue
+        try:
+            return Path(path).read_text(encoding="utf-8")
+        except OSError:
+            return None
+    return None
+
+
+def _plain_artifact_paths(payload: dict[str, object], *, kind: str) -> list[str]:
+    paths: list[str] = []
+    for artifact in _artifact_list(payload):
+        if artifact.get("kind") != kind:
+            continue
+        path = artifact.get("path")
+        if isinstance(path, str) and path:
+            paths.append(path)
+    return paths
+
+
+def _write_plain_artifact_paths(
+    stdout: TextIO,
+    paths: Sequence[str],
+    *,
+    label: str,
+    leading_blank: bool = False,
+) -> None:
+    if paths and leading_blank:
+        stdout.write("\n")
+    for path in paths:
+        stdout.write(f"{label}: {path}\n")
+
+
+def _write_plain_warnings(payload: dict[str, object], stderr: TextIO) -> None:
+    warnings = payload.get("warnings")
+    if not isinstance(warnings, list):
+        return
+    for warning in warnings:
+        if isinstance(warning, str) and warning:
+            stderr.write(f"{ANSI_YELLOW}警告: {warning}{ANSI_RESET}\n")
 
 
 def _payload_with_debug_artifact(

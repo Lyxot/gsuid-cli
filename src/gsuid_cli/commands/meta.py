@@ -227,7 +227,7 @@ def _global_options() -> list[dict[str, object]]:
         },
         {
             "name": "--render",
-            "value": "data|image|all",
+            "value": "data|image|text|all",
             "default": "data",
             "placement": "anywhere",
             "description": "Comma-separated render modes. Repeatable.",

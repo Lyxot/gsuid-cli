@@ -4,8 +4,8 @@ from collections.abc import Iterable, Mapping
 
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
 
-RENDER_CHOICES = {"data", "image", "all"}
-EXPANDED_ALL = ("data", "image")
+RENDER_CHOICES = {"data", "image", "text", "all"}
+EXPANDED_ALL = ("data", "image", "text")
 
 
 def normalize_render_modes(value: object) -> list[str]:
@@ -40,6 +40,10 @@ def render_data_enabled(args: object) -> bool:
 
 def render_image_enabled(args: object) -> bool:
     return "image" in normalize_render_modes(getattr(args, "render", None))
+
+
+def render_text_enabled(args: object) -> bool:
+    return "text" in normalize_render_modes(getattr(args, "render", None))
 
 
 def render_result_data(

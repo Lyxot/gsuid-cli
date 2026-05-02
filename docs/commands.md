@@ -35,10 +35,10 @@ Generated from `gsuid meta capabilities`.
 | `challenge.hard-rank` | `none` | `data` | `off` | Report hard challenge ranking support status. |
 | `challenge.theater` | `cookie` | `data, image, all` | `off` | Show authenticated Imaginarium Theater data. |
 | `codes.list` | `none` | `data` | `use` | List public active redeem-code rows. |
-| `daily.bbs-coin` | `none` | `data` | `off` | Report BBS coin task support status. |
-| `daily.materials` | `none` | `data, image, all` | `use` | List daily talent and weapon material domains. |
-| `daily.note` | `cookie` | `data, image, all` | `off` | Show current resin, commissions, expeditions, and teapot status. |
-| `daily.signin` | `cookie` | `data` | `off` | Claim or report the MYS daily sign-in status. |
+| `daily.bbs-coin` | `none` | `data, text, all` | `off` | Report BBS coin task support status. |
+| `daily.materials` | `none` | `data, image, text, all` | `use` | List daily talent and weapon material domains. |
+| `daily.note` | `cookie` | `data, image, text, all` | `off` | Show current resin, commissions, expeditions, and teapot status. |
+| `daily.signin` | `cookie` | `data, text, all` | `off` | Claim or report the MYS daily sign-in status. |
 | `events.banners` | `none` | `data, image, all` | `use` | List public event banner artwork URLs. |
 | `events.list` | `none` | `data, image, all` | `use` | List public event announcements. |
 | `gacha.authkey` | `gacha_url` | `data` | `off` | Show stored gacha authkey URL availability without revealing it. |

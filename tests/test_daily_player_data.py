@@ -13,6 +13,7 @@ from helpers import mock_client as _mock_client
 from helpers import run_json as _run_json
 from PIL import Image
 
+from gsuid_cli.cli import run
 from gsuid_cli.commands import player as player_commands
 from gsuid_cli.core.errors import EXIT_AUTH, CliError
 from gsuid_cli.core.http import HttpClient
@@ -132,6 +133,151 @@ def test_daily_note_render_data_image_preserves_structured_data(monkeypatch, tmp
     assert code == 0
     assert payload["data"]["note"]["current_resin"] == 1
     assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
+
+
+def test_daily_note_render_text_writes_artifact(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
+    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(
+        [
+            "daily",
+            "note",
+            "--uid",
+            "100000001",
+            "--render",
+            "text",
+            "--request-id",
+            "daily-note-text",
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+        ]
+    )
+
+    assert code == 0
+    assert payload["command"] == "daily.note"
+    assert payload["data"]["render"] == "daily/note-text"
+    artifact = payload["artifacts"][0]
+    path = Path(artifact["path"])
+    assert path.parent == tmp_path / "artifacts" / "2026-04-29" / "daily-note-text"
+    assert artifact["kind"] == "text"
+    assert artifact["media_type"] == "text/plain; charset=utf-8"
+    assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+    text = path.read_text(encoding="utf-8")
+    assert "实时便笺 - 派蒙" in text
+    assert "UID: 100000001" in text
+    assert "米游社签到: 已签到" in text
+    assert "原粹树脂: 1/200" in text
+
+
+def test_daily_note_render_text_plain_prints_text(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "daily",
+            "note",
+            "--uid",
+            "100000001",
+            "--render",
+            "text",
+            "--format",
+            "plain",
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    text = stdout.getvalue()
+    assert text.startswith("实时便笺 - 派蒙\n")
+    assert "UID: 100000001" in text
+    assert "render" not in text
+
+
+def test_daily_signin_render_text_writes_artifact(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(["daily", "signin", "--uid", "100000001", "--render", "text"])
+
+    assert code == 0
+    assert payload["command"] == "daily.signin"
+    assert payload["data"]["render"] == "daily/signin-text"
+    artifact = payload["artifacts"][0]
+    assert artifact["kind"] == "text"
+    text = Path(artifact["path"]).read_text(encoding="utf-8")
+    assert "UID: 100000001" in text
+    assert "✓ 今日已签到" in text
+
+
+def test_daily_signin_render_text_plain_prints_text(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "daily",
+            "signin",
+            "--uid",
+            "100000001",
+            "--render",
+            "text",
+            "--format",
+            "plain",
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    assert stdout.getvalue() == "UID: 100000001\n✓ 今日已签到\n"
+
+
+def test_daily_bbs_coin_render_text_writes_artifact(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+
+    code, payload = _run_json(["daily", "bbs-coin", "--uid", "100000001", "--render", "text"])
+
+    assert code == 0
+    assert payload["command"] == "daily.bbs-coin"
+    assert payload["data"]["render"] == "daily/bbs-coin-text"
+    artifact = payload["artifacts"][0]
+    assert artifact["kind"] == "text"
+    text = Path(artifact["path"]).read_text(encoding="utf-8")
+    assert "米游币任务" in text
+    assert "可用: 否" in text
+    assert "来源限制" in text
+    assert "当前 CLI 未配置稳定的米游社任务来源" in text
+
+
+def test_daily_bbs_coin_plain_prints_warning(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        ["daily", "bbs-coin", "--uid", "100000001", "--render", "text", "--format", "plain"],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stdout.getvalue().startswith("米游币任务\n")
+    assert "\033[33m警告: 每日米游币任务数据暂不可用" in stderr.getvalue()
+    assert stderr.getvalue().endswith("\033[0m\n")
 
 
 def test_daily_note_render_uses_player_summary_and_daily_signin_status(
@@ -1216,7 +1362,6 @@ def test_mys_player_diary_rejects_invalid_month() -> None:
     assert exc.value.code == "INVALID_ARGUMENT"
 
 
-
 def _fake_provider(_region: str, _http_client: HttpClient):
     class FakeProvider:
         def daily_note(
@@ -1734,8 +1879,6 @@ def _source(region: str) -> dict[str, object]:
         "cached": False,
         "fetched_at": "2026-04-29T10:30:00Z",
     }
-
-
 
 
 def _device_fp_response() -> httpx.Response:

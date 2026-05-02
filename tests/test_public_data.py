@@ -11,6 +11,7 @@ from helpers import json_response as _json_response
 from helpers import run_json as _run_json
 from PIL import Image
 
+from gsuid_cli.cli import run
 from gsuid_cli.core.errors import CliError
 from gsuid_cli.core.http import HttpClient, ProviderBytesResponse
 from gsuid_cli.core.models import CommandResult
@@ -135,6 +136,157 @@ def test_daily_materials_render_data_image_preserves_structured_data(monkeypatch
     assert payload["data"]["domains"][0]["items"][0]["name"] == "安柏"
     assert payload["data"]["render"] == "daily/materials"
     assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
+
+
+def test_daily_materials_render_text_writes_artifact(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+
+    code, payload = _run_json(
+        [
+            "--request-id",
+            "daily-materials-text",
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+            "daily",
+            "materials",
+            "--day",
+            "monday",
+            "--render",
+            "text",
+        ]
+    )
+
+    assert code == 0
+    assert payload["command"] == "daily.materials"
+    assert payload["data"]["render"] == "daily/materials-text"
+    artifact = payload["artifacts"][0]
+    path = Path(artifact["path"])
+    assert artifact["kind"] == "text"
+    assert artifact["media_type"] == "text/plain; charset=utf-8"
+    assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+    text = path.read_text(encoding="utf-8")
+    assert text.startswith("每日材料 - 周一\n")
+    assert "璃月 深炎之底 - 精通秘境" in text
+    assert "安柏 ★★★★☆" in text
+    assert "温迪 ★★★★★" in text
+    assert "Domain id" not in text
+    assert "Reward item ids" not in text
+    assert "10000021" not in text
+
+
+def test_daily_materials_render_text_plain_prints_text(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+            "daily",
+            "materials",
+            "--day",
+            "monday",
+            "--render",
+            "text",
+            "--format",
+            "plain",
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    text = stdout.getvalue()
+    assert text.startswith("每日材料 - 周一\n")
+    assert "璃月 深炎之底 - 精通秘境" in text
+    assert "render" not in text
+
+
+def test_daily_materials_plain_prints_image_path_when_render_image(monkeypatch, tmp_path) -> None:
+    requested_urls: list[str] = []
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.daily.fetch_render_images",
+        _fake_image_fetcher(requested_urls),
+    )
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+            "daily",
+            "materials",
+            "--day",
+            "monday",
+            "--render",
+            "text,image",
+            "--format",
+            "plain",
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    text = stdout.getvalue()
+    assert text.startswith("每日材料 - 周一\n")
+    assert "\n\n图片已保存至: " in text
+    assert "daily-materials_monday_" in text
+    assert ".png" in text
+    assert requested_urls
+
+
+def test_daily_materials_plain_prints_image_only_path_with_blank_line(
+    monkeypatch, tmp_path
+) -> None:
+    requested_urls: list[str] = []
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.daily.fetch_render_images",
+        _fake_image_fetcher(requested_urls),
+    )
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+            "daily",
+            "materials",
+            "--day",
+            "monday",
+            "--render",
+            "image",
+            "--format",
+            "plain",
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    assert stdout.getvalue().startswith("\n图片已保存至: ")
+    assert "daily-materials_monday_" in stdout.getvalue()
+    assert requested_urls
 
 
 def test_wiki_picwiki_renderers_write_cards(monkeypatch, tmp_path) -> None:

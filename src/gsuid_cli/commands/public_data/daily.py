@@ -18,10 +18,16 @@ from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_UPSTREAM, CliError
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
-from gsuid_cli.core.render import render_image_enabled, render_result_data
+from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
 from gsuid_cli.providers.public import DAY_NAMES
 from gsuid_cli.renderers.daily.materials import render_daily_materials_card
 from gsuid_cli.renderers.daily.note import render_daily_note_card
+from gsuid_cli.renderers.daily.text import (
+    render_daily_bbs_coin_text,
+    render_daily_materials_text,
+    render_daily_note_text,
+    render_daily_signin_text,
+)
 
 DAILY_MATERIAL_ICON_WORKERS = 8
 DAILY_NOTE_AVATAR_WORKERS = 5
@@ -32,7 +38,7 @@ CAPABILITIES = [
         "description": "List daily talent and weapon material domains.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "use",
     },
     {
@@ -40,7 +46,7 @@ CAPABILITIES = [
         "description": "Show current resin, commissions, expeditions, and teapot status.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -48,7 +54,7 @@ CAPABILITIES = [
         "description": "Claim or report the MYS daily sign-in status.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -56,7 +62,7 @@ CAPABILITIES = [
         "description": "Report BBS coin task support status.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
 ]
@@ -68,7 +74,7 @@ def daily_materials_command(args: argparse.Namespace) -> CommandResult:
         date=args.date,
         require_upgrade=render_image_enabled(args),
     )
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _daily_materials_render_result(args, result)
 
@@ -83,7 +89,7 @@ def daily_note_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _daily_note_render_result(
         args,
@@ -99,19 +105,30 @@ def daily_note_command(args: argparse.Namespace) -> CommandResult:
 
 def daily_signin_command(args: argparse.Namespace) -> CommandResult:
     uid, region, cookie, credential_source, storage_backend = _cookie_context(args)
-    return _auth_provider(args, region).daily_signin(
+    result = _auth_provider(args, region).daily_signin(
         uid=uid,
         cookie=cookie,
         region=region,
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
+    if not render_text_enabled(args):
+        return result
+    return _daily_text_render_result(
+        args,
+        result=result,
+        render_name="daily/signin-text",
+        filename=f"daily-signin_{_safe_filename(uid)}.txt",
+        content=render_daily_signin_text(result.data),
+        description="Human-readable daily sign-in status",
+        render_data={"uid": uid},
+    )
 
 
 def daily_bbs_coin_command(args: argparse.Namespace) -> CommandResult:
     uid, region = _uid_and_region(args)
     ensure_supported_region(region)
-    return CommandResult(
+    result = CommandResult(
         data={
             "uid": uid,
             "available": False,
@@ -119,10 +136,21 @@ def daily_bbs_coin_command(args: argparse.Namespace) -> CommandResult:
             "points_received": None,
             "failures": [],
             "source_limitations": [
-                "BBS coin automation requires a stable MYS task provider not configured in this CLI"
+                "当前 CLI 未配置稳定的米游社任务来源，暂不支持自动执行米游币任务"
             ],
         },
-        warnings=["daily BBS coin task data is not available from configured sources"],
+        warnings=["每日米游币任务数据暂不可用：当前 CLI 未配置稳定的米游社任务来源"],
+    )
+    if not render_text_enabled(args):
+        return result
+    return _daily_text_render_result(
+        args,
+        result=result,
+        render_name="daily/bbs-coin-text",
+        filename=f"daily-bbs-coin_{_safe_filename(uid)}.txt",
+        content=render_daily_bbs_coin_text(result.data),
+        description="Human-readable daily BBS coin status",
+        render_data={"uid": uid},
     )
 
 
@@ -149,6 +177,41 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     materials.set_defaults(handler=daily_materials_command, command_name="daily.materials")
 
 
+def _daily_text_render_result(
+    args: argparse.Namespace,
+    *,
+    result: CommandResult,
+    render_name: str,
+    filename: str,
+    content: str,
+    description: str,
+    render_data: dict[str, object],
+) -> CommandResult:
+    artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        name=render_name,
+        filename=filename,
+        content=content,
+        description=description,
+        kind="text",
+    )
+    data = render_result_data(
+        args,
+        result.data,
+        {
+            **render_data,
+            "render": render_name,
+            "artifact_sha256": artifact["sha256"],
+        },
+    )
+    return CommandResult(
+        data=data,
+        artifacts=[artifact],
+        source=result.source,
+        warnings=result.warnings,
+        pagination=result.pagination,
+    )
+
+
 def _daily_materials_render_result(
     args: argparse.Namespace,
     result: CommandResult,
@@ -164,35 +227,69 @@ def _daily_materials_render_result(
         )
     renderable_domains = [domain for domain in domains if isinstance(domain, dict)]
     day = str(result.data.get("day") or args.day or "unknown")
-    icon_images, icon_warnings = fetch_render_images(
-        args,
-        _daily_materials_icon_urls(renderable_domains),
-        provider="ambr",
-        region="cn",
-        category="daily.materials.icon",
-        unavailable_warning="{count} daily materials icons unavailable; rendered placeholders",
-        max_workers=DAILY_MATERIAL_ICON_WORKERS,
-    )
-    png = render_daily_materials_card(day=day, domains=renderable_domains, icon_images=icon_images)
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="daily/materials",
-        filename=f"daily-materials_{_safe_filename(day)}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style daily materials card",
-        kind="image",
-    )
-    render_data = {
-        "day": day,
-        "render": "daily/materials",
-        "artifact_sha256": artifact["sha256"],
-    }
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {"day": day}
+    if render_image_enabled(args):
+        icon_images, icon_warnings = fetch_render_images(
+            args,
+            _daily_materials_icon_urls(renderable_domains),
+            provider="ambr",
+            region="cn",
+            category="daily.materials.icon",
+            unavailable_warning="{count} daily materials icons unavailable; rendered placeholders",
+            max_workers=DAILY_MATERIAL_ICON_WORKERS,
+        )
+        png = render_daily_materials_card(
+            day=day,
+            domains=renderable_domains,
+            icon_images=icon_images,
+        )
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="daily/materials",
+            filename=f"daily-materials_{_safe_filename(day)}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style daily materials card",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend(icon_warnings)
+        render_data.update(
+            {
+                "render": "daily/materials",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text = render_daily_materials_text(
+            day=day,
+            domains=renderable_domains,
+            date=result.data.get("date"),
+        )
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="daily/materials-text",
+            filename=f"daily-materials_{_safe_filename(day)}.txt",
+            content=text,
+            description="Human-readable daily materials text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": "daily/materials-text",
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *icon_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
 
@@ -242,42 +339,74 @@ def _daily_note_render_result(
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    avatar_images, avatar_warnings = fetch_render_images(
-        args,
-        _expedition_avatar_urls(note),
-        provider="mys",
-        region=region,
-        category="daily.note.avatar",
-        unavailable_warning="daily note expedition avatar unavailable; rendered placeholder",
-        max_workers=DAILY_NOTE_AVATAR_WORKERS,
-    )
-    png = render_daily_note_card(
-        uid=uid,
-        note=note,
-        nickname=nickname,
-        level=level,
-        signed=signed,
-        expedition_avatar_images=avatar_images,
-    )
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="daily/note",
-        filename=f"daily-note_{_safe_filename(uid)}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style daily note card",
-        kind="image",
-    )
-    render_data = {
-        "uid": uid,
-        "render": "daily/note",
-        "artifact_sha256": artifact["sha256"],
-    }
+    artifacts: list[dict[str, object]] = []
+    warnings = [*result.warnings, *header_warnings, *sign_warnings]
+    render_data: dict[str, object] = {"uid": uid}
+    if render_image_enabled(args):
+        avatar_images, avatar_warnings = fetch_render_images(
+            args,
+            _expedition_avatar_urls(note),
+            provider="mys",
+            region=region,
+            category="daily.note.avatar",
+            unavailable_warning="daily note expedition avatar unavailable; rendered placeholder",
+            max_workers=DAILY_NOTE_AVATAR_WORKERS,
+        )
+        png = render_daily_note_card(
+            uid=uid,
+            note=note,
+            nickname=nickname,
+            level=level,
+            signed=signed,
+            expedition_avatar_images=avatar_images,
+        )
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="daily/note",
+            filename=f"daily-note_{_safe_filename(uid)}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style daily note card",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend(avatar_warnings)
+        render_data.update(
+            {
+                "render": "daily/note",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text = render_daily_note_text(
+            uid=uid,
+            note=note,
+            nickname=nickname,
+            level=level,
+            signed=signed,
+        )
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="daily/note-text",
+            filename=f"daily-note_{_safe_filename(uid)}.txt",
+            content=text,
+            description="Human-readable daily note text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": "daily/note-text",
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *header_warnings, *sign_warnings, *avatar_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
 
