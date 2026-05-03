@@ -47,11 +47,11 @@ Generated from `gsuid meta capabilities`.
 | `gacha.import` | `none` | `data` | `off` | Import UIGF JSON into local gacha storage. |
 | `gacha.refresh` | `gacha_url` | `data` | `off` | Refresh local gacha logs from a stored authkey URL. |
 | `gacha.summary` | `none` | `data, image, all` | `off` | Summarize local gacha logs. |
-| `guide.abyss` | `none` | `data, image, all` | `use` | Show public abyss guide data and GenshinUID-style monster layout. |
+| `guide.abyss` | `none` | `data, image, text, all` | `use` | Show public abyss guide data and GenshinUID-style monster layout. |
 | `guide.character` | `none` | `data, image, all` | `use` | Show public character guide facts and GenshinUID guide image. |
 | `guide.reference-panel` | `none` | `data, image, all` | `use` | Show the GenshinUID reference-panel image for a character. |
 | `guide.route` | `none` | `data, image, all` | `use` | Fetch a public material route map artifact. |
-| `guide.theater` | `none` | `data, image, all` | `use` | Show public theater guide data and GenshinUID-style monster layout. |
+| `guide.theater` | `none` | `data, image, text, all` | `use` | Show public theater guide data and GenshinUID-style monster layout. |
 | `map.find` | `none` | `data, image, all` | `use` | Fetch a public MiniGG material map artifact. |
 | `meta.capabilities` | `none` | `data` | `off` | Show implemented command capabilities. |
 | `meta.doctor` | `none` | `data` | `off` | Run local diagnostics for storage, credentials, resources, or network. |
@@ -91,9 +91,9 @@ Generated from `gsuid meta capabilities`.
 | `rank.artifact` | `none` | `data, image, all` | `off` | Show the Akasha global artifact leaderboard. |
 | `rank.character` | `none` | `data, image, all` | `off` | Show a character Akasha leaderboard or nearby UID rank rows. |
 | `rank.list` | `none` | `data, image, all` | `off` | Render a UID's Akasha rank list. |
-| `recommend.build` | `none` | `data, image, all` | `use` | Show GenshinUID character build recommendations. |
-| `recommend.holder` | `none` | `data, image, all` | `use` | Show GenshinUID holder recommendations for a weapon or artifact. |
-| `rerun.list` | `none` | `data, image, all` | `use` | List rerun rows and render the GenshinUID return list. |
+| `recommend.build` | `none` | `data, image, text, all` | `use` | Show GenshinUID character build recommendations. |
+| `recommend.holder` | `none` | `data, image, text, all` | `use` | Show GenshinUID holder recommendations for a weapon or artifact. |
+| `rerun.list` | `none` | `data, image, text, all` | `use` | List rerun rows and render the GenshinUID return list. |
 | `resources.sync` | `none` | `data` | `memory` | Fetch public resource metadata and warm process-local JSON cache. |
 | `wiki.artifact` | `none` | `data, image, text, all` | `use` | Look up public artifact set data. |
 | `wiki.character` | `none` | `data, text, all` | `use` | Look up public character data. |

@@ -14,13 +14,20 @@ from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.render import render_image_enabled, render_result_data
+from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
 from gsuid_cli.providers.public import PRIMOGEMS_PLAN_ASSET_DIR, PublicDataProvider
 from gsuid_cli.renderers.guide import (
     guide_abyss_image_urls,
     guide_theater_image_urls,
     render_guide_abyss_card,
     render_guide_theater_card,
+)
+from gsuid_cli.renderers.guide_text import (
+    render_guide_abyss_text,
+    render_guide_theater_text,
+    render_recommend_build_text,
+    render_recommend_holder_text,
+    render_rerun_list_text,
 )
 from gsuid_cli.renderers.recommend import (
     render_recommend_build_card,
@@ -60,7 +67,7 @@ CAPABILITIES = [
         "description": "Show public abyss guide data and GenshinUID-style monster layout.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "use",
     },
     {
@@ -68,7 +75,7 @@ CAPABILITIES = [
         "description": "Show public theater guide data and GenshinUID-style monster layout.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "use",
     },
     {
@@ -76,7 +83,7 @@ CAPABILITIES = [
         "description": "Show GenshinUID character build recommendations.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "use",
     },
     {
@@ -84,7 +91,7 @@ CAPABILITIES = [
         "description": "Show GenshinUID holder recommendations for a weapon or artifact.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "use",
     },
     {
@@ -100,7 +107,7 @@ CAPABILITIES = [
         "description": "List rerun rows and render the GenshinUID return list.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "use",
     },
     {
@@ -148,28 +155,28 @@ def guide_route_command(args: argparse.Namespace) -> CommandResult:
 
 def guide_abyss_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).guide_abyss(version=args.version, floor=args.floor)
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _guide_abyss_render_result(args, result)
 
 
 def guide_theater_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).guide_theater(version=args.version)
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _guide_theater_render_result(args, result)
 
 
 def recommend_build_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).recommend_build(character=args.character)
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _recommend_render_result(args, result, "build")
 
 
 def recommend_holder_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).recommend_holder(item=args.item)
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _recommend_render_result(args, result, "holder")
 
@@ -186,7 +193,7 @@ def map_find_command(args: argparse.Namespace) -> CommandResult:
 
 def rerun_list_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).rerun_list(limit=_limit(args.limit))
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _rerun_render_result(args, result)
 
@@ -309,78 +316,134 @@ def _guide_image_result(
 
 def _guide_abyss_render_result(args: argparse.Namespace, result: CommandResult) -> CommandResult:
     abyss = _mapping_data(result, "abyss", "guide.abyss")
-    asset_images, asset_warnings = fetch_render_images(
-        args,
-        guide_abyss_image_urls(abyss),
-        provider="guide-assets",
-        region="cn",
-        category="guide.abyss.asset",
-        unavailable_warning="{count} guide abyss monster images unavailable; rendered placeholders",
-        max_workers=WIKI_IMAGE_WORKERS,
-    )
     render_abyss = dict(abyss)
     schedule = result.data.get("schedule")
     if isinstance(schedule, dict):
         render_abyss["version"] = schedule.get("show") or schedule.get("name")
-    png = render_guide_abyss_card(render_abyss, asset_images=asset_images)
     name = f"{result.data.get('version') or 'abyss'}_floor{abyss.get('floor') or args.floor or 12}"
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="guide/abyss",
-        filename=f"guide-abyss_{_safe_filename(str(name))}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style abyss guide monster layout",
-        kind="image",
-    )
-    render_data = {
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {
         "version": result.data.get("version"),
         "floor": abyss.get("floor"),
-        "render": "guide/abyss",
-        "artifact_sha256": artifact["sha256"],
     }
+    if render_image_enabled(args):
+        asset_images, asset_warnings = fetch_render_images(
+            args,
+            guide_abyss_image_urls(abyss),
+            provider="guide-assets",
+            region="cn",
+            category="guide.abyss.asset",
+            unavailable_warning=(
+                "{count} guide abyss monster images unavailable; rendered placeholders"
+            ),
+            max_workers=WIKI_IMAGE_WORKERS,
+        )
+        png = render_guide_abyss_card(render_abyss, asset_images=asset_images)
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="guide/abyss",
+            filename=f"guide-abyss_{_safe_filename(str(name))}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style abyss guide monster layout",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend(asset_warnings)
+        render_data.update(
+            {
+                "render": "guide/abyss",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="guide/abyss-text",
+            filename=f"guide-abyss_{_safe_filename(str(name))}.txt",
+            content=render_guide_abyss_text(result.data),
+            description="Human-readable abyss guide text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": "guide/abyss-text",
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *asset_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
 
 
 def _guide_theater_render_result(args: argparse.Namespace, result: CommandResult) -> CommandResult:
     theater = _mapping_data(result, "theater", "guide.theater")
-    asset_images, asset_warnings = fetch_render_images(
-        args,
-        guide_theater_image_urls(theater),
-        provider="guide-assets",
-        region="cn",
-        category="guide.theater.asset",
-        unavailable_warning="{count} guide theater images unavailable; rendered placeholders",
-        max_workers=WIKI_IMAGE_WORKERS,
-    )
-    png = render_guide_theater_card(theater, asset_images=asset_images)
     name = _optional_text(theater.get("event_id")) or _optional_text(result.data.get("version"))
     name = name or "theater"
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="guide/theater",
-        filename=f"guide-theater_{_safe_filename(name)}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style theater guide monster layout",
-        kind="image",
-    )
-    render_data = {
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {
         "version": result.data.get("version"),
-        "render": "guide/theater",
-        "artifact_sha256": artifact["sha256"],
     }
+    if render_image_enabled(args):
+        asset_images, asset_warnings = fetch_render_images(
+            args,
+            guide_theater_image_urls(theater),
+            provider="guide-assets",
+            region="cn",
+            category="guide.theater.asset",
+            unavailable_warning="{count} guide theater images unavailable; rendered placeholders",
+            max_workers=WIKI_IMAGE_WORKERS,
+        )
+        png = render_guide_theater_card(theater, asset_images=asset_images)
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="guide/theater",
+            filename=f"guide-theater_{_safe_filename(name)}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style theater guide monster layout",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend(asset_warnings)
+        render_data.update(
+            {
+                "render": "guide/theater",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="guide/theater-text",
+            filename=f"guide-theater_{_safe_filename(name)}.txt",
+            content=render_guide_theater_text(result.data),
+            description="Human-readable theater guide text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": "guide/theater-text",
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *asset_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
 
@@ -391,15 +454,17 @@ def _recommend_render_result(
     render_kind: str,
 ) -> CommandResult:
     if render_kind == "build":
-        png = render_recommend_build_card(result.data)
         name = _optional_text(result.data.get("character")) or "build"
         render_name = "recommend/build"
         description = "GenshinUID-style build recommendation card"
+        text_content = render_recommend_build_text(result.data)
+        text_description = "Human-readable build recommendation text"
     elif render_kind == "holder":
-        png = render_recommend_holder_card(result.data)
         name = _optional_text(result.data.get("item")) or "holder"
         render_name = "recommend/holder"
         description = "GenshinUID-style holder recommendation card"
+        text_content = render_recommend_holder_text(result.data)
+        text_description = "Human-readable holder recommendation text"
     else:
         raise CliError(
             "INVALID_ARGUMENT",
@@ -407,23 +472,54 @@ def _recommend_render_result(
             EXIT_INVALID_INPUT,
             {"render": render_kind},
         )
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name=render_name,
-        filename=f"{render_name.replace('/', '-')}_{_safe_filename(name)}.png",
-        media_type="image/png",
-        content=png,
-        description=description,
-        kind="image",
-    )
-    render_data = {
+    artifacts: list[dict[str, object]] = []
+    render_data: dict[str, object] = {
         "name": name,
-        "render": render_name,
-        "artifact_sha256": artifact["sha256"],
     }
+    if render_image_enabled(args):
+        png = (
+            render_recommend_build_card(result.data)
+            if render_kind == "build"
+            else render_recommend_holder_card(result.data)
+        )
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name=render_name,
+            filename=f"{render_name.replace('/', '-')}_{_safe_filename(name)}.png",
+            media_type="image/png",
+            content=png,
+            description=description,
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        render_data.update(
+            {
+                "render": render_name,
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_render_name = f"{render_name}-text"
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name=text_render_name,
+            filename=f"{render_name.replace('/', '-')}_{_safe_filename(name)}.txt",
+            content=text_content,
+            description=text_description,
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": text_render_name,
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
         warnings=result.warnings,
         pagination=result.pagination,
@@ -431,36 +527,63 @@ def _recommend_render_result(
 
 
 def _rerun_render_result(args: argparse.Namespace, result: CommandResult) -> CommandResult:
-    asset_images, asset_warnings = fetch_render_images(
-        args,
-        rerun_asset_urls(result.data),
-        provider="rerun-assets",
-        region="cn",
-        category="rerun.list.asset",
-        unavailable_warning="{count} rerun images unavailable; rendered placeholders",
-        max_workers=WIKI_IMAGE_WORKERS,
-    )
-    png = render_rerun_list(result.data, asset_images=asset_images)
     version = _optional_text(result.data.get("version")) or "rerun"
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="rerun/list",
-        filename=f"rerun-list_{_safe_filename(version)}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style rerun return list",
-        kind="image",
-    )
-    render_data = {
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {
         "version": result.data.get("version"),
-        "render": "rerun/list",
-        "artifact_sha256": artifact["sha256"],
     }
+    if render_image_enabled(args):
+        asset_images, asset_warnings = fetch_render_images(
+            args,
+            rerun_asset_urls(result.data),
+            provider="rerun-assets",
+            region="cn",
+            category="rerun.list.asset",
+            unavailable_warning="{count} rerun images unavailable; rendered placeholders",
+            max_workers=WIKI_IMAGE_WORKERS,
+        )
+        png = render_rerun_list(result.data, asset_images=asset_images)
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="rerun/list",
+            filename=f"rerun-list_{_safe_filename(version)}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style rerun return list",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend(asset_warnings)
+        render_data.update(
+            {
+                "render": "rerun/list",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="rerun/list-text",
+            filename=f"rerun-list_{_safe_filename(version)}.txt",
+            content=render_rerun_list_text(result.data),
+            description="Human-readable rerun list text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": "rerun/list-text",
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *asset_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
 

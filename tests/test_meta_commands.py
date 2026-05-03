@@ -144,10 +144,24 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     ]
     assert capability_by_command["guide.character"]["render"] == ["data", "image", "all"]
     assert capability_by_command["guide.reference-panel"]["render"] == ["data", "image", "all"]
-    assert capability_by_command["guide.abyss"]["render"] == ["data", "image", "all"]
-    assert capability_by_command["guide.theater"]["render"] == ["data", "image", "all"]
-    assert capability_by_command["recommend.build"]["render"] == ["data", "image", "all"]
-    assert capability_by_command["recommend.holder"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["guide.route"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["map.find"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["misc.primogems-plan"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["guide.abyss"]["render"] == ["data", "image", "text", "all"]
+    assert capability_by_command["guide.theater"]["render"] == ["data", "image", "text", "all"]
+    assert capability_by_command["recommend.build"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["recommend.holder"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["rerun.list"]["render"] == ["data", "image", "text", "all"]
     assert capability_by_command["player.summary"]["render"] == ["data", "image", "all"]
     assert capability_by_command["player.characters"]["render"] == ["data", "image", "all"]
     assert capability_by_command["player.inventory"]["auth"] == "cookie"

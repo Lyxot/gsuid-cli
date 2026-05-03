@@ -610,6 +610,130 @@ def test_rerun_and_primogems_render_images_write_artifacts(monkeypatch, tmp_path
     assert "https://example.test/amber.png" in requested_urls
 
 
+def test_guide_recommend_rerun_render_text_writes_artifacts(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+
+    commands = [
+        (
+            ["guide", "abyss", "--version", "9.9", "--floor", "12"],
+            "guide.abyss",
+            "guide/abyss-text",
+            "深渊攻略 - 第12层（9.9）",
+            "草史莱姆 x2",
+        ),
+        (
+            ["guide", "theater", "--version", "1"],
+            "guide.theater",
+            "guide/theater-text",
+            "剧诗攻略 - 1",
+            "特邀角色:\n  - 安柏",
+        ),
+        (
+            ["recommend", "build", "--character", "Amber"],
+            "recommend.build",
+            "recommend/build-text",
+            "养成推荐 - Amber",
+            "5星: Bow",
+        ),
+        (
+            ["recommend", "holder", "--item", "Bow"],
+            "recommend.holder",
+            "recommend/holder-text",
+            "适用角色推荐 - Bow",
+            "适用角色: Amber",
+        ),
+        (
+            ["rerun", "list", "--limit", "1"],
+            "rerun.list",
+            "rerun/list-text",
+            "未复刻列表 - 当前版本:9.9",
+            "安柏: 120天未复刻",
+        ),
+    ]
+
+    for argv, command, render, title, expected in commands:
+        code, payload = _run_json([*argv, "--render", "text"])
+
+        assert code == 0
+        assert payload["command"] == command
+        assert payload["data"]["render"] == render
+        artifact = payload["artifacts"][0]
+        path = Path(artifact["path"])
+        assert artifact["kind"] == "text"
+        assert artifact["media_type"] == "text/plain; charset=utf-8"
+        assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        text = path.read_text(encoding="utf-8")
+        assert text.startswith(f"{title}\n")
+        assert expected in text
+        assert "icon_url" not in text
+        assert "image_url" not in text
+
+
+def test_guide_plain_text_image_prints_image_path(monkeypatch, tmp_path) -> None:
+    requested_urls: list[str] = []
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data.guide.fetch_render_images",
+        _fake_image_fetcher(requested_urls),
+    )
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+            "rerun",
+            "list",
+            "--limit",
+            "1",
+            "--render",
+            "text,image",
+            "--format",
+            "plain",
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    text = stdout.getvalue()
+    assert text.startswith("未复刻列表 - 当前版本:9.9\n")
+    assert "安柏: 120天未复刻" in text
+    assert "\n\n图片已保存至: " in text
+    assert "rerun-list_" in text
+    assert requested_urls == ["https://example.test/amber.png"]
+
+
+def test_recommend_render_text_image_preserves_image_primary_artifact(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
+    )
+
+    code, payload = _run_json(
+        ["recommend", "build", "--character", "Amber", "--render", "text,image"]
+    )
+
+    assert code == 0
+    assert payload["command"] == "recommend.build"
+    assert payload["data"]["render"] == "recommend/build"
+    image_artifact, text_artifact = payload["artifacts"]
+    assert image_artifact["kind"] == "image"
+    assert text_artifact["kind"] == "text"
+    assert payload["data"]["artifact_sha256"] == image_artifact["sha256"]
+    assert payload["data"]["text_artifact_sha256"] == text_artifact["sha256"]
+
+
 def test_event_render_images_write_cards(monkeypatch, tmp_path) -> None:
     requested_urls: list[str] = []
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
