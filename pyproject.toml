@@ -34,6 +34,7 @@ where = ["src"]
 gsuid_cli = [
   "assets/ATTRIBUTION.md",
   "assets/challenge/abyss/textures/*.png",
+  "assets/challenge/abyss/textures/*.jpg",
   "assets/challenge/hard/textures/*.jpg",
   "assets/challenge/hard/textures/*.png",
   "assets/challenge/theater/textures/*.png",

@@ -10,12 +10,18 @@ from gsuid_cli.renderers.challenge.common import (
     challenge_character_card,
     character_image_urls,
     character_side_urls,
-    color_background,
     first_remote_image,
-    paste_footer,
     timestamp_text,
 )
-from gsuid_cli.renderers.common import asset_path, font, int_value, open_rgba, png_bytes, sequence
+from gsuid_cli.renderers.common import (
+    asset_path,
+    crop_center,
+    font,
+    int_value,
+    open_rgba,
+    png_bytes,
+    sequence,
+)
 
 TEXTURE = asset_path("challenge", "abyss", "textures")
 WIDTH = 950
@@ -41,7 +47,7 @@ def render_challenge_abyss_card(
     selected_floor = floors[-1] if floors else {}
     full_floor = _has_battles(selected_floor)
     height = 2000 if full_floor else 900
-    image = color_background(WIDTH, height)
+    image = crop_center(open_rgba(TEXTURE / "bg.jpg"), WIDTH, height)
 
     title = open_rgba(TEXTURE / "abyss_title.png")
     image.paste(title, (0, 0), title)
@@ -72,7 +78,6 @@ def render_challenge_abyss_card(
     else:
         _paste_floor_detail(image, selected_floor, asset_images)
 
-    paste_footer(image, font_size=20, invert=True)
     return png_bytes(image, rgb=True)
 
 
@@ -212,7 +217,8 @@ def _level_time_text(level: Mapping[str, object]) -> str:
     battles = _mapping_sequence(level.get("battles"))
     if not battles:
         return "请挑战后查看时间数据!"
-    return timestamp_text(battles[0].get("timestamp")) or "请挑战后查看时间数据!"
+    time_text = timestamp_text(battles[0].get("timestamp"))
+    return time_text.replace(".", "-") if time_text else "请挑战后查看时间数据!"
 
 
 def _has_battles(floor: Mapping[str, object]) -> bool:

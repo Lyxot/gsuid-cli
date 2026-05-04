@@ -692,6 +692,40 @@ tests/
 ### Stage 5: Public Data MVP — completed.
 ### Stage 6: Authenticated Daily And Player Data — completed.
 ### Stage 7: Progress And Challenge Data — completed.
+### Stage 7.1: Challenge Abyss Image Renderer Fix
+
+- Status: completed.
+- Scope:
+  - Adjust `challenge.abyss --render image` against the provided reference by
+    restoring the default abyss background without the stretched color mask or
+    CLI footer, plus battle-card constellation badges and hyphenated chamber
+    dates.
+- Result:
+  - Implemented as a standalone fix commit instead of amending the challenge
+    text-render commit.
+  - Added the GenshinUID default abyss background asset, included it in package
+    data, removed the abyss-card footer, and kept abyss image rank enrichment as
+    a render-only copy so structured data remains unchanged.
+  - Added regression coverage for hyphenated dates, battle-card constellation
+    enrichment, source-data preservation, the local reference background, and
+    footer removal.
+  - Separate-agent review found no remaining blocking implementation issues; it
+    flagged the new `bg.jpg` as needing to be tracked and suggested the focused
+    background/footer regression test, both addressed before commit.
+- Verification:
+  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py::test_challenge_render_images tests/test_challenge_progress_data.py::test_challenge_abyss_image_time_text_uses_hyphen_dates tests/test_challenge_progress_data.py::test_challenge_abyss_image_rank_enrichment_preserves_source_data tests/test_challenge_progress_data.py::test_challenge_abyss_overview_marks_missing_lower_floors_as_skipped -q`
+  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py tests/test_meta_commands.py -q`
+  - `.venv/bin/python -m pytest -q` (`267 passed, 1 skipped`)
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check src/gsuid_cli/commands/challenge.py src/gsuid_cli/renderers/challenge/abyss.py tests/test_challenge_progress_data.py`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `git diff --check`
+  - Live smoke:
+    `GSUID_OUTPUT_DIR=/private/tmp/gsuid-abyss-amend .venv/bin/python -m gsuid_cli --request-id abyss-amend-no-footer --render image challenge abyss --uid <UID>`
+  - Live artifact:
+    `/private/tmp/gsuid-abyss-amend/2026-05-05/abyss-amend-no-footer/challenge-abyss_102452098.png`
+- Commit: `fix: align abyss image renderer`.
+
 ### Stage 8: Gacha Log — completed.
 ### Stage 8.1: Automatic Gacha Authkey URL — completed.
 ### Stage 8.1a: Refresh Expired Gacha Authkeys During Refresh — completed.
@@ -715,48 +749,7 @@ tests/
 ### Stage 18d: Wiki Text Render Artifacts — completed.
 ### Stage 18e: Guide, Recommendation, And Rerun Text Render Artifacts — completed.
 ### Stage 18f: Player Text Render Artifacts — completed.
-### Stage 18g: Challenge Text Render Artifacts
-
-- Stage 18g status: completed; ready to commit.
-- Stage 18g scope:
-  - Add Chinese `--render text` support for `challenge.abyss`,
-    `challenge.theater`, `challenge.hard`, and `challenge.hard-rank`.
-  - For challenge commands that already render images, derive text from the
-    normalized challenge data and keep combined `text,image` output image-primary
-    with `text_artifact_sha256`.
-  - For `challenge.hard-rank`, add a compact data-only text render for the
-    existing source-limitation message.
-- Stage 18g verification target:
-  - Focused challenge text artifact/plain tests, existing challenge image tests,
-    `meta capabilities`, generated command docs, ruff, full pytest, and a
-    separate review agent before commit.
-- Stage 18g review note:
-  - Separate-agent review found no blocking issues. It suggested an empty-abyss
-    text-only regression test; added coverage to ensure text explains empty
-    abyss floor data while image render still raises `NO_RESULT`.
-- Stage 18g result:
-  - Added compact Chinese text renders for `challenge.abyss`,
-    `challenge.theater`, `challenge.hard`, and `challenge.hard-rank`.
-  - Combined `text,image` output keeps image artifact hashes primary and records
-    `text_artifact_sha256`.
-  - Challenge text resolves avatar IDs through the player summary avatar list
-    when available, so live output shows character names instead of raw IDs.
-  - Theater text omits unknown difficulty when no theater challenge record is
-    present.
-- Stage 18g verification:
-  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py::test_challenge_commands_render_text_write_artifacts tests/test_challenge_progress_data.py::test_challenge_abyss_render_text_allows_empty_floor_data tests/test_challenge_progress_data.py::test_challenge_plain_text_image_prints_image_path tests/test_challenge_progress_data.py::test_challenge_abyss_render_text_image_preserves_image_primary_artifact tests/test_challenge_progress_data.py::test_challenge_hard_rank_plain_text_prints_warning tests/test_challenge_progress_data.py::test_challenge_render_images tests/test_challenge_progress_data.py::test_challenge_abyss_render_data_image_preserves_structured_data tests/test_challenge_progress_data.py::test_challenge_abyss_render_image_requires_floor_data tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
-  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py tests/test_meta_commands.py -q`
-  - `.venv/bin/python -m pytest -q` (`265 passed, 1 skipped`)
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check src/gsuid_cli/commands/challenge.py src/gsuid_cli/renderers/challenge/text.py tests/test_challenge_progress_data.py tests/test_meta_commands.py`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `git diff --check`
-  - Live plain smokes for `challenge.abyss`, `challenge.theater`,
-    `challenge.hard`, `challenge.hard-rank`, and
-    `challenge.hard --render text,image`.
-- Next intended stage: show the Stage 18g text output to the user, then move to
-  the next command group after approval.
-
+### Stage 18g: Challenge Text Render Artifacts — completed.
 ## MVP Cut Line
 
 The first usable MVP is complete after Stage 6 if these commands work:

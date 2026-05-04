@@ -228,6 +228,7 @@ def _abyss_render_result(
     storage_backend: str | None,
 ) -> CommandResult:
     abyss = _mapping_data(result, "abyss", "challenge.abyss")
+    render_abyss = abyss
     artifacts: list[dict[str, object]] = []
     warnings = list(result.warnings)
     render_data: dict[str, object] = {"uid": uid, "floor_count": abyss.get("floor_count")}
@@ -244,6 +245,15 @@ def _abyss_render_result(
                 },
                 source=result.source,
             )
+        render_abyss, rank_warnings = _abyss_with_character_ranks(
+            provider,
+            abyss,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+        )
         summary, title_images, avatar_url, title_warnings = _challenge_title_context(
             args,
             provider,
@@ -255,7 +265,11 @@ def _abyss_render_result(
         )
         images, image_warnings = fetch_render_images(
             args,
-            challenge_abyss_image_urls(abyss, summary, _fetchable_title_avatar_url(avatar_url)),
+            challenge_abyss_image_urls(
+                render_abyss,
+                summary,
+                _fetchable_title_avatar_url(avatar_url),
+            ),
             provider="mys",
             region=region,
             category="challenge.abyss.image",
@@ -264,7 +278,7 @@ def _abyss_render_result(
         )
         png = render_challenge_abyss_card(
             uid=uid,
-            abyss=abyss,
+            abyss=render_abyss,
             summary=summary,
             asset_images={**images, **title_images},
             avatar_url=avatar_url,
@@ -278,7 +292,7 @@ def _abyss_render_result(
             kind="image",
         )
         artifacts.append(image_artifact)
-        warnings.extend([*title_warnings, *image_warnings])
+        warnings.extend([*rank_warnings, *title_warnings, *image_warnings])
         render_data.update(
             {
                 "render": "challenge/abyss",
@@ -609,6 +623,74 @@ def _challenge_title_context(
     )
 
 
+def _abyss_with_character_ranks(
+    provider,
+    abyss: Mapping[str, object],
+    *,
+    uid: str,
+    region: str,
+    cookie: str,
+    credential_source: str,
+    storage_backend: str | None,
+) -> tuple[Mapping[str, object], list[str]]:
+    if not hasattr(provider, "player_characters"):
+        return abyss, []
+    try:
+        result = provider.player_characters(
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+        )
+    except CliError as exc:
+        return abyss, [f"abyss character constellation data unavailable: {exc.code}"]
+    characters = result.data.get("characters")
+    if not isinstance(characters, list):
+        return abyss, list(result.warnings)
+    ranks: dict[str, object] = {}
+    for character in characters:
+        if not isinstance(character, Mapping):
+            continue
+        character_id = character.get("id", character.get("avatar_id"))
+        rank = character.get("actived_constellation_num", character.get("rank"))
+        if character_id not in (None, "") and rank not in (None, ""):
+            ranks[str(character_id)] = rank
+    if not ranks:
+        return abyss, list(result.warnings)
+    return _copy_abyss_with_ranks(abyss, ranks), list(result.warnings)
+
+
+def _copy_abyss_with_ranks(
+    abyss: Mapping[str, object],
+    ranks: Mapping[str, object],
+) -> Mapping[str, object]:
+    floors: list[dict[str, object]] = []
+    for floor in _mapping_list(abyss.get("floors")):
+        floor_copy = dict(floor)
+        levels: list[dict[str, object]] = []
+        for level in _mapping_list(floor.get("levels")):
+            level_copy = dict(level)
+            battles: list[dict[str, object]] = []
+            for battle in _mapping_list(level.get("battles")):
+                battle_copy = dict(battle)
+                avatars: list[dict[str, object]] = []
+                for avatar in _mapping_list(battle.get("avatars")):
+                    avatar_copy = dict(avatar)
+                    avatar_id = avatar_copy.get("id", avatar_copy.get("avatar_id"))
+                    rank = ranks.get(str(avatar_id))
+                    if rank not in (None, ""):
+                        avatar_copy.setdefault("rank", rank)
+                    avatars.append(avatar_copy)
+                battle_copy["avatars"] = avatars
+                battles.append(battle_copy)
+            level_copy["battles"] = battles
+            levels.append(level_copy)
+        floor_copy["levels"] = levels
+        floors.append(floor_copy)
+    return {**abyss, "floors": floors}
+
+
 def _fetchable_title_avatar_url(avatar_url: str | None) -> str | None:
     if avatar_url and avatar_url.startswith(f"{ENKA_UI_BASE}/"):
         return None
@@ -620,3 +702,9 @@ def _has_abyss_floor_data(abyss: Mapping[str, object]) -> bool:
     if not isinstance(floors, list):
         return False
     return any(isinstance(floor, Mapping) for floor in floors)
+
+
+def _mapping_list(value: object) -> list[Mapping[str, object]]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, Mapping)]

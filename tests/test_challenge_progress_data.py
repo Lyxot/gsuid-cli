@@ -21,7 +21,8 @@ from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.secrets import SecretStore, redact_secret
 from gsuid_cli.providers.mys import RECORD_SALT, MysProvider
-from gsuid_cli.renderers.challenge.abyss import _overview_floor_slots
+from gsuid_cli.renderers.challenge import abyss as abyss_renderer
+from gsuid_cli.renderers.common import crop_center
 
 
 def test_challenge_abyss_requires_cookie(monkeypatch, tmp_path) -> None:
@@ -128,6 +129,17 @@ def test_challenge_render_images(monkeypatch, tmp_path) -> None:
         with Image.open(path) as image:
             assert image.size == size
             assert image.getbbox() is not None
+            if command == "challenge.abyss":
+                background = crop_center(
+                    Image.open(abyss_renderer.TEXTURE / "bg.jpg").convert("RGBA"),
+                    *size,
+                ).convert("RGB")
+                image_rgb = image.convert("RGB")
+                assert image_rgb.getpixel((250, 575)) == background.getpixel((250, 575))
+                assert (
+                    "paste_footer"
+                    not in abyss_renderer.render_challenge_abyss_card.__code__.co_names
+                )
 
     assert "https://upload.example.test/avatar.png" in captured_urls
     assert "https://upload.example.test/amber.png" in captured_urls
@@ -399,7 +411,7 @@ def test_challenge_abyss_render_text_allows_empty_floor_data(monkeypatch, tmp_pa
 
 
 def test_challenge_abyss_overview_marks_missing_lower_floors_as_skipped() -> None:
-    slots = _overview_floor_slots(
+    slots = abyss_renderer._overview_floor_slots(
         [
             {
                 "index": 12,
@@ -416,6 +428,41 @@ def test_challenge_abyss_overview_marks_missing_lower_floors_as_skipped() -> Non
         "0000-00-00 00:00:00",
         "0000-00-00 00:00:00",
     ]
+
+
+def test_challenge_abyss_image_time_text_uses_hyphen_dates() -> None:
+    text = abyss_renderer._level_time_text({"battles": [{"timestamp": 1777132890}]})
+
+    assert text.split(" ")[0].count("-") == 2
+    assert "." not in text.split(" ")[0]
+
+
+def test_challenge_abyss_image_rank_enrichment_preserves_source_data() -> None:
+    provider = _fake_provider("cn", HttpClient(timeout=1, cache_policy="off"))
+    result = provider.challenge_abyss(
+        uid="100000001",
+        cookie="account_id=1;cookie_token=secret",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="tests.MemoryKeyring",
+    )
+    abyss = result.data["abyss"]
+
+    enriched, warnings = challenge_commands._abyss_with_character_ranks(
+        provider,
+        abyss,
+        uid="100000001",
+        region="cn",
+        cookie="account_id=1;cookie_token=secret",
+        credential_source="keyring",
+        storage_backend="tests.MemoryKeyring",
+    )
+
+    original_avatar = abyss["floors"][0]["levels"][0]["battles"][0]["avatars"][0]
+    enriched_avatar = enriched["floors"][0]["levels"][0]["battles"][0]["avatars"][0]
+    assert warnings == []
+    assert "rank" not in original_avatar
+    assert enriched_avatar["rank"] == 2
 
 
 def test_mys_challenge_abyss_filters_floor_and_uses_previous_schedule() -> None:
@@ -891,6 +938,19 @@ def _fake_provider(_region: str, _http_client: HttpClient):
                     ],
                     "world_explorations": _fake_worlds(),
                 },
+            )
+
+        def player_characters(self, **kwargs) -> CommandResult:
+            return _result(
+                kwargs,
+                "characters",
+                [
+                    {
+                        "id": 10000021,
+                        "name": "Amber",
+                        "actived_constellation_num": 2,
+                    }
+                ],
             )
 
         def progress_completion(self, **kwargs) -> CommandResult:

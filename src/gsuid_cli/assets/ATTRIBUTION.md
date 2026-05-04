@@ -49,7 +49,8 @@ rendering.
 - Primogem-plan static images are copied from
   `GenshinUID/genshinuid_etcimg/primogems_data/`.
 - Challenge Abyss textures are copied from
-  `GenshinUID/genshinuid_abyss/texture2D/`.
+  `GenshinUID/genshinuid_abyss/texture2D/`; the Abyss card background is copied
+  from `GenshinUID/utils/image/bg/nm_bg/zy.jpg`.
 - Challenge Theater textures are copied from
   `GenshinUID/genshinuid_poetry_abyss/texture2d/`.
 - Challenge hard-mode textures are copied from
