@@ -27,6 +27,7 @@ from gsuid_cli.renderers.player.summary import (
     player_profile_picture_url,
     render_player_summary_card,
 )
+from gsuid_cli.renderers.player.text import render_player_calendar_text
 
 
 def test_daily_note_requires_cookie(monkeypatch, tmp_path) -> None:
@@ -596,6 +597,146 @@ def test_player_inventory_render_data_image_preserves_structured_data(
     assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
 
 
+def test_player_commands_render_text_write_artifacts(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
+    monkeypatch.setattr(player_commands, "fetch_render_images", _fail_image_fetcher)
+    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+    current_month = f"{datetime.now(UTC).year}-04"
+
+    cases = [
+        (
+            ["player", "summary", "--uid", "100000001"],
+            "player.summary",
+            "player/summary-text",
+            "玩家概览 - 派蒙",
+            "世界探索:",
+        ),
+        (
+            ["player", "characters", "--uid", "100000001"],
+            "player.characters",
+            "player/characters-text",
+            "角色列表",
+            "武器: Bow",
+        ),
+        (
+            ["player", "inventory", "--uid", "100000001"],
+            "player.inventory",
+            "player/inventory-text",
+            "养成素材 - 派蒙",
+            "摩拉: 拥有 100",
+        ),
+        (
+            ["player", "calendar", "--uid", "100000001"],
+            "player.calendar",
+            "player/calendar-text",
+            "活动日历 - 派蒙",
+            "限时活动:",
+        ),
+        (
+            ["player", "diary", "--uid", "100000001", "--month", current_month],
+            "player.diary",
+            "player/diary-text",
+            "旅行札记 - 派蒙",
+            "今日: 原石 0",
+        ),
+        (
+            ["player", "register-time", "--uid", "100000001"],
+            "player.register-time",
+            "player/register-time-text",
+            "注册时间",
+            "2020-09-15T20:26:40+08:00",
+        ),
+    ]
+
+    for index, (argv, command, render_name, expected_title, expected_detail) in enumerate(cases):
+        code, payload = _run_json(
+            [
+                *argv,
+                "--render",
+                "text",
+                "--request-id",
+                f"player-text-{index}",
+                "--output-dir",
+                str(tmp_path / "artifacts"),
+            ]
+        )
+
+        assert code == 0
+        assert payload["command"] == command
+        assert payload["data"]["render"] == render_name
+        artifact = payload["artifacts"][0]
+        path = Path(artifact["path"])
+        assert path.parent == tmp_path / "artifacts" / "2026-04-29" / f"player-text-{index}"
+        assert artifact["kind"] == "text"
+        assert artifact["media_type"] == "text/plain; charset=utf-8"
+        assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        text = path.read_text(encoding="utf-8")
+        assert expected_title in text
+        assert "UID: 100000001" in text
+        assert expected_detail in text
+
+
+def test_player_plain_text_image_prints_image_path(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
+    monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher([]))
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "player",
+            "characters",
+            "--uid",
+            "100000001",
+            "--render",
+            "text,image",
+            "--format",
+            "plain",
+            "--request-id",
+            "player-plain-text-image",
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    text = stdout.getvalue()
+    assert text.startswith("角色列表\nUID: 100000001\n")
+    assert "\n\n图片已保存至: " in text
+    assert "player-characters_100000001.png" in text
+
+
+def test_player_summary_render_text_image_preserves_image_primary_artifact(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
+    monkeypatch.setattr(player_commands, "fetch_render_images", _fake_image_fetcher([]))
+    monkeypatch.setattr(
+        player_commands,
+        "_player_profile_title_avatar_url",
+        lambda args, uid, region: (None, []),
+    )
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(["player", "summary", "--uid", "100000001", "--render", "text,image"])
+
+    assert code == 0
+    image_artifact, text_artifact = payload["artifacts"]
+    assert image_artifact["kind"] == "image"
+    assert text_artifact["kind"] == "text"
+    assert payload["data"]["render"] == "player/summary"
+    assert payload["data"]["artifact_sha256"] == image_artifact["sha256"]
+    assert payload["data"]["text_artifact_sha256"] == text_artifact["sha256"]
+
+
 def test_player_calendar_renderer_keeps_pool_items_after_four() -> None:
     icon_url = "https://upload.example.test/fifth.png"
     icon = Image.new("RGBA", (105, 105), (235, 20, 20, 255))
@@ -637,6 +778,48 @@ def test_player_calendar_renderer_keeps_pool_items_after_four() -> None:
     assert pixel[0] > 200
     assert pixel[1] < 80
     assert pixel[2] < 80
+
+
+def test_player_calendar_text_matches_rendered_card_sections() -> None:
+    text = render_player_calendar_text(
+        uid="100000001",
+        summary={"role": {"nickname": "派蒙"}},
+        calendar={
+            "counts": {
+                "avatar_card_pool_list": 1,
+                "weapon_card_pool_list": 0,
+                "act_list": 1,
+                "fixed_act_list": 0,
+            },
+            "avatar_card_pool_list": [
+                {
+                    "pool_name": "角色活动祈愿",
+                    "version_name": "6.5",
+                    "countdown_seconds": 3600,
+                    "avatars": [{"name": "安柏", "rarity": 4}],
+                }
+            ],
+            "mixed_card_pool_list": [{"pool_name": "不在图片中的混合祈愿"}],
+            "selected_act_list": [{"name": "不在图片中的已选活动"}],
+            "act_list": [
+                {
+                    "name": "限时活动",
+                    "status": 2,
+                    "is_finished": False,
+                    "reward_list": [
+                        {"name": "零数量奖励", "num": 0},
+                        {"name": "原石", "num": 60},
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert "角色活动祈愿" in text
+    assert "原石 x60" in text
+    assert "不在图片中的混合祈愿" not in text
+    assert "不在图片中的已选活动" not in text
+    assert "零数量奖励" not in text
 
 
 def test_player_summary_render_skips_profile_lookup_when_role_avatar_exists(
@@ -1538,7 +1721,10 @@ def _fake_provider(_region: str, _http_client: HttpClient):
                     "credential_source": credential_source,
                     "storage_backend": storage_backend,
                     "cookie_seen": cookie.startswith("account_id="),
-                    "inventory": {"overall": [{"id": 202, "owned": 100}], "count": 1},
+                    "inventory": {
+                        "overall": [{"id": 202, "name": "摩拉", "owned": 100}],
+                        "count": 1,
+                    },
                 },
                 source=_source(region),
             )
@@ -1822,6 +2008,11 @@ def _fake_image_fetcher(requested_urls: list[str]):
         return {url: _png_bytes() for url in urls}, []
 
     return fetcher
+
+
+def _fail_image_fetcher(*args, **kwargs):
+    del args, kwargs
+    raise AssertionError("text-only player renders must not fetch image assets")
 
 
 def _missing_character_resource_fetcher(requested_urls: list[str]):

@@ -17,7 +17,7 @@ from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.render import render_image_enabled, render_result_data
+from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
 from gsuid_cli.providers.enka import EnkaProvider
 from gsuid_cli.renderers.player.calendar import (
     player_calendar_icon_urls,
@@ -42,6 +42,14 @@ from gsuid_cli.renderers.player.summary import (
     player_summary_mys_icon_urls,
     render_player_summary_card,
 )
+from gsuid_cli.renderers.player.text import (
+    render_player_calendar_text,
+    render_player_characters_text,
+    render_player_diary_text,
+    render_player_inventory_text,
+    render_player_register_time_text,
+    render_player_summary_text,
+)
 
 PLAYER_CHARACTER_IMAGE_WORKERS = 8
 PLAYER_SUMMARY_ICON_WORKERS = 8
@@ -56,7 +64,7 @@ CAPABILITIES = [
         "description": "Show authenticated player profile summary data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -64,7 +72,7 @@ CAPABILITIES = [
         "description": "Show authenticated player character details.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -72,7 +80,7 @@ CAPABILITIES = [
         "description": "Show owned-character and equipped-weapon material counts.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
         "coverage": "owned_character_ascension_and_equipped_weapon_materials",
     },
@@ -81,7 +89,7 @@ CAPABILITIES = [
         "description": "Show authenticated player activity calendar data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -89,7 +97,7 @@ CAPABILITIES = [
         "description": "Show authenticated monthly traveler diary data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -97,7 +105,7 @@ CAPABILITIES = [
         "description": "Attempt to show Genshin account registration time.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
         "availability": "upstream-limited",
         "limitations": [
@@ -153,7 +161,7 @@ def summary_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _summary_render_result(
         args,
@@ -176,7 +184,7 @@ def characters_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _characters_render_result(args, result=result, uid=uid, region=region)
 
@@ -191,7 +199,7 @@ def inventory_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _inventory_render_result(
         args,
@@ -215,7 +223,7 @@ def calendar_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _calendar_render_result(
         args,
@@ -241,7 +249,7 @@ def diary_command(args: argparse.Namespace) -> CommandResult:
         storage_backend=storage_backend,
         month=args.month,
     )
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _diary_render_result(
         args,
@@ -257,13 +265,16 @@ def diary_command(args: argparse.Namespace) -> CommandResult:
 
 def register_time_command(args: argparse.Namespace) -> CommandResult:
     uid, region, cookie, credential_source, storage_backend = _cookie_context(args)
-    return _provider(args, region).player_register_time(
+    result = _provider(args, region).player_register_time(
         uid=uid,
         cookie=cookie,
         region=region,
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
+    if not render_text_enabled(args):
+        return result
+    return _register_time_render_result(args, result=result, uid=uid)
 
 
 def _validate_month_arg(month: str | None) -> None:
@@ -312,28 +323,52 @@ def _characters_render_result(
             source=result.source,
         )
     characters = [character for character in characters_value if isinstance(character, Mapping)]
-    asset_images, image_warnings = _player_character_asset_images(args, characters, region)
-    png = render_player_characters_card(characters=characters, asset_images=asset_images)
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="player/characters",
-        filename=f"player-characters_{_safe_filename(uid)}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style player character list card",
-        kind="image",
-    )
-    render_data = {
-        "uid": uid,
-        "render": "player/characters",
-        "character_count": len(characters),
-        "artifact_sha256": artifact["sha256"],
-    }
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {"uid": uid, "character_count": len(characters)}
+    if render_image_enabled(args):
+        asset_images, image_warnings = _player_character_asset_images(args, characters, region)
+        png = render_player_characters_card(characters=characters, asset_images=asset_images)
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="player/characters",
+            filename=f"player-characters_{_safe_filename(uid)}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style player character list card",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend(image_warnings)
+        render_data.update(
+            {
+                "render": "player/characters",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="player/characters-text",
+            filename=f"player-characters_{_safe_filename(uid)}.txt",
+            content=render_player_characters_text(result.data),
+            description="Human-readable player character list text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": "player/characters-text",
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *image_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
 
@@ -371,66 +406,94 @@ def _summary_render_result(
         if isinstance(characters_value, list)
         else []
     )
-    role_avatar_url = _summary_role_avatar_url(summary)
-    if role_avatar_url:
-        title_avatar_url, profile_warnings = None, []
-    else:
-        title_avatar_url, profile_warnings = _player_profile_title_avatar_url(args, uid, region)
-    extra_resource_urls = player_summary_genshinuid_resource_urls(summary)
-    if title_avatar_url and not title_avatar_url.startswith(f"{ENKA_UI_BASE}/"):
-        _append_url(extra_resource_urls, title_avatar_url)
-    character_images, character_warnings = _player_character_asset_images(
-        args,
-        characters,
-        region,
-        extra_genshinuid_urls=extra_resource_urls,
-    )
-    summary_icons, summary_warnings = fetch_render_images(
-        args,
-        player_summary_mys_icon_urls(summary),
-        provider="mys",
-        region=region,
-        category="player.summary.icon",
-        unavailable_warning="{count} player summary icons unavailable; rendered placeholders",
-        max_workers=PLAYER_SUMMARY_ICON_WORKERS,
-    )
-    profile_images, profile_image_warnings = _player_profile_image_assets(
-        args, title_avatar_url, region
-    )
-    png = render_player_summary_card(
-        uid=uid,
-        summary=summary,
-        characters=characters,
-        asset_images={**character_images, **summary_icons, **profile_images},
-        title_avatar_url=title_avatar_url,
-    )
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="player/summary",
-        filename=f"player-summary_{_safe_filename(uid)}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style full player role-info card",
-        kind="image",
-    )
-    render_data = {
-        "uid": uid,
-        "render": "player/summary",
-        "character_count": len(characters),
-        "artifact_sha256": artifact["sha256"],
-    }
+    artifacts: list[dict[str, object]] = []
+    warnings = [*result.warnings, *characters_result.warnings]
+    render_data: dict[str, object] = {"uid": uid, "character_count": len(characters)}
+    if render_image_enabled(args):
+        role_avatar_url = _summary_role_avatar_url(summary)
+        if role_avatar_url:
+            title_avatar_url, profile_warnings = None, []
+        else:
+            title_avatar_url, profile_warnings = _player_profile_title_avatar_url(args, uid, region)
+        extra_resource_urls = player_summary_genshinuid_resource_urls(summary)
+        if title_avatar_url and not title_avatar_url.startswith(f"{ENKA_UI_BASE}/"):
+            _append_url(extra_resource_urls, title_avatar_url)
+        character_images, character_warnings = _player_character_asset_images(
+            args,
+            characters,
+            region,
+            extra_genshinuid_urls=extra_resource_urls,
+        )
+        summary_icons, summary_warnings = fetch_render_images(
+            args,
+            player_summary_mys_icon_urls(summary),
+            provider="mys",
+            region=region,
+            category="player.summary.icon",
+            unavailable_warning="{count} player summary icons unavailable; rendered placeholders",
+            max_workers=PLAYER_SUMMARY_ICON_WORKERS,
+        )
+        profile_images, profile_image_warnings = _player_profile_image_assets(
+            args, title_avatar_url, region
+        )
+        png = render_player_summary_card(
+            uid=uid,
+            summary=summary,
+            characters=characters,
+            asset_images={**character_images, **summary_icons, **profile_images},
+            title_avatar_url=title_avatar_url,
+        )
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="player/summary",
+            filename=f"player-summary_{_safe_filename(uid)}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style full player role-info card",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend(
+            [
+                *profile_warnings,
+                *character_warnings,
+                *summary_warnings,
+                *profile_image_warnings,
+            ]
+        )
+        render_data.update(
+            {
+                "render": "player/summary",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="player/summary-text",
+            filename=f"player-summary_{_safe_filename(uid)}.txt",
+            content=render_player_summary_text(
+                uid=uid,
+                summary=summary,
+                characters=characters,
+            ),
+            description="Human-readable player summary text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": "player/summary-text",
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[
-            *result.warnings,
-            *characters_result.warnings,
-            *profile_warnings,
-            *character_warnings,
-            *summary_warnings,
-            *profile_image_warnings,
-        ],
+        warnings=warnings,
         pagination=result.pagination,
     )
 
@@ -447,52 +510,87 @@ def _inventory_render_result(
     storage_backend: str | None,
 ) -> CommandResult:
     inventory = _mapping_data(result, "inventory", "player.inventory")
-    summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
-        args,
-        provider=provider,
-        uid=uid,
-        region=region,
-        cookie=cookie,
-        credential_source=credential_source,
-        storage_backend=storage_backend,
-        category_prefix="player.inventory",
-    )
-    inventory_images, inventory_warnings = fetch_render_images(
-        args,
-        player_inventory_icon_urls(inventory),
-        provider="mys",
-        region=region,
-        category="player.inventory.icon",
-        unavailable_warning="{count} player inventory icons unavailable; rendered placeholders",
-        max_workers=PLAYER_INVENTORY_ICON_WORKERS,
-    )
-    png = render_player_inventory_card(
-        uid=uid,
-        summary=summary,
-        inventory=inventory,
-        asset_images={**title_images, **inventory_images},
-        title_avatar_url=title_avatar_url,
-    )
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="player/inventory",
-        filename=f"player-inventory_{_safe_filename(uid)}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style player inventory card",
-        kind="image",
-    )
-    render_data = {
-        "uid": uid,
-        "render": "player/inventory",
-        "item_count": inventory.get("count"),
-        "artifact_sha256": artifact["sha256"],
-    }
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {"uid": uid, "item_count": inventory.get("count")}
+    if render_image_enabled(args):
+        summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
+            args,
+            provider=provider,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+            category_prefix="player.inventory",
+        )
+        inventory_images, inventory_warnings = fetch_render_images(
+            args,
+            player_inventory_icon_urls(inventory),
+            provider="mys",
+            region=region,
+            category="player.inventory.icon",
+            unavailable_warning="{count} player inventory icons unavailable; rendered placeholders",
+            max_workers=PLAYER_INVENTORY_ICON_WORKERS,
+        )
+        png = render_player_inventory_card(
+            uid=uid,
+            summary=summary,
+            inventory=inventory,
+            asset_images={**title_images, **inventory_images},
+            title_avatar_url=title_avatar_url,
+        )
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="player/inventory",
+            filename=f"player-inventory_{_safe_filename(uid)}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style player inventory card",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend([*title_warnings, *inventory_warnings])
+        render_data.update(
+            {
+                "render": "player/inventory",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    else:
+        summary, title_warnings = _player_title_summary_context(
+            provider=provider,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+            category_prefix="player.inventory",
+        )
+        warnings.extend(title_warnings)
+    if render_text_enabled(args):
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="player/inventory-text",
+            filename=f"player-inventory_{_safe_filename(uid)}.txt",
+            content=render_player_inventory_text(uid=uid, summary=summary, inventory=inventory),
+            description="Human-readable player inventory text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": "player/inventory-text",
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *title_warnings, *inventory_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
 
@@ -509,53 +607,91 @@ def _calendar_render_result(
     storage_backend: str | None,
 ) -> CommandResult:
     calendar = _mapping_data(result, "calendar", "player.calendar")
-    summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
-        args,
-        provider=provider,
-        uid=uid,
-        region=region,
-        cookie=cookie,
-        credential_source=credential_source,
-        storage_backend=storage_backend,
-        category_prefix="player.calendar",
-    )
-    calendar_images, calendar_warnings = fetch_render_images(
-        args,
-        player_calendar_icon_urls(calendar),
-        provider="mys",
-        region=region,
-        category="player.calendar.icon",
-        unavailable_warning="{count} player calendar icons unavailable; rendered placeholders",
-        max_workers=PLAYER_CALENDAR_ICON_WORKERS,
-    )
-    png = render_player_calendar_card(
-        uid=uid,
-        summary=summary,
-        calendar=calendar,
-        asset_images={**title_images, **calendar_images},
-        title_avatar_url=title_avatar_url,
-    )
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="player/calendar",
-        filename=f"player-calendar_{_safe_filename(uid)}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style player activity calendar card",
-        kind="image",
-    )
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
     counts = calendar.get("counts") if isinstance(calendar.get("counts"), Mapping) else {}
-    render_data = {
+    render_data: dict[str, object] = {
         "uid": uid,
-        "render": "player/calendar",
         "act_count": counts.get("act_list"),
-        "artifact_sha256": artifact["sha256"],
     }
+    if render_image_enabled(args):
+        summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
+            args,
+            provider=provider,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+            category_prefix="player.calendar",
+        )
+        calendar_images, calendar_warnings = fetch_render_images(
+            args,
+            player_calendar_icon_urls(calendar),
+            provider="mys",
+            region=region,
+            category="player.calendar.icon",
+            unavailable_warning="{count} player calendar icons unavailable; rendered placeholders",
+            max_workers=PLAYER_CALENDAR_ICON_WORKERS,
+        )
+        png = render_player_calendar_card(
+            uid=uid,
+            summary=summary,
+            calendar=calendar,
+            asset_images={**title_images, **calendar_images},
+            title_avatar_url=title_avatar_url,
+        )
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="player/calendar",
+            filename=f"player-calendar_{_safe_filename(uid)}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style player activity calendar card",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend([*title_warnings, *calendar_warnings])
+        render_data.update(
+            {
+                "render": "player/calendar",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    else:
+        summary, title_warnings = _player_title_summary_context(
+            provider=provider,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+            category_prefix="player.calendar",
+        )
+        warnings.extend(title_warnings)
+    if render_text_enabled(args):
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="player/calendar-text",
+            filename=f"player-calendar_{_safe_filename(uid)}.txt",
+            content=render_player_calendar_text(uid=uid, summary=summary, calendar=calendar),
+            description="Human-readable player activity calendar text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": "player/calendar-text",
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *title_warnings, *calendar_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
 
@@ -572,45 +708,135 @@ def _diary_render_result(
     storage_backend: str | None,
 ) -> CommandResult:
     diary = _mapping_data(result, "diary", "player.diary")
-    summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
-        args,
-        provider=provider,
-        uid=uid,
-        region=region,
-        cookie=cookie,
-        credential_source=credential_source,
-        storage_backend=storage_backend,
-        category_prefix="player.diary",
-    )
-    png = render_player_diary_card(
-        uid=uid,
-        summary=summary,
-        diary=diary,
-        asset_images=title_images,
-        title_avatar_url=title_avatar_url,
-    )
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="player/diary",
-        filename=f"player-diary_{_safe_filename(uid)}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style monthly traveler diary card",
-        kind="image",
-    )
-    render_data = {
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {
         "uid": uid,
-        "render": "player/diary",
         "month": diary.get("month"),
-        "artifact_sha256": artifact["sha256"],
     }
+    if render_image_enabled(args):
+        summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
+            args,
+            provider=provider,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+            category_prefix="player.diary",
+        )
+        png = render_player_diary_card(
+            uid=uid,
+            summary=summary,
+            diary=diary,
+            asset_images=title_images,
+            title_avatar_url=title_avatar_url,
+        )
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="player/diary",
+            filename=f"player-diary_{_safe_filename(uid)}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style monthly traveler diary card",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend(title_warnings)
+        render_data.update(
+            {
+                "render": "player/diary",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    else:
+        summary, title_warnings = _player_title_summary_context(
+            provider=provider,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+            category_prefix="player.diary",
+        )
+        warnings.extend(title_warnings)
+    if render_text_enabled(args):
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="player/diary-text",
+            filename=f"player-diary_{_safe_filename(uid)}.txt",
+            content=render_player_diary_text(uid=uid, summary=summary, diary=diary),
+            description="Human-readable player diary text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": "player/diary-text",
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *title_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
+
+
+def _register_time_render_result(
+    args: argparse.Namespace,
+    *,
+    result: CommandResult,
+    uid: str,
+) -> CommandResult:
+    text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        name="player/register-time-text",
+        filename=f"player-register-time_{_safe_filename(uid)}.txt",
+        content=render_player_register_time_text(result.data),
+        description="Human-readable player registration time text",
+        kind="text",
+    )
+    data = render_result_data(
+        args,
+        result.data,
+        {
+            "uid": uid,
+            "render": "player/register-time-text",
+            "artifact_sha256": text_artifact["sha256"],
+        },
+    )
+    return CommandResult(
+        data=data,
+        artifacts=[text_artifact],
+        source=result.source,
+        warnings=result.warnings,
+        pagination=result.pagination,
+    )
+
+
+def _player_title_summary_context(
+    *,
+    provider,
+    uid: str,
+    region: str,
+    cookie: str,
+    credential_source: str,
+    storage_backend: str | None,
+    category_prefix: str,
+) -> tuple[Mapping[str, object], list[str]]:
+    summary_result = provider.player_summary(
+        uid=uid,
+        cookie=cookie,
+        region=region,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
+    )
+    summary = _mapping_data(summary_result, "summary", f"{category_prefix}.summary")
+    return summary, list(summary_result.warnings)
 
 
 def _player_title_render_context(
@@ -624,14 +850,15 @@ def _player_title_render_context(
     storage_backend: str | None,
     category_prefix: str,
 ) -> tuple[Mapping[str, object], dict[str, bytes], str | None, list[str]]:
-    summary_result = provider.player_summary(
+    summary, summary_warnings = _player_title_summary_context(
+        provider=provider,
         uid=uid,
-        cookie=cookie,
         region=region,
+        cookie=cookie,
         credential_source=credential_source,
         storage_backend=storage_backend,
+        category_prefix=category_prefix,
     )
-    summary = _mapping_data(summary_result, "summary", f"{category_prefix}.summary")
     role_avatar_url = _summary_role_avatar_url(summary)
     if role_avatar_url:
         title_avatar_url, profile_warnings = None, []
@@ -666,7 +893,7 @@ def _player_title_render_context(
         {**resource_images, **icon_images, **profile_images},
         title_avatar_url,
         [
-            *summary_result.warnings,
+            *summary_warnings,
             *profile_warnings,
             *resource_warnings,
             *icon_warnings,
@@ -870,4 +1097,3 @@ def _optional_text(value: object) -> str | None:
         return None
     text = str(value).strip()
     return text or None
-

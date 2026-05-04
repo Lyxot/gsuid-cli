@@ -713,46 +713,48 @@ tests/
 ### Stage 18b: Text Render Artifacts — completed.
 ### Stage 18c: Public Data Text Render Artifacts — completed.
 ### Stage 18d: Wiki Text Render Artifacts — completed.
-### Stage 18e: Guide, Recommendation, And Rerun Text Render Artifacts
+### Stage 18e: Guide, Recommendation, And Rerun Text Render Artifacts — completed.
+### Stage 18f: Player Text Render Artifacts
 
-- Stage 18e status: completed; ready to commit.
-- Stage 18e scope:
-  - Add `--render text` support for structured public guide-style commands:
-    `guide.abyss`, `guide.theater`, `recommend.build`, `recommend.holder`, and
-    `rerun.list`.
-  - Keep existing image renderers unchanged and make combined `text,image`
-    output keep image artifacts as the primary hash with `text_artifact_sha256`.
-- Stage 18e exclusions:
-  - Keep `guide.character`, `guide.reference-panel`, `guide.route`, `map.find`,
-    and `misc.primogems-plan` image/data-only because their user-facing render
-    source is an upstream or bundled image artifact rather than structured data.
-- Stage 18e verification target:
-  - Focused text artifact/plain tests for the five scoped commands.
-  - Existing guide/recommend/rerun image tests.
-  - `meta capabilities`, generated command docs, ruff, full pytest, and a
+- Stage 18f status: completed; ready to commit.
+- Stage 18f scope:
+  - Add Chinese `--render text` support for all `player` commands:
+    `player.summary`, `player.characters`, `player.inventory`,
+    `player.calendar`, `player.diary`, and `player.register-time`.
+  - For commands that already render images, derive text from the same
+    normalized command data used by the image renderer and keep combined
+    `text,image` output image-primary with `text_artifact_sha256`.
+  - For `player.register-time`, add a compact data-only text render because the
+    command has no image renderer but is user-facing.
+- Stage 18f verification target:
+  - Focused player text artifact/plain tests, existing player image tests,
+    `meta capabilities`, generated command docs, ruff, full pytest, and a
     separate review agent before commit.
-- Stage 18e review note:
-  - Separate-agent review found that normalizing numeric suffixes in
-    `recommend.holder` text could collapse distinct provider matches. Keep the
-    provider match names intact in text output.
-- Stage 18e result:
-  - Added compact Chinese text renders for `guide.abyss`, `guide.theater`,
-    `recommend.build`, `recommend.holder`, and `rerun.list`.
+- Stage 18f review note:
+  - Separate-agent review found no blocking issues. It suggested locking down
+    text-only player renders so they do not fetch image assets; added a focused
+    regression assertion for that requirement.
+- Stage 18f result:
+  - Added compact Chinese text renders for `player.summary`,
+    `player.characters`, `player.inventory`, `player.calendar`, `player.diary`,
+    and `player.register-time`.
   - Combined `text,image` output keeps image artifact hashes primary and records
     `text_artifact_sha256`.
-  - Pass-through/static image-source commands remain image/data-only.
-- Stage 18e verification:
-  - `.venv/bin/python -m pytest tests/test_public_data.py::test_guide_recommend_rerun_render_text_writes_artifacts tests/test_public_data.py::test_guide_plain_text_image_prints_image_path tests/test_public_data.py::test_recommend_render_text_image_preserves_image_primary_artifact tests/test_public_data.py::test_recommend_render_images_write_cards tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
-  - `.venv/bin/python -m pytest -q` (`256 passed, 1 skipped`)
+  - Calendar text mirrors the rendered card sections and omits provider-only
+    selected/mixed lists and zero-count rewards.
+- Stage 18f verification:
+  - `.venv/bin/python -m pytest tests/test_daily_player_data.py::test_player_commands_render_text_write_artifacts tests/test_daily_player_data.py::test_player_calendar_text_matches_rendered_card_sections tests/test_daily_player_data.py::test_player_plain_text_image_prints_image_path tests/test_daily_player_data.py::test_player_summary_render_text_image_preserves_image_primary_artifact tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
+  - `.venv/bin/python -m pytest tests/test_daily_player_data.py tests/test_meta_commands.py -q`
+  - `.venv/bin/python -m pytest -q` (`260 passed, 1 skipped`)
   - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check src/gsuid_cli/commands/public_data/guide.py src/gsuid_cli/renderers/guide_text.py tests/test_public_data.py tests/test_meta_commands.py`
+  - `.venv/bin/ruff format --check src/gsuid_cli/commands/player.py src/gsuid_cli/renderers/player/text.py tests/test_daily_player_data.py tests/test_meta_commands.py`
   - `.venv/bin/python scripts/generate_command_reference.py --check`
   - `git diff --check`
-  - Live plain smokes for `guide abyss`, `recommend build`, `recommend holder`,
-    and `rerun list --render text,image`; `guide theater` live smoke still exits
-    with `NETWORK_ERROR` from the Hakush endpoint, so mocked provider tests
-    cover its text layout.
-- Next intended stage: show the Stage 18e text output to the user, then move to
+  - Live plain smokes for `player.summary`, `player.characters`,
+    `player.inventory`, `player.calendar`, `player.diary`, and
+    `player.characters --render text,image`; `player.register-time` still exits
+    with `UPSTREAM_REJECTED`, matching its documented upstream-limited status.
+- Next intended stage: show the Stage 18f text output to the user, then move to
   the next command group after approval.
 
 ## MVP Cut Line

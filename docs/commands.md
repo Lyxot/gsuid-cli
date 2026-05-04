@@ -69,12 +69,12 @@ Generated from `gsuid meta capabilities`.
 | `panel.save` | `none` | `data` | `off` | Save one cached panel as a JSON artifact. |
 | `panel.show` | `none` | `data, image, all` | `off` | Show one cached character panel. |
 | `panel.showcase` | `none` | `data, image, all` | `off` | Show the cached public showcase summary. |
-| `player.calendar` | `cookie` | `data, image, all` | `off` | Show authenticated player activity calendar data. |
-| `player.characters` | `cookie` | `data, image, all` | `off` | Show authenticated player character details. |
-| `player.diary` | `cookie` | `data, image, all` | `off` | Show authenticated monthly traveler diary data. |
-| `player.inventory` | `cookie` | `data, image, all` | `off` | Show owned-character and equipped-weapon material counts. Coverage: `owned_character_ascension_and_equipped_weapon_materials`. |
-| `player.register-time` | `cookie` | `data` | `off` | Attempt to show Genshin account registration time. Availability: `upstream-limited`. Limitations: Uses the legacy MYS anniversary endpoint, which may return provider retcode -502. |
-| `player.summary` | `cookie` | `data, image, all` | `off` | Show authenticated player profile summary data. |
+| `player.calendar` | `cookie` | `data, image, text, all` | `off` | Show authenticated player activity calendar data. |
+| `player.characters` | `cookie` | `data, image, text, all` | `off` | Show authenticated player character details. |
+| `player.diary` | `cookie` | `data, image, text, all` | `off` | Show authenticated monthly traveler diary data. |
+| `player.inventory` | `cookie` | `data, image, text, all` | `off` | Show owned-character and equipped-weapon material counts. Coverage: `owned_character_ascension_and_equipped_weapon_materials`. |
+| `player.register-time` | `cookie` | `data, text, all` | `off` | Attempt to show Genshin account registration time. Availability: `upstream-limited`. Limitations: Uses the legacy MYS anniversary endpoint, which may return provider retcode -502. |
+| `player.summary` | `cookie` | `data, image, text, all` | `off` | Show authenticated player profile summary data. |
 | `profile.default` | `none` | `data` | `off` | Set the default local profile. |
 | `profile.delete` | `none` | `data` | `off` | Delete a local profile. |
 | `profile.init` | `none` | `data` | `off` | Create or update a local profile. |
