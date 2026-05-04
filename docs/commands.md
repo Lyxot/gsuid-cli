@@ -80,14 +80,14 @@ Generated from `gsuid meta capabilities`.
 | `profile.init` | `none` | `data` | `off` | Create or update a local profile. |
 | `profile.list` | `none` | `data` | `off` | List local profiles. |
 | `profile.show` | `none` | `data` | `off` | Show one local profile. |
-| `progress.achievement-guide` | `none` | `data` | `off` | Report achievement guide lookup support status. |
-| `progress.achievements` | `cookie` | `data, image, all` | `off` | Show authenticated achievement category data. |
-| `progress.collection` | `cookie` | `data, image, all` | `off` | Show authenticated collection count data. |
-| `progress.commission-guide` | `none` | `data` | `off` | Report commission guide lookup support status. |
-| `progress.completion` | `cookie` | `data, image, all` | `off` | Show authenticated account completion summary data. |
-| `progress.exploration` | `cookie` | `data, image, all` | `off` | Show authenticated world exploration data. |
-| `progress.gcg` | `cookie` | `data, image, all` | `off` | Show authenticated Genius Invokation TCG data. |
-| `progress.gcg-deck` | `cookie` | `data, image, all` | `off` | Show authenticated Genius Invokation TCG deck data. |
+| `progress.achievement-guide` | `none` | `data, text, all` | `off` | Report achievement guide lookup support status. |
+| `progress.achievements` | `cookie` | `data, image, text, all` | `off` | Show authenticated achievement category data. |
+| `progress.collection` | `cookie` | `data, image, text, all` | `off` | Show authenticated collection count data. |
+| `progress.commission-guide` | `none` | `data, text, all` | `off` | Report commission guide lookup support status. |
+| `progress.completion` | `cookie` | `data, image, text, all` | `off` | Show authenticated account completion summary data. |
+| `progress.exploration` | `cookie` | `data, image, text, all` | `off` | Show authenticated world exploration data. |
+| `progress.gcg` | `cookie` | `data, image, text, all` | `off` | Show authenticated Genius Invokation TCG data. |
+| `progress.gcg-deck` | `cookie` | `data, image, text, all` | `off` | Show authenticated Genius Invokation TCG deck data. |
 | `rank.artifact` | `none` | `data, image, all` | `off` | Show the Akasha global artifact leaderboard. |
 | `rank.character` | `none` | `data, image, all` | `off` | Show a character Akasha leaderboard or nearby UID rank rows. |
 | `rank.list` | `none` | `data, image, all` | `off` | Render a UID's Akasha rank list. |

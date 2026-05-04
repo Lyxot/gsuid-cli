@@ -13,9 +13,10 @@ from gsuid_cli.commands._shared import (
 )
 from gsuid_cli.commands.player import _player_title_render_context
 from gsuid_cli.commands.render_assets import fetch_render_images
+from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.render import render_image_enabled, render_result_data
+from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
 from gsuid_cli.renderers.player.summary import player_summary_mys_icon_urls
 from gsuid_cli.renderers.progress.achievements import (
     progress_achievement_image_urls,
@@ -33,6 +34,15 @@ from gsuid_cli.renderers.progress.gcg import (
     render_progress_gcg_card,
     render_progress_gcg_deck_card,
 )
+from gsuid_cli.renderers.progress.text import (
+    render_progress_achievements_text,
+    render_progress_collection_text,
+    render_progress_completion_text,
+    render_progress_exploration_text,
+    render_progress_gcg_deck_text,
+    render_progress_gcg_text,
+    render_progress_guide_status_text,
+)
 
 PROGRESS_IMAGE_WORKERS = 12
 
@@ -42,7 +52,7 @@ CAPABILITIES = [
         "description": "Show authenticated account completion summary data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -50,7 +60,7 @@ CAPABILITIES = [
         "description": "Show authenticated world exploration data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -58,7 +68,7 @@ CAPABILITIES = [
         "description": "Show authenticated collection count data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -66,7 +76,7 @@ CAPABILITIES = [
         "description": "Show authenticated achievement category data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -74,7 +84,7 @@ CAPABILITIES = [
         "description": "Report achievement guide lookup support status.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -82,7 +92,7 @@ CAPABILITIES = [
         "description": "Report commission guide lookup support status.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -90,7 +100,7 @@ CAPABILITIES = [
         "description": "Show authenticated Genius Invokation TCG data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -98,7 +108,7 @@ CAPABILITIES = [
         "description": "Show authenticated Genius Invokation TCG deck data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
 ]
@@ -165,7 +175,7 @@ def completion_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _completion_render_result(args, result=result, uid=uid, region=region)
 
@@ -180,15 +190,17 @@ def exploration_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
-    completion_result = provider.progress_completion(
-        uid=uid,
-        cookie=cookie,
-        region=region,
-        credential_source=credential_source,
-        storage_backend=storage_backend,
-    )
+    completion_result = None
+    if render_image_enabled(args):
+        completion_result = provider.progress_completion(
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+        )
     return _exploration_render_result(
         args,
         provider=provider,
@@ -212,7 +224,7 @@ def collection_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _collection_render_result(
         args,
@@ -248,7 +260,7 @@ def achievements_command(args: argparse.Namespace) -> CommandResult:
         result.data["query"] = args.query
         result.data["achievements"] = matches
         result.data["count"] = len(matches)
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _achievements_render_result(
         args,
@@ -263,11 +275,17 @@ def achievements_command(args: argparse.Namespace) -> CommandResult:
 
 
 def achievement_guide_command(args: argparse.Namespace) -> CommandResult:
-    return _source_limited_guide("achievement", args.query)
+    result = _source_limited_guide("achievement", args.query)
+    if not render_text_enabled(args):
+        return result
+    return _guide_render_result(args, result, "achievement")
 
 
 def commission_guide_command(args: argparse.Namespace) -> CommandResult:
-    return _source_limited_guide("commission", args.query)
+    result = _source_limited_guide("commission", args.query)
+    if not render_text_enabled(args):
+        return result
+    return _guide_render_result(args, result, "commission")
 
 
 def gcg_command(args: argparse.Namespace) -> CommandResult:
@@ -280,7 +298,7 @@ def gcg_command(args: argparse.Namespace) -> CommandResult:
         credential_source=credential_source,
         storage_backend=storage_backend,
     )
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _gcg_render_result(args, result=result, uid=uid, region=region)
 
@@ -296,7 +314,7 @@ def gcg_deck_command(args: argparse.Namespace) -> CommandResult:
         storage_backend=storage_backend,
         deck_id=args.deck_id,
     )
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _gcg_deck_render_result(
         args,
@@ -311,7 +329,8 @@ def gcg_deck_command(args: argparse.Namespace) -> CommandResult:
 
 
 def _source_limited_guide(kind: str, query: str) -> CommandResult:
-    message = f"{kind} guide data is not available from configured sources"
+    guide_name = {"achievement": "成就攻略", "commission": "委托攻略"}.get(kind, "攻略")
+    message = f"{guide_name}数据暂未从已配置来源提供"
     return CommandResult(
         data={
             "query": query,
@@ -339,35 +358,53 @@ def _completion_render_result(
     region: str,
 ) -> CommandResult:
     completion = _mapping_data(result, "completion", "progress.completion")
-    images, image_warnings = fetch_render_images(
-        args,
-        player_summary_mys_icon_urls(completion),
-        provider="mys",
-        region=region,
-        category="progress.completion.icon",
-        unavailable_warning="{count} progress completion icons unavailable; rendered placeholders",
-        max_workers=PROGRESS_IMAGE_WORKERS,
-    )
-    png = render_progress_completion_card(completion=completion, asset_images=images)
-    artifact = _write_image_artifact(
-        args,
-        name="progress/completion",
-        filename=f"progress-completion_{_safe_filename(uid)}.png",
-        description="GenshinUID-style completion card",
-        content=png,
-    )
-    render_data = {
-        "uid": uid,
-        "render": "progress/completion",
-        "exploration_count": completion.get("exploration_count"),
-        "artifact_sha256": artifact["sha256"],
-    }
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data = {"uid": uid, "exploration_count": completion.get("exploration_count")}
+    if render_image_enabled(args):
+        images, image_warnings = fetch_render_images(
+            args,
+            player_summary_mys_icon_urls(completion),
+            provider="mys",
+            region=region,
+            category="progress.completion.icon",
+            unavailable_warning=(
+                "{count} progress completion icons unavailable; rendered placeholders"
+            ),
+            max_workers=PROGRESS_IMAGE_WORKERS,
+        )
+        png = render_progress_completion_card(completion=completion, asset_images=images)
+        image_artifact = _write_image_artifact(
+            args,
+            name="progress/completion",
+            filename=f"progress-completion_{_safe_filename(uid)}.png",
+            description="GenshinUID-style completion card",
+            content=png,
+        )
+        artifacts.append(image_artifact)
+        warnings.extend(image_warnings)
+        render_data.update(
+            {
+                "render": "progress/completion",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_artifact = _write_text_artifact(
+            args,
+            name="progress/completion-text",
+            filename=f"progress-completion_{_safe_filename(uid)}.txt",
+            content=render_progress_completion_text(uid=uid, completion=completion),
+            description="Human-readable completion progress text",
+        )
+        artifacts.append(text_artifact)
+        _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *image_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
 
@@ -377,50 +414,73 @@ def _exploration_render_result(
     *,
     provider,
     result: CommandResult,
-    completion_result: CommandResult,
+    completion_result: CommandResult | None,
     uid: str,
     region: str,
     cookie: str,
     credential_source: str,
     storage_backend: str | None,
 ) -> CommandResult:
-    _mapping_data(result, "exploration", "progress.exploration")
-    completion = _mapping_data(completion_result, "completion", "progress.exploration.completion")
-    summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
-        args,
-        provider=provider,
-        uid=uid,
-        region=region,
-        cookie=cookie,
-        credential_source=credential_source,
-        storage_backend=storage_backend,
-        category_prefix="progress.exploration",
-    )
-    png = render_progress_exploration_card(
-        uid=uid,
-        summary=summary,
-        completion=completion,
-        asset_images=title_images,
-        title_avatar_url=title_avatar_url,
-    )
-    artifact = _write_image_artifact(
-        args,
-        name="progress/exploration",
-        filename=f"progress-exploration_{_safe_filename(uid)}.png",
-        description="GenshinUID-style exploration progress card",
-        content=png,
-    )
-    render_data = {
-        "uid": uid,
-        "render": "progress/exploration",
-        "artifact_sha256": artifact["sha256"],
-    }
+    exploration = _mapping_data(result, "exploration", "progress.exploration")
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {"uid": uid}
+    if render_image_enabled(args):
+        if completion_result is None:
+            raise AssertionError("completion_result is required for exploration image render")
+        completion = _mapping_data(
+            completion_result,
+            "completion",
+            "progress.exploration.completion",
+        )
+        summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
+            args,
+            provider=provider,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+            category_prefix="progress.exploration",
+        )
+        png = render_progress_exploration_card(
+            uid=uid,
+            summary=summary,
+            completion=completion,
+            asset_images=title_images,
+            title_avatar_url=title_avatar_url,
+        )
+        image_artifact = _write_image_artifact(
+            args,
+            name="progress/exploration",
+            filename=f"progress-exploration_{_safe_filename(uid)}.png",
+            description="GenshinUID-style exploration progress card",
+            content=png,
+        )
+        artifacts.append(image_artifact)
+        warnings.extend([*completion_result.warnings, *title_warnings])
+        render_data.update(
+            {
+                "render": "progress/exploration",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_artifact = _write_text_artifact(
+            args,
+            name="progress/exploration-text",
+            filename=f"progress-exploration_{_safe_filename(uid)}.txt",
+            content=render_progress_exploration_text(uid=uid, exploration=exploration),
+            description="Human-readable exploration progress text",
+        )
+        artifacts.append(text_artifact)
+        _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *completion_result.warnings, *title_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
 
@@ -437,41 +497,58 @@ def _collection_render_result(
     storage_backend: str | None,
 ) -> CommandResult:
     collection = _mapping_data(result, "collection", "progress.collection")
-    summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
-        args,
-        provider=provider,
-        uid=uid,
-        region=region,
-        cookie=cookie,
-        credential_source=credential_source,
-        storage_backend=storage_backend,
-        category_prefix="progress.collection",
-    )
-    png = render_progress_collection_card(
-        uid=uid,
-        summary=summary,
-        collection=collection,
-        asset_images=title_images,
-        title_avatar_url=title_avatar_url,
-    )
-    artifact = _write_image_artifact(
-        args,
-        name="progress/collection",
-        filename=f"progress-collection_{_safe_filename(uid)}.png",
-        description="GenshinUID-style collection progress card",
-        content=png,
-    )
-    render_data = {
-        "uid": uid,
-        "render": "progress/collection",
-        "artifact_sha256": artifact["sha256"],
-    }
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {"uid": uid}
+    if render_image_enabled(args):
+        summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
+            args,
+            provider=provider,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+            category_prefix="progress.collection",
+        )
+        png = render_progress_collection_card(
+            uid=uid,
+            summary=summary,
+            collection=collection,
+            asset_images=title_images,
+            title_avatar_url=title_avatar_url,
+        )
+        image_artifact = _write_image_artifact(
+            args,
+            name="progress/collection",
+            filename=f"progress-collection_{_safe_filename(uid)}.png",
+            description="GenshinUID-style collection progress card",
+            content=png,
+        )
+        artifacts.append(image_artifact)
+        warnings.extend(title_warnings)
+        render_data.update(
+            {
+                "render": "progress/collection",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_artifact = _write_text_artifact(
+            args,
+            name="progress/collection-text",
+            filename=f"progress-collection_{_safe_filename(uid)}.txt",
+            content=render_progress_collection_text(uid=uid, collection=collection),
+            description="Human-readable collection progress text",
+        )
+        artifacts.append(text_artifact)
+        _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *title_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
 
@@ -488,51 +565,71 @@ def _achievements_render_result(
     storage_backend: str | None,
 ) -> CommandResult:
     achievements = _mapping_sequence(result.data.get("achievements"))
-    summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
-        args,
-        provider=provider,
-        uid=uid,
-        region=region,
-        cookie=cookie,
-        credential_source=credential_source,
-        storage_backend=storage_backend,
-        category_prefix="progress.achievements",
-    )
-    achievement_images, achievement_warnings = fetch_render_images(
-        args,
-        progress_achievement_image_urls(achievements),
-        provider="mys",
-        region=region,
-        category="progress.achievements.icon",
-        unavailable_warning="{count} achievement icons unavailable; rendered placeholders",
-        max_workers=PROGRESS_IMAGE_WORKERS,
-    )
-    png = render_progress_achievements_card(
-        uid=uid,
-        summary=summary,
-        achievements=achievements,
-        asset_images={**title_images, **achievement_images},
-        title_avatar_url=title_avatar_url,
-    )
-    artifact = _write_image_artifact(
-        args,
-        name="progress/achievements",
-        filename=f"progress-achievements_{_safe_filename(uid)}.png",
-        description="GenshinUID-style achievements card",
-        content=png,
-    )
-    render_data = {
-        "uid": uid,
-        "render": "progress/achievements",
-        "count": len(achievements),
-        "artifact_sha256": artifact["sha256"],
-    }
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {"uid": uid, "count": len(achievements)}
+    if render_image_enabled(args):
+        summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
+            args,
+            provider=provider,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+            category_prefix="progress.achievements",
+        )
+        achievement_images, achievement_warnings = fetch_render_images(
+            args,
+            progress_achievement_image_urls(achievements),
+            provider="mys",
+            region=region,
+            category="progress.achievements.icon",
+            unavailable_warning="{count} achievement icons unavailable; rendered placeholders",
+            max_workers=PROGRESS_IMAGE_WORKERS,
+        )
+        png = render_progress_achievements_card(
+            uid=uid,
+            summary=summary,
+            achievements=achievements,
+            asset_images={**title_images, **achievement_images},
+            title_avatar_url=title_avatar_url,
+        )
+        image_artifact = _write_image_artifact(
+            args,
+            name="progress/achievements",
+            filename=f"progress-achievements_{_safe_filename(uid)}.png",
+            description="GenshinUID-style achievements card",
+            content=png,
+        )
+        artifacts.append(image_artifact)
+        warnings.extend([*title_warnings, *achievement_warnings])
+        render_data.update(
+            {
+                "render": "progress/achievements",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_artifact = _write_text_artifact(
+            args,
+            name="progress/achievements-text",
+            filename=f"progress-achievements_{_safe_filename(uid)}.txt",
+            content=render_progress_achievements_text(
+                uid=uid,
+                achievements=achievements,
+                query=result.data.get("query"),
+            ),
+            description="Human-readable achievements progress text",
+        )
+        artifacts.append(text_artifact)
+        _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *title_warnings, *achievement_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
 
@@ -545,43 +642,59 @@ def _gcg_render_result(
     region: str,
 ) -> CommandResult:
     gcg = _mapping_data(result, "gcg", "progress.gcg")
-    if not has_gcg_covers(gcg):
-        raise CliError(
-            "NO_RESULT",
-            "GCG image render requires activated cover cards.",
-            EXIT_NO_RESULT,
-            {"uid": uid},
-            source=result.source,
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {"uid": uid, "deck_count": gcg.get("deck_count")}
+    if render_image_enabled(args):
+        if not has_gcg_covers(gcg):
+            raise CliError(
+                "NO_RESULT",
+                "GCG image render requires activated cover cards.",
+                EXIT_NO_RESULT,
+                {"uid": uid},
+                source=result.source,
+            )
+        images, image_warnings = fetch_render_images(
+            args,
+            progress_gcg_image_urls(gcg),
+            provider="mys",
+            region=region,
+            category="progress.gcg.card",
+            unavailable_warning="{count} GCG card images unavailable; rendered placeholders",
+            max_workers=PROGRESS_IMAGE_WORKERS,
         )
-    images, image_warnings = fetch_render_images(
-        args,
-        progress_gcg_image_urls(gcg),
-        provider="mys",
-        region=region,
-        category="progress.gcg.card",
-        unavailable_warning="{count} GCG card images unavailable; rendered placeholders",
-        max_workers=PROGRESS_IMAGE_WORKERS,
-    )
-    png = render_progress_gcg_card(uid=uid, gcg=gcg, asset_images=images)
-    artifact = _write_image_artifact(
-        args,
-        name="progress/gcg",
-        filename=f"progress-gcg_{_safe_filename(uid)}.png",
-        description="GenshinUID-style GCG overview card",
-        content=png,
-    )
-    render_data = {
-        "uid": uid,
-        "render": "progress/gcg",
-        "deck_count": gcg.get("deck_count"),
-        "artifact_sha256": artifact["sha256"],
-    }
+        png = render_progress_gcg_card(uid=uid, gcg=gcg, asset_images=images)
+        image_artifact = _write_image_artifact(
+            args,
+            name="progress/gcg",
+            filename=f"progress-gcg_{_safe_filename(uid)}.png",
+            description="GenshinUID-style GCG overview card",
+            content=png,
+        )
+        artifacts.append(image_artifact)
+        warnings.extend(image_warnings)
+        render_data.update(
+            {
+                "render": "progress/gcg",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_artifact = _write_text_artifact(
+            args,
+            name="progress/gcg-text",
+            filename=f"progress-gcg_{_safe_filename(uid)}.txt",
+            content=render_progress_gcg_text(uid=uid, gcg=gcg),
+            description="Human-readable GCG progress text",
+        )
+        artifacts.append(text_artifact)
+        _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *image_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
 
@@ -598,61 +711,143 @@ def _gcg_deck_render_result(
     storage_backend: str | None,
 ) -> CommandResult:
     deck = _first_mapping(result.data.get("decks"))
-    if not deck:
-        raise CliError(
-            "NO_RESULT",
-            "No GCG deck matched the request.",
-            EXIT_NO_RESULT,
-            {"uid": uid, "deck_id": result.data.get("deck_id")},
-            source=result.source,
-        )
-    summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
-        args,
-        provider=provider,
-        uid=uid,
-        region=region,
-        cookie=cookie,
-        credential_source=credential_source,
-        storage_backend=storage_backend,
-        category_prefix="progress.gcg-deck",
-    )
-    card_images, card_warnings = fetch_render_images(
-        args,
-        progress_gcg_deck_image_urls(deck),
-        provider="mys",
-        region=region,
-        category="progress.gcg-deck.card",
-        unavailable_warning="{count} GCG deck card images unavailable; rendered placeholders",
-        max_workers=PROGRESS_IMAGE_WORKERS,
-    )
-    png = render_progress_gcg_deck_card(
-        uid=uid,
-        summary=summary,
-        deck=deck,
-        asset_images={**title_images, **card_images},
-        title_avatar_url=title_avatar_url,
-    )
-    artifact = _write_image_artifact(
-        args,
-        name="progress/gcg-deck",
-        filename=f"progress-gcg-deck_{_safe_filename(uid)}.png",
-        description="GenshinUID-style GCG deck card",
-        content=png,
-    )
-    render_data = {
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {
         "uid": uid,
-        "render": "progress/gcg-deck",
         "deck_id": deck.get("id", result.data.get("deck_id")),
         "deck_name": deck.get("name"),
-        "artifact_sha256": artifact["sha256"],
     }
+    if render_image_enabled(args):
+        if not deck:
+            raise CliError(
+                "NO_RESULT",
+                "No GCG deck matched the request.",
+                EXIT_NO_RESULT,
+                {"uid": uid, "deck_id": result.data.get("deck_id")},
+                source=result.source,
+            )
+        summary, title_images, title_avatar_url, title_warnings = _player_title_render_context(
+            args,
+            provider=provider,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+            category_prefix="progress.gcg-deck",
+        )
+        card_images, card_warnings = fetch_render_images(
+            args,
+            progress_gcg_deck_image_urls(deck),
+            provider="mys",
+            region=region,
+            category="progress.gcg-deck.card",
+            unavailable_warning="{count} GCG deck card images unavailable; rendered placeholders",
+            max_workers=PROGRESS_IMAGE_WORKERS,
+        )
+        png = render_progress_gcg_deck_card(
+            uid=uid,
+            summary=summary,
+            deck=deck,
+            asset_images={**title_images, **card_images},
+            title_avatar_url=title_avatar_url,
+        )
+        image_artifact = _write_image_artifact(
+            args,
+            name="progress/gcg-deck",
+            filename=f"progress-gcg-deck_{_safe_filename(uid)}.png",
+            description="GenshinUID-style GCG deck card",
+            content=png,
+        )
+        artifacts.append(image_artifact)
+        warnings.extend([*title_warnings, *card_warnings])
+        render_data.update(
+            {
+                "render": "progress/gcg-deck",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_artifact = _write_text_artifact(
+            args,
+            name="progress/gcg-deck-text",
+            filename=f"progress-gcg-deck_{_safe_filename(uid)}.txt",
+            content=render_progress_gcg_deck_text(uid=uid, data=result.data),
+            description="Human-readable GCG deck progress text",
+        )
+        artifacts.append(text_artifact)
+        _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *title_warnings, *card_warnings],
+        warnings=warnings,
         pagination=result.pagination,
+    )
+
+
+def _guide_render_result(
+    args: argparse.Namespace,
+    result: CommandResult,
+    kind: str,
+) -> CommandResult:
+    text_artifact = _write_text_artifact(
+        args,
+        name=f"progress/{kind}-guide-text",
+        filename=f"progress-{kind}-guide.txt",
+        content=render_progress_guide_status_text(result.data),
+        description=f"Human-readable {kind} guide support status",
+    )
+    data = render_result_data(
+        args,
+        result.data,
+        {
+            "render": f"progress/{kind}-guide-text",
+            "artifact_sha256": text_artifact["sha256"],
+        },
+    )
+    return CommandResult(
+        data=data,
+        artifacts=[text_artifact],
+        source=result.source,
+        warnings=result.warnings,
+        pagination=result.pagination,
+    )
+
+
+def _write_text_artifact(
+    args: argparse.Namespace,
+    *,
+    name: str,
+    filename: str,
+    content: str,
+    description: str,
+) -> dict[str, object]:
+    return ArtifactManager(args.request_id, args.output_dir).write_text(
+        name=name,
+        filename=filename,
+        content=content,
+        description=description,
+        kind="text",
+    )
+
+
+def _record_text_artifact(
+    render_data: dict[str, object],
+    text_artifact: Mapping[str, object],
+    *,
+    image_enabled: bool,
+) -> None:
+    if image_enabled:
+        render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        return
+    render_data.update(
+        {
+            "render": text_artifact["name"],
+            "artifact_sha256": text_artifact["sha256"],
+        }
     )
 
 
@@ -663,4 +858,3 @@ def _mapping_sequence(value: object) -> list[Mapping[str, object]]:
 def _first_mapping(value: object) -> Mapping[str, object]:
     values = _mapping_sequence(value)
     return values[0] if values else {}
-

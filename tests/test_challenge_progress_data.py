@@ -381,6 +381,182 @@ def test_progress_render_images(monkeypatch, tmp_path) -> None:
     assert "https://upload.example.test/gcg-card.png" in captured_urls
 
 
+def test_progress_commands_render_text_write_artifacts(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
+    monkeypatch.setattr(progress_commands, "fetch_render_images", _fail_image_fetcher)
+    monkeypatch.setattr("gsuid_cli.commands.player.fetch_render_images", _fail_image_fetcher)
+    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    cases = [
+        (
+            ["progress", "completion", "--uid", "100000001"],
+            "progress.completion",
+            "progress/completion-text",
+            "完成进度",
+            "蒙德",
+        ),
+        (
+            ["progress", "exploration", "--uid", "100000001"],
+            "progress.exploration",
+            "progress/exploration-text",
+            "探索进度",
+            "蒙德",
+        ),
+        (
+            ["progress", "collection", "--uid", "100000001"],
+            "progress.collection",
+            "progress/collection-text",
+            "收集进度",
+            "普通宝箱",
+        ),
+        (
+            ["progress", "achievements", "--uid", "100000001"],
+            "progress.achievements",
+            "progress/achievements-text",
+            "成就进度",
+            "天地万象",
+        ),
+        (
+            ["progress", "achievement-guide", "--query", "commission"],
+            "progress.achievement-guide",
+            "progress/achievement-guide-text",
+            "成就攻略查询",
+            "可用: 否",
+        ),
+        (
+            ["progress", "commission-guide", "--query", "anna"],
+            "progress.commission-guide",
+            "progress/commission-guide-text",
+            "委托攻略查询",
+            "可用: 否",
+        ),
+        (
+            ["progress", "gcg", "--uid", "100000001"],
+            "progress.gcg",
+            "progress/gcg-text",
+            "七圣召唤 - TCG",
+            "凯亚",
+        ),
+        (
+            ["progress", "gcg-deck", "--uid", "100000001"],
+            "progress.gcg-deck",
+            "progress/gcg-deck-text",
+            "七圣召唤卡组 - Deck",
+            "Avatar",
+        ),
+    ]
+
+    for index, (argv, command, render_name, expected_title, expected_detail) in enumerate(cases):
+        code, payload = _run_json(
+            [
+                *argv,
+                "--render",
+                "text",
+                "--request-id",
+                f"progress-text-{index}",
+                "--output-dir",
+                str(tmp_path / "artifacts"),
+            ]
+        )
+
+        assert code == 0
+        assert payload["command"] == command
+        assert payload["data"]["render"] == render_name
+        artifact = payload["artifacts"][0]
+        path = Path(artifact["path"])
+        assert path.parent == tmp_path / "artifacts" / "2026-04-29" / f"progress-text-{index}"
+        assert artifact["kind"] == "text"
+        assert artifact["media_type"] == "text/plain; charset=utf-8"
+        assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        text = path.read_text(encoding="utf-8")
+        assert expected_title in text
+        assert expected_detail in text
+        if command == "progress.gcg":
+            assert "卡牌1103" not in text
+
+
+def test_progress_plain_text_image_prints_image_path(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
+    monkeypatch.setattr(progress_commands, "fetch_render_images", _fake_image_fetcher([]))
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "progress",
+            "completion",
+            "--uid",
+            "100000001",
+            "--render",
+            "text,image",
+            "--format",
+            "plain",
+            "--request-id",
+            "progress-plain-text-image",
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    text = stdout.getvalue()
+    assert text.startswith("完成进度\nUID: 100000001\n")
+    assert "\n\n图片已保存至: " in text
+    assert "progress-completion_100000001.png" in text
+
+
+def test_progress_render_text_image_preserves_image_primary_artifact(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
+    monkeypatch.setattr(progress_commands, "fetch_render_images", _fake_image_fetcher([]))
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(
+        ["progress", "completion", "--uid", "100000001", "--render", "text,image"]
+    )
+
+    assert code == 0
+    image_artifact, text_artifact = payload["artifacts"]
+    assert image_artifact["kind"] == "image"
+    assert text_artifact["kind"] == "text"
+    assert payload["data"]["render"] == "progress/completion"
+    assert payload["data"]["artifact_sha256"] == image_artifact["sha256"]
+    assert payload["data"]["text_artifact_sha256"] == text_artifact["sha256"]
+
+
+def test_progress_guide_plain_text_prints_warning(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "progress",
+            "achievement-guide",
+            "--query",
+            "commission",
+            "--render",
+            "text",
+            "--format",
+            "plain",
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stdout.getvalue().startswith("成就攻略查询\n")
+    assert "\033[33m警告: 成就攻略数据暂未从已配置来源提供" in stderr.getvalue()
+    assert stderr.getvalue().endswith("\033[0m\n")
+
+
 def test_challenge_abyss_render_image_requires_floor_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _empty_abyss_provider)
@@ -999,8 +1175,7 @@ def _fake_provider(_region: str, _http_client: HttpClient):
                         "action_card_num_total": 40,
                         "covers": [
                             {
-                                "id": 1,
-                                "name": "Card",
+                                "id": 1103,
                                 "image": "https://upload.example.test/gcg-card.png",
                             }
                         ],

@@ -71,6 +71,7 @@ gsuid_cli = [
   "assets/progress/achievements/textures/*.png",
   "assets/progress/collection/textures/*.jpg",
   "assets/progress/collection/textures/*.png",
+  "assets/progress/gcg/data/*.json",
   "assets/progress/gcg/textures/*.jpg",
   "assets/progress/gcg/textures/*.png",
   "assets/public/fonts/*.ttf",

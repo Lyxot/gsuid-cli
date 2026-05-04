@@ -692,40 +692,7 @@ tests/
 ### Stage 5: Public Data MVP — completed.
 ### Stage 6: Authenticated Daily And Player Data — completed.
 ### Stage 7: Progress And Challenge Data — completed.
-### Stage 7.1: Challenge Abyss Image Renderer Fix
-
-- Status: completed.
-- Scope:
-  - Adjust `challenge.abyss --render image` against the provided reference by
-    restoring the default abyss background without the stretched color mask or
-    CLI footer, plus battle-card constellation badges and hyphenated chamber
-    dates.
-- Result:
-  - Implemented as a standalone fix commit instead of amending the challenge
-    text-render commit.
-  - Added the GenshinUID default abyss background asset, included it in package
-    data, removed the abyss-card footer, and kept abyss image rank enrichment as
-    a render-only copy so structured data remains unchanged.
-  - Added regression coverage for hyphenated dates, battle-card constellation
-    enrichment, source-data preservation, the local reference background, and
-    footer removal.
-  - Separate-agent review found no remaining blocking implementation issues; it
-    flagged the new `bg.jpg` as needing to be tracked and suggested the focused
-    background/footer regression test, both addressed before commit.
-- Verification:
-  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py::test_challenge_render_images tests/test_challenge_progress_data.py::test_challenge_abyss_image_time_text_uses_hyphen_dates tests/test_challenge_progress_data.py::test_challenge_abyss_image_rank_enrichment_preserves_source_data tests/test_challenge_progress_data.py::test_challenge_abyss_overview_marks_missing_lower_floors_as_skipped -q`
-  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py tests/test_meta_commands.py -q`
-  - `.venv/bin/python -m pytest -q` (`267 passed, 1 skipped`)
-  - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check src/gsuid_cli/commands/challenge.py src/gsuid_cli/renderers/challenge/abyss.py tests/test_challenge_progress_data.py`
-  - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `git diff --check`
-  - Live smoke:
-    `GSUID_OUTPUT_DIR=/private/tmp/gsuid-abyss-amend .venv/bin/python -m gsuid_cli --request-id abyss-amend-no-footer --render image challenge abyss --uid <UID>`
-  - Live artifact:
-    `/private/tmp/gsuid-abyss-amend/2026-05-05/abyss-amend-no-footer/challenge-abyss_102452098.png`
-- Commit: `fix: align abyss image renderer`.
-
+### Stage 7.1: Challenge Abyss Image Renderer Fix — completed.
 ### Stage 8: Gacha Log — completed.
 ### Stage 8.1: Automatic Gacha Authkey URL — completed.
 ### Stage 8.1a: Refresh Expired Gacha Authkeys During Refresh — completed.
@@ -750,6 +717,53 @@ tests/
 ### Stage 18e: Guide, Recommendation, And Rerun Text Render Artifacts — completed.
 ### Stage 18f: Player Text Render Artifacts — completed.
 ### Stage 18g: Challenge Text Render Artifacts — completed.
+### Stage 18h: Progress Text Render Artifacts
+
+- Stage 18h status: completed.
+- Stage 18h scope:
+  - Add Chinese `--render text` support for `progress.completion`,
+    `progress.exploration`, `progress.collection`, `progress.achievements`,
+    `progress.achievement-guide`, `progress.commission-guide`, `progress.gcg`,
+    and `progress.gcg-deck`.
+  - For progress commands that already render images, derive text from the
+    normalized progress data and keep combined `text,image` output image-primary
+    with `text_artifact_sha256`.
+  - For the guide lookup support commands, add compact data-only text renders
+    for the existing source-limitation messages.
+- Stage 18h verification target:
+  - Focused progress text artifact/plain tests, existing progress image tests,
+    `meta capabilities`, generated command docs, ruff, full pytest, live plain
+    smokes, and a separate review before commit.
+- Stage 18h implementation summary:
+  - Added Chinese text render artifacts for all progress commands:
+    completion, exploration, collection, achievements, achievement guide,
+    commission guide, GCG overview, and GCG deck.
+  - Text-only progress renders avoid image asset fetching; combined
+    `text,image` keeps the image artifact primary and records
+    `text_artifact_sha256`.
+  - Packaged a compact Simplified Chinese GCG card-name lookup so GCG cover
+    cards render names such as `凯亚` and `魔导绪论` instead of raw card IDs.
+  - Guide source-limitation messages now render and warn in Chinese.
+- Stage 18h verification:
+  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py::test_progress_commands_render_text_write_artifacts tests/test_challenge_progress_data.py::test_progress_plain_text_image_prints_image_path tests/test_challenge_progress_data.py::test_progress_render_text_image_preserves_image_primary_artifact tests/test_challenge_progress_data.py::test_progress_guide_plain_text_prints_warning tests/test_challenge_progress_data.py::test_progress_render_images tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
+    (`6 passed`)
+  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py tests/test_meta_commands.py -q`
+    (`33 passed`)
+  - `.venv/bin/python -m pytest -q` (`271 passed, 1 skipped`)
+  - `.venv/bin/ruff check .`
+  - `.venv/bin/ruff format --check src/gsuid_cli/commands/progress.py src/gsuid_cli/renderers/progress/text.py tests/test_challenge_progress_data.py tests/test_meta_commands.py`
+  - `.venv/bin/python scripts/generate_command_reference.py --check`
+  - `.venv/bin/python -m py_compile src/gsuid_cli/commands/progress.py src/gsuid_cli/renderers/progress/text.py`
+  - `git diff --check`
+  - Built a wheel with `.venv/bin/python -m pip wheel --no-deps` and verified
+    `gsuid_cli/assets/progress/gcg/data/card_names.json` is included.
+  - Live plain smokes for all Stage 18h progress commands, plus
+    `progress completion --render text,image --format plain`.
+  - Separate review found English guide warning text; fixed it and reran the
+    focused warning test and full suite.
+- Next intended stage: wait for user approval of Stage 18h output before moving
+  to the next command group.
+
 ## MVP Cut Line
 
 The first usable MVP is complete after Stage 6 if these commands work:

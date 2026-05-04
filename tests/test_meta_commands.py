@@ -220,14 +220,39 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
         "all",
     ]
     assert capability_by_command["challenge.hard-rank"]["render"] == ["data", "text", "all"]
-    assert capability_by_command["progress.completion"]["render"] == ["data", "image", "all"]
-    assert capability_by_command["progress.exploration"]["render"] == ["data", "image", "all"]
-    assert capability_by_command["progress.collection"]["render"] == ["data", "image", "all"]
-    assert capability_by_command["progress.achievements"]["render"] == ["data", "image", "all"]
-    assert capability_by_command["progress.gcg"]["render"] == ["data", "image", "all"]
-    assert capability_by_command["progress.gcg-deck"]["render"] == ["data", "image", "all"]
-    assert capability_by_command["progress.achievement-guide"]["render"] == ["data"]
-    assert capability_by_command["progress.commission-guide"]["render"] == ["data"]
+    assert capability_by_command["progress.completion"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["progress.exploration"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["progress.collection"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["progress.achievements"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["progress.gcg"]["render"] == ["data", "image", "text", "all"]
+    assert capability_by_command["progress.gcg-deck"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["progress.achievement-guide"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["progress.commission-guide"]["render"] == ["data", "text", "all"]
     assert capability_by_command["panel.show"]["render"] == ["data", "image", "all"]
     assert capability_by_command["panel.compare"]["render"] == ["data", "image", "all"]
     assert capability_by_command["panel.artifacts"]["render"] == ["data", "image", "all"]

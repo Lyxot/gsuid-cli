@@ -66,6 +66,8 @@ rendering.
 - Progress achievement textures are copied from
   `GenshinUID/genshinuid_achievement/texture2d/`.
 - Progress GCG textures are copied from `GenshinUID/genshinuid_gcg/texture2d/`.
+- Progress GCG card-name lookup data is derived from the Simplified Chinese
+  GCG list served by the AMBR/Yatta API (`https://gi.yatta.moe/api/v2/chs/gcg`).
 - Progress collection/exploration slider and base-mask textures are copied from
   `GenshinUID/utils/resource/texture2d/`; the collection/exploration/GCG-deck
   background is copied from `GenshinUID/utils/image/bg/nm_bg/zy.jpg`.
