@@ -714,47 +714,47 @@ tests/
 ### Stage 18c: Public Data Text Render Artifacts — completed.
 ### Stage 18d: Wiki Text Render Artifacts — completed.
 ### Stage 18e: Guide, Recommendation, And Rerun Text Render Artifacts — completed.
-### Stage 18f: Player Text Render Artifacts
+### Stage 18f: Player Text Render Artifacts — completed.
+### Stage 18g: Challenge Text Render Artifacts
 
-- Stage 18f status: completed; ready to commit.
-- Stage 18f scope:
-  - Add Chinese `--render text` support for all `player` commands:
-    `player.summary`, `player.characters`, `player.inventory`,
-    `player.calendar`, `player.diary`, and `player.register-time`.
-  - For commands that already render images, derive text from the same
-    normalized command data used by the image renderer and keep combined
-    `text,image` output image-primary with `text_artifact_sha256`.
-  - For `player.register-time`, add a compact data-only text render because the
-    command has no image renderer but is user-facing.
-- Stage 18f verification target:
-  - Focused player text artifact/plain tests, existing player image tests,
+- Stage 18g status: completed; ready to commit.
+- Stage 18g scope:
+  - Add Chinese `--render text` support for `challenge.abyss`,
+    `challenge.theater`, `challenge.hard`, and `challenge.hard-rank`.
+  - For challenge commands that already render images, derive text from the
+    normalized challenge data and keep combined `text,image` output image-primary
+    with `text_artifact_sha256`.
+  - For `challenge.hard-rank`, add a compact data-only text render for the
+    existing source-limitation message.
+- Stage 18g verification target:
+  - Focused challenge text artifact/plain tests, existing challenge image tests,
     `meta capabilities`, generated command docs, ruff, full pytest, and a
     separate review agent before commit.
-- Stage 18f review note:
-  - Separate-agent review found no blocking issues. It suggested locking down
-    text-only player renders so they do not fetch image assets; added a focused
-    regression assertion for that requirement.
-- Stage 18f result:
-  - Added compact Chinese text renders for `player.summary`,
-    `player.characters`, `player.inventory`, `player.calendar`, `player.diary`,
-    and `player.register-time`.
+- Stage 18g review note:
+  - Separate-agent review found no blocking issues. It suggested an empty-abyss
+    text-only regression test; added coverage to ensure text explains empty
+    abyss floor data while image render still raises `NO_RESULT`.
+- Stage 18g result:
+  - Added compact Chinese text renders for `challenge.abyss`,
+    `challenge.theater`, `challenge.hard`, and `challenge.hard-rank`.
   - Combined `text,image` output keeps image artifact hashes primary and records
     `text_artifact_sha256`.
-  - Calendar text mirrors the rendered card sections and omits provider-only
-    selected/mixed lists and zero-count rewards.
-- Stage 18f verification:
-  - `.venv/bin/python -m pytest tests/test_daily_player_data.py::test_player_commands_render_text_write_artifacts tests/test_daily_player_data.py::test_player_calendar_text_matches_rendered_card_sections tests/test_daily_player_data.py::test_player_plain_text_image_prints_image_path tests/test_daily_player_data.py::test_player_summary_render_text_image_preserves_image_primary_artifact tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
-  - `.venv/bin/python -m pytest tests/test_daily_player_data.py tests/test_meta_commands.py -q`
-  - `.venv/bin/python -m pytest -q` (`260 passed, 1 skipped`)
+  - Challenge text resolves avatar IDs through the player summary avatar list
+    when available, so live output shows character names instead of raw IDs.
+  - Theater text omits unknown difficulty when no theater challenge record is
+    present.
+- Stage 18g verification:
+  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py::test_challenge_commands_render_text_write_artifacts tests/test_challenge_progress_data.py::test_challenge_abyss_render_text_allows_empty_floor_data tests/test_challenge_progress_data.py::test_challenge_plain_text_image_prints_image_path tests/test_challenge_progress_data.py::test_challenge_abyss_render_text_image_preserves_image_primary_artifact tests/test_challenge_progress_data.py::test_challenge_hard_rank_plain_text_prints_warning tests/test_challenge_progress_data.py::test_challenge_render_images tests/test_challenge_progress_data.py::test_challenge_abyss_render_data_image_preserves_structured_data tests/test_challenge_progress_data.py::test_challenge_abyss_render_image_requires_floor_data tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
+  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py tests/test_meta_commands.py -q`
+  - `.venv/bin/python -m pytest -q` (`265 passed, 1 skipped`)
   - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check src/gsuid_cli/commands/player.py src/gsuid_cli/renderers/player/text.py tests/test_daily_player_data.py tests/test_meta_commands.py`
+  - `.venv/bin/ruff format --check src/gsuid_cli/commands/challenge.py src/gsuid_cli/renderers/challenge/text.py tests/test_challenge_progress_data.py tests/test_meta_commands.py`
   - `.venv/bin/python scripts/generate_command_reference.py --check`
   - `git diff --check`
-  - Live plain smokes for `player.summary`, `player.characters`,
-    `player.inventory`, `player.calendar`, `player.diary`, and
-    `player.characters --render text,image`; `player.register-time` still exits
-    with `UPSTREAM_REJECTED`, matching its documented upstream-limited status.
-- Next intended stage: show the Stage 18f text output to the user, then move to
+  - Live plain smokes for `challenge.abyss`, `challenge.theater`,
+    `challenge.hard`, `challenge.hard-rank`, and
+    `challenge.hard --render text,image`.
+- Next intended stage: show the Stage 18g text output to the user, then move to
   the next command group after approval.
 
 ## MVP Cut Line

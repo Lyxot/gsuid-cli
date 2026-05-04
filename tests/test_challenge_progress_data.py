@@ -14,6 +14,7 @@ from helpers import mock_client as _mock_client
 from helpers import run_json as _run_json
 from PIL import Image
 
+from gsuid_cli.cli import run
 from gsuid_cli.commands import challenge as challenge_commands
 from gsuid_cli.commands import progress as progress_commands
 from gsuid_cli.core.http import HttpClient
@@ -147,6 +148,147 @@ def test_challenge_abyss_render_data_image_preserves_structured_data(monkeypatch
     assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
 
 
+def test_challenge_commands_render_text_write_artifacts(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
+    monkeypatch.setattr(challenge_commands, "fetch_render_images", _fail_image_fetcher)
+    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    cases = [
+        (
+            ["challenge", "abyss", "--uid", "100000001"],
+            "challenge.abyss",
+            "challenge/abyss-text",
+            "深境螺旋 - 派蒙",
+            "第12层",
+        ),
+        (
+            ["challenge", "theater", "--uid", "100000001"],
+            "challenge.theater",
+            "challenge/theater-text",
+            "幻想真境剧诗 - 派蒙",
+            "第1幕",
+        ),
+        (
+            ["challenge", "hard", "--uid", "100000001"],
+            "challenge.hard",
+            "challenge/hard-text",
+            "幽境危战 - 派蒙",
+            "试炼",
+        ),
+        (
+            ["challenge", "hard-rank"],
+            "challenge.hard-rank",
+            "challenge/hard-rank-text",
+            "幽境危战排行",
+            "可用: 否",
+        ),
+    ]
+
+    for index, (argv, command, render_name, expected_title, expected_detail) in enumerate(cases):
+        code, payload = _run_json(
+            [
+                *argv,
+                "--render",
+                "text",
+                "--request-id",
+                f"challenge-text-{index}",
+                "--output-dir",
+                str(tmp_path / "artifacts"),
+            ]
+        )
+
+        assert code == 0
+        assert payload["command"] == command
+        assert payload["data"]["render"] == render_name
+        artifact = payload["artifacts"][0]
+        path = Path(artifact["path"])
+        assert path.parent == tmp_path / "artifacts" / "2026-04-29" / f"challenge-text-{index}"
+        assert artifact["kind"] == "text"
+        assert artifact["media_type"] == "text/plain; charset=utf-8"
+        assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        text = path.read_text(encoding="utf-8")
+        assert expected_title in text
+        assert expected_detail in text
+        if command != "challenge.hard-rank":
+            assert "Amber" in text
+            assert "角色10000021" not in text
+
+
+def test_challenge_plain_text_image_prints_image_path(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
+    monkeypatch.setattr(challenge_commands, "fetch_render_images", _fake_image_fetcher([]))
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "challenge",
+            "abyss",
+            "--uid",
+            "100000001",
+            "--render",
+            "text,image",
+            "--format",
+            "plain",
+            "--request-id",
+            "challenge-plain-text-image",
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    text = stdout.getvalue()
+    assert text.startswith("深境螺旋 - 派蒙\nUID: 100000001\n")
+    assert "\n\n图片已保存至: " in text
+    assert "challenge-abyss_100000001.png" in text
+
+
+def test_challenge_abyss_render_text_image_preserves_image_primary_artifact(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
+    monkeypatch.setattr(challenge_commands, "fetch_render_images", _fake_image_fetcher([]))
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(
+        ["challenge", "abyss", "--uid", "100000001", "--render", "text,image"]
+    )
+
+    assert code == 0
+    image_artifact, text_artifact = payload["artifacts"]
+    assert image_artifact["kind"] == "image"
+    assert text_artifact["kind"] == "text"
+    assert payload["data"]["render"] == "challenge/abyss"
+    assert payload["data"]["artifact_sha256"] == image_artifact["sha256"]
+    assert payload["data"]["text_artifact_sha256"] == text_artifact["sha256"]
+
+
+def test_challenge_hard_rank_plain_text_prints_warning(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        ["challenge", "hard-rank", "--render", "text", "--format", "plain"],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stdout.getvalue().startswith("幽境危战排行\n")
+    assert "\033[33m警告: hard challenge global ranking is not available" in stderr.getvalue()
+    assert stderr.getvalue().endswith("\033[0m\n")
+
+
 def test_progress_render_images(monkeypatch, tmp_path) -> None:
     captured_urls: list[str] = []
     fetcher = _fake_image_fetcher(captured_urls)
@@ -238,6 +380,22 @@ def test_challenge_abyss_render_image_requires_floor_data(monkeypatch, tmp_path)
     assert payload["command"] == "challenge.abyss"
     assert payload["error"]["code"] == "NO_RESULT"
     assert payload["artifacts"] == []
+
+
+def test_challenge_abyss_render_text_allows_empty_floor_data(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _empty_abyss_provider)
+    monkeypatch.setattr(challenge_commands, "fetch_render_images", _fail_image_fetcher)
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(["challenge", "abyss", "--uid", "100000001", "--render", "text"])
+
+    assert code == 0
+    assert payload["command"] == "challenge.abyss"
+    assert payload["data"]["render"] == "challenge/abyss-text"
+    assert payload["artifacts"][0]["kind"] == "text"
+    text = Path(payload["artifacts"][0]["path"]).read_text(encoding="utf-8")
+    assert "暂无深境螺旋楼层记录" in text
 
 
 def test_challenge_abyss_overview_marks_missing_lower_floors_as_skipped() -> None:
@@ -924,6 +1082,11 @@ def _fake_image_fetcher(requested_urls: list[str]):
         return {url: _png_bytes() for url in url_list}, []
 
     return fetcher
+
+
+def _fail_image_fetcher(*args, **kwargs):
+    del args, kwargs
+    raise AssertionError("text-only challenge renders must not fetch image assets")
 
 
 def _png_bytes() -> bytes:

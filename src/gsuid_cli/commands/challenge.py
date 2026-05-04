@@ -20,7 +20,7 @@ from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.render import render_image_enabled, render_result_data
+from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
 from gsuid_cli.renderers.challenge.abyss import (
     challenge_abyss_image_urls,
     render_challenge_abyss_card,
@@ -28,6 +28,12 @@ from gsuid_cli.renderers.challenge.abyss import (
 from gsuid_cli.renderers.challenge.hard import (
     challenge_hard_image_urls,
     render_challenge_hard_card,
+)
+from gsuid_cli.renderers.challenge.text import (
+    render_challenge_abyss_text,
+    render_challenge_hard_rank_text,
+    render_challenge_hard_text,
+    render_challenge_theater_text,
 )
 from gsuid_cli.renderers.challenge.theater import (
     challenge_theater_image_urls,
@@ -42,7 +48,7 @@ CAPABILITIES = [
         "description": "Show authenticated Spiral Abyss data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -50,7 +56,7 @@ CAPABILITIES = [
         "description": "Show authenticated Imaginarium Theater data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -58,7 +64,7 @@ CAPABILITIES = [
         "description": "Show authenticated Stygian Onslaught hard challenge data.",
         "auth": "cookie",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -66,7 +72,7 @@ CAPABILITIES = [
         "description": "Report hard challenge ranking support status.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
 ]
@@ -114,7 +120,7 @@ def abyss_command(args: argparse.Namespace) -> CommandResult:
         season=args.season,
         floor=args.floor,
     )
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _abyss_render_result(
         args,
@@ -139,7 +145,7 @@ def theater_command(args: argparse.Namespace) -> CommandResult:
         storage_backend=storage_backend,
         season=args.season,
     )
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _theater_render_result(
         args,
@@ -164,7 +170,7 @@ def hard_command(args: argparse.Namespace) -> CommandResult:
         storage_backend=storage_backend,
         season=args.season,
     )
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _hard_render_result(
         args,
@@ -178,9 +184,9 @@ def hard_command(args: argparse.Namespace) -> CommandResult:
     )
 
 
-def hard_rank_command(_args: argparse.Namespace) -> CommandResult:
+def hard_rank_command(args: argparse.Namespace) -> CommandResult:
     message = "hard challenge global ranking is not available from configured sources"
-    return CommandResult(
+    result = CommandResult(
         data={
             "available": False,
             "entries": [],
@@ -189,6 +195,9 @@ def hard_rank_command(_args: argparse.Namespace) -> CommandResult:
         },
         warnings=[message],
     )
+    if not render_text_enabled(args):
+        return result
+    return _hard_rank_render_result(args, result)
 
 
 def _add_season(parser: argparse.ArgumentParser) -> None:
@@ -219,63 +228,97 @@ def _abyss_render_result(
     storage_backend: str | None,
 ) -> CommandResult:
     abyss = _mapping_data(result, "abyss", "challenge.abyss")
-    if not _has_abyss_floor_data(abyss):
-        raise CliError(
-            "NO_RESULT",
-            "Abyss image render requires at least one challenge floor.",
-            EXIT_NO_RESULT,
-            {
-                "uid": uid,
-                "season": result.data.get("season"),
-                "floor": result.data.get("floor"),
-            },
-            source=result.source,
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {"uid": uid, "floor_count": abyss.get("floor_count")}
+    if render_image_enabled(args):
+        if not _has_abyss_floor_data(abyss):
+            raise CliError(
+                "NO_RESULT",
+                "Abyss image render requires at least one challenge floor.",
+                EXIT_NO_RESULT,
+                {
+                    "uid": uid,
+                    "season": result.data.get("season"),
+                    "floor": result.data.get("floor"),
+                },
+                source=result.source,
+            )
+        summary, title_images, avatar_url, title_warnings = _challenge_title_context(
+            args,
+            provider,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
         )
-    summary, title_images, avatar_url, title_warnings = _challenge_title_context(
-        args,
-        provider,
-        uid=uid,
-        region=region,
-        cookie=cookie,
-        credential_source=credential_source,
-        storage_backend=storage_backend,
-    )
-    images, image_warnings = fetch_render_images(
-        args,
-        challenge_abyss_image_urls(abyss, summary, _fetchable_title_avatar_url(avatar_url)),
-        provider="mys",
-        region=region,
-        category="challenge.abyss.image",
-        unavailable_warning="{count} challenge abyss images unavailable; rendered placeholders",
-        max_workers=CHALLENGE_IMAGE_WORKERS,
-    )
-    png = render_challenge_abyss_card(
-        uid=uid,
-        abyss=abyss,
-        summary=summary,
-        asset_images={**images, **title_images},
-        avatar_url=avatar_url,
-    )
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="challenge/abyss",
-        filename=f"challenge-abyss_{_safe_filename(uid)}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style Spiral Abyss card",
-        kind="image",
-    )
-    render_data = {
-        "uid": uid,
-        "render": "challenge/abyss",
-        "floor_count": abyss.get("floor_count"),
-        "artifact_sha256": artifact["sha256"],
-    }
+        images, image_warnings = fetch_render_images(
+            args,
+            challenge_abyss_image_urls(abyss, summary, _fetchable_title_avatar_url(avatar_url)),
+            provider="mys",
+            region=region,
+            category="challenge.abyss.image",
+            unavailable_warning="{count} challenge abyss images unavailable; rendered placeholders",
+            max_workers=CHALLENGE_IMAGE_WORKERS,
+        )
+        png = render_challenge_abyss_card(
+            uid=uid,
+            abyss=abyss,
+            summary=summary,
+            asset_images={**images, **title_images},
+            avatar_url=avatar_url,
+        )
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="challenge/abyss",
+            filename=f"challenge-abyss_{_safe_filename(uid)}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style Spiral Abyss card",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend([*title_warnings, *image_warnings])
+        render_data.update(
+            {
+                "render": "challenge/abyss",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    else:
+        summary, title_warnings = _challenge_title_summary_context(
+            provider,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+        )
+        warnings.extend(title_warnings)
+    if render_text_enabled(args):
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="challenge/abyss-text",
+            filename=f"challenge-abyss_{_safe_filename(uid)}.txt",
+            content=render_challenge_abyss_text(uid=uid, abyss=abyss, summary=summary),
+            description="Human-readable Spiral Abyss challenge text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": "challenge/abyss-text",
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *title_warnings, *image_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
 
@@ -292,51 +335,87 @@ def _theater_render_result(
     storage_backend: str | None,
 ) -> CommandResult:
     theater = _mapping_data(result, "theater", "challenge.theater")
-    summary, title_images, avatar_url, title_warnings = _challenge_title_context(
-        args,
-        provider,
-        uid=uid,
-        region=region,
-        cookie=cookie,
-        credential_source=credential_source,
-        storage_backend=storage_backend,
-    )
-    images, image_warnings = fetch_render_images(
-        args,
-        challenge_theater_image_urls(theater, summary, _fetchable_title_avatar_url(avatar_url)),
-        provider="mys",
-        region=region,
-        category="challenge.theater.image",
-        unavailable_warning="{count} challenge theater images unavailable; rendered placeholders",
-        max_workers=CHALLENGE_IMAGE_WORKERS,
-    )
-    png = render_challenge_theater_card(
-        uid=uid,
-        theater=theater,
-        summary=summary,
-        asset_images={**images, **title_images},
-        avatar_url=avatar_url,
-    )
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="challenge/theater",
-        filename=f"challenge-theater_{_safe_filename(uid)}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style Imaginarium Theater card",
-        kind="image",
-    )
-    render_data = {
-        "uid": uid,
-        "render": "challenge/theater",
-        "session_count": theater.get("count"),
-        "artifact_sha256": artifact["sha256"],
-    }
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {"uid": uid, "session_count": theater.get("count")}
+    if render_image_enabled(args):
+        summary, title_images, avatar_url, title_warnings = _challenge_title_context(
+            args,
+            provider,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+        )
+        images, image_warnings = fetch_render_images(
+            args,
+            challenge_theater_image_urls(theater, summary, _fetchable_title_avatar_url(avatar_url)),
+            provider="mys",
+            region=region,
+            category="challenge.theater.image",
+            unavailable_warning=(
+                "{count} challenge theater images unavailable; rendered placeholders"
+            ),
+            max_workers=CHALLENGE_IMAGE_WORKERS,
+        )
+        png = render_challenge_theater_card(
+            uid=uid,
+            theater=theater,
+            summary=summary,
+            asset_images={**images, **title_images},
+            avatar_url=avatar_url,
+        )
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="challenge/theater",
+            filename=f"challenge-theater_{_safe_filename(uid)}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style Imaginarium Theater card",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend([*title_warnings, *image_warnings])
+        render_data.update(
+            {
+                "render": "challenge/theater",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    else:
+        summary, title_warnings = _challenge_title_summary_context(
+            provider,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+        )
+        warnings.extend(title_warnings)
+    if render_text_enabled(args):
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="challenge/theater-text",
+            filename=f"challenge-theater_{_safe_filename(uid)}.txt",
+            content=render_challenge_theater_text(uid=uid, theater=theater, summary=summary),
+            description="Human-readable Imaginarium Theater challenge text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": "challenge/theater-text",
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *title_warnings, *image_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
 
@@ -353,52 +432,139 @@ def _hard_render_result(
     storage_backend: str | None,
 ) -> CommandResult:
     hard = _mapping_data(result, "hard", "challenge.hard")
-    summary, title_images, avatar_url, title_warnings = _challenge_title_context(
-        args,
-        provider,
-        uid=uid,
-        region=region,
-        cookie=cookie,
-        credential_source=credential_source,
-        storage_backend=storage_backend,
-    )
-    images, image_warnings = fetch_render_images(
-        args,
-        challenge_hard_image_urls(hard, summary, _fetchable_title_avatar_url(avatar_url)),
-        provider="mys",
-        region=region,
-        category="challenge.hard.image",
-        unavailable_warning="{count} challenge hard images unavailable; rendered placeholders",
-        max_workers=CHALLENGE_IMAGE_WORKERS,
-    )
-    png = render_challenge_hard_card(
-        uid=uid,
-        hard=hard,
-        summary=summary,
-        asset_images={**images, **title_images},
-        avatar_url=avatar_url,
-    )
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="challenge/hard",
-        filename=f"challenge-hard_{_safe_filename(uid)}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style hard challenge card",
-        kind="image",
-    )
-    render_data = {
-        "uid": uid,
-        "render": "challenge/hard",
-        "artifact_sha256": artifact["sha256"],
-    }
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {"uid": uid}
+    if render_image_enabled(args):
+        summary, title_images, avatar_url, title_warnings = _challenge_title_context(
+            args,
+            provider,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+        )
+        images, image_warnings = fetch_render_images(
+            args,
+            challenge_hard_image_urls(hard, summary, _fetchable_title_avatar_url(avatar_url)),
+            provider="mys",
+            region=region,
+            category="challenge.hard.image",
+            unavailable_warning="{count} challenge hard images unavailable; rendered placeholders",
+            max_workers=CHALLENGE_IMAGE_WORKERS,
+        )
+        png = render_challenge_hard_card(
+            uid=uid,
+            hard=hard,
+            summary=summary,
+            asset_images={**images, **title_images},
+            avatar_url=avatar_url,
+        )
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="challenge/hard",
+            filename=f"challenge-hard_{_safe_filename(uid)}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style hard challenge card",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend([*title_warnings, *image_warnings])
+        render_data.update(
+            {
+                "render": "challenge/hard",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    else:
+        summary, title_warnings = _challenge_title_summary_context(
+            provider,
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+        )
+        warnings.extend(title_warnings)
+    if render_text_enabled(args):
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="challenge/hard-text",
+            filename=f"challenge-hard_{_safe_filename(uid)}.txt",
+            content=render_challenge_hard_text(uid=uid, hard=hard, summary=summary),
+            description="Human-readable hard challenge text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": "challenge/hard-text",
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *title_warnings, *image_warnings],
+        warnings=warnings,
         pagination=result.pagination,
     )
+
+
+def _hard_rank_render_result(args: argparse.Namespace, result: CommandResult) -> CommandResult:
+    text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        name="challenge/hard-rank-text",
+        filename="challenge-hard-rank.txt",
+        content=render_challenge_hard_rank_text(result.data),
+        description="Human-readable hard challenge ranking support status",
+        kind="text",
+    )
+    data = render_result_data(
+        args,
+        result.data,
+        {
+            "render": "challenge/hard-rank-text",
+            "artifact_sha256": text_artifact["sha256"],
+        },
+    )
+    return CommandResult(
+        data=data,
+        artifacts=[text_artifact],
+        source=result.source,
+        warnings=result.warnings,
+        pagination=result.pagination,
+    )
+
+
+def _challenge_title_summary_context(
+    provider,
+    *,
+    uid: str,
+    region: str,
+    cookie: str,
+    credential_source: str,
+    storage_backend: str | None,
+) -> tuple[Mapping[str, object], list[str]]:
+    if not hasattr(provider, "player_summary"):
+        return {}, []
+    try:
+        result = provider.player_summary(
+            uid=uid,
+            cookie=cookie,
+            region=region,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+        )
+    except CliError as exc:
+        return {}, [f"player title avatar unavailable for challenge render: {exc.code}"]
+    summary = result.data.get("summary")
+    if not isinstance(summary, Mapping):
+        return {}, [*result.warnings, "player summary missing for challenge title render"]
+    return summary, list(result.warnings)
 
 
 def _challenge_title_context(
@@ -411,21 +577,16 @@ def _challenge_title_context(
     credential_source: str,
     storage_backend: str | None,
 ) -> tuple[Mapping[str, object], dict[str, bytes], str | None, list[str]]:
-    if not hasattr(provider, "player_summary"):
-        return {}, {}, None, []
-    try:
-        result = provider.player_summary(
-            uid=uid,
-            cookie=cookie,
-            region=region,
-            credential_source=credential_source,
-            storage_backend=storage_backend,
-        )
-    except CliError as exc:
-        return {}, {}, None, [f"player title avatar unavailable for challenge render: {exc.code}"]
-    summary = result.data.get("summary")
-    if not isinstance(summary, Mapping):
-        return {}, {}, None, [*result.warnings, "player summary missing for challenge title render"]
+    summary, summary_warnings = _challenge_title_summary_context(
+        provider,
+        uid=uid,
+        region=region,
+        cookie=cookie,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
+    )
+    if not summary:
+        return {}, {}, None, summary_warnings
     role_avatar_url = _summary_role_avatar_url(summary)
     if role_avatar_url:
         title_avatar_url, profile_warnings = None, []
@@ -441,7 +602,7 @@ def _challenge_title_context(
         profile_images,
         title_avatar_url,
         [
-            *result.warnings,
+            *summary_warnings,
             *profile_warnings,
             *profile_image_warnings,
         ],
@@ -459,4 +620,3 @@ def _has_abyss_floor_data(abyss: Mapping[str, object]) -> bool:
     if not isinstance(floors, list):
         return False
     return any(isinstance(floor, Mapping) for floor in floors)
-

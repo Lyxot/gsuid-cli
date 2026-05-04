@@ -201,10 +201,25 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert capability_by_command["player.register-time"]["auth"] == "cookie"
     assert capability_by_command["player.register-time"]["render"] == ["data", "text", "all"]
     assert capability_by_command["player.register-time"]["availability"] == "upstream-limited"
-    assert capability_by_command["challenge.abyss"]["render"] == ["data", "image", "all"]
-    assert capability_by_command["challenge.theater"]["render"] == ["data", "image", "all"]
-    assert capability_by_command["challenge.hard"]["render"] == ["data", "image", "all"]
-    assert capability_by_command["challenge.hard-rank"]["render"] == ["data"]
+    assert capability_by_command["challenge.abyss"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["challenge.theater"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["challenge.hard"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["challenge.hard-rank"]["render"] == ["data", "text", "all"]
     assert capability_by_command["progress.completion"]["render"] == ["data", "image", "all"]
     assert capability_by_command["progress.exploration"]["render"] == ["data", "image", "all"]
     assert capability_by_command["progress.collection"]["render"] == ["data", "image", "all"]

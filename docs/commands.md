@@ -30,10 +30,10 @@ Generated from `gsuid meta capabilities`.
 | `batch.plan` | `none` | `data` | `off` | Validate JSONL batch commands without executing them. |
 | `batch.run` | `mixed` | `data` | `mixed` | Execute JSONL batch commands and return nested envelopes. |
 | `cache.clear` | `none` | `data` | `off` | Clear local cache and artifact files by scope. |
-| `challenge.abyss` | `cookie` | `data, image, all` | `off` | Show authenticated Spiral Abyss data. |
-| `challenge.hard` | `cookie` | `data, image, all` | `off` | Show authenticated Stygian Onslaught hard challenge data. |
-| `challenge.hard-rank` | `none` | `data` | `off` | Report hard challenge ranking support status. |
-| `challenge.theater` | `cookie` | `data, image, all` | `off` | Show authenticated Imaginarium Theater data. |
+| `challenge.abyss` | `cookie` | `data, image, text, all` | `off` | Show authenticated Spiral Abyss data. |
+| `challenge.hard` | `cookie` | `data, image, text, all` | `off` | Show authenticated Stygian Onslaught hard challenge data. |
+| `challenge.hard-rank` | `none` | `data, text, all` | `off` | Report hard challenge ranking support status. |
+| `challenge.theater` | `cookie` | `data, image, text, all` | `off` | Show authenticated Imaginarium Theater data. |
 | `codes.list` | `none` | `data, text, all` | `use` | List public active redeem-code rows. |
 | `daily.bbs-coin` | `none` | `data, text, all` | `off` | Report BBS coin task support status. |
 | `daily.materials` | `none` | `data, image, text, all` | `use` | List daily talent and weapon material domains. |
