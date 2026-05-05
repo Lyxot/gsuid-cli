@@ -717,51 +717,51 @@ tests/
 ### Stage 18e: Guide, Recommendation, And Rerun Text Render Artifacts — completed.
 ### Stage 18f: Player Text Render Artifacts — completed.
 ### Stage 18g: Challenge Text Render Artifacts — completed.
-### Stage 18h: Progress Text Render Artifacts
+### Stage 18h: Progress Text Render Artifacts — completed.
+### Stage 18i: Gacha Text Render Artifacts
 
-- Stage 18h status: completed.
-- Stage 18h scope:
-  - Add Chinese `--render text` support for `progress.completion`,
-    `progress.exploration`, `progress.collection`, `progress.achievements`,
-    `progress.achievement-guide`, `progress.commission-guide`, `progress.gcg`,
-    and `progress.gcg-deck`.
-  - For progress commands that already render images, derive text from the
-    normalized progress data and keep combined `text,image` output image-primary
+- Stage 18i status: completed.
+- Stage 18i scope:
+  - Add Chinese `--render text` support for `gacha.refresh`,
+    `gacha.summary`, `gacha.export`, `gacha.import`, `gacha.authkey`, and
+    `gacha.authkey.refresh`.
+  - Transform the existing local `gacha.summary` image-render data into
+    structured CLI text, keeping combined `text,image` output image-primary
     with `text_artifact_sha256`.
-  - For the guide lookup support commands, add compact data-only text renders
-    for the existing source-limitation messages.
-- Stage 18h verification target:
-  - Focused progress text artifact/plain tests, existing progress image tests,
-    `meta capabilities`, generated command docs, ruff, full pytest, live plain
-    smokes, and a separate review before commit.
-- Stage 18h implementation summary:
-  - Added Chinese text render artifacts for all progress commands:
-    completion, exploration, collection, achievements, achievement guide,
-    commission guide, GCG overview, and GCG deck.
-  - Text-only progress renders avoid image asset fetching; combined
-    `text,image` keeps the image artifact primary and records
-    `text_artifact_sha256`.
-  - Packaged a compact Simplified Chinese GCG card-name lookup so GCG cover
-    cards render names such as `凯亚` and `魔导绪论` instead of raw card IDs.
-  - Guide source-limitation messages now render and warn in Chinese.
-- Stage 18h verification:
-  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py::test_progress_commands_render_text_write_artifacts tests/test_challenge_progress_data.py::test_progress_plain_text_image_prints_image_path tests/test_challenge_progress_data.py::test_progress_render_text_image_preserves_image_primary_artifact tests/test_challenge_progress_data.py::test_progress_guide_plain_text_prints_warning tests/test_challenge_progress_data.py::test_progress_render_images tests/test_meta_commands.py::test_meta_capabilities_lists_implemented_commands -q`
-    (`6 passed`)
-  - `.venv/bin/python -m pytest tests/test_challenge_progress_data.py tests/test_meta_commands.py -q`
-    (`33 passed`)
-  - `.venv/bin/python -m pytest -q` (`271 passed, 1 skipped`)
+  - Add compact text status output for local import/export/authkey/refresh
+    operations without exposing authkey, cookie, or stoken secrets.
+- Stage 18i exclusions:
+  - None in the gacha group are remote-image-only artifact commands, so no
+    command is marked out for the remote-image exclusion in this stage.
+- Stage 18i verification target:
+  - Focused gacha text artifact/plain tests, existing gacha image tests,
+    `meta capabilities`, generated command docs, ruff, full pytest, live/local
+    plain smokes, and a separate review before commit.
+- Stage 18i implementation summary:
+  - Added Chinese text render artifacts for all gacha commands:
+    refresh, summary, export, import, authkey status, and authkey refresh.
+  - `gacha.summary` now filters, groups, and computes pity intervals using
+    stored `uigf_gacha_type`, with raw provider `gacha_type` kept for storage
+    provenance and export rows.
+  - `gacha.summary` image rendering now uses the progress exploration
+    background treatment and forces the real Enka profile picture as the title
+    avatar when cookie credentials are available; role avatar is fallback only.
+  - Text and JSON outputs keep authkey, cookie, and stoken values hidden.
+- Stage 18i verification:
+  - `.venv/bin/python -m pytest tests/test_gacha_log.py tests/test_meta_commands.py -q`
+    (`42 passed`)
+  - `.venv/bin/python -m pytest -q` (`279 passed, 1 skipped`)
   - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check src/gsuid_cli/commands/progress.py src/gsuid_cli/renderers/progress/text.py tests/test_challenge_progress_data.py tests/test_meta_commands.py`
+  - `.venv/bin/ruff format --check src/gsuid_cli/commands/gacha.py src/gsuid_cli/renderers/gacha.py tests/test_gacha_log.py tests/test_meta_commands.py`
   - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `.venv/bin/python -m py_compile src/gsuid_cli/commands/progress.py src/gsuid_cli/renderers/progress/text.py`
-  - `git diff --check`
-  - Built a wheel with `.venv/bin/python -m pip wheel --no-deps` and verified
-    `gsuid_cli/assets/progress/gcg/data/card_names.json` is included.
-  - Live plain smokes for all Stage 18h progress commands, plus
-    `progress completion --render text,image --format plain`.
-  - Separate review found English guide warning text; fixed it and reran the
-    focused warning test and full suite.
-- Next intended stage: wait for user approval of Stage 18h output before moving
+  - `.venv/bin/python -m py_compile src/gsuid_cli/commands/gacha.py src/gsuid_cli/renderers/gacha.py`
+  - Local plain smokes for `gacha import`, `gacha summary`, `gacha export`, and
+    `gacha authkey`.
+  - Live image smoke for `gacha summary --uid <UID> --render image`,
+    confirming the real profile avatar is rendered.
+  - Separate review found profile-avatar source priority and test coverage gaps
+    around stored `uigf_gacha_type`; both were fixed and reverified.
+- Next intended stage: wait for user approval of Stage 18i output before moving
   to the next command group.
 
 ## MVP Cut Line

@@ -14,7 +14,7 @@ from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.render import render_image_enabled, render_result_data
+from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
 from gsuid_cli.core.secrets import SecretStore
 from gsuid_cli.core.state import state_db
 from gsuid_cli.core.time import utc_now
@@ -22,7 +22,12 @@ from gsuid_cli.providers import provider_for_region
 from gsuid_cli.renderers.gacha import (
     gacha_summary_item_urls,
     gacha_summary_missing_icon_count,
+    render_gacha_authkey_text,
+    render_gacha_export_text,
+    render_gacha_import_text,
+    render_gacha_refresh_text,
     render_gacha_summary_card,
+    render_gacha_summary_text,
 )
 
 CAPABILITIES = [
@@ -31,7 +36,7 @@ CAPABILITIES = [
         "description": "Refresh local gacha logs from a stored authkey URL.",
         "auth": "gacha_url",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -39,7 +44,7 @@ CAPABILITIES = [
         "description": "Summarize local gacha logs.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -47,7 +52,7 @@ CAPABILITIES = [
         "description": "Export local gacha logs as UIGF JSON.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -55,7 +60,7 @@ CAPABILITIES = [
         "description": "Import UIGF JSON into local gacha storage.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -63,7 +68,7 @@ CAPABILITIES = [
         "description": "Show stored gacha authkey URL availability without revealing it.",
         "auth": "gacha_url",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -71,7 +76,7 @@ CAPABILITIES = [
         "description": "Generate and store a gacha authkey URL from cookie and stoken.",
         "auth": "cookie+stoken",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
 ]
@@ -81,7 +86,7 @@ GACHA_REFRESH_REQUEST_DELAY_SECONDS = 0.9
 GACHA_REFRESH_CONTINUE_DELAY_SECONDS = 0.5
 BANNER_TYPES = {
     "all": None,
-    "character": {"301", "400"},
+    "character": {"301"},
     "weapon": {"302"},
     "standard": {"200"},
     "chronicled": {"500"},
@@ -174,7 +179,7 @@ def refresh_command(args: argparse.Namespace) -> CommandResult:
     args.credential_kind = "gacha_url"
     authkey_url, credential_source, storage_backend = _credential(args, uid)
     try:
-        return _refresh_with_authkey(
+        result = _refresh_with_authkey(
             args,
             uid=uid,
             region=region,
@@ -182,6 +187,7 @@ def refresh_command(args: argparse.Namespace) -> CommandResult:
             credential_source=credential_source,
             storage_backend=storage_backend,
         )
+        return _refresh_render_result(args, result) if render_text_enabled(args) else result
     except CliError as exc:
         if not _is_expired_gacha_authkey_error(exc):
             raise
@@ -197,17 +203,18 @@ def refresh_command(args: argparse.Namespace) -> CommandResult:
                 refreshed_storage_backend if isinstance(refreshed_storage_backend, str) else None
             ),
         )
-        return CommandResult(
+        recovered = CommandResult(
             data=result.data,
             source=result.source,
             warnings=[
-                "gacha authkey expired; refreshed automatically",
+                "祈愿记录 authkey 已过期，已自动刷新",
                 *refreshed.warnings,
                 *result.warnings,
             ],
             artifacts=result.artifacts,
             pagination=result.pagination,
         )
+        return _refresh_render_result(args, recovered) if render_text_enabled(args) else recovered
 
 
 def _is_expired_gacha_authkey_error(error: CliError) -> bool:
@@ -293,14 +300,14 @@ def _refresh_with_authkey(
 
 
 def summary_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
-    uid, _region = _uid_and_region(args)
+    uid, region = _uid_and_region(args)
     with state_db(args.output_dir) as conn:
         rows = _item_rows(conn, uid, args.banner)
         summary = _summary_from_rows(rows)
     data = {"uid": uid, "banner": args.banner, "summary": summary}
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return data
-    return _summary_render_result(args, data, [_row_item(row) for row in rows])
+    return _summary_render_result(args, data, [_row_item(row) for row in rows], region=region)
 
 
 def export_command(args: argparse.Namespace) -> CommandResult:
@@ -310,7 +317,7 @@ def export_command(args: argparse.Namespace) -> CommandResult:
     payload = _export_payload(uid, items, args.export_format)
     content = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
     artifact = _write_export(args, uid, args.export_format, content)
-    return CommandResult(
+    result = CommandResult(
         data={
             "uid": uid,
             "format": args.export_format,
@@ -319,27 +326,42 @@ def export_command(args: argparse.Namespace) -> CommandResult:
         },
         artifacts=[artifact],
     )
+    if not render_text_enabled(args):
+        return result
+    return _export_render_result(args, result, artifact)
 
 
-def import_command(args: argparse.Namespace) -> dict[str, object]:
+def import_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
     uid, _region = _uid_and_region(args)
     payload = _load_json(Path(args.file))
     items, detected_format = _uigf_items(payload, uid, args.import_format)
     with state_db(args.output_dir) as conn:
         stats = _insert_items(conn, uid, items)
-    return {
+    data = {
         "uid": uid,
         "format": detected_format,
         "total": len(items),
         **stats,
     }
+    if not render_text_enabled(args):
+        return data
+    result = CommandResult(data=data)
+    return _text_render_result(
+        args,
+        result=result,
+        render_name="gacha/import-text",
+        filename=f"gacha-import_{uid}.txt",
+        content=render_gacha_import_text(data),
+        description="Human-readable gacha import status",
+        render_data={"uid": uid},
+    )
 
 
-def authkey_command(args: argparse.Namespace) -> dict[str, object]:
+def authkey_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
     uid, _region = _uid_and_region(args)
     args.credential_kind = "gacha_url"
     _value, source, storage_backend = _credential(args, uid)
-    return {
+    data = {
         "uid": uid,
         "credential_type": "gacha_url",
         "source": source,
@@ -347,12 +369,34 @@ def authkey_command(args: argparse.Namespace) -> dict[str, object]:
         "available": True,
         "redacted": "[REDACTED_URL]",
     }
+    if not render_text_enabled(args):
+        return data
+    result = CommandResult(data=data)
+    return _text_render_result(
+        args,
+        result=result,
+        render_name="gacha/authkey-text",
+        filename=f"gacha-authkey_{uid}.txt",
+        content=render_gacha_authkey_text(data),
+        description="Human-readable gacha authkey status",
+        render_data={"uid": uid},
+    )
 
 
 def authkey_refresh_command(args: argparse.Namespace) -> CommandResult:
     uid, region = _uid_and_region(args)
     _gacha_url, result = _refresh_gacha_authkey_url(args, uid, region)
-    return result
+    if not render_text_enabled(args):
+        return result
+    return _text_render_result(
+        args,
+        result=result,
+        render_name="gacha/authkey-refresh-text",
+        filename=f"gacha-authkey-refresh_{uid}.txt",
+        content=render_gacha_authkey_text(result.data, refreshed=True),
+        description="Human-readable gacha authkey refresh status",
+        render_data={"uid": uid},
+    )
 
 
 def _refresh_gacha_authkey_url(
@@ -711,7 +755,7 @@ def _summary_from_rows(rows: list[sqlite3.Row]) -> dict[str, object]:
     for row in rows:
         rank = str(row["rank_type"] or "")
         item_type = str(row["item_type"] or "")
-        gacha_type = str(row["gacha_type"] or "")
+        gacha_type = _row_summary_gacha_type(row)
         by_rank[rank] = by_rank.get(rank, 0) + 1
         by_type[item_type] = by_type.get(item_type, 0) + 1
         by_gacha_type[gacha_type] = by_gacha_type.get(gacha_type, 0) + 1
@@ -743,42 +787,272 @@ def _summary_render_result(
     args: argparse.Namespace,
     data: dict[str, object],
     items: list[dict[str, object]],
+    *,
+    region: str,
 ) -> CommandResult:
     uid = str(data["uid"])
     banner = str(data["banner"])
-    asset_images, _asset_warnings = fetch_render_images(
-        args,
-        gacha_summary_item_urls(items),
-        provider="gacha-assets",
-        region="cn",
-        category="gacha.summary.asset",
-        unavailable_warning="{count} optional gacha item icon candidates unavailable",
-        max_workers=8,
-    )
-    missing = gacha_summary_missing_icon_count(items, asset_images)
-    asset_warnings = (
-        [f"{missing} gacha item icons unavailable; rendered fallback icons"] if missing else []
-    )
-    png = render_gacha_summary_card(uid=uid, items=items, asset_images=asset_images)
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="gacha/summary",
-        filename=f"gacha-summary_{uid}_{banner}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style gacha summary card",
-        kind="image",
-    )
-    render_data = {
-        "uid": uid,
-        "banner": banner,
-        "render": "gacha/summary",
-        "artifact_sha256": artifact["sha256"],
-    }
+    artifacts: list[dict[str, object]] = []
+    warnings: list[str] = []
+    render_data: dict[str, object] = {"uid": uid, "banner": banner}
+    if render_image_enabled(args):
+        title_summary, title_images, title_avatar_url, title_warnings = _gacha_title_context(
+            args,
+            uid=uid,
+            region=region,
+        )
+        asset_images, _asset_warnings = fetch_render_images(
+            args,
+            gacha_summary_item_urls(items),
+            provider="gacha-assets",
+            region="cn",
+            category="gacha.summary.asset",
+            unavailable_warning="{count} optional gacha item icon candidates unavailable",
+            max_workers=8,
+        )
+        missing = gacha_summary_missing_icon_count(items, asset_images)
+        warnings.extend([f"{missing} 个祈愿物品图标不可用，已使用占位图"] if missing else [])
+        warnings.extend(title_warnings)
+        png = render_gacha_summary_card(
+            uid=uid,
+            items=items,
+            asset_images={**asset_images, **title_images},
+            summary=title_summary,
+            title_avatar_url=title_avatar_url,
+        )
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="gacha/summary",
+            filename=f"gacha-summary_{uid}_{banner}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID-style gacha summary card",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        render_data.update(
+            {
+                "render": "gacha/summary",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="gacha/summary-text",
+            filename=f"gacha-summary_{uid}_{banner}.txt",
+            content=render_gacha_summary_text(
+                uid=uid,
+                banner=banner,
+                items=items,
+                summary=_summary_mapping(data),
+            ),
+            description="Human-readable gacha summary text",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     return CommandResult(
         data=render_result_data(args, data, render_data),
-        artifacts=[artifact],
-        warnings=asset_warnings,
+        artifacts=artifacts,
+        warnings=warnings,
     )
+
+
+def _gacha_title_context(
+    args: argparse.Namespace,
+    *,
+    uid: str,
+    region: str,
+) -> tuple[dict[str, object], dict[str, bytes], str | None, list[str]]:
+    previous_kind = getattr(args, "credential_kind", None)
+    args.credential_kind = "cookie"
+    try:
+        cookie, credential_source, storage_backend = _credential(args, uid)
+    except CliError as exc:
+        if previous_kind is not None:
+            args.credential_kind = previous_kind
+        if exc.code == "AUTH_REQUIRED":
+            return {}, {}, None, []
+        return {}, {}, None, ["玩家资料凭据读取失败，已使用默认头像"]
+    finally:
+        if previous_kind is None and hasattr(args, "credential_kind"):
+            delattr(args, "credential_kind")
+    if previous_kind is not None:
+        args.credential_kind = previous_kind
+    try:
+        from gsuid_cli.commands.player import (
+            _player_profile_image_assets,
+            _player_profile_title_avatar_url,
+            _player_title_mys_icon_urls,
+            _player_title_summary_context,
+        )
+        from gsuid_cli.renderers.player.summary import player_summary_genshinuid_resource_urls
+
+        summary, summary_warnings = _player_title_summary_context(
+            provider=provider_for_region(region, _http_client(args)),
+            uid=uid,
+            region=region,
+            cookie=cookie,
+            credential_source=credential_source,
+            storage_backend=storage_backend,
+            category_prefix="gacha.summary",
+        )
+        title_avatar_url, profile_warnings = _player_profile_title_avatar_url(args, uid, region)
+        resource_urls = player_summary_genshinuid_resource_urls(summary)
+        if title_avatar_url and not title_avatar_url.startswith(_enka_ui_base()):
+            resource_urls.append(title_avatar_url)
+        resource_images, resource_warnings = fetch_render_images(
+            args,
+            resource_urls,
+            provider="genshinuid",
+            region=region,
+            category="gacha.summary.title.resource",
+            unavailable_warning="玩家标题资源不可用，已使用默认头像",
+            max_workers=8,
+        )
+        icon_images, icon_warnings = fetch_render_images(
+            args,
+            _player_title_mys_icon_urls(summary),
+            provider="mys",
+            region=region,
+            category="gacha.summary.title.icon",
+            unavailable_warning="玩家标题图标不可用，已使用默认头像",
+            max_workers=8,
+        )
+        profile_images, profile_image_warnings = _player_profile_image_assets(
+            args,
+            title_avatar_url,
+            region,
+        )
+    except CliError:
+        return {}, {}, None, ["玩家资料不可用，已使用默认头像"]
+    return (
+        dict(summary),
+        {**resource_images, **icon_images, **profile_images},
+        title_avatar_url,
+        _gacha_title_warnings(
+            [
+                *summary_warnings,
+                *profile_warnings,
+                *resource_warnings,
+                *icon_warnings,
+                *profile_image_warnings,
+            ]
+        ),
+    )
+
+
+def _enka_ui_base() -> str:
+    from gsuid_cli.renderers.player.summary import ENKA_UI_BASE
+
+    return f"{ENKA_UI_BASE}/"
+
+
+def _gacha_title_warnings(warnings: list[str]) -> list[str]:
+    translated = []
+    for warning in warnings:
+        if "profile picture map" in warning:
+            translated.append("玩家头像配置不可用，已使用默认头像")
+        elif "profile picture" in warning:
+            translated.append("玩家头像不可用，已使用默认头像")
+        elif "profile unavailable" in warning:
+            translated.append("玩家资料不可用，已使用默认头像")
+        elif "title resources" in warning:
+            translated.append("玩家标题资源不可用，已使用默认头像")
+        elif "title icons" in warning:
+            translated.append("玩家标题图标不可用，已使用默认头像")
+        else:
+            translated.append(warning)
+    return translated
+
+
+def _refresh_render_result(args: argparse.Namespace, result: CommandResult) -> CommandResult:
+    uid = str(result.data.get("uid") or "unknown")
+    return _text_render_result(
+        args,
+        result=result,
+        render_name="gacha/refresh-text",
+        filename=f"gacha-refresh_{uid}.txt",
+        content=render_gacha_refresh_text(result.data),
+        description="Human-readable gacha refresh status",
+        render_data={"uid": uid},
+    )
+
+
+def _export_render_result(
+    args: argparse.Namespace,
+    result: CommandResult,
+    export_artifact: dict[str, object],
+) -> CommandResult:
+    uid = str(result.data.get("uid") or "unknown")
+    return _text_render_result(
+        args,
+        result=result,
+        render_name="gacha/export-text",
+        filename=f"gacha-export_{uid}.txt",
+        content=render_gacha_export_text(
+            result.data,
+            artifact_path=export_artifact.get("path"),
+        ),
+        description="Human-readable gacha export status",
+        render_data={"uid": uid},
+    )
+
+
+def _text_render_result(
+    args: argparse.Namespace,
+    *,
+    result: CommandResult,
+    render_name: str,
+    filename: str,
+    content: str,
+    description: str,
+    render_data: dict[str, object],
+) -> CommandResult:
+    text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        name=render_name,
+        filename=filename,
+        content=content,
+        description=description,
+        kind="text",
+    )
+    data = render_result_data(
+        args,
+        result.data,
+        {
+            **render_data,
+            "render": render_name,
+            "artifact_sha256": text_artifact["sha256"],
+        },
+    )
+    return CommandResult(
+        data=data,
+        artifacts=[*result.artifacts, text_artifact],
+        source=result.source,
+        warnings=result.warnings,
+        pagination=result.pagination,
+    )
+
+
+def _record_text_artifact(
+    render_data: dict[str, object],
+    text_artifact: dict[str, object],
+    *,
+    image_enabled: bool,
+) -> None:
+    if image_enabled:
+        render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        return
+    render_data.update(
+        {
+            "render": text_artifact["name"],
+            "artifact_sha256": text_artifact["sha256"],
+        }
+    )
+
+
+def _summary_mapping(data: dict[str, object]) -> dict[str, object]:
+    summary = data.get("summary")
+    return summary if isinstance(summary, dict) else {}
 
 
 def _item_rows(conn: sqlite3.Connection, uid: str, banner: str) -> list[sqlite3.Row]:
@@ -792,11 +1066,28 @@ def _item_rows(conn: sqlite3.Connection, uid: str, banner: str) -> list[sqlite3.
     return conn.execute(
         f"""
         SELECT * FROM gacha_items
-        WHERE uid = ? AND gacha_type IN ({placeholders})
+        WHERE uid = ? AND {_summary_gacha_type_sql()} IN ({placeholders})
         ORDER BY time ASC, CAST(id AS INTEGER) ASC
         """,
         (uid, *sorted(types)),
     ).fetchall()
+
+
+def _summary_gacha_type_sql() -> str:
+    return """
+        COALESCE(
+            NULLIF(uigf_gacha_type, ''),
+            CASE WHEN gacha_type = '400' THEN '301' ELSE gacha_type END
+        )
+    """
+
+
+def _row_summary_gacha_type(row: sqlite3.Row) -> str:
+    uigf_gacha_type = str(row["uigf_gacha_type"] or "")
+    if uigf_gacha_type:
+        return uigf_gacha_type
+    gacha_type = str(row["gacha_type"] or "")
+    return UIGF_GACHA_TYPE_BY_GACHA_TYPE.get(gacha_type, gacha_type)
 
 
 def _items_for_uid(conn: sqlite3.Connection, uid: str) -> list[dict[str, object]]:

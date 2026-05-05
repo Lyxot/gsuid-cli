@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import sqlite3
@@ -24,6 +25,7 @@ from gsuid_cli.renderers.gacha import (
     FALLBACK_CHARACTER_ICON_URL,
     gacha_summary_item_urls,
     gacha_summary_missing_icon_count,
+    render_gacha_summary_card,
 )
 
 
@@ -110,7 +112,7 @@ def test_gacha_summary_counts_records_between_five_stars(monkeypatch, tmp_path) 
     assert intervals["302"][0]["records_since_previous_five_star"] == 1
 
 
-def test_gacha_summary_character_banner_keeps_gacha_type_intervals_separate(
+def test_gacha_summary_character_banner_uses_uigf_gacha_type(
     monkeypatch,
     tmp_path,
 ) -> None:
@@ -134,10 +136,10 @@ def test_gacha_summary_character_banner_keeps_gacha_type_intervals_separate(
     code, payload = _run_json(["gacha", "summary", "--uid", "100000001", "--banner", "character"])
 
     assert code == 0
+    assert payload["data"]["summary"]["by_gacha_type"] == {"301": 4}
     intervals = payload["data"]["summary"]["five_star_intervals_by_gacha_type"]
-    assert set(intervals) == {"301", "400"}
-    assert intervals["301"][0]["records_since_previous_five_star"] == 2
-    assert intervals["400"][0]["records_since_previous_five_star"] == 2
+    assert set(intervals) == {"301"}
+    assert [item["records_since_previous_five_star"] for item in intervals["301"]] == [3, 1]
 
 
 def test_gacha_summary_render_image_writes_card(monkeypatch, tmp_path) -> None:
@@ -181,6 +183,317 @@ def test_gacha_summary_render_data_image_preserves_data(monkeypatch, tmp_path) -
     assert payload["data"]["summary"]["total"] == 3
     assert payload["data"]["render"] == "gacha/summary"
     assert payload["artifacts"][0]["kind"] == "image"
+
+
+def test_gacha_summary_image_uses_profile_avatar(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    profile_url = "https://upload.example.test/profile.png"
+
+    class Provider:
+        def player_summary(self, **_kwargs) -> CommandResult:
+            return CommandResult(
+                data={
+                    "summary": {
+                        "role": {"nickname": "派蒙", "avatar_icon": role_url},
+                        "stats": {},
+                    }
+                }
+            )
+
+    monkeypatch.setattr(gacha, "provider_for_region", lambda _region, _http_client: Provider())
+    monkeypatch.setattr(
+        "gsuid_cli.commands.player._player_profile_title_avatar_url",
+        lambda _args, _uid, _region: (profile_url, []),
+    )
+    monkeypatch.setattr(
+        "gsuid_cli.commands.player._player_profile_image_assets",
+        lambda _args, url, _region: ({url: _png_bytes((255, 0, 0, 255))}, []),
+    )
+    role_url = "https://upload.example.test/role.png"
+    monkeypatch.setattr(gacha, "fetch_render_images", lambda *args, **kwargs: ({}, []))
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+    import_file = tmp_path / "uigf-v4.json"
+    import_file.write_text(json.dumps(_uigf_v4()), encoding="utf-8")
+    code, _payload = _run_json(
+        ["gacha", "import", "--uid", "100000001", "--file", str(import_file)]
+    )
+    assert code == 0
+
+    code, payload = _run_json(["gacha", "summary", "--uid", "100000001", "--render", "image"])
+
+    assert code == 0
+    path = Path(payload["artifacts"][0]["path"])
+    with Image.open(path).convert("RGBA") as image:
+        assert image.getpixel((475, 200))[:3] == (255, 0, 0)
+
+
+def test_gacha_summary_renderer_uses_profile_avatar_pixels() -> None:
+    profile_url = "https://upload.example.test/profile.png"
+    png = render_gacha_summary_card(
+        uid="100000001",
+        items=[],
+        asset_images={
+            profile_url: _png_bytes((255, 0, 0, 255)),
+            "https://upload.example.test/role.png": _png_bytes((0, 0, 255, 255)),
+        },
+        summary={"role": {"avatar_icon": "https://upload.example.test/role.png"}},
+        title_avatar_url=profile_url,
+    )
+
+    with Image.open(io.BytesIO(png)).convert("RGBA") as image:
+        assert image.getpixel((475, 200))[:3] == (255, 0, 0)
+
+
+def test_gacha_summary_uses_stored_uigf_gacha_type(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    with state_db(None) as conn:
+        conn.executemany(
+            """
+            INSERT INTO gacha_items(
+                uid, id, gacha_type, uigf_gacha_type, item_id, count, time,
+                name, lang, item_type, rank_type, imported_at
+            )
+            VALUES(
+                :uid, :id, :gacha_type, :uigf_gacha_type, :item_id, :count, :time,
+                :name, :lang, :item_type, :rank_type, :imported_at
+            )
+            """,
+            [
+                {
+                    **_item("1", "400", "Raw 400", "4", item_type="Weapon"),
+                    "uigf_gacha_type": "302",
+                    "imported_at": "2026-04-29T10:30:00Z",
+                },
+                {
+                    **_item("2", "301", "Character", "5"),
+                    "uigf_gacha_type": "301",
+                    "imported_at": "2026-04-29T10:30:00Z",
+                },
+            ],
+        )
+
+    code, weapon_payload = _run_json(
+        ["gacha", "summary", "--uid", "100000001", "--banner", "weapon"]
+    )
+    code2, character_payload = _run_json(
+        ["gacha", "summary", "--uid", "100000001", "--banner", "character"]
+    )
+
+    assert code == 0
+    assert code2 == 0
+    assert weapon_payload["data"]["summary"]["by_gacha_type"] == {"302": 1}
+    assert character_payload["data"]["summary"]["by_gacha_type"] == {"301": 1}
+
+
+def test_gacha_commands_render_text_write_artifacts(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(gacha, "fetch_render_images", _fail_image_fetcher)
+    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
+    import_file = tmp_path / "uigf-v4.json"
+    import_file.write_text(json.dumps(_uigf_v4()), encoding="utf-8")
+    output_dir = tmp_path / "artifacts"
+
+    code, payload = _run_json(
+        [
+            "gacha",
+            "import",
+            "--uid",
+            "100000001",
+            "--file",
+            str(import_file),
+            "--render",
+            "text",
+            "--request-id",
+            "gacha-import-text",
+            "--output-dir",
+            str(output_dir),
+        ]
+    )
+
+    assert code == 0
+    text = _artifact_text(payload, "gacha/import-text")
+    assert "祈愿记录导入" in text
+    assert "新增: 3" in text
+
+    code, payload = _run_json(
+        [
+            "gacha",
+            "summary",
+            "--uid",
+            "100000001",
+            "--render",
+            "text",
+            "--request-id",
+            "gacha-summary-text",
+            "--output-dir",
+            str(output_dir),
+        ]
+    )
+
+    assert code == 0
+    assert payload["data"]["render"] == "gacha/summary-text"
+    text = _artifact_text(payload, "gacha/summary-text")
+    assert "祈愿统计 - 全部祈愿" in text
+    assert "角色祈愿: 2抽" in text
+    assert "Venti" in text
+
+    export_file = tmp_path / "export.json"
+    code, payload = _run_json(
+        [
+            "gacha",
+            "export",
+            "--uid",
+            "100000001",
+            "--output",
+            str(export_file),
+            "--render",
+            "text",
+            "--request-id",
+            "gacha-export-text",
+            "--output-dir",
+            str(output_dir),
+        ]
+    )
+
+    assert code == 0
+    text = _artifact_text(payload, "gacha/export-text")
+    assert "祈愿记录导出" in text
+    assert f"文件: {export_file.resolve()}" in text
+
+    secret_url = "https://example.test/getGachaLog?authkey=secret-authkey&authkey_ver=1"
+    SecretStore().set_secret("gacha_url", "100000001", secret_url)
+    code, payload = _run_json(
+        [
+            "gacha",
+            "authkey",
+            "--uid",
+            "100000001",
+            "--render",
+            "text",
+            "--request-id",
+            "gacha-authkey-text",
+            "--output-dir",
+            str(output_dir),
+        ]
+    )
+
+    assert code == 0
+    text = _artifact_text(payload, "gacha/authkey-text")
+    raw = json.dumps(payload, ensure_ascii=False)
+    assert "祈愿链接凭据" in text
+    assert "内容: 已隐藏" in text
+    assert "secret-authkey" not in raw
+    assert "secret-authkey" not in text
+
+
+def test_gacha_refresh_render_text_redacts_url(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.gacha.provider_for_region", _refresh_provider)
+    _disable_gacha_refresh_sleep(monkeypatch)
+    SecretStore().set_secret(
+        "gacha_url",
+        "100000001",
+        "https://example.test/getGachaLog?authkey=secret-authkey&authkey_ver=1",
+    )
+
+    code, payload = _run_json(["gacha", "refresh", "--uid", "100000001", "--render", "text"])
+
+    assert code == 0
+    text = _artifact_text(payload, "gacha/refresh-text")
+    raw = json.dumps(payload, ensure_ascii=False)
+    assert "祈愿记录刷新" in text
+    assert "新增: 2" in text
+    assert "secret-authkey" not in raw
+    assert "secret-authkey" not in text
+
+
+def test_gacha_authkey_refresh_render_text_redacts_secrets(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.gacha.provider_for_region", _authkey_provider)
+    store = SecretStore()
+    store.set_secret("cookie", "100000001", "account_id=1;cookie_token=cookie-secret")
+    store.set_secret("stoken", "100000001", "stuid=1;stoken=stoken-secret")
+
+    code, payload = _run_json(
+        ["gacha", "authkey", "refresh", "--uid", "100000001", "--render", "text"]
+    )
+
+    assert code == 0
+    text = _artifact_text(payload, "gacha/authkey-refresh-text")
+    raw = json.dumps(payload, ensure_ascii=False)
+    assert "祈愿链接凭据刷新" in text
+    assert "保存: 已保存" in text
+    assert "内容: 已隐藏" in text
+    assert "secret-authkey" not in raw
+    assert "cookie-secret" not in raw
+    assert "stoken-secret" not in raw
+    assert "secret-authkey" not in text
+
+
+def test_gacha_summary_plain_text_image_prints_image_path_and_warning(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(gacha, "fetch_render_images", lambda *args, **kwargs: ({}, []))
+    import_file = tmp_path / "uigf-v4.json"
+    import_file.write_text(json.dumps(_uigf_v4()), encoding="utf-8")
+    code, _payload = _run_json(
+        ["gacha", "import", "--uid", "100000001", "--file", str(import_file)]
+    )
+    assert code == 0
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        [
+            "gacha",
+            "summary",
+            "--uid",
+            "100000001",
+            "--render",
+            "text,image",
+            "--format",
+            "plain",
+            "--request-id",
+            "gacha-summary-plain",
+            "--output-dir",
+            str(tmp_path / "artifacts"),
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    text = stdout.getvalue()
+    assert text.startswith("祈愿统计 - 全部祈愿\nUID: 100000001\n")
+    assert "\n\n图片已保存至: " in text
+    assert "gacha-summary_100000001_all.png" in text
+    assert "\033[33m警告: 2 个祈愿物品图标不可用" in stderr.getvalue()
+
+
+def test_gacha_summary_render_text_image_preserves_image_primary_artifact(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(gacha, "fetch_render_images", lambda *args, **kwargs: ({}, []))
+    import_file = tmp_path / "uigf-v4.json"
+    import_file.write_text(json.dumps(_uigf_v4()), encoding="utf-8")
+    code, _payload = _run_json(
+        ["gacha", "import", "--uid", "100000001", "--file", str(import_file)]
+    )
+    assert code == 0
+
+    code, payload = _run_json(["gacha", "summary", "--uid", "100000001", "--render", "text,image"])
+
+    assert code == 0
+    image_artifact, text_artifact = payload["artifacts"]
+    assert image_artifact["kind"] == "image"
+    assert text_artifact["kind"] == "text"
+    assert payload["data"]["render"] == "gacha/summary"
+    assert payload["data"]["artifact_sha256"] == image_artifact["sha256"]
+    assert payload["data"]["text_artifact_sha256"] == text_artifact["sha256"]
 
 
 def test_gacha_summary_character_icon_urls_include_duplicate_name_candidates() -> None:
@@ -628,7 +941,7 @@ def test_gacha_refresh_auto_refreshes_expired_authkey(monkeypatch, tmp_path) -> 
     assert code == 0
     assert payload["data"]["inserted"] == 2
     assert payload["data"]["credential_source"] == "keyring"
-    assert payload["warnings"] == ["gacha authkey expired; refreshed automatically"]
+    assert payload["warnings"] == ["祈愿记录 authkey 已过期，已自动刷新"]
     assert provider.generated == 1
     assert any("expired-secret" in url for url in provider.gacha_urls)
     assert any("fresh-authkey" in url for url in provider.gacha_urls)
@@ -990,6 +1303,33 @@ def _source() -> dict[str, object]:
         "cached": False,
         "fetched_at": "2026-04-29T10:30:00Z",
     }
+
+
+def _artifact_text(payload: dict[str, object], name: str) -> str:
+    artifacts = payload.get("artifacts")
+    assert isinstance(artifacts, list)
+    for artifact in artifacts:
+        if not isinstance(artifact, dict) or artifact.get("name") != name:
+            continue
+        path = Path(str(artifact["path"]))
+        text = path.read_text(encoding="utf-8")
+        assert artifact["kind"] == "text"
+        assert artifact["media_type"] == "text/plain; charset=utf-8"
+        assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+        return text
+    raise AssertionError(f"missing artifact {name}")
+
+
+def _fail_image_fetcher(*args, **kwargs):
+    del args, kwargs
+    raise AssertionError("text-only gacha renders must not fetch image assets")
+
+
+def _png_bytes(color: tuple[int, int, int, int] = (255, 0, 0, 255)) -> bytes:
+    image = Image.new("RGBA", (32, 32), color)
+    output = io.BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()
 
 
 def _uigf_v4() -> dict[str, object]:

@@ -41,12 +41,12 @@ Generated from `gsuid meta capabilities`.
 | `daily.signin` | `cookie` | `data, text, all` | `off` | Claim or report the MYS daily sign-in status. |
 | `events.banners` | `none` | `data, image, text, all` | `use` | List public event banner artwork URLs. |
 | `events.list` | `none` | `data, image, text, all` | `use` | List public event announcements. |
-| `gacha.authkey` | `gacha_url` | `data` | `off` | Show stored gacha authkey URL availability without revealing it. |
-| `gacha.authkey.refresh` | `cookie+stoken` | `data` | `off` | Generate and store a gacha authkey URL from cookie and stoken. |
-| `gacha.export` | `none` | `data` | `off` | Export local gacha logs as UIGF JSON. |
-| `gacha.import` | `none` | `data` | `off` | Import UIGF JSON into local gacha storage. |
-| `gacha.refresh` | `gacha_url` | `data` | `off` | Refresh local gacha logs from a stored authkey URL. |
-| `gacha.summary` | `none` | `data, image, all` | `off` | Summarize local gacha logs. |
+| `gacha.authkey` | `gacha_url` | `data, text, all` | `off` | Show stored gacha authkey URL availability without revealing it. |
+| `gacha.authkey.refresh` | `cookie+stoken` | `data, text, all` | `off` | Generate and store a gacha authkey URL from cookie and stoken. |
+| `gacha.export` | `none` | `data, text, all` | `off` | Export local gacha logs as UIGF JSON. |
+| `gacha.import` | `none` | `data, text, all` | `off` | Import UIGF JSON into local gacha storage. |
+| `gacha.refresh` | `gacha_url` | `data, text, all` | `off` | Refresh local gacha logs from a stored authkey URL. |
+| `gacha.summary` | `none` | `data, image, text, all` | `off` | Summarize local gacha logs. |
 | `guide.abyss` | `none` | `data, image, text, all` | `use` | Show public abyss guide data and GenshinUID-style monster layout. |
 | `guide.character` | `none` | `data, image, all` | `use` | Show public character guide facts and GenshinUID guide image. |
 | `guide.reference-panel` | `none` | `data, image, all` | `use` | Show the GenshinUID reference-panel image for a character. |

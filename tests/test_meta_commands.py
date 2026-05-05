@@ -253,6 +253,17 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     ]
     assert capability_by_command["progress.achievement-guide"]["render"] == ["data", "text", "all"]
     assert capability_by_command["progress.commission-guide"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["gacha.refresh"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["gacha.summary"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["gacha.export"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["gacha.import"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["gacha.authkey"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["gacha.authkey.refresh"]["render"] == ["data", "text", "all"]
     assert capability_by_command["panel.show"]["render"] == ["data", "image", "all"]
     assert capability_by_command["panel.compare"]["render"] == ["data", "image", "all"]
     assert capability_by_command["panel.artifacts"]["render"] == ["data", "image", "all"]

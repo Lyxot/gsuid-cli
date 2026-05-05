@@ -7,11 +7,10 @@ from datetime import datetime
 from functools import lru_cache
 from urllib.parse import quote
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw
 
 from gsuid_cli.renderers.common import (
     asset_path,
-    crop_center,
     font,
     image_from_bytes,
     int_value,
@@ -19,10 +18,11 @@ from gsuid_cli.renderers.common import (
     png_bytes,
     text_value,
 )
+from gsuid_cli.renderers.player.summary import player_title_avatar_image
+from gsuid_cli.renderers.progress.collection import _color_background
 
 TEXTURE = asset_path("gacha", "textures")
 DATA = asset_path("panel", "data")
-PUBLIC_TEXTURE = asset_path("public", "textures")
 GENSHINUID_RESOURCE_BASE = "https://example.test/GenshinUID/resource"
 FALLBACK_CHARACTER_ID = "10000007"
 FALLBACK_CHARACTER_ICON_URL = f"{GENSHINUID_RESOURCE_BASE}/chars/{FALLBACK_CHARACTER_ID}.png"
@@ -38,10 +38,23 @@ GROUP_SPACING = 300
 GROUPS = (
     ("新手祈愿", ("100",)),
     ("常驻祈愿", ("200",)),
-    ("角色祈愿", ("301", "400")),
+    ("角色祈愿", ("301",)),
     ("武器祈愿", ("302",)),
     ("集录祈愿", ("500",)),
 )
+SUMMARY_GACHA_TYPE_BY_GACHA_TYPE = {"400": "301"}
+BANNER_LABELS = {
+    "all": "全部祈愿",
+    "character": "角色祈愿",
+    "weapon": "武器祈愿",
+    "standard": "常驻祈愿",
+    "chronicled": "集录祈愿",
+    "novice": "新手祈愿",
+}
+GACHA_TYPE_LABELS = {
+    gacha_type: label for label, gacha_types in GROUPS for gacha_type in gacha_types
+}
+GACHA_TYPE_LABELS["400"] = "角色祈愿"
 CHANGE_MAP = {
     "新手祈愿": "new",
     "常驻祈愿": "normal",
@@ -78,6 +91,134 @@ STANDARD_FIVE = {
 }
 
 
+def render_gacha_summary_text(
+    *,
+    uid: str,
+    banner: str,
+    items: Sequence[Mapping[str, object]],
+    summary: Mapping[str, object],
+) -> str:
+    lines = [f"祈愿统计 - {_banner_label(banner)}", f"UID: {uid}"]
+    lines.append(f"总抽数: {int_value(summary.get('total'), len(items))}")
+    _append_counter_section(lines, "按星级", _rank_counts(summary))
+    _append_counter_section(lines, "按类型", _item_type_counts(summary))
+
+    groups = _gacha_groups(items)
+    if not groups:
+        lines.extend(["", "暂无祈愿数据"])
+        return _finish(lines)
+
+    lines.extend(["", "祈愿池:"])
+    for group in groups:
+        label = text_value(group.get("label")) or "未知祈愿"
+        lines.append(
+            f"  - {label}: {int_value(group.get('total_draws'))}抽，"
+            f"距离五星 {int_value(group.get('remain'))}抽"
+        )
+        time_range = text_value(group.get("time_range"))
+        if time_range and time_range != "暂未抽过卡!":
+            lines.append(f"    时间: {time_range}")
+        detail = _gacha_group_detail(group)
+        if detail:
+            lines.append(f"    {'，'.join(detail)}")
+        five_stars = _mapping_list(group.get("five_stars"))
+        if five_stars:
+            lines.append("    五星记录:")
+            for item in five_stars:
+                lines.append(f"      - {_five_star_text(label, item)}")
+    return _finish(lines)
+
+
+def render_gacha_refresh_text(data: Mapping[str, object]) -> str:
+    lines = ["祈愿记录刷新", f"UID: {data.get('uid', '-')}"]
+    credential_source = text_value(data.get("credential_source"))
+    if credential_source:
+        lines.append(f"凭据来源: {_source_label(credential_source)}")
+    storage_backend = text_value(data.get("storage_backend"))
+    if storage_backend:
+        lines.append(f"存储后端: {storage_backend}")
+    lines.extend(
+        [
+            f"获取: {int_value(data.get('fetched'))}",
+            f"新增: {int_value(data.get('inserted'))}",
+            f"重复: {int_value(data.get('duplicates'))}",
+        ]
+    )
+    rows = _mapping_list(data.get("types"))
+    if rows:
+        lines.extend(["", "分类型:"])
+        for row in rows:
+            lines.append(
+                f"  - {_gacha_type_label(row.get('gacha_type'))}: "
+                f"获取 {int_value(row.get('fetched'))}，"
+                f"新增 {int_value(row.get('inserted'))}，"
+                f"重复 {int_value(row.get('duplicates'))}"
+            )
+    return _finish(lines)
+
+
+def render_gacha_import_text(data: Mapping[str, object]) -> str:
+    return _finish(
+        [
+            "祈愿记录导入",
+            f"UID: {data.get('uid', '-')}",
+            f"格式: {text_value(data.get('format')) or '-'}",
+            f"总数: {int_value(data.get('total'))}",
+            f"新增: {int_value(data.get('inserted'))}",
+            f"重复: {int_value(data.get('duplicates'))}",
+        ]
+    )
+
+
+def render_gacha_export_text(
+    data: Mapping[str, object],
+    *,
+    artifact_path: object = None,
+) -> str:
+    lines = [
+        "祈愿记录导出",
+        f"UID: {data.get('uid', '-')}",
+        f"格式: {text_value(data.get('format')) or '-'}",
+        f"数量: {int_value(data.get('count'))}",
+        f"状态: {'已导出' if data.get('exported') else '未导出'}",
+    ]
+    path = text_value(artifact_path)
+    if path:
+        lines.append(f"文件: {path}")
+    return _finish(lines)
+
+
+def render_gacha_authkey_text(
+    data: Mapping[str, object],
+    *,
+    refreshed: bool = False,
+) -> str:
+    lines = ["祈愿链接凭据" if not refreshed else "祈愿链接凭据刷新"]
+    if data.get("uid") not in (None, ""):
+        lines.append(f"UID: {data['uid']}")
+    lines.append(f"状态: {'可用' if data.get('available') else '不可用'}")
+    if refreshed:
+        lines.append(f"保存: {'已保存' if data.get('stored') else '未保存'}")
+    credential_source = text_value(data.get("source"))
+    if credential_source:
+        lines.append(f"凭据来源: {_source_label(credential_source)}")
+    storage_backend = text_value(data.get("storage_backend"))
+    if storage_backend:
+        lines.append(f"存储后端: {storage_backend}")
+    sources = data.get("credential_sources")
+    if isinstance(sources, Mapping):
+        cookie = text_value(sources.get("cookie"))
+        stoken = text_value(sources.get("stoken"))
+        if cookie or stoken:
+            lines.append(
+                "生成凭据: "
+                f"Cookie {_source_label(cookie) if cookie else '-'}，"
+                f"Stoken {_source_label(stoken) if stoken else '-'}"
+            )
+    lines.append("内容: 已隐藏")
+    return _finish(lines)
+
+
 def gacha_summary_item_urls(items: Sequence[Mapping[str, object]]) -> list[str]:
     urls: list[str] = []
     for item in items:
@@ -107,8 +248,11 @@ def render_gacha_summary_card(
     uid: str,
     items: Sequence[Mapping[str, object]],
     asset_images: Mapping[str, bytes] | None = None,
+    summary: Mapping[str, object] | None = None,
+    title_avatar_url: str | None = None,
 ) -> bytes:
     asset_images = asset_images or {}
+    summary = summary or {}
     groups = _gacha_groups(items)
     height = max(
         700,
@@ -116,11 +260,17 @@ def render_gacha_summary_card(
         + len(groups) * GROUP_SPACING
         + sum(_five_star_rows(group["five_stars"]) * SINGLE_Y for group in groups),
     )
-    image = _light_background(WIDTH, height)
+    image = _color_background(WIDTH, height)
     avatar_title = open_rgba(TEXTURE / "avatar_title.png")
     image.paste(avatar_title, (0, 0), avatar_title)
-    avatar = _fallback_avatar(uid)
-    image.paste(avatar, (318, 83), avatar)
+    avatar = player_title_avatar_image(
+        summary=_profile_avatar_summary(summary, title_avatar_url),
+        asset_images=asset_images,
+        size=264,
+        title_avatar_url=title_avatar_url,
+        with_ring=True,
+    )
+    image.paste(avatar, (343, 68), avatar)
     draw = ImageDraw.Draw(image)
     draw.text((475, 454), f"UID {uid}", FIRST_COLOR, font(36), "mm")
 
@@ -145,11 +295,25 @@ def render_gacha_summary_card(
 def _gacha_groups(items: Sequence[Mapping[str, object]]) -> list[dict[str, object]]:
     groups: list[dict[str, object]] = []
     for label, types in GROUPS:
-        group_items = [item for item in items if str(item.get("gacha_type") or "") in types]
+        group_items = [item for item in items if _summary_gacha_type(item) in types]
         if not group_items:
             continue
         groups.append(_group_summary(label, group_items))
     return groups
+
+
+def _profile_avatar_summary(
+    summary: Mapping[str, object],
+    title_avatar_url: str | None,
+) -> Mapping[str, object]:
+    if not title_avatar_url:
+        return summary
+    role = summary.get("role")
+    if not isinstance(role, Mapping) or "avatar_icon" not in role:
+        return summary
+    role_without_avatar = dict(role)
+    role_without_avatar.pop("avatar_icon", None)
+    return {**dict(summary), "role": role_without_avatar}
 
 
 def _group_summary(
@@ -303,15 +467,6 @@ def _placeholder_icon() -> Image.Image:
     return image
 
 
-def _fallback_avatar(uid: str) -> Image.Image:
-    avatar = Image.new("RGBA", (320, 320))
-    draw = ImageDraw.Draw(avatar)
-    draw.ellipse((10, 10, 310, 310), fill=(218, 205, 179, 255), outline="white", width=10)
-    draw.text((160, 138), "UID", fill=FIRST_COLOR, font=font(54), anchor="mm")
-    draw.text((160, 198), uid[-4:], fill=FIRST_COLOR, font=font(44), anchor="mm")
-    return avatar
-
-
 def _emotion_image(uid: str, label: str, level: int) -> Image.Image:
     folder = TEXTURE / str(level)
     options = sorted(folder.glob("*.png"))
@@ -320,15 +475,6 @@ def _emotion_image(uid: str, label: str, level: int) -> Image.Image:
     digest = hashlib.sha256(f"{uid}:{label}:{level}".encode()).digest()
     source = open_rgba(options[digest[0] % len(options)])
     return source.resize((154, 154), Image.Resampling.LANCZOS)
-
-
-def _light_background(width: int, height: int) -> Image.Image:
-    source = Image.open(PUBLIC_TEXTURE / "bg.jpg")
-    image = crop_center(source, width, height).filter(ImageFilter.GaussianBlur(radius=12))
-    overlay = Image.new("RGBA", (width, height), (238, 231, 216, 185))
-    image = image.convert("RGBA")
-    image.paste(overlay, (0, 0), overlay)
-    return image
 
 
 def _luck_level(group: Mapping[str, object]) -> int:
@@ -428,3 +574,111 @@ def _character_name_map() -> dict[str, list[str]]:
             if isinstance(name, str):
                 mapping.setdefault(name, []).append(str(avatar_id))
     return mapping
+
+
+def _append_counter_section(
+    lines: list[str],
+    title: str,
+    values: Sequence[tuple[str, int]],
+) -> None:
+    rows = [f"  - {label}: {count}" for label, count in values if count]
+    if rows:
+        lines.extend(["", f"{title}:"])
+        lines.extend(rows)
+
+
+def _rank_counts(summary: Mapping[str, object]) -> list[tuple[str, int]]:
+    value = summary.get("by_rank")
+    if not isinstance(value, Mapping):
+        return []
+    rows = []
+    for rank, count in value.items():
+        rank_text = text_value(rank)
+        if rank_text:
+            rows.append((f"{rank_text}星", int_value(count)))
+    return sorted(rows, key=lambda row: int_value(row[0].removesuffix("星")), reverse=True)
+
+
+def _item_type_counts(summary: Mapping[str, object]) -> list[tuple[str, int]]:
+    value = summary.get("by_item_type")
+    if not isinstance(value, Mapping):
+        return []
+    rows = []
+    for item_type, count in value.items():
+        label = _item_type_label(item_type)
+        if label:
+            rows.append((label, int_value(count)))
+    return rows
+
+
+def _gacha_group_detail(group: Mapping[str, object]) -> list[str]:
+    detail = []
+    avg = group.get("avg")
+    if avg not in (None, "", 0):
+        detail.append(f"五星平均 {_number_text(avg)}抽")
+    avg_up = group.get("avg_up")
+    if group.get("label") != "常驻祈愿" and avg_up not in (None, "", 0):
+        detail.append(f"限定平均 {_number_text(avg_up)}抽")
+    style = text_value(group.get("type"))
+    if style:
+        detail.append(f"类型 {style}")
+    return detail
+
+
+def _five_star_text(group_label: str, item: Mapping[str, object]) -> str:
+    name = text_value(item.get("name")) or "未知物品"
+    parts = [
+        name,
+        f"{int_value(item.get('gacha_num'))}抽",
+        _item_type_label(item.get("item_type")),
+    ]
+    time_text = text_value(item.get("time"))
+    if time_text:
+        parts.append(time_text)
+    if group_label != "常驻祈愿":
+        parts.append("限定" if item.get("is_up") else "常驻")
+    return "，".join(part for part in parts if part)
+
+
+def _banner_label(value: object) -> str:
+    return BANNER_LABELS.get(str(value or ""), "全部祈愿")
+
+
+def _gacha_type_label(value: object) -> str:
+    return GACHA_TYPE_LABELS.get(str(value or ""), "未知祈愿")
+
+
+def _summary_gacha_type(item: Mapping[str, object]) -> str:
+    uigf_gacha_type = text_value(item.get("uigf_gacha_type"))
+    if uigf_gacha_type:
+        return uigf_gacha_type
+    gacha_type = text_value(item.get("gacha_type")) or ""
+    return SUMMARY_GACHA_TYPE_BY_GACHA_TYPE.get(gacha_type, gacha_type)
+
+
+def _item_type_label(value: object) -> str:
+    text = text_value(value)
+    if text in {"Character", "角色"}:
+        return "角色"
+    if text in {"Weapon", "武器"}:
+        return "武器"
+    return text or ""
+
+
+def _source_label(value: object) -> str:
+    text = text_value(value)
+    if text == "keyring":
+        return "钥匙串"
+    if text == "profile":
+        return "配置"
+    if text == "environment":
+        return "环境变量"
+    return text or "-"
+
+
+def _mapping_list(value: object) -> list[Mapping[str, object]]:
+    return [item for item in value if isinstance(item, Mapping)] if isinstance(value, list) else []
+
+
+def _finish(lines: list[str]) -> str:
+    return "\n".join(lines).rstrip() + "\n"
