@@ -3,9 +3,12 @@ from __future__ import annotations
 import argparse
 import sqlite3
 
+from gsuid_cli.commands._text import command_text_result, safe_filename_part
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
+from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.state import get_setting, set_setting, state_db
 from gsuid_cli.core.time import utc_now
+from gsuid_cli.renderers.local_auth import render_profile_command_text
 
 CAPABILITIES = [
     {
@@ -13,7 +16,7 @@ CAPABILITIES = [
         "description": "Create or update a local profile.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -21,7 +24,7 @@ CAPABILITIES = [
         "description": "List local profiles.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -29,7 +32,7 @@ CAPABILITIES = [
         "description": "Show one local profile.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -37,7 +40,7 @@ CAPABILITIES = [
         "description": "Set the default local profile.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -45,7 +48,7 @@ CAPABILITIES = [
         "description": "Delete a local profile.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
 ]
@@ -76,7 +79,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     delete.set_defaults(handler=delete_command, command_name="profile.delete")
 
 
-def init_command(args: argparse.Namespace) -> dict[str, object]:
+def init_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
     name = _profile_name(args)
     region = args.profile_region or args.region
     with state_db(args.output_dir) as conn:
@@ -84,37 +87,42 @@ def init_command(args: argparse.Namespace) -> dict[str, object]:
         if get_setting(conn, "default_profile") is None:
             set_setting(conn, "default_profile", name)
         row = _get_profile(conn, name)
-        return {"profile": _serialize_profile(conn, row), "created": created}
+        data = {"profile": _serialize_profile(conn, row), "created": created}
+        return _profile_text_result(args, data)
 
 
-def list_command(args: argparse.Namespace) -> dict[str, object]:
+def list_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
     with state_db(args.output_dir) as conn:
         rows = conn.execute("SELECT * FROM profiles ORDER BY name").fetchall()
-        return {"profiles": [_serialize_profile(conn, row) for row in rows]}
+        data = {"profiles": [_serialize_profile(conn, row) for row in rows]}
+        return _profile_text_result(args, data)
 
 
-def show_command(args: argparse.Namespace) -> dict[str, object]:
+def show_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
     name = _profile_name(args)
     with state_db(args.output_dir) as conn:
         row = _get_profile(conn, name)
-        return {"profile": _serialize_profile(conn, row)}
+        data = {"profile": _serialize_profile(conn, row)}
+        return _profile_text_result(args, data)
 
 
-def default_command(args: argparse.Namespace) -> dict[str, object]:
+def default_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
     name = _profile_name(args)
     with state_db(args.output_dir) as conn:
         row = _get_profile(conn, name)
         set_setting(conn, "default_profile", name)
-        return {"profile": _serialize_profile(conn, row)}
+        data = {"profile": _serialize_profile(conn, row)}
+        return _profile_text_result(args, data)
 
 
-def delete_command(args: argparse.Namespace) -> dict[str, object]:
+def delete_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
     with state_db(args.output_dir) as conn:
         row = _get_profile(conn, args.name)
         conn.execute("DELETE FROM profiles WHERE name = ?", (args.name,))
         if get_setting(conn, "default_profile") == args.name:
             set_setting(conn, "default_profile", None)
-        return {"profile": _serialize_profile(conn, row), "deleted": True}
+        data = {"profile": _serialize_profile(conn, row), "deleted": True}
+        return _profile_text_result(args, data)
 
 
 def ensure_profile(conn: sqlite3.Connection, name: str, region: str) -> None:
@@ -191,3 +199,23 @@ def _serialize_profile(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, 
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
+
+
+def _profile_text_result(
+    args: argparse.Namespace,
+    data: dict[str, object],
+) -> CommandResult | dict[str, object]:
+    command = str(args.command_name)
+    action = command.rsplit(".", 1)[-1]
+    profile_data = data.get("profile")
+    subject = "list"
+    if isinstance(profile_data, dict):
+        subject = str(profile_data.get("name") or subject)
+    return command_text_result(
+        args,
+        data,
+        name=f"profile/{action}-text",
+        filename=f"profile-{action}_{safe_filename_part(subject)}.txt",
+        content=render_profile_command_text(command, data),
+        description="Human-readable local profile text",
+    )

@@ -718,50 +718,67 @@ tests/
 ### Stage 18f: Player Text Render Artifacts — completed.
 ### Stage 18g: Challenge Text Render Artifacts — completed.
 ### Stage 18h: Progress Text Render Artifacts — completed.
-### Stage 18i: Gacha Text Render Artifacts
+### Stage 18i: Gacha Text Render Artifacts — completed.
+### Stage 18j: Local Profile, Account, And Auth Text Render Artifacts
 
-- Stage 18i status: completed.
-- Stage 18i scope:
-  - Add Chinese `--render text` support for `gacha.refresh`,
-    `gacha.summary`, `gacha.export`, `gacha.import`, `gacha.authkey`, and
-    `gacha.authkey.refresh`.
-  - Transform the existing local `gacha.summary` image-render data into
-    structured CLI text, keeping combined `text,image` output image-primary
-    with `text_artifact_sha256`.
-  - Add compact text status output for local import/export/authkey/refresh
-    operations without exposing authkey, cookie, or stoken secrets.
-- Stage 18i exclusions:
-  - None in the gacha group are remote-image-only artifact commands, so no
-    command is marked out for the remote-image exclusion in this stage.
-- Stage 18i verification target:
-  - Focused gacha text artifact/plain tests, existing gacha image tests,
-    `meta capabilities`, generated command docs, ruff, full pytest, live/local
-    plain smokes, and a separate review before commit.
-- Stage 18i implementation summary:
-  - Added Chinese text render artifacts for all gacha commands:
-    refresh, summary, export, import, authkey status, and authkey refresh.
-  - `gacha.summary` now filters, groups, and computes pity intervals using
-    stored `uigf_gacha_type`, with raw provider `gacha_type` kept for storage
-    provenance and export rows.
-  - `gacha.summary` image rendering now uses the progress exploration
-    background treatment and forces the real Enka profile picture as the title
-    avatar when cookie credentials are available; role avatar is fallback only.
-  - Text and JSON outputs keep authkey, cookie, and stoken values hidden.
-- Stage 18i verification:
-  - `.venv/bin/python -m pytest tests/test_gacha_log.py tests/test_meta_commands.py -q`
-    (`42 passed`)
-  - `.venv/bin/python -m pytest -q` (`279 passed, 1 skipped`)
+- Stage 18j status: completed.
+- Stage 18j scope:
+  - Add Chinese `--render text` artifacts for local profile commands:
+    `profile.init`, `profile.list`, `profile.show`, `profile.default`, and
+    `profile.delete`.
+  - Add Chinese `--render text` artifacts for local account commands:
+    `account.add`, `account.list`, `account.show`, `account.default`, and
+    `account.remove`.
+  - Add Chinese `--render text` artifacts for credential and session commands:
+    `auth.cookie.*`, `auth.stoken.*`, `auth.gacha-url.*`,
+    `auth.qrcode.*`, and `auth.device.*`.
+- Stage 18j security requirements:
+  - Text output must not print raw cookies, stokens, gacha authkey URLs, QR
+    login URLs, QR tickets, QR device ids, device ids, device fingerprints, or
+    other token-bearing values.
+  - Text output may show UID, profile/account labels, region, credential type,
+    source/storage backend, validity status, boolean availability, and existing
+    redacted summaries where already exposed by JSON.
+- Stage 18j verification target:
+  - Focused profile/account/auth text tests cover plain stdout, text artifact
+    metadata, capabilities, and secret non-leakage.
+  - Run focused tests, ruff, generated command reference check, py_compile, full
+    pytest, and a separate review before commit.
+- Stage 18j implementation summary:
+  - Added shared text artifact plumbing for local data commands.
+  - Added Chinese profile/account/auth text renderers with secret-hiding output
+    for credential, QR login, and device-binding commands.
+  - Added QR-code PNG image render artifacts for QR-producing auth flows:
+    `auth.qrcode.start` and `auth.qrcode.login`.
+  - `auth.qrcode.start --format plain` prints a terminal QR code, scan prompt,
+    and a full `gsuid auth qrcode poll --app-id ... --ticket ... --device ...`
+    follow-up command without printing the raw session URL.
+  - `auth.qrcode.login --render image --quiet` writes the QR image artifact
+    before polling and prints the image path immediately so the flow remains
+    usable without terminal QR output.
+  - Updated profile/account/auth capabilities and generated command reference.
+  - Bounded local artifact filename parts and collapsed control characters in
+    user-controlled local labels/names before human text interpolation.
+- Stage 18j verification:
+  - `.venv/bin/python -m pytest tests/test_auth_secrets.py tests/test_meta_commands.py -q`
+    (`23 passed` for the amended auth/meta focus set)
+  - `.venv/bin/python -m pytest -q` (`292 passed, 1 skipped`)
   - `.venv/bin/ruff check .`
-  - `.venv/bin/ruff format --check src/gsuid_cli/commands/gacha.py src/gsuid_cli/renderers/gacha.py tests/test_gacha_log.py tests/test_meta_commands.py`
+  - `.venv/bin/ruff format --check src/gsuid_cli/commands/_text.py src/gsuid_cli/commands/profile.py src/gsuid_cli/commands/account.py src/gsuid_cli/commands/auth.py src/gsuid_cli/renderers/local_auth.py tests/test_profile_account_state.py tests/test_auth_secrets.py tests/test_meta_commands.py`
   - `.venv/bin/python scripts/generate_command_reference.py --check`
-  - `.venv/bin/python -m py_compile src/gsuid_cli/commands/gacha.py src/gsuid_cli/renderers/gacha.py`
-  - Local plain smokes for `gacha import`, `gacha summary`, `gacha export`, and
-    `gacha authkey`.
-  - Live image smoke for `gacha summary --uid <UID> --render image`,
-    confirming the real profile avatar is rendered.
-  - Separate review found profile-avatar source priority and test coverage gaps
-    around stored `uigf_gacha_type`; both were fixed and reverified.
-- Next intended stage: wait for user approval of Stage 18i output before moving
+  - `.venv/bin/python -m py_compile src/gsuid_cli/commands/_text.py src/gsuid_cli/commands/profile.py src/gsuid_cli/commands/account.py src/gsuid_cli/commands/auth.py src/gsuid_cli/renderers/local_auth.py`
+  - Local plain smokes for `profile init`, `account add`, `account list`, and
+    `auth gacha-url set`.
+  - Separate review found long filename and multiline text injection edge cases;
+    both were fixed and covered by regression tests.
+  - QR amendment review found delayed login image-path output and plain
+    `data,image` session leakage; both were fixed and covered by regression
+    tests. User-owned QR prompt copy was preserved after final edits.
+- Stage 18j verification note:
+  - Full `ruff format --check .` still reports an unrelated pre-existing format
+    drift in `tests/test_missing_command_contracts.py`; the changed Stage 18j
+    files are formatted.
+- Next intended stage: wait for user approval of Stage 18j output before moving
   to the next command group.
 
 ## MVP Cut Line

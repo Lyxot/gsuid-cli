@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import io
 import json
+from pathlib import Path
 
 from helpers import run_json as _run_json
 from helpers import run_json_with_stderr as _run_json_with_stderr
 
+from gsuid_cli.cli import run
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.secrets import SecretStore, redact_secret
 
@@ -107,7 +110,7 @@ def test_qrcode_login_shows_terminal_code_and_stores_credentials(monkeypatch, tm
     assert code == 0
     assert payload["command"] == "auth.qrcode.login"
     assert payload["data"]["stored"] is True
-    assert "Scan this QR code" in stderr
+    assert "请使用米游社APP扫码登录" in stderr
     assert "QR login status: confirmed" in stderr
     assert "█" in stderr
 
@@ -119,6 +122,69 @@ def test_qrcode_login_shows_terminal_code_and_stores_credentials(monkeypatch, tm
 
     assert code == 0
     assert payload["data"]["validity_status"] == "available"
+
+
+def test_qrcode_login_render_image_artifact(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _qrcode_provider())
+
+    code, payload, stderr = _run_json_with_stderr(
+        [
+            "auth",
+            "qrcode",
+            "login",
+            "--uid",
+            "100000001",
+            "--poll-interval",
+            "0.01",
+            "--login-timeout",
+            "1",
+            "--render",
+            "image",
+        ]
+    )
+
+    assert code == 0
+    assert payload["data"]["render"] == "auth/qrcode/login"
+    assert "请使用米游社APP扫码登录" in stderr
+    assert "二维码图片已保存至:" in stderr
+    artifact = payload["artifacts"][0]
+    assert artifact["kind"] == "image"
+    assert artifact["media_type"] == "image/png"
+    assert Path(str(artifact["path"])).exists()
+    raw_payload = json.dumps(payload, ensure_ascii=False)
+    assert "cookie-secret" not in raw_payload
+    assert "stoken-secret" not in raw_payload
+
+
+def test_qrcode_login_render_image_quiet_prints_image_path(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _qrcode_provider())
+
+    code, payload, stderr = _run_json_with_stderr(
+        [
+            "--quiet",
+            "auth",
+            "qrcode",
+            "login",
+            "--uid",
+            "100000001",
+            "--poll-interval",
+            "0.01",
+            "--login-timeout",
+            "1",
+            "--render",
+            "image",
+        ]
+    )
+
+    assert code == 0
+    assert payload["data"]["render"] == "auth/qrcode/login"
+    assert "二维码图片已保存至:" in stderr
+    assert "█" not in stderr
+    artifact = payload["artifacts"][0]
+    assert artifact["kind"] == "image"
+    assert Path(str(artifact["path"])).exists()
 
 
 def test_device_set_binds_device_without_printing_raw_values(monkeypatch, tmp_path) -> None:
@@ -210,6 +276,182 @@ def test_gacha_url_auth_commands_fully_redact_url(monkeypatch, tmp_path) -> None
     assert payload["data"]["redacted"] == "[REDACTED_URL]"
     assert "expired-secret" not in raw
     assert "cret" not in raw
+
+
+def test_auth_credential_render_text_plain_hides_secret(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    secret = "https://example.test/getGachaLog?authkey=expired-secret"
+
+    code, stdout, stderr = _run_plain(
+        [
+            "auth",
+            "gacha-url",
+            "set",
+            "--uid",
+            "100000001",
+            "--url",
+            secret,
+            "--render",
+            "text",
+            "--format",
+            "plain",
+        ]
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert "认证凭据 - 祈愿链接" in stdout
+    assert "状态: 已保存" in stdout
+    assert "内容: 已隐藏" in stdout
+    assert "expired-secret" not in stdout
+    assert "authkey" not in stdout
+
+
+def test_auth_qrcode_render_text_plain_hides_session_values(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _qrcode_provider())
+
+    code, stdout, stderr = _run_plain(
+        ["auth", "qrcode", "start", "--render", "text", "--format", "plain"]
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert "扫码登录会话" in stdout
+    assert "请使用米游社APP扫码登录" in stdout
+    assert (
+        "请在点击确认登录后立即执行: "
+        "gsuid auth qrcode poll --app-id 2 --ticket ticket-1 --device device-1"
+    ) in stdout
+    assert "█" in stdout
+    assert "状态: 已创建" in stdout
+    assert "登录链接: 已隐藏" in stdout
+    assert "会话凭据: 已隐藏" in stdout
+    assert "https://example.test" not in stdout
+
+
+def test_auth_qrcode_start_plain_default_prints_terminal_qr(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _qrcode_provider())
+
+    code, stdout, stderr = _run_plain(["auth", "qrcode", "start", "--format", "plain"])
+
+    assert code == 0
+    assert stderr == ""
+    assert "请使用米游社APP扫码登录" in stdout
+    assert (
+        "请在点击确认登录后立即执行: "
+        "gsuid auth qrcode poll --app-id 2 --ticket ticket-1 --device device-1"
+    ) in stdout
+    assert "█" in stdout
+    assert "https://example.test" not in stdout
+
+
+def test_auth_qrcode_start_render_text_image_plain_prints_prompt_and_path(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _qrcode_provider())
+
+    code, stdout, stderr = _run_plain(
+        [
+            "auth",
+            "qrcode",
+            "start",
+            "--render",
+            "text",
+            "--render",
+            "image",
+            "--format",
+            "plain",
+        ]
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert "请使用米游社APP扫码登录" in stdout
+    assert "gsuid auth qrcode poll --app-id 2 --ticket ticket-1 --device device-1" in stdout
+    assert "https://example.test" not in stdout
+    image_line = next(line for line in stdout.splitlines() if line.startswith("图片已保存至: "))
+    assert Path(image_line.split(": ", 1)[1]).exists()
+
+
+def test_auth_qrcode_start_plain_data_image_does_not_dump_session_values(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _qrcode_provider())
+
+    code, stdout, stderr = _run_plain(
+        [
+            "auth",
+            "qrcode",
+            "start",
+            "--render",
+            "data",
+            "--render",
+            "image",
+            "--format",
+            "plain",
+        ]
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert "请使用米游社APP扫码登录" in stdout
+    assert (
+        "请在点击确认登录后立即执行: "
+        "gsuid auth qrcode poll --app-id 2 --ticket ticket-1 --device device-1"
+    ) in stdout
+    assert "图片已保存至:" in stdout
+    assert "https://example.test" not in stdout
+
+
+def test_auth_qrcode_start_render_image_artifact(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _qrcode_provider())
+
+    code, payload = _run_json(["auth", "qrcode", "start", "--render", "image"])
+
+    assert code == 0
+    assert payload["data"]["render"] == "auth/qrcode/start"
+    artifact = payload["artifacts"][0]
+    assert artifact["kind"] == "image"
+    assert artifact["media_type"] == "image/png"
+    assert Path(str(artifact["path"])).exists()
+
+
+def test_auth_qrcode_complete_text_artifact_hides_credentials(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _qrcode_provider())
+
+    code, payload = _run_json(
+        [
+            "auth",
+            "qrcode",
+            "complete",
+            "--uid",
+            "100000001",
+            "--ticket",
+            "ticket-1",
+            "--device",
+            "device-1",
+            "--render",
+            "text",
+        ]
+    )
+
+    assert code == 0
+    assert payload["data"]["render"] == "auth/qrcode/complete-text"
+    text = _artifact_text(payload)
+    assert "扫码登录完成" in text
+    assert "已保存凭据: Cookie、Stoken" in text
+    assert "cookie-secret" not in text
+    assert "stoken-secret" not in text
+    assert "ticket-1" not in text
+    assert "device-1" not in text
 
 
 def test_redact_secret_never_returns_short_secret() -> None:
@@ -387,3 +629,16 @@ def _qrcode_provider():
         return FakeProvider(http_client)
 
     return provider_for_region
+
+
+def _run_plain(argv: list[str]) -> tuple[int, str, str]:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = run(argv, stdout=stdout, stderr=stderr)
+    return code, stdout.getvalue(), stderr.getvalue()
+
+
+def _artifact_text(payload: dict[str, object]) -> str:
+    artifact = payload["artifacts"][0]
+    assert isinstance(artifact, dict)
+    return open(str(artifact["path"]), encoding="utf-8").read()

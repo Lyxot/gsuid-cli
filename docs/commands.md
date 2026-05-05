@@ -4,29 +4,29 @@ Generated from `gsuid meta capabilities`.
 
 | Command | Auth | Render | Cache | Description |
 | --- | --- | --- | --- | --- |
-| `account.add` | `none` | `data` | `off` | Add or update a local account. |
-| `account.default` | `none` | `data` | `off` | Set the default account for the selected profile. |
-| `account.list` | `none` | `data` | `off` | List local accounts. |
-| `account.remove` | `none` | `data` | `off` | Remove a local account. |
-| `account.show` | `none` | `data` | `off` | Show one local account. |
+| `account.add` | `none` | `data, text, all` | `off` | Add or update a local account. |
+| `account.default` | `none` | `data, text, all` | `off` | Set the default account for the selected profile. |
+| `account.list` | `none` | `data, text, all` | `off` | List local accounts. |
+| `account.remove` | `none` | `data, text, all` | `off` | Remove a local account. |
+| `account.show` | `none` | `data, text, all` | `off` | Show one local account. |
 | `announcements.list` | `none` | `data, image, text, all` | `use` | List public game announcement rows. |
 | `announcements.show` | `none` | `data, image, text, all` | `use` | Show one public game announcement row. |
-| `auth.cookie.delete` | `keyring` | `data` | `off` | Delete a stored cookie from the OS keyring. |
-| `auth.cookie.set` | `keyring` | `data` | `off` | Store a cookie in the OS keyring. |
-| `auth.cookie.test` | `cookie` | `data` | `off` | Validate cookie availability against the CN provider. |
-| `auth.device.delete` | `none` | `data` | `off` | Delete local MYS device metadata. |
-| `auth.device.set` | `cookie` | `data` | `off` | Bind and store MYS device metadata for account requests. |
-| `auth.device.test` | `device` | `data` | `off` | Check local MYS device metadata availability. |
-| `auth.gacha-url.delete` | `keyring` | `data` | `off` | Delete a stored gacha authkey URL from the OS keyring. |
-| `auth.gacha-url.set` | `keyring` | `data` | `off` | Store a gacha authkey URL in the OS keyring. |
-| `auth.gacha-url.test` | `gacha_url` | `data` | `off` | Check local gacha URL availability without provider validation. |
-| `auth.qrcode.complete` | `keyring` | `data` | `off` | Complete a confirmed QR login and store credentials. |
-| `auth.qrcode.login` | `keyring` | `data` | `off` | Run interactive QR login and store credentials. |
-| `auth.qrcode.poll` | `none` | `data` | `off` | Poll a QR login session once. |
-| `auth.qrcode.start` | `none` | `data` | `off` | Create a QR login session. |
-| `auth.stoken.delete` | `keyring` | `data` | `off` | Delete a stored stoken from the OS keyring. |
-| `auth.stoken.set` | `keyring` | `data` | `off` | Store a stoken in the OS keyring. |
-| `auth.stoken.test` | `stoken` | `data` | `off` | Check local stoken availability without provider validation. |
+| `auth.cookie.delete` | `keyring` | `data, text, all` | `off` | Delete a stored cookie from the OS keyring. |
+| `auth.cookie.set` | `keyring` | `data, text, all` | `off` | Store a cookie in the OS keyring. |
+| `auth.cookie.test` | `cookie` | `data, text, all` | `off` | Validate cookie availability against the CN provider. |
+| `auth.device.delete` | `none` | `data, text, all` | `off` | Delete local MYS device metadata. |
+| `auth.device.set` | `cookie` | `data, text, all` | `off` | Bind and store MYS device metadata for account requests. |
+| `auth.device.test` | `device` | `data, text, all` | `off` | Check local MYS device metadata availability. |
+| `auth.gacha-url.delete` | `keyring` | `data, text, all` | `off` | Delete a stored gacha authkey URL from the OS keyring. |
+| `auth.gacha-url.set` | `keyring` | `data, text, all` | `off` | Store a gacha authkey URL in the OS keyring. |
+| `auth.gacha-url.test` | `gacha_url` | `data, text, all` | `off` | Check local gacha URL availability without provider validation. |
+| `auth.qrcode.complete` | `keyring` | `data, text, all` | `off` | Complete a confirmed QR login and store credentials. |
+| `auth.qrcode.login` | `keyring` | `data, image, text, all` | `off` | Run interactive QR login and store credentials. |
+| `auth.qrcode.poll` | `none` | `data, text, all` | `off` | Poll a QR login session once. |
+| `auth.qrcode.start` | `none` | `data, image, text, all` | `off` | Create a QR login session. |
+| `auth.stoken.delete` | `keyring` | `data, text, all` | `off` | Delete a stored stoken from the OS keyring. |
+| `auth.stoken.set` | `keyring` | `data, text, all` | `off` | Store a stoken in the OS keyring. |
+| `auth.stoken.test` | `stoken` | `data, text, all` | `off` | Check local stoken availability without provider validation. |
 | `batch.plan` | `none` | `data` | `off` | Validate JSONL batch commands without executing them. |
 | `batch.run` | `mixed` | `data` | `mixed` | Execute JSONL batch commands and return nested envelopes. |
 | `cache.clear` | `none` | `data` | `off` | Clear local cache and artifact files by scope. |
@@ -75,11 +75,11 @@ Generated from `gsuid meta capabilities`.
 | `player.inventory` | `cookie` | `data, image, text, all` | `off` | Show owned-character and equipped-weapon material counts. Coverage: `owned_character_ascension_and_equipped_weapon_materials`. |
 | `player.register-time` | `cookie` | `data, text, all` | `off` | Attempt to show Genshin account registration time. Availability: `upstream-limited`. Limitations: Uses the legacy MYS anniversary endpoint, which may return provider retcode -502. |
 | `player.summary` | `cookie` | `data, image, text, all` | `off` | Show authenticated player profile summary data. |
-| `profile.default` | `none` | `data` | `off` | Set the default local profile. |
-| `profile.delete` | `none` | `data` | `off` | Delete a local profile. |
-| `profile.init` | `none` | `data` | `off` | Create or update a local profile. |
-| `profile.list` | `none` | `data` | `off` | List local profiles. |
-| `profile.show` | `none` | `data` | `off` | Show one local profile. |
+| `profile.default` | `none` | `data, text, all` | `off` | Set the default local profile. |
+| `profile.delete` | `none` | `data, text, all` | `off` | Delete a local profile. |
+| `profile.init` | `none` | `data, text, all` | `off` | Create or update a local profile. |
+| `profile.list` | `none` | `data, text, all` | `off` | List local profiles. |
+| `profile.show` | `none` | `data, text, all` | `off` | Show one local profile. |
 | `progress.achievement-guide` | `none` | `data, text, all` | `off` | Report achievement guide lookup support status. |
 | `progress.achievements` | `cookie` | `data, image, text, all` | `off` | Show authenticated achievement category data. |
 | `progress.collection` | `cookie` | `data, image, text, all` | `off` | Show authenticated collection count data. |

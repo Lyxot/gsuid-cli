@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import io
 import os
 import sqlite3
 import stat
+from pathlib import Path
 
 from helpers import run_json as _run_json
 
+from gsuid_cli.cli import run
 from gsuid_cli.core.state import state_db
 
 
@@ -73,6 +76,112 @@ def test_account_crud_and_profile_default(monkeypatch, tmp_path) -> None:
 
     assert code == 0
     assert payload["data"]["deleted"] is True
+
+
+def test_profile_and_account_render_text_plain(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+
+    code, stdout, stderr = _run_plain(
+        ["profile", "init", "--name", "main", "--render", "text", "--format", "plain"]
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert "本地档案 - main" in stdout
+    assert "状态: 已创建" in stdout
+    assert "默认地区: 国服" in stdout
+
+    code, stdout, stderr = _run_plain(
+        [
+            "--profile",
+            "main",
+            "account",
+            "add",
+            "--uid",
+            "100000001",
+            "--label",
+            "Traveler",
+            "--default",
+            "--render",
+            "text",
+            "--format",
+            "plain",
+        ]
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert "本地账号 - 100000001 - Traveler" in stdout
+    assert "状态: 已创建" in stdout
+    assert "凭据: Cookie 未保存，Stoken 未保存，祈愿链接 未保存，设备 未保存" in stdout
+
+    code, stdout, stderr = _run_plain(["account", "list", "--render", "text", "--format", "plain"])
+
+    assert code == 0
+    assert stderr == ""
+    assert "本地账号列表" in stdout
+    assert "- 100000001 - Traveler（默认）" in stdout
+
+
+def test_profile_text_artifact_metadata(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+
+    code, payload = _run_json(["profile", "init", "--name", "main", "--render", "text"])
+
+    assert code == 0
+    assert payload["data"]["render"] == "profile/init-text"
+    assert payload["artifacts"][0]["name"] == "profile/init-text"
+    assert payload["artifacts"][0]["media_type"] == "text/plain; charset=utf-8"
+    assert "本地档案 - main" in _artifact_text(payload)
+
+
+def test_profile_text_artifact_filename_is_bounded(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    name = "p" * 300
+
+    code, payload = _run_json(["profile", "init", "--name", name, "--render", "text"])
+
+    assert code == 0
+    artifact = payload["artifacts"][0]
+    assert isinstance(artifact, dict)
+    assert len(Path(str(artifact["path"])).name) < 120
+
+
+def test_profile_and_account_render_text_escape_multiline_values(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    name = "main\n状态: 已删除"
+    label = "Traveler\n状态: 已删除"
+
+    code, stdout, stderr = _run_plain(
+        ["profile", "init", "--name", name, "--render", "text", "--format", "plain"]
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert "本地档案 - main 状态: 已删除" in stdout
+    assert "状态: 已删除" not in stdout.splitlines()
+
+    code, stdout, stderr = _run_plain(
+        [
+            "--profile",
+            name,
+            "account",
+            "add",
+            "--uid",
+            "100000001",
+            "--label",
+            label,
+            "--render",
+            "text",
+            "--format",
+            "plain",
+        ]
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert "Traveler 状态: 已删除" in stdout
+    assert "状态: 已删除" not in stdout.splitlines()
 
 
 def test_missing_account_returns_no_result(monkeypatch, tmp_path) -> None:
@@ -149,3 +258,14 @@ def test_state_v3_migrates_to_account_device_columns(monkeypatch, tmp_path) -> N
     assert {"device_id", "device_fp", "device_info", "device_updated_at"}.issubset(columns)
 
 
+def _run_plain(argv: list[str]) -> tuple[int, str, str]:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = run(argv, stdout=stdout, stderr=stderr)
+    return code, stdout.getvalue(), stderr.getvalue()
+
+
+def _artifact_text(payload: dict[str, object]) -> str:
+    artifact = payload["artifacts"][0]
+    assert isinstance(artifact, dict)
+    return open(str(artifact["path"]), encoding="utf-8").read()

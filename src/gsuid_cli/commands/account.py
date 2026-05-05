@@ -4,10 +4,13 @@ import argparse
 import sqlite3
 
 from gsuid_cli.commands import profile
+from gsuid_cli.commands._text import command_text_result, safe_filename_part
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
+from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.secrets import CREDENTIALS, SecretStore, credential_presence
 from gsuid_cli.core.state import state_db
 from gsuid_cli.core.time import utc_now
+from gsuid_cli.renderers.local_auth import render_account_command_text
 
 CAPABILITIES = [
     {
@@ -15,7 +18,7 @@ CAPABILITIES = [
         "description": "Add or update a local account.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -23,7 +26,7 @@ CAPABILITIES = [
         "description": "List local accounts.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -31,7 +34,7 @@ CAPABILITIES = [
         "description": "Show one local account.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -39,7 +42,7 @@ CAPABILITIES = [
         "description": "Set the default account for the selected profile.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -47,7 +50,7 @@ CAPABILITIES = [
         "description": "Remove a local account.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
 ]
@@ -80,7 +83,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     remove.set_defaults(handler=remove_command, command_name="account.remove")
 
 
-def add_command(args: argparse.Namespace) -> dict[str, object]:
+def add_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
     uid = _required_uid(args)
     region = args.account_region or args.region
     with state_db(args.output_dir) as conn:
@@ -88,30 +91,34 @@ def add_command(args: argparse.Namespace) -> dict[str, object]:
         if args.default:
             _set_default(conn, args.profile, uid, region)
         row = _get_account(conn, uid)
-        return {"account": _serialize_account(row), "created": created}
+        data = {"account": _serialize_account(row), "created": created}
+        return _account_text_result(args, data)
 
 
-def list_command(args: argparse.Namespace) -> dict[str, object]:
+def list_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
     with state_db(args.output_dir) as conn:
         rows = conn.execute("SELECT * FROM accounts ORDER BY uid").fetchall()
-        return {"accounts": [_serialize_account(row) for row in rows]}
+        data = {"accounts": [_serialize_account(row) for row in rows]}
+        return _account_text_result(args, data)
 
 
-def show_command(args: argparse.Namespace) -> dict[str, object]:
+def show_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
     with state_db(args.output_dir) as conn:
         uid = _resolve_uid(conn, args)
-        return {"account": _serialize_account(_get_account(conn, uid))}
+        data = {"account": _serialize_account(_get_account(conn, uid))}
+        return _account_text_result(args, data)
 
 
-def default_command(args: argparse.Namespace) -> dict[str, object]:
+def default_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
     uid = _required_uid(args)
     with state_db(args.output_dir) as conn:
         row = _get_account(conn, uid)
         _set_default(conn, args.profile, uid, row["region"])
-        return {"account": _serialize_account(_get_account(conn, uid))}
+        data = {"account": _serialize_account(_get_account(conn, uid))}
+        return _account_text_result(args, data)
 
 
-def remove_command(args: argparse.Namespace) -> dict[str, object]:
+def remove_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
     uid = _required_uid(args)
     with state_db(args.output_dir) as conn:
         row = _get_account(conn, uid)
@@ -125,7 +132,7 @@ def remove_command(args: argparse.Namespace) -> dict[str, object]:
             store.delete_secret(kind, uid)
         except CliError:
             pass
-    return {"account": data, "deleted": True}
+    return _account_text_result(args, {"account": data, "deleted": True})
 
 
 def _upsert_account(
@@ -226,3 +233,23 @@ def _serialize_account(row: sqlite3.Row) -> dict[str, object]:
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
+
+
+def _account_text_result(
+    args: argparse.Namespace,
+    data: dict[str, object],
+) -> CommandResult | dict[str, object]:
+    command = str(args.command_name)
+    action = command.rsplit(".", 1)[-1]
+    account_data = data.get("account")
+    subject = "list"
+    if isinstance(account_data, dict):
+        subject = str(account_data.get("uid") or subject)
+    return command_text_result(
+        args,
+        data,
+        name=f"account/{action}-text",
+        filename=f"account-{action}_{safe_filename_part(subject)}.txt",
+        content=render_account_command_text(command, data),
+        description="Human-readable local account text",
+    )

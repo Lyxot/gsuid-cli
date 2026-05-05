@@ -99,6 +99,22 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert {"rank.list", "rank.character", "rank.artifact"}.issubset(commands)
     assert "rank.summary" not in commands
     capability_by_command = {command["command"]: command for command in payload["data"]["commands"]}
+    assert capability_by_command["profile.init"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["account.add"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["auth.cookie.set"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["auth.qrcode.start"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["auth.qrcode.login"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["auth.device.set"]["render"] == ["data", "text", "all"]
     assert capability_by_command["events.list"]["render"] == ["data", "image", "text", "all"]
     assert capability_by_command["events.banners"]["render"] == ["data", "image", "text", "all"]
     assert capability_by_command["codes.list"]["render"] == ["data", "text", "all"]
