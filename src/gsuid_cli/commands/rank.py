@@ -13,7 +13,7 @@ from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.http import HttpClient, raise_for_retcode
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.render import render_image_enabled, render_result_data
+from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
 from gsuid_cli.providers import provider_for_region
 from gsuid_cli.providers.akasha import AkashaProvider
 from gsuid_cli.providers.mys import (
@@ -31,6 +31,11 @@ from gsuid_cli.renderers.rank import (
     render_user_rank_list,
     user_rank_asset_urls,
 )
+from gsuid_cli.renderers.rank_text import (
+    render_rank_artifact_text,
+    render_rank_character_text,
+    render_rank_list_text,
+)
 
 RANK_IMAGE_WORKERS = 12
 DATA_PATH = asset_path("panel", "data")
@@ -44,7 +49,7 @@ CAPABILITIES = [
         "description": "Render a UID's Akasha rank list.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -52,7 +57,7 @@ CAPABILITIES = [
         "description": "Show a character Akasha leaderboard or nearby UID rank rows.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -60,7 +65,7 @@ CAPABILITIES = [
         "description": "Show the Akasha global artifact leaderboard.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
 ]
@@ -92,7 +97,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 def list_command(args: argparse.Namespace) -> CommandResult:
     uid, region = _uid_and_region(args)
     result = _provider(args).user_rank(uid=uid, region=region)
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _list_render_result(args, result=result, uid=uid, region=region)
 
@@ -127,7 +132,7 @@ def character_command(args: argparse.Namespace) -> CommandResult:
         "selected_uid": selected_uid,
     }
     result = CommandResult(data=data, source=result.source or base_source)
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _character_render_result(
         args,
@@ -141,7 +146,7 @@ def character_command(args: argparse.Namespace) -> CommandResult:
 
 def artifact_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).artifact_leaderboard(sort_by=args.sort, region=args.region)
-    if not render_image_enabled(args):
+    if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
     return _artifact_render_result(args, result=result, region=args.region)
 
@@ -161,41 +166,66 @@ def _list_render_result(
         player=_dict(result.data.get("player")),
         characters=characters,
     )
-    images, warnings = fetch_render_images(
-        args,
-        [*_player_asset_urls(player), *user_rank_asset_urls(characters)],
-        provider="akasha",
-        region=region,
-        category="rank.list.asset",
-        unavailable_warning="{count} Akasha rank images unavailable; rendered placeholders",
-        max_workers=RANK_IMAGE_WORKERS,
-    )
-    png = render_user_rank_list(
-        uid=uid,
-        player=player,
-        characters=characters,
-        asset_images=images,
-    )
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="rank/list",
-        filename=f"rank-list_{_safe_filename(uid)}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style Akasha rank list",
-        kind="image",
-    )
-    render_data = {
-        "uid": uid,
-        "render": "rank/list",
-        "artifact_sha256": artifact["sha256"],
-    }
+    artifacts: list[dict[str, object]] = []
+    warnings = [*result.warnings, *title_warnings]
     result_data = {**result.data, "player": player}
+    render_data: dict[str, object] = {"uid": uid, "character_count": len(characters)}
+    if render_image_enabled(args):
+        images, image_warnings = fetch_render_images(
+            args,
+            [*_player_asset_urls(player), *user_rank_asset_urls(characters)],
+            provider="akasha",
+            region=region,
+            category="rank.list.asset",
+            unavailable_warning="{count} 张 Akasha 排行图片不可用，已使用占位图",
+            max_workers=RANK_IMAGE_WORKERS,
+        )
+        png = render_user_rank_list(
+            uid=uid,
+            player=player,
+            characters=characters,
+            asset_images=images,
+        )
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="rank/list",
+            filename=f"rank-list_{_safe_filename(uid)}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID 风格 Akasha 排名列表",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend(image_warnings)
+        render_data.update(
+            {
+                "render": "rank/list",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="rank/list-text",
+            filename=f"rank-list_{_safe_filename(uid)}.txt",
+            content=render_rank_list_text(result_data),
+            description="适合命令行阅读的 Akasha 排名列表文本",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": "rank/list-text",
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result_data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *title_warnings, *warnings],
+        warnings=warnings,
     )
 
 
@@ -237,7 +267,7 @@ def _rank_list_title_context(
     except CliError as exc:
         if exc.code == "AUTH_REQUIRED":
             return player, []
-        return player, ["rank list title MYS enrichment unavailable; rendered Akasha title data"]
+        return player, ["排名列表米游社标题数据不可用，已使用 Akasha 标题数据"]
 
     summary = _dict(summary_result.data.get("summary"))
     mys_characters = _list_of_dicts(characters_result.data.get("characters"))
@@ -263,7 +293,7 @@ def _rank_list_title_context(
             details=details,
         )
     except CliError:
-        warnings.append("rank list crown title data unavailable; rendered 0/0")
+        warnings.append("排名列表皇冠标题数据不可用，已显示为 0/0")
     enriched["title_stats"] = _title_stats_from_mys(
         summary,
         mys_characters,
@@ -492,44 +522,67 @@ def _character_render_result(
     region: str,
 ) -> CommandResult:
     entries = _list_of_dicts(result.data.get("entries"))
-    images, warnings = fetch_render_images(
-        args,
-        character_rank_asset_urls(character_id, entries),
-        provider="akasha",
-        region=region,
-        category="rank.character.asset",
-        unavailable_warning=(
-            "{count} Akasha character-rank images unavailable; rendered placeholders"
-        ),
-        max_workers=RANK_IMAGE_WORKERS,
-    )
-    png = render_character_rank(
-        character_id=character_id,
-        tag=tag,
-        total_count=int(_number(result.data.get("total_count"))),
-        entries=entries,
-        selected_uid=selected_uid,
-        asset_images=images,
-    )
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="rank/character",
-        filename=f"rank-character_{_safe_filename(_character_name(character_id))}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style Akasha character leaderboard",
-        kind="image",
-    )
-    render_data = {
-        "character": _character_name(character_id),
-        "render": "rank/character",
-        "artifact_sha256": artifact["sha256"],
-    }
+    artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {"character": _character_name(character_id)}
+    if render_image_enabled(args):
+        images, image_warnings = fetch_render_images(
+            args,
+            character_rank_asset_urls(character_id, entries),
+            provider="akasha",
+            region=region,
+            category="rank.character.asset",
+            unavailable_warning=("{count} 张 Akasha 角色排行图片不可用，已使用占位图"),
+            max_workers=RANK_IMAGE_WORKERS,
+        )
+        png = render_character_rank(
+            character_id=character_id,
+            tag=tag,
+            total_count=int(_number(result.data.get("total_count"))),
+            entries=entries,
+            selected_uid=selected_uid,
+            asset_images=images,
+        )
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="rank/character",
+            filename=f"rank-character_{_safe_filename(_character_name(character_id))}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID 风格 Akasha 角色排行榜",
+            kind="image",
+        )
+        artifacts.append(image_artifact)
+        warnings.extend(image_warnings)
+        render_data.update(
+            {
+                "render": "rank/character",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="rank/character-text",
+            filename=f"rank-character_{_safe_filename(_character_name(character_id))}.txt",
+            content=render_rank_character_text(result.data),
+            description="适合命令行阅读的 Akasha 角色排行榜文本",
+            kind="text",
+        )
+        artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": "rank/character-text",
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=artifacts,
         source=result.source,
-        warnings=[*result.warnings, *warnings],
+        warnings=warnings,
     )
 
 
@@ -540,41 +593,64 @@ def _artifact_render_result(
     region: str,
 ) -> CommandResult:
     artifacts = _list_of_dicts(result.data.get("artifacts"))
-    images, warnings = fetch_render_images(
-        args,
-        artifact_rank_asset_urls(artifacts),
-        provider="akasha",
-        region=region,
-        category="rank.artifact.asset",
-        unavailable_warning=(
-            "{count} Akasha artifact-rank images unavailable; rendered placeholders"
-        ),
-        max_workers=RANK_IMAGE_WORKERS,
-    )
-    png = render_artifact_rank(
-        sort_label=str(result.data.get("sort") or "双爆"),
-        artifacts=artifacts,
-        asset_images=images,
-    )
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
-        name="rank/artifact",
-        filename=f"rank-artifact_{_safe_filename(str(result.data.get('sort') or 'crit'))}.png",
-        media_type="image/png",
-        content=png,
-        description="GenshinUID-style Akasha artifact leaderboard",
-        kind="image",
-    )
-    render_data = {
-        "sort": result.data.get("sort"),
-        "render": "rank/artifact",
-        "artifact_sha256": artifact["sha256"],
-    }
+    output_artifacts: list[dict[str, object]] = []
+    warnings = list(result.warnings)
+    render_data: dict[str, object] = {"sort": result.data.get("sort")}
+    if render_image_enabled(args):
+        images, image_warnings = fetch_render_images(
+            args,
+            artifact_rank_asset_urls(artifacts),
+            provider="akasha",
+            region=region,
+            category="rank.artifact.asset",
+            unavailable_warning=("{count} 张 Akasha 圣遗物排行图片不可用，已使用占位图"),
+            max_workers=RANK_IMAGE_WORKERS,
+        )
+        png = render_artifact_rank(
+            sort_label=str(result.data.get("sort") or "双爆"),
+            artifacts=artifacts,
+            asset_images=images,
+        )
+        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+            name="rank/artifact",
+            filename=f"rank-artifact_{_safe_filename(str(result.data.get('sort') or 'crit'))}.png",
+            media_type="image/png",
+            content=png,
+            description="GenshinUID 风格 Akasha 圣遗物排行榜",
+            kind="image",
+        )
+        output_artifacts.append(image_artifact)
+        warnings.extend(image_warnings)
+        render_data.update(
+            {
+                "render": "rank/artifact",
+                "artifact_sha256": image_artifact["sha256"],
+            }
+        )
+    if render_text_enabled(args):
+        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+            name="rank/artifact-text",
+            filename=f"rank-artifact_{_safe_filename(str(result.data.get('sort') or 'crit'))}.txt",
+            content=render_rank_artifact_text(result.data),
+            description="适合命令行阅读的 Akasha 圣遗物排行榜文本",
+            kind="text",
+        )
+        output_artifacts.append(text_artifact)
+        if render_image_enabled(args):
+            render_data["text_artifact_sha256"] = text_artifact["sha256"]
+        else:
+            render_data.update(
+                {
+                    "render": "rank/artifact-text",
+                    "artifact_sha256": text_artifact["sha256"],
+                }
+            )
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
-        artifacts=[artifact],
+        artifacts=output_artifacts,
         source=result.source,
-        warnings=[*result.warnings, *warnings],
+        warnings=warnings,
     )
 
 

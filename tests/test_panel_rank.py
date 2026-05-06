@@ -16,6 +16,7 @@ from gsuid_cli.commands import panel as panel_commands
 from gsuid_cli.commands import rank as rank_commands
 from gsuid_cli.commands.panel import _refresh_cache_policy
 from gsuid_cli.commands.panel_cache import find_avatar, normalized_avatar
+from gsuid_cli.core.errors import EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.state import state_db
@@ -28,6 +29,7 @@ from gsuid_cli.renderers.panel_metrics import (
     panel_reference_metrics,
 )
 from gsuid_cli.renderers.panel_text import render_panel_compare_text
+from gsuid_cli.renderers.rank_text import render_rank_artifact_text
 
 
 def test_panel_refresh_list_show_compare_and_save(monkeypatch, tmp_path) -> None:
@@ -724,6 +726,16 @@ def test_rank_commands_use_akasha_provider(monkeypatch, tmp_path) -> None:
     assert payload["data"]["render"] == "rank/list"
     assert payload["artifacts"][0]["media_type"] == "image/png"
 
+    code, payload = _run_json(["rank", "list", "--uid", "100000001", "--render", "text"])
+
+    assert code == 0
+    assert payload["data"]["render"] == "rank/list-text"
+    list_text = _text_artifact(payload)
+    assert "Akasha排行 - Traveler" in list_text
+    assert "标题统计" not in list_text
+    assert "温迪 COMBO" in list_text
+    assert "武器 绝弦 精5" in list_text
+
     def enriched_title_context(args, *, uid, region, player, characters):
         enriched = dict(player)
         enriched["title_stats"] = ["1/2", "3/4", "5/6", "7/8", "9/10", "11/12", 13, 14]
@@ -745,6 +757,29 @@ def test_rank_commands_use_akasha_provider(monkeypatch, tmp_path) -> None:
     assert payload["data"]["entries"][0]["uid"] == "200000001"
 
     code, payload = _run_json(
+        [
+            "rank",
+            "character",
+            "--character",
+            "Venti",
+            "--render",
+            "image,text",
+        ]
+    )
+
+    assert code == 0
+    image_artifact = next(
+        artifact for artifact in payload["artifacts"] if artifact["kind"] == "image"
+    )
+    text_artifact = next(
+        artifact for artifact in payload["artifacts"] if artifact["kind"] == "text"
+    )
+    assert payload["data"]["render"] == "rank/character"
+    assert payload["data"]["artifact_sha256"] == image_artifact["sha256"]
+    assert payload["data"]["text_artifact_sha256"] == text_artifact["sha256"]
+    assert "角色排行 - 温迪" in Path(str(text_artifact["path"])).read_text(encoding="utf-8")
+
+    code, payload = _run_json(
         ["rank", "character", "--uid", "100000001", "--character", "温迪", "--nearby"]
     )
 
@@ -758,6 +793,48 @@ def test_rank_commands_use_akasha_provider(monkeypatch, tmp_path) -> None:
     assert payload["data"]["sort"] == "暴击率"
     assert payload["data"]["akasha_sort"] == "substats.Crit RATE"
     assert payload["data"]["artifacts"][0]["uid"] == "300000001"
+
+    code, stdout, stderr = _run_plain(
+        ["rank", "artifact", "--sort", "crit-rate", "--render", "text", "--format", "plain"]
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert "圣遗物排行 - 暴击率" in stdout
+    assert "死之羽: 华馆之羽 +20 ★★★★★，双爆分 54.4" in stdout
+    assert "暴击率: 23.3%" in stdout
+
+
+def test_rank_artifact_text_uses_displayed_artifact_level() -> None:
+    text = render_rank_artifact_text(
+        {
+            "sort": "双爆",
+            "akasha_sort": "critValue",
+            "count": 1,
+            "artifacts": [{**_akasha_artifact(), "level": 1}],
+        }
+    )
+
+    assert " +0 " in text
+
+
+def test_rank_list_title_context_uses_chinese_warning(monkeypatch, tmp_path) -> None:
+    def fail_credential(*_args, **_kwargs):
+        raise CliError("UPSTREAM_REJECTED", "boom", EXIT_UPSTREAM)
+
+    monkeypatch.setattr(rank_commands, "_credential", fail_credential)
+    args = Namespace(timeout=1, output_dir=tmp_path, debug=False)
+
+    player, warnings = rank_commands._rank_list_title_context(
+        args,
+        uid="100000001",
+        region="cn",
+        player={"nickname": "Traveler"},
+        characters=[],
+    )
+
+    assert player == {"nickname": "Traveler"}
+    assert warnings == ["排名列表米游社标题数据不可用，已使用 Akasha 标题数据"]
 
 
 def test_rank_title_stats_use_mys_character_count_and_crown_stat() -> None:

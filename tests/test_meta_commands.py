@@ -313,6 +313,24 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
         "text",
         "all",
     ]
+    assert capability_by_command["rank.list"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["rank.character"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["rank.artifact"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
     assert capability_by_command["map.find"]["cache"] == "use"
     assert "data" in capability_by_command["map.find"]["render"]
     assert payload["data"]["regions"] == ["cn"]

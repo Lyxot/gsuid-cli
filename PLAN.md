@@ -720,43 +720,36 @@ tests/
 ### Stage 18h: Progress Text Render Artifacts — completed.
 ### Stage 18i: Gacha Text Render Artifacts — completed.
 ### Stage 18j: Local Profile, Account, And Auth Text Render Artifacts — completed.
-### Stage 18k: Panel Text Render Artifacts
+### Stage 18k: Panel Text Render Artifacts — completed.
+### Stage 18l: Rank Text Render Artifacts
 
-- Stage 18k status: completed.
-- Stage 18k scope:
-  - Add Chinese `--render text` artifacts for `panel.refresh`, `panel.list`,
-    `panel.show`, `panel.compare`, `panel.save`, `panel.artifacts`,
-    `panel.showcase`, and `panel.graduation`.
-  - Keep existing panel image renderers primary when `--render image,text` is
+- Stage 18l status: completed.
+- Stage 18l scope:
+  - Add Chinese `--render text` artifacts for `rank.list`, `rank.character`,
+    and `rank.artifact`.
+  - Keep existing rank image renderers primary when `--render image,text` is
     requested, adding `text_artifact_sha256` alongside the image artifact hash.
-  - Preserve structured panel JSON and existing image behavior.
-- Stage 18k verification:
-  - Focused panel tests cover text-only, image+text, plain stdout, compare
-    elemental deltas, capability metadata, and generated command reference.
-  - Separate review found compare text omitted non-Anemo elemental deltas; fixed
-    and covered with a renderer regression test.
+  - Preserve existing structured Akasha JSON and image behavior.
+  - Use local panel data maps to render user-facing Chinese character, weapon,
+    artifact, artifact-set, and stat labels where available.
+- Stage 18l verification:
+  - Focused rank tests cover text-only, plain stdout, image+text, artifact level
+    formatting, capability metadata, and generated command reference.
+  - Separate review found low-level `rank.artifact` text used provider level
+    instead of displayed `+N`; fixed and covered with a renderer regression
+    test.
+  - Final sanity check translated rank warning paths so plain stderr output
+    remains Chinese.
+  - Follow-up adjustment removes the `标题统计` line from `rank list` text
+    output while keeping title stats available to JSON/image render paths.
   - Passed `.venv/bin/python -m pytest tests/test_panel_rank.py
     tests/test_meta_commands.py -q`, `.venv/bin/ruff check` on changed Python
     files, `.venv/bin/ruff format --check` on changed Python files,
     `.venv/bin/python scripts/generate_command_reference.py --check`,
-    `.venv/bin/python -m py_compile src/gsuid_cli/commands/panel.py
-    src/gsuid_cli/renderers/panel_text.py`, and full
+    `.venv/bin/python -m py_compile src/gsuid_cli/commands/rank.py
+    src/gsuid_cli/renderers/rank_text.py`, and full
     `.venv/bin/python -m pytest -q`.
-- Stage 18k amend scope:
-  - Prefer Chinese local text maps for panel character, weapon, and artifact
-    names.
-  - Normalize artifact levels to displayed `+N` values.
-  - Expand panel text artifacts with artifact main/sub-stat details and key
-    card data missing from the image renderer.
-- Stage 18k amend verification:
-  - Panel text samples now show Chinese game names, displayed artifact levels,
-    artifact main/sub-stat detail, weapon stats, reference scores, and damage
-    rows.
-  - Separate review found no concrete regressions; noted residual risk that
-    fake image tests do not prove every remote localized asset exists.
-  - Passed focused panel/meta tests, ruff check/format on changed Python files,
-    command reference check, py_compile, and full pytest.
-- Next intended stage: wait for user approval of Stage 18k output before moving
+- Next intended stage: wait for user approval of Stage 18l output before moving
   to the next command group.
 
 ## MVP Cut Line

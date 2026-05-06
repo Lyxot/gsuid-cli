@@ -88,9 +88,9 @@ Generated from `gsuid meta capabilities`.
 | `progress.exploration` | `cookie` | `data, image, text, all` | `off` | Show authenticated world exploration data. |
 | `progress.gcg` | `cookie` | `data, image, text, all` | `off` | Show authenticated Genius Invokation TCG data. |
 | `progress.gcg-deck` | `cookie` | `data, image, text, all` | `off` | Show authenticated Genius Invokation TCG deck data. |
-| `rank.artifact` | `none` | `data, image, all` | `off` | Show the Akasha global artifact leaderboard. |
-| `rank.character` | `none` | `data, image, all` | `off` | Show a character Akasha leaderboard or nearby UID rank rows. |
-| `rank.list` | `none` | `data, image, all` | `off` | Render a UID's Akasha rank list. |
+| `rank.artifact` | `none` | `data, image, text, all` | `off` | Show the Akasha global artifact leaderboard. |
+| `rank.character` | `none` | `data, image, text, all` | `off` | Show a character Akasha leaderboard or nearby UID rank rows. |
+| `rank.list` | `none` | `data, image, text, all` | `off` | Render a UID's Akasha rank list. |
 | `recommend.build` | `none` | `data, image, text, all` | `use` | Show GenshinUID character build recommendations. |
 | `recommend.holder` | `none` | `data, image, text, all` | `use` | Show GenshinUID holder recommendations for a weapon or artifact. |
 | `rerun.list` | `none` | `data, image, text, all` | `use` | List rerun rows and render the GenshinUID return list. |
