@@ -22,12 +22,15 @@ from gsuid_cli.commands import (
     rank,
     resources,
 )
+from gsuid_cli.commands._text import command_text_result, safe_filename_part
 from gsuid_cli.core.config import resolve_paths
 from gsuid_cli.core.envelope import SCHEMA
 from gsuid_cli.core.errors import ERROR_CATALOG, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.http import HttpClient
+from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.schemas import command_envelope_schema, error_envelope_schema
 from gsuid_cli.core.secrets import SecretStore
+from gsuid_cli.renderers.utility_text import render_meta_command_text
 
 CAPABILITIES = [
     {
@@ -35,7 +38,7 @@ CAPABILITIES = [
         "description": "Show package, Python, and git version metadata.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -43,7 +46,7 @@ CAPABILITIES = [
         "description": "Show resolved local storage paths.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -51,7 +54,7 @@ CAPABILITIES = [
         "description": "Show implemented command capabilities.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -59,7 +62,7 @@ CAPABILITIES = [
         "description": "Show JSON envelope schema metadata.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -67,7 +70,7 @@ CAPABILITIES = [
         "description": "Show stable machine-readable error metadata.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -75,7 +78,7 @@ CAPABILITIES = [
         "description": "Run local diagnostics for storage, credentials, resources, or network.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
 ]
@@ -110,23 +113,24 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     doctor.set_defaults(handler=doctor_command, command_name="meta.doctor")
 
 
-def version_command(_args: argparse.Namespace) -> dict[str, object]:
-    return {
+def version_command(_args: argparse.Namespace) -> CommandResult | dict[str, object]:
+    data = {
         "package": "gsuid-cli",
         "version": __version__,
         "python_version": platform.python_version(),
         "python_implementation": platform.python_implementation(),
         "git_revision": _git_revision(),
     }
+    return _meta_text_result(_args, data)
 
 
-def paths_command(args: argparse.Namespace) -> dict[str, str]:
-    return resolve_paths(args.output_dir).to_json()
+def paths_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
+    return _meta_text_result(args, resolve_paths(args.output_dir).to_json())
 
 
-def capabilities_command(_args: argparse.Namespace) -> dict[str, object]:
+def capabilities_command(_args: argparse.Namespace) -> CommandResult | dict[str, object]:
     commands = [dict(command, implemented=True) for command in _capabilities()]
-    return {
+    data = {
         "schema": SCHEMA,
         "regions": ["cn"],
         "formats": ["json", "pretty-json", "plain"],
@@ -134,9 +138,10 @@ def capabilities_command(_args: argparse.Namespace) -> dict[str, object]:
         "global_options": _global_options(),
         "commands": commands,
     }
+    return _meta_text_result(_args, data)
 
 
-def schema_command(args: argparse.Namespace) -> dict[str, object]:
+def schema_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
     commands = [str(command["command"]) for command in _capabilities()]
     if args.command:
         if args.command not in commands:
@@ -146,25 +151,27 @@ def schema_command(args: argparse.Namespace) -> dict[str, object]:
                 EXIT_NO_RESULT,
                 {"command": args.command},
             )
-        return {
+        data = {
             "schema": SCHEMA,
             "command": args.command,
             "success": command_envelope_schema(args.command),
             "error": error_envelope_schema(),
         }
-    return {
+        return _meta_text_result(args, data)
+    data = {
         "schema": SCHEMA,
         "commands": {command: command_envelope_schema(command) for command in commands},
         "error": error_envelope_schema(),
         "count": len(commands),
     }
+    return _meta_text_result(args, data)
 
 
-def errors_command(_args: argparse.Namespace) -> dict[str, object]:
-    return {"errors": ERROR_CATALOG, "count": len(ERROR_CATALOG)}
+def errors_command(_args: argparse.Namespace) -> CommandResult | dict[str, object]:
+    return _meta_text_result(_args, {"errors": ERROR_CATALOG, "count": len(ERROR_CATALOG)})
 
 
-def doctor_command(args: argparse.Namespace) -> dict[str, object]:
+def doctor_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
     selected = (
         ("storage", "credentials", "resources", "network") if args.check == "all" else (args.check,)
     )
@@ -172,7 +179,27 @@ def doctor_command(args: argparse.Namespace) -> dict[str, object]:
     for name in selected:
         checks.extend(_doctor_checks(name, args))
     status = "ok" if all(check["status"] == "ok" for check in checks) else "warn"
-    return {"status": status, "check": args.check, "checks": checks, "count": len(checks)}
+    return _meta_text_result(
+        args,
+        {"status": status, "check": args.check, "checks": checks, "count": len(checks)},
+    )
+
+
+def _meta_text_result(
+    args: argparse.Namespace,
+    data: dict[str, object],
+) -> CommandResult | dict[str, object]:
+    command = str(getattr(args, "command_name", "meta.capabilities"))
+    action = command.rsplit(".", 1)[-1]
+    subject = data.get("command") or data.get("check") or action
+    return command_text_result(
+        args,
+        data,
+        name=f"meta/{action}-text",
+        filename=f"meta-{action}_{safe_filename_part(subject)}.txt",
+        content=render_meta_command_text(command, data),
+        description="适合命令行阅读的元信息文本",
+    )
 
 
 def _capabilities() -> list[dict[str, object]]:

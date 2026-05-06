@@ -721,36 +721,46 @@ tests/
 ### Stage 18i: Gacha Text Render Artifacts — completed.
 ### Stage 18j: Local Profile, Account, And Auth Text Render Artifacts — completed.
 ### Stage 18k: Panel Text Render Artifacts — completed.
-### Stage 18l: Rank Text Render Artifacts
+### Stage 18l: Rank Text Render Artifacts — completed.
+### Stage 18m: Remaining Utility Text Render Artifacts
 
-- Stage 18l status: completed.
-- Stage 18l scope:
-  - Add Chinese `--render text` artifacts for `rank.list`, `rank.character`,
-    and `rank.artifact`.
-  - Keep existing rank image renderers primary when `--render image,text` is
-    requested, adding `text_artifact_sha256` alongside the image artifact hash.
-  - Preserve existing structured Akasha JSON and image behavior.
-  - Use local panel data maps to render user-facing Chinese character, weapon,
-    artifact, artifact-set, and stat labels where available.
-- Stage 18l verification:
-  - Focused rank tests cover text-only, plain stdout, image+text, artifact level
-    formatting, capability metadata, and generated command reference.
-  - Separate review found low-level `rank.artifact` text used provider level
-    instead of displayed `+N`; fixed and covered with a renderer regression
-    test.
-  - Final sanity check translated rank warning paths so plain stderr output
-    remains Chinese.
-  - Follow-up adjustment removes the `标题统计` line from `rank list` text
-    output while keeping title stats available to JSON/image render paths.
-  - Passed `.venv/bin/python -m pytest tests/test_panel_rank.py
-    tests/test_meta_commands.py -q`, `.venv/bin/ruff check` on changed Python
-    files, `.venv/bin/ruff format --check` on changed Python files,
+- Stage 18m status: completed.
+- Stage 18m scope:
+  - Add Chinese `--render text` artifacts for the remaining non-image-only
+    utility groups: `meta`, `batch`, `cache`, `resources`, and `monitor`.
+  - Keep existing structured JSON behavior and local command side effects
+    unchanged.
+  - Keep plain warning output yellow and Chinese for newly covered utility
+    commands where command warnings are produced.
+- Stage 18m exclusions:
+  - Do not add text renders for remote-image artifact commands whose useful
+    output is the fetched image itself: `guide.character`,
+    `guide.reference-panel`, `guide.route`, `map.find`, and
+    `misc.primogems-plan`.
+- Stage 18m result:
+  - Added compact Chinese text render artifacts for every remaining non-image
+    utility command in `meta`, `batch`, `cache`, `resources`, and `monitor`.
+  - Added centralized plain-warning presentation translations for the newly
+    covered resource and monitor warning strings without changing JSON
+    `warnings` or structured command data.
+  - Updated capability metadata and generated command reference output.
+- Stage 18m verification:
+  - Focused tests cover plain text output for all newly covered groups, utility
+    capability metadata, docs, JSON contract stability for `resources.sync` and
+    `monitor.once`, and localized plain warning output.
+  - Separate review found JSON contract regressions in the first implementation;
+    fixed by restoring structured values and localizing warnings only at plain
+    presentation time. Follow-up review found no remaining issues.
+  - Passed `.venv/bin/python -m pytest tests/test_meta_commands.py
+    tests/test_agent_hardening.py tests/test_missing_command_contracts.py
+    tests/test_rich_public_data.py tests/test_docs.py -q`,
     `.venv/bin/python scripts/generate_command_reference.py --check`,
-    `.venv/bin/python -m py_compile src/gsuid_cli/commands/rank.py
-    src/gsuid_cli/renderers/rank_text.py`, and full
+    `.venv/bin/python -m py_compile` on changed command/renderer files,
+    `.venv/bin/ruff check` and `.venv/bin/ruff format --check` on changed
+    Python files, `git diff --check`, and full
     `.venv/bin/python -m pytest -q`.
-- Next intended stage: wait for user approval of Stage 18l output before moving
-  to the next command group.
+- Next intended stage: all non-excluded implemented command groups now support
+  text render artifacts; wait for user review before any further polish.
 
 ## MVP Cut Line
 

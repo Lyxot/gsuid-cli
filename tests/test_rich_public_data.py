@@ -149,7 +149,21 @@ def test_resources_sync_command(monkeypatch, tmp_path) -> None:
     assert code == 0
     assert payload["command"] == "resources.sync"
     assert payload["data"]["scope"] == "maps"
+    assert "MiniGG maps are query-specific" in payload["data"]["source_limitations"][0]
     assert "MiniGG maps are query-specific" in payload["warnings"][0]
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = run(
+        ["resources", "sync", "--scope", "maps", "--render", "text", "--format", "plain"],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert "资源同步" in stdout.getvalue()
+    assert "MiniGG 地图按查询生成" in stdout.getvalue()
+    assert "警告: MiniGG 地图按查询生成" in stderr.getvalue()
 
 
 def test_provider_character_talent_and_materials_from_ambr() -> None:

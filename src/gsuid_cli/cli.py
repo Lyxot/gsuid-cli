@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import uuid
@@ -58,6 +59,14 @@ HOISTED_GLOBAL_FLAG_OPTIONS = {"--quiet", "--debug"}
 OUTPUT_FORMATS = {"json", "pretty-json", "plain"}
 ANSI_YELLOW = "\033[33m"
 ANSI_RESET = "\033[0m"
+PLAIN_WARNING_TRANSLATIONS = {
+    "icon sync refreshes wiki icon references; binary icon files are not downloaded": (
+        "图标同步只刷新百科图标引用，不下载二进制图标文件"
+    ),
+    "MiniGG maps are query-specific; use map find or guide route to create map artifacts": (
+        "MiniGG 地图按查询生成；请使用 map find 或 guide route 创建地图图片"
+    ),
+}
 SENSITIVE_KEY_PARTS = (
     "authkey",
     "cookie",
@@ -525,7 +534,22 @@ def _write_plain_warnings(payload: dict[str, object], stderr: TextIO) -> None:
         return
     for warning in warnings:
         if isinstance(warning, str) and warning:
-            stderr.write(f"{ANSI_YELLOW}警告: {warning}{ANSI_RESET}\n")
+            stderr.write(f"{ANSI_YELLOW}警告: {_plain_warning_text(warning)}{ANSI_RESET}\n")
+
+
+def _plain_warning_text(warning: str) -> str:
+    if warning in PLAIN_WARNING_TRANSLATIONS:
+        return PLAIN_WARNING_TRANSLATIONS[warning]
+    match = re.fullmatch(r"(\d+) MiB free", warning)
+    if match:
+        return f"剩余 {match.group(1)} MiB"
+    match = re.fullmatch(r"(\d+) cached asset files", warning)
+    if match:
+        return f"静态资源缓存文件 {match.group(1)} 个"
+    match = re.fullmatch(r"(\d+) artifact files", warning)
+    if match:
+        return f"产物文件 {match.group(1)} 个"
+    return warning
 
 
 def _payload_with_debug_artifact(

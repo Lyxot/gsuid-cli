@@ -8,9 +8,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from gsuid_cli.commands._text import command_text_result, safe_filename_part
 from gsuid_cli.core.envelope import error_envelope
 from gsuid_cli.core.errors import EXIT_INTERNAL_BUG, EXIT_INVALID_INPUT, CliError
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.renderers.utility_text import render_batch_command_text
 
 CAPABILITIES = [
     {
@@ -18,7 +20,7 @@ CAPABILITIES = [
         "description": "Execute JSONL batch commands and return nested envelopes.",
         "auth": "mixed",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "mixed",
     },
     {
@@ -26,7 +28,7 @@ CAPABILITIES = [
         "description": "Validate JSONL batch commands without executing them.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
 ]
@@ -85,7 +87,7 @@ def run_command(args: argparse.Namespace) -> CommandResult:
                     "payload": payload,
                 }
             )
-    return CommandResult(
+    result = CommandResult(
         data={
             "mode": "run",
             "file": args.file,
@@ -95,6 +97,7 @@ def run_command(args: argparse.Namespace) -> CommandResult:
             "results": results,
         }
     )
+    return _batch_text_result(args, result)
 
 
 def plan_command(args: argparse.Namespace) -> CommandResult:
@@ -133,7 +136,7 @@ def plan_command(args: argparse.Namespace) -> CommandResult:
                 }
             )
     error_count = len([step for step in steps if not step["valid"]])
-    return CommandResult(
+    result = CommandResult(
         data={
             "mode": "plan",
             "file": args.file,
@@ -142,6 +145,19 @@ def plan_command(args: argparse.Namespace) -> CommandResult:
             "error_count": error_count,
             "steps": steps,
         }
+    )
+    return _batch_text_result(args, result)
+
+
+def _batch_text_result(args: argparse.Namespace, result: CommandResult) -> CommandResult:
+    action = str(args.command_name).rsplit(".", 1)[-1]
+    return command_text_result(
+        args,
+        result,
+        name=f"batch/{action}-text",
+        filename=f"batch-{action}_{safe_filename_part(Path(str(args.file)).stem)}.txt",
+        content=render_batch_command_text(str(args.command_name), result.data),
+        description="适合命令行阅读的批处理文本",
     )
 
 

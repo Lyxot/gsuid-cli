@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import io
 import json
 
 from helpers import run_json_with_stderr as _run_json
+
+from gsuid_cli.cli import run
 
 
 def test_batch_run_mixes_success_and_failure(tmp_path, monkeypatch) -> None:
@@ -84,6 +87,38 @@ def test_batch_plan_validates_without_executing(tmp_path, monkeypatch) -> None:
     assert payload["data"]["error_count"] == 1
     assert payload["data"]["steps"][0]["command"] == "meta.version"
     assert payload["data"]["steps"][1]["error"]["code"] == "INVALID_ARGUMENT"
+
+
+def test_batch_commands_render_text_plain(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    batch_file = tmp_path / "batch.jsonl"
+    batch_file.write_text(json.dumps({"id": "ok", "command": "meta version"}), encoding="utf-8")
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = run(
+        ["batch", "plan", "--file", str(batch_file), "--render", "text", "--format", "plain"],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    assert "批处理计划" in stdout.getvalue()
+    assert "meta.version" in stdout.getvalue()
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = run(
+        ["batch", "run", "--file", str(batch_file), "--render", "text", "--format", "plain"],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    assert "批处理执行" in stdout.getvalue()
+    assert "成功: 1" in stdout.getvalue()
 
 
 def test_batch_plan_accepts_late_global_options(tmp_path, monkeypatch) -> None:
@@ -198,5 +233,36 @@ def test_monitor_once_reports_threshold_warnings(tmp_path, monkeypatch) -> None:
     by_name = {check["name"]: check for check in payload["data"]["checks"]}
     assert by_name["cache.asset_files"]["value"] == 1
     assert by_name["cache.asset_files"]["status"] == "warn"
+    assert by_name["cache.asset_files"]["message"] == "1 cached asset files"
     assert payload["data"]["thresholds"]["max_asset_cache_files"] == 0
-    assert payload["warnings"]
+    assert payload["warnings"] == ["1 cached asset files"]
+
+
+def test_monitor_once_render_text_plain_prints_chinese_warning(tmp_path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    cache_assets = home / "cache" / "assets"
+    cache_assets.mkdir(parents=True)
+    (cache_assets / "icon.1234.png").write_text("asset", encoding="utf-8")
+    monkeypatch.setenv("GSUID_HOME", str(home))
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = run(
+        [
+            "monitor",
+            "once",
+            "--max-asset-cache-files",
+            "0",
+            "--render",
+            "text",
+            "--format",
+            "plain",
+        ],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert "健康检查" in stdout.getvalue()
+    assert "静态资源缓存文件 1 个" in stdout.getvalue()
+    assert "警告: 静态资源缓存文件 1 个" in stderr.getvalue()

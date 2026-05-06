@@ -27,9 +27,9 @@ Generated from `gsuid meta capabilities`.
 | `auth.stoken.delete` | `keyring` | `data, text, all` | `off` | Delete a stored stoken from the OS keyring. |
 | `auth.stoken.set` | `keyring` | `data, text, all` | `off` | Store a stoken in the OS keyring. |
 | `auth.stoken.test` | `stoken` | `data, text, all` | `off` | Check local stoken availability without provider validation. |
-| `batch.plan` | `none` | `data` | `off` | Validate JSONL batch commands without executing them. |
-| `batch.run` | `mixed` | `data` | `mixed` | Execute JSONL batch commands and return nested envelopes. |
-| `cache.clear` | `none` | `data` | `off` | Clear local cache and artifact files by scope. |
+| `batch.plan` | `none` | `data, text, all` | `off` | Validate JSONL batch commands without executing them. |
+| `batch.run` | `mixed` | `data, text, all` | `mixed` | Execute JSONL batch commands and return nested envelopes. |
+| `cache.clear` | `none` | `data, text, all` | `off` | Clear local cache and artifact files by scope. |
 | `challenge.abyss` | `cookie` | `data, image, text, all` | `off` | Show authenticated Spiral Abyss data. |
 | `challenge.hard` | `cookie` | `data, image, text, all` | `off` | Show authenticated Stygian Onslaught hard challenge data. |
 | `challenge.hard-rank` | `none` | `data, text, all` | `off` | Report hard challenge ranking support status. |
@@ -53,14 +53,14 @@ Generated from `gsuid meta capabilities`.
 | `guide.route` | `none` | `data, image, all` | `use` | Fetch a public material route map artifact. |
 | `guide.theater` | `none` | `data, image, text, all` | `use` | Show public theater guide data and GenshinUID-style monster layout. |
 | `map.find` | `none` | `data, image, all` | `use` | Fetch a public MiniGG material map artifact. |
-| `meta.capabilities` | `none` | `data` | `off` | Show implemented command capabilities. |
-| `meta.doctor` | `none` | `data` | `off` | Run local diagnostics for storage, credentials, resources, or network. |
-| `meta.errors` | `none` | `data` | `off` | Show stable machine-readable error metadata. |
-| `meta.paths` | `none` | `data` | `off` | Show resolved local storage paths. |
-| `meta.schema` | `none` | `data` | `off` | Show JSON envelope schema metadata. |
-| `meta.version` | `none` | `data` | `off` | Show package, Python, and git version metadata. |
+| `meta.capabilities` | `none` | `data, text, all` | `off` | Show implemented command capabilities. |
+| `meta.doctor` | `none` | `data, text, all` | `off` | Run local diagnostics for storage, credentials, resources, or network. |
+| `meta.errors` | `none` | `data, text, all` | `off` | Show stable machine-readable error metadata. |
+| `meta.paths` | `none` | `data, text, all` | `off` | Show resolved local storage paths. |
+| `meta.schema` | `none` | `data, text, all` | `off` | Show JSON envelope schema metadata. |
+| `meta.version` | `none` | `data, text, all` | `off` | Show package, Python, and git version metadata. |
 | `misc.primogems-plan` | `none` | `data, image, all` | `use` | Show the GenshinUID static version-plan primogem image. |
-| `monitor.once` | `none` | `data` | `off` | Run one local health check pass with caller thresholds. |
+| `monitor.once` | `none` | `data, text, all` | `off` | Run one local health check pass with caller thresholds. |
 | `panel.artifacts` | `none` | `data, image, text, all` | `off` | List cached artifacts for a UID. |
 | `panel.compare` | `none` | `data, image, text, all` | `off` | Compare cached panel stats for two or more builds. |
 | `panel.graduation` | `none` | `data, image, text, all` | `off` | Summarize local cached graduation inputs and render GenshinUID-style rows. |
@@ -94,7 +94,7 @@ Generated from `gsuid meta capabilities`.
 | `recommend.build` | `none` | `data, image, text, all` | `use` | Show GenshinUID character build recommendations. |
 | `recommend.holder` | `none` | `data, image, text, all` | `use` | Show GenshinUID holder recommendations for a weapon or artifact. |
 | `rerun.list` | `none` | `data, image, text, all` | `use` | List rerun rows and render the GenshinUID return list. |
-| `resources.sync` | `none` | `data` | `memory` | Fetch public resource metadata and warm process-local JSON cache. |
+| `resources.sync` | `none` | `data, text, all` | `memory` | Fetch public resource metadata and warm process-local JSON cache. |
 | `wiki.artifact` | `none` | `data, image, text, all` | `use` | Look up public artifact set data. |
 | `wiki.character` | `none` | `data, text, all` | `use` | Look up public character data. |
 | `wiki.character-materials` | `none` | `data, image, text, all` | `use` | Show public character material data. |

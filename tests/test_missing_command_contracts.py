@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import io
+
 from helpers import run_json_with_stderr as _run_json
 
+from gsuid_cli.cli import run
 from gsuid_cli.core.models import CommandResult
 
 
@@ -68,6 +71,27 @@ def test_cache_clear_artifacts_ignores_global_output_dir(monkeypatch, tmp_path) 
     assert output_file.exists()
 
 
+def test_cache_clear_render_text_plain(monkeypatch, tmp_path) -> None:
+    home = tmp_path / "home"
+    asset_file = home / "cache" / "assets" / "icon.1234.png"
+    asset_file.parent.mkdir(parents=True)
+    asset_file.write_text("asset", encoding="utf-8")
+    monkeypatch.setenv("GSUID_HOME", str(home))
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = run(
+        ["cache", "clear", "--scope", "assets", "--render", "text", "--format", "plain"],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    assert "缓存清理" in stdout.getvalue()
+    assert "删除文件: 1" in stdout.getvalue()
+
+
 def test_source_limited_missing_commands_return_structured_results(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     commands = [
@@ -120,5 +144,3 @@ def test_progress_gcg_deck_uses_provider(monkeypatch, tmp_path) -> None:
     assert payload["data"]["count"] == 1
     assert captured["deck_id"] == 7
     assert captured["cookie"] == "cookie"
-
-

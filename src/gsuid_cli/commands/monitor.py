@@ -4,9 +4,11 @@ import argparse
 import shutil
 from pathlib import Path
 
+from gsuid_cli.commands._text import command_text_result
 from gsuid_cli.core.config import resolve_paths
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.renderers.utility_text import render_monitor_once_text
 
 CAPABILITIES = [
     {
@@ -14,7 +16,7 @@ CAPABILITIES = [
         "description": "Run one local health check pass with caller thresholds.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
 ]
@@ -68,7 +70,7 @@ def once_command(args: argparse.Namespace) -> CommandResult:
         )
 
     status = "ok" if all(check["status"] == "ok" for check in checks) else "warn"
-    return CommandResult(
+    result = CommandResult(
         data={
             "status": status,
             "checks": checks,
@@ -79,6 +81,14 @@ def once_command(args: argparse.Namespace) -> CommandResult:
             },
         },
         warnings=[check["message"] for check in checks if check["status"] != "ok"],
+    )
+    return command_text_result(
+        args,
+        result,
+        name="monitor/once-text",
+        filename="monitor-once.txt",
+        content=render_monitor_once_text(result.data),
+        description="适合命令行阅读的健康检查文本",
     )
 
 

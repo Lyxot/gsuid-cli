@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import argparse
 
+from gsuid_cli.commands._text import command_text_result, safe_filename_part
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
 from gsuid_cli.providers.public import PublicDataProvider
+from gsuid_cli.renderers.utility_text import render_resources_sync_text
 
 CAPABILITIES = [
     {
@@ -13,7 +15,7 @@ CAPABILITIES = [
         "description": "Fetch public resource metadata and warm process-local JSON cache.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "memory",
     },
 ]
@@ -34,7 +36,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 
 def sync_command(args: argparse.Namespace) -> CommandResult:
     ensure_supported_region(args.region)
-    return PublicDataProvider(
+    result = PublicDataProvider(
         HttpClient(
             timeout=args.timeout,
             cache_policy="refresh",
@@ -42,3 +44,11 @@ def sync_command(args: argparse.Namespace) -> CommandResult:
             debug=args.debug,
         )
     ).sync_resources(scope=args.scope)
+    return command_text_result(
+        args,
+        result,
+        name="resources/sync-text",
+        filename=f"resources-sync_{safe_filename_part(args.scope)}.txt",
+        content=render_resources_sync_text(result.data),
+        description="适合命令行阅读的资源同步文本",
+    )

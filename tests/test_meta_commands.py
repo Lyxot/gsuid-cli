@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import ast
+import io
 from pathlib import Path
 
 from helpers import run_json_with_stderr as _run_json
+
+from gsuid_cli.cli import run
 
 
 def test_meta_version_outputs_json_envelope() -> None:
@@ -331,6 +334,20 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
         "text",
         "all",
     ]
+    for command in (
+        "meta.version",
+        "meta.paths",
+        "meta.capabilities",
+        "meta.schema",
+        "meta.errors",
+        "meta.doctor",
+        "batch.run",
+        "batch.plan",
+        "cache.clear",
+        "resources.sync",
+        "monitor.once",
+    ):
+        assert capability_by_command[command]["render"] == ["data", "text", "all"]
     assert capability_by_command["map.find"]["cache"] == "use"
     assert "data" in capability_by_command["map.find"]["render"]
     assert payload["data"]["regions"] == ["cn"]
@@ -366,6 +383,27 @@ def test_meta_schema_for_command() -> None:
     assert payload["data"]["error"]["properties"]["ok"]["const"] is False
     assert "sources" not in payload["data"]["error"]["required"]
     assert "source" not in payload["data"]["error"]["properties"]
+
+
+def test_meta_commands_render_text_plain(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    commands = [
+        (["meta", "version"], "CLI版本"),
+        (["meta", "paths"], "本地路径"),
+        (["meta", "capabilities"], "命令能力"),
+        (["meta", "schema", "--command", "meta.version"], "结构定义"),
+        (["meta", "errors"], "错误码"),
+        (["meta", "doctor", "--check", "storage"], "本地诊断"),
+    ]
+
+    for argv, expected in commands:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        code = run([*argv, "--render", "text", "--format", "plain"], stdout=stdout, stderr=stderr)
+
+        assert code == 0
+        assert stderr.getvalue() == ""
+        assert expected in stdout.getvalue()
 
 
 def test_meta_errors_catalog() -> None:

@@ -4,9 +4,11 @@ import argparse
 import shutil
 from pathlib import Path
 
+from gsuid_cli.commands._text import command_text_result, safe_filename_part
 from gsuid_cli.core.cache import AssetCache
 from gsuid_cli.core.config import resolve_paths
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.renderers.utility_text import render_cache_clear_text
 
 CAPABILITIES = [
     {
@@ -14,7 +16,7 @@ CAPABILITIES = [
         "description": "Clear local cache and artifact files by scope.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
 ]
@@ -41,13 +43,21 @@ def clear_command(args: argparse.Namespace) -> CommandResult:
     }
     selected = targets if args.scope == "all" else {args.scope: targets[args.scope]}
     cleared = [_clear_path(name, path) for name, path in selected.items()]
-    return CommandResult(
+    result = CommandResult(
         data={
             "scope": args.scope,
             "cleared": cleared,
             "removed_files": sum(int(item["removed_files"]) for item in cleared),
             "removed_dirs": sum(int(item["removed_dirs"]) for item in cleared),
         }
+    )
+    return command_text_result(
+        args,
+        result,
+        name="cache/clear-text",
+        filename=f"cache-clear_{safe_filename_part(args.scope)}.txt",
+        content=render_cache_clear_text(result.data),
+        description="适合命令行阅读的缓存清理文本",
     )
 
 
