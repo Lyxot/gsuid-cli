@@ -280,10 +280,39 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert capability_by_command["gacha.import"]["render"] == ["data", "text", "all"]
     assert capability_by_command["gacha.authkey"]["render"] == ["data", "text", "all"]
     assert capability_by_command["gacha.authkey.refresh"]["render"] == ["data", "text", "all"]
-    assert capability_by_command["panel.show"]["render"] == ["data", "image", "all"]
-    assert capability_by_command["panel.compare"]["render"] == ["data", "image", "all"]
-    assert capability_by_command["panel.artifacts"]["render"] == ["data", "image", "all"]
-    assert capability_by_command["panel.showcase"]["render"] == ["data", "image", "all"]
+    assert capability_by_command["panel.refresh"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["panel.list"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["panel.show"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["panel.compare"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["panel.save"]["render"] == ["data", "text", "all"]
+    assert capability_by_command["panel.artifacts"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["panel.showcase"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
+    assert capability_by_command["panel.graduation"]["render"] == [
+        "data",
+        "image",
+        "text",
+        "all",
+    ]
     assert capability_by_command["map.find"]["cache"] == "use"
     assert "data" in capability_by_command["map.find"]["render"]
     assert payload["data"]["regions"] == ["cn"]

@@ -61,14 +61,14 @@ Generated from `gsuid meta capabilities`.
 | `meta.version` | `none` | `data` | `off` | Show package, Python, and git version metadata. |
 | `misc.primogems-plan` | `none` | `data, image, all` | `use` | Show the GenshinUID static version-plan primogem image. |
 | `monitor.once` | `none` | `data` | `off` | Run one local health check pass with caller thresholds. |
-| `panel.artifacts` | `none` | `data, image, all` | `off` | List cached artifacts for a UID. |
-| `panel.compare` | `none` | `data, image, all` | `off` | Compare cached panel stats for two or more builds. |
-| `panel.graduation` | `none` | `data, image, all` | `off` | Summarize local cached graduation inputs and render GenshinUID-style rows. |
-| `panel.list` | `none` | `data` | `off` | List cached character panels for a UID. |
-| `panel.refresh` | `none` | `data` | `use` | Refresh Enka showcase panel data into the local cache. |
-| `panel.save` | `none` | `data` | `off` | Save one cached panel as a JSON artifact. |
-| `panel.show` | `none` | `data, image, all` | `off` | Show one cached character panel. |
-| `panel.showcase` | `none` | `data, image, all` | `off` | Show the cached public showcase summary. |
+| `panel.artifacts` | `none` | `data, image, text, all` | `off` | List cached artifacts for a UID. |
+| `panel.compare` | `none` | `data, image, text, all` | `off` | Compare cached panel stats for two or more builds. |
+| `panel.graduation` | `none` | `data, image, text, all` | `off` | Summarize local cached graduation inputs and render GenshinUID-style rows. |
+| `panel.list` | `none` | `data, text, all` | `off` | List cached character panels for a UID. |
+| `panel.refresh` | `none` | `data, text, all` | `use` | Refresh Enka showcase panel data into the local cache. |
+| `panel.save` | `none` | `data, text, all` | `off` | Save one cached panel as a JSON artifact. |
+| `panel.show` | `none` | `data, image, text, all` | `off` | Show one cached character panel. |
+| `panel.showcase` | `none` | `data, image, text, all` | `off` | Show the cached public showcase summary. |
 | `player.calendar` | `cookie` | `data, image, text, all` | `off` | Show authenticated player activity calendar data. |
 | `player.characters` | `cookie` | `data, image, text, all` | `off` | Show authenticated player character details. |
 | `player.diary` | `cookie` | `data, image, text, all` | `off` | Show authenticated monthly traveler diary data. |

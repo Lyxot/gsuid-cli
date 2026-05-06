@@ -11,6 +11,7 @@ import httpx
 from helpers import run_json as _run_json
 from PIL import Image
 
+from gsuid_cli.cli import run
 from gsuid_cli.commands import panel as panel_commands
 from gsuid_cli.commands import rank as rank_commands
 from gsuid_cli.commands.panel import _refresh_cache_policy
@@ -26,6 +27,7 @@ from gsuid_cli.renderers.panel_metrics import (
     _base_area,
     panel_reference_metrics,
 )
+from gsuid_cli.renderers.panel_text import render_panel_compare_text
 
 
 def test_panel_refresh_list_show_compare_and_save(monkeypatch, tmp_path) -> None:
@@ -45,7 +47,7 @@ def test_panel_refresh_list_show_compare_and_save(monkeypatch, tmp_path) -> None
 
     assert code == 0
     assert payload["data"]["count"] == 2
-    assert payload["data"]["characters"][0]["name"] == "Amber"
+    assert payload["data"]["characters"][0]["name"] == "安柏"
     assert payload["sources"][0]["cached"] is True
 
     code, payload = _run_json(
@@ -63,7 +65,7 @@ def test_panel_refresh_list_show_compare_and_save(monkeypatch, tmp_path) -> None
 
     assert code == 0
     assert payload["warnings"] == ["typed panel overrides are recorded but not applied yet"]
-    assert payload["data"]["panel"]["weapon"]["name"] == "Favonius Warbow"
+    assert payload["data"]["panel"]["weapon"]["name"] == "西风猎弓"
     assert payload["data"]["panel"]["artifact_score"] == 25.6
     assert payload["data"]["panel"]["fight_props"]["crit_rate"] == 50.0
     assert payload["data"]["panel"]["fight_props"]["crit_damage"] == 100.0
@@ -85,7 +87,7 @@ def test_panel_refresh_list_show_compare_and_save(monkeypatch, tmp_path) -> None
     )
 
     assert code == 0
-    assert payload["data"]["baseline"]["panel"]["name"] == "Amber"
+    assert payload["data"]["baseline"]["panel"]["name"] == "安柏"
     assert payload["data"]["deltas"][0]["artifact_score"] == -5.6
 
     output = tmp_path / "amber-panel.json"
@@ -109,19 +111,19 @@ def test_panel_refresh_list_show_compare_and_save(monkeypatch, tmp_path) -> None
     assert code == 0
     assert payload["artifacts"][0]["path"] == str(output.resolve())
     saved = json.loads(output.read_text(encoding="utf-8"))
-    assert saved["panel"]["name"] == "Amber"
+    assert saved["panel"]["name"] == "安柏"
 
     code, payload = _run_json(["panel", "artifacts", "--uid", "100000001"])
 
     assert code == 0
     assert payload["data"]["total_count"] == 3
-    assert payload["data"]["artifacts"][0]["character"] == "Venti"
+    assert payload["data"]["artifacts"][0]["character"] == "温迪"
 
     code, payload = _run_json(["panel", "graduation", "--uid", "100000001"])
 
     assert code == 0
     assert payload["data"]["count"] == 2
-    assert payload["data"]["characters"][0]["name"] == "Amber"
+    assert payload["data"]["characters"][0]["name"] == "安柏"
     assert payload["data"]["characters"][0]["graduation_score"] is None
     assert payload["warnings"]
 
@@ -157,14 +159,16 @@ def test_panel_show_render_image_writes_card(monkeypatch, tmp_path) -> None:
     assert payload["command"] == "panel.show"
     assert payload["data"] == {
         "uid": "100000001",
-        "character": "Amber",
+        "character": "安柏",
         "render": "panel/show",
         "artifact_sha256": payload["artifacts"][0]["sha256"],
     }
     assert captured_urls == [
-        "https://example.test/GenshinUID/resource/gacha_img/Amber.png",
+        "https://example.test/GenshinUID/resource/gacha_img/%E5%AE%89%E6%9F%8F.png",
         "https://example.test/GenshinUID/resource/chars/10000021.png",
-        "https://example.test/GenshinUID/resource/weapon/Favonius%20Warbow.png",
+        "https://example.test/GenshinUID/resource/weapon/%E8%A5%BF%E9%A3%8E%E7%8C%8E%E5%BC%93.png",
+        "https://enka.network/ui/UI_RelicIcon_15002_4.png",
+        "https://enka.network/ui/UI_RelicIcon_15002_2.png",
     ]
     artifact = payload["artifacts"][0]
     path = Path(artifact["path"])
@@ -173,7 +177,7 @@ def test_panel_show_render_image_writes_card(monkeypatch, tmp_path) -> None:
     assert artifact["media_type"] == "image/png"
     assert artifact["sha256"] == hashlib.sha256(content).hexdigest()
     with Image.open(path) as image:
-        assert image.size == (950, 1850)
+        assert image.size == (950, 2250)
         assert image.getbbox() is not None
 
 
@@ -190,9 +194,181 @@ def test_panel_show_render_data_image_preserves_structured_data(monkeypatch, tmp
     )
 
     assert code == 0
-    assert payload["data"]["panel"]["name"] == "Amber"
+    assert payload["data"]["panel"]["name"] == "安柏"
     assert payload["data"]["render"] == "panel/show"
     assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
+
+
+def test_panel_text_renders_for_group(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
+
+    code, payload = _run_json(["panel", "refresh", "--uid", "100000001", "--render", "text"])
+
+    assert code == 0
+    assert payload["data"]["render"] == "panel/refresh-text"
+    assert "面板缓存刷新" in _text_artifact(payload)
+
+    cases = [
+        (
+            ["panel", "list", "--uid", "100000001", "--render", "text"],
+            "panel/list-text",
+            "面板列表",
+        ),
+        (
+            ["panel", "show", "--uid", "100000001", "--character", "Amber", "--render", "text"],
+            "panel/show-text",
+            "角色面板 - 安柏",
+        ),
+        (
+            [
+                "panel",
+                "compare",
+                "--uid",
+                "100000001",
+                "--build",
+                "Amber",
+                "--build",
+                "Venti",
+                "--render",
+                "text",
+            ],
+            "panel/compare-text",
+            "面板对比",
+        ),
+        (
+            [
+                "panel",
+                "save",
+                "--uid",
+                "100000001",
+                "--character",
+                "Amber",
+                "--name",
+                "amber",
+                "--render",
+                "text",
+            ],
+            "panel/save-text",
+            "面板保存",
+        ),
+        (
+            ["panel", "artifacts", "--uid", "100000001", "--render", "text"],
+            "panel/artifacts-text",
+            "圣遗物仓库",
+        ),
+        (
+            ["panel", "showcase", "--uid", "100000001", "--render", "text"],
+            "panel/showcase-text",
+            "角色展柜",
+        ),
+        (
+            ["panel", "graduation", "--uid", "100000001", "--render", "text"],
+            "panel/graduation-text",
+            "练度统计",
+        ),
+    ]
+
+    for argv, render, text in cases:
+        code, payload = _run_json(argv)
+
+        assert code == 0
+        assert payload["data"]["render"] == render
+        assert text in _text_artifact(payload)
+
+
+def test_panel_show_render_text_plain_prints_text(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
+
+    code, _payload = _run_json(["panel", "refresh", "--uid", "100000001"])
+    assert code == 0
+
+    code, stdout, stderr = _run_plain(
+        [
+            "panel",
+            "show",
+            "--uid",
+            "100000001",
+            "--character",
+            "Amber",
+            "--render",
+            "text",
+            "--format",
+            "plain",
+        ]
+    )
+
+    assert code == 0
+    assert stderr == ""
+    assert "角色面板 - 安柏" in stdout
+    assert "圣遗物评分: 25.6" in stdout
+    assert "西风猎弓" in stdout
+    assert "主词条: 血量 4780" in stdout
+    assert "副词条:" in stdout
+    assert "伤害参考:" in stdout
+
+
+def test_panel_compare_text_includes_elemental_deltas() -> None:
+    text = render_panel_compare_text(
+        {
+            "baseline": {
+                "uid": "100000001",
+                "character": "Amber",
+                "panel": {"artifact_score": 25.6},
+            },
+            "builds": [],
+            "deltas": [
+                {
+                    "character": "Venti",
+                    "artifact_score": -5.6,
+                    "fight_props": {
+                        "pyro_bonus": 10,
+                        "electro_bonus": -5,
+                        "dendro_bonus": 2.5,
+                    },
+                }
+            ],
+        }
+    )
+
+    assert "火伤加成: +10" in text
+    assert "雷伤加成: -5" in text
+    assert "草伤加成: +2.5" in text
+
+
+def test_panel_show_render_text_image_keeps_image_primary(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr(panel_commands, "fetch_render_images", _fake_image_fetcher([]))
+
+    code, _payload = _run_json(["panel", "refresh", "--uid", "100000001"])
+    assert code == 0
+
+    code, payload = _run_json(
+        [
+            "panel",
+            "show",
+            "--uid",
+            "100000001",
+            "--character",
+            "Amber",
+            "--render",
+            "image,text",
+        ]
+    )
+
+    assert code == 0
+    image_artifact = next(
+        artifact for artifact in payload["artifacts"] if artifact["kind"] == "image"
+    )
+    text_artifact = next(
+        artifact for artifact in payload["artifacts"] if artifact["kind"] == "text"
+    )
+    assert payload["data"]["render"] == "panel/show"
+    assert payload["data"]["artifact_sha256"] == image_artifact["sha256"]
+    assert payload["data"]["text_artifact_sha256"] == text_artifact["sha256"]
+    assert "角色面板 - 安柏" in Path(str(text_artifact["path"])).read_text(encoding="utf-8")
 
 
 def test_panel_compare_artifacts_showcase_render_images(monkeypatch, tmp_path) -> None:
@@ -219,7 +395,7 @@ def test_panel_compare_artifacts_showcase_render_images(monkeypatch, tmp_path) -
             ],
             "panel.compare",
             "panel/compare",
-            (1900, 1850),
+            (1900, 2250),
         ),
         (
             ["panel", "artifacts", "--uid", "100000001", "--render", "image"],
@@ -264,7 +440,7 @@ def test_panel_showcase_render_data_image_preserves_structured_data(monkeypatch,
     code, payload = _run_json(["panel", "showcase", "--uid", "100000001", "--render", "data,image"])
 
     assert code == 0
-    assert payload["data"]["showcase"][0]["name"] == "Amber"
+    assert payload["data"]["showcase"][0]["name"] == "安柏"
     assert payload["data"]["render"] == "panel/showcase"
     assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
 
@@ -364,7 +540,7 @@ def test_panel_artifacts_render_data_image_uses_image_order(monkeypatch, tmp_pat
     )
 
     assert code == 0
-    assert payload["data"]["artifacts"][0]["character"] == "Venti"
+    assert payload["data"]["artifacts"][0]["character"] == "温迪"
     assert payload["data"]["artifacts"][0]["score"] == 20.0
     assert payload["data"]["render"] == "panel/artifacts"
     assert payload["data"]["artifact_sha256"] == payload["artifacts"][0]["sha256"]
@@ -868,6 +1044,20 @@ def _fake_image_fetcher(captured_urls: list[str]):
     return fetcher
 
 
+def _run_plain(argv: list[str]) -> tuple[int, str, str]:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = run(argv, stdout=stdout, stderr=stderr)
+    return code, stdout.getvalue(), stderr.getvalue()
+
+
+def _text_artifact(payload: dict[str, object]) -> str:
+    for artifact in payload["artifacts"]:
+        if isinstance(artifact, dict) and artifact.get("kind") == "text":
+            return Path(str(artifact["path"])).read_text(encoding="utf-8")
+    raise AssertionError("text artifact not found")
+
+
 def _source() -> dict[str, object]:
     return {
         "provider": "enka",
@@ -1122,12 +1312,17 @@ def _avatar(
     artifacts = [
         {
             "itemId": avatar_id * 10,
-            "reliquary": {"level": 20},
+            "reliquary": {"level": 21},
             "flat": {
                 "name": f"{name} Flower",
                 "itemType": "ITEM_RELIQUARY",
+                "icon": "UI_RelicIcon_15002_4",
                 "equipType": "EQUIP_BRACER",
                 "rankLevel": 5,
+                "reliquaryMainstat": {
+                    "mainPropId": "FIGHT_PROP_HP",
+                    "statValue": 4780,
+                },
                 "reliquarySubstats": [
                     {"appendPropId": prop, "statValue": value} for prop, value in substats
                 ],
@@ -1138,12 +1333,17 @@ def _avatar(
         artifacts.append(
             {
                 "itemId": avatar_id * 10 + 1,
-                "reliquary": {"level": 20},
+                "reliquary": {"level": 21},
                 "flat": {
                     "name": f"{name} Plume",
                     "itemType": "ITEM_RELIQUARY",
+                    "icon": "UI_RelicIcon_15002_2",
                     "equipType": "EQUIP_NECKLACE",
                     "rankLevel": 5,
+                    "reliquaryMainstat": {
+                        "mainPropId": "FIGHT_PROP_ATTACK",
+                        "statValue": 311,
+                    },
                     "reliquarySubstats": [
                         {"appendPropId": "FIGHT_PROP_CRITICAL", "statValue": 5.0}
                     ],
@@ -1156,16 +1356,29 @@ def _avatar(
         "level": level,
         "talentIdList": [1, 2],
         "fetterInfo": {"expLevel": 10},
-        "fightPropMap": {"20": 0.5, "22": 1.0, "4": 800, "44": 0.616},
+        "fightPropMap": {
+            "20": 0.5,
+            "22": 1.0,
+            "23": 1.613,
+            "28": 100,
+            "44": 0.616,
+            "2000": 18000,
+            "2001": 1200,
+            "2002": 900,
+            "4": 800,
+        },
         "equipList": [
             {
                 "itemId": avatar_id,
-                "weapon": {"level": 90},
+                "weapon": {"level": 90, "affixMap": {"1": 0}},
                 "flat": {
                     "name": weapon,
                     "itemType": "ITEM_WEAPON",
                     "rankLevel": 4,
-                    "weaponStats": [{"appendPropId": "FIGHT_PROP_ATTACK_PERCENT"}],
+                    "weaponStats": [
+                        {"appendPropId": "FIGHT_PROP_BASE_ATTACK", "statValue": 454},
+                        {"appendPropId": "FIGHT_PROP_CHARGE_EFFICIENCY", "statValue": 61.3},
+                    ],
                 },
             },
             *artifacts,

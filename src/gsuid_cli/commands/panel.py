@@ -6,6 +6,7 @@ import json
 import re
 from pathlib import Path
 
+from gsuid_cli.commands._text import safe_filename_part
 from gsuid_cli.commands.account import _validate_uid
 from gsuid_cli.commands.auth import _credential, _uid_and_region
 from gsuid_cli.commands.panel_cache import (
@@ -25,7 +26,7 @@ from gsuid_cli.core.config import resolve_paths
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.render import render_image_enabled, render_result_data
+from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
 from gsuid_cli.core.state import state_db
 from gsuid_cli.providers import provider_for_region
 from gsuid_cli.providers.enka import EnkaProvider
@@ -41,6 +42,17 @@ from gsuid_cli.renderers.panel import (
     render_panel_show_card,
     render_panel_showcase,
 )
+from gsuid_cli.renderers.panel_metrics import panel_reference_metrics
+from gsuid_cli.renderers.panel_text import (
+    render_panel_artifacts_text,
+    render_panel_compare_text,
+    render_panel_graduation_text,
+    render_panel_list_text,
+    render_panel_refresh_text,
+    render_panel_save_text,
+    render_panel_show_text,
+    render_panel_showcase_text,
+)
 
 PANEL_IMAGE_WORKERS = 12
 
@@ -50,7 +62,7 @@ CAPABILITIES = [
         "description": "Refresh Enka showcase panel data into the local cache.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "use",
     },
     {
@@ -58,7 +70,7 @@ CAPABILITIES = [
         "description": "List cached character panels for a UID.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -66,7 +78,7 @@ CAPABILITIES = [
         "description": "Show one cached character panel.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -74,7 +86,7 @@ CAPABILITIES = [
         "description": "Compare cached panel stats for two or more builds.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -82,7 +94,7 @@ CAPABILITIES = [
         "description": "Save one cached panel as a JSON artifact.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data"],
+        "render": ["data", "text", "all"],
         "cache": "off",
     },
     {
@@ -90,7 +102,7 @@ CAPABILITIES = [
         "description": "List cached artifacts for a UID.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -98,7 +110,7 @@ CAPABILITIES = [
         "description": "Show the cached public showcase summary.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
     {
@@ -106,7 +118,7 @@ CAPABILITIES = [
         "description": "Summarize local cached graduation inputs and render GenshinUID-style rows.",
         "auth": "none",
         "regions": ["cn"],
-        "render": ["data", "image", "all"],
+        "render": ["data", "image", "text", "all"],
         "cache": "off",
     },
 ]
@@ -163,11 +175,11 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 def refresh_command(args: argparse.Namespace) -> CommandResult:
     uid, region = _uid_and_region(args)
     source = _refresh_source(args.source)
-    result = _provider(args).profile(uid=uid, region=region)
-    payload, warnings = _with_avatar_names(args, result.data)
+    provider_result = _provider(args).profile(uid=uid, region=region)
+    payload, warnings = _with_avatar_names(args, provider_result.data)
     with state_db(args.output_dir) as conn:
-        cache = save_panel_cache(conn, uid=uid, payload=payload, source=result.source)
-    return CommandResult(
+        cache = save_panel_cache(conn, uid=uid, payload=payload, source=provider_result.source)
+    result = CommandResult(
         data={
             "uid": uid,
             "source": source,
@@ -179,14 +191,21 @@ def refresh_command(args: argparse.Namespace) -> CommandResult:
             "failures": [],
         },
         warnings=warnings,
-        source=result.source,
+        source=provider_result.source,
+    )
+    return _panel_text_result(
+        args,
+        result,
+        name="panel/refresh-text",
+        filename=f"panel-refresh_{_safe_filename(uid)}.txt",
+        content=render_panel_refresh_text(result.data),
     )
 
 
 def list_command(args: argparse.Namespace) -> CommandResult:
     uid, _region = _uid_and_region(args)
     cache = _load(uid, args.output_dir)
-    return CommandResult(
+    result = CommandResult(
         data={
             "uid": uid,
             "player": player_summary(cache),
@@ -195,6 +214,13 @@ def list_command(args: argparse.Namespace) -> CommandResult:
             "cached_at": cache["fetched_at"],
         },
         source=cache_source(cache),
+    )
+    return _panel_text_result(
+        args,
+        result,
+        name="panel/list-text",
+        filename=f"panel-list_{_safe_filename(uid)}.txt",
+        content=render_panel_list_text(result.data),
     )
 
 
@@ -212,8 +238,21 @@ def showcase_command(args: argparse.Namespace) -> CommandResult:
         source=cache_source(cache),
     )
     if not render_image_enabled(args):
-        return result
-    return _showcase_render_result(args, result=result, uid=uid, cache=cache)
+        return _panel_text_result(
+            args,
+            result,
+            name="panel/showcase-text",
+            filename=f"panel-showcase_{_safe_filename(uid)}.txt",
+            content=render_panel_showcase_text(result.data),
+        )
+    rendered = _showcase_render_result(args, result=result, uid=uid, cache=cache)
+    return _panel_text_result(
+        args,
+        rendered,
+        name="panel/showcase-text",
+        filename=f"panel-showcase_{_safe_filename(uid)}.txt",
+        content=render_panel_showcase_text(result.data),
+    )
 
 
 def show_command(args: argparse.Namespace) -> CommandResult:
@@ -222,19 +261,37 @@ def show_command(args: argparse.Namespace) -> CommandResult:
     cache = _load(uid, args.output_dir)
     avatar = find_avatar(cache, args.character)
     warnings = _override_warnings(args)
+    panel = normalized_avatar(avatar)
+    if render_image_enabled(args) or render_text_enabled(args):
+        panel = _panel_with_weapon_effect(args, panel, avatar)
     data = {
         "uid": uid,
         "character": args.character,
-        "panel": normalized_avatar(avatar),
+        "panel": panel,
         "cached_at": cache["fetched_at"],
     }
+    if render_text_enabled(args):
+        data["reference"] = panel_reference_metrics(avatar, panel)
     overrides = _requested_overrides(args)
     if overrides:
         data["requested_overrides"] = overrides
     result = CommandResult(data=data, warnings=warnings, source=cache_source(cache))
     if not render_image_enabled(args):
-        return result
-    return _show_render_result(args, result=result, uid=uid, cache=cache, avatar=avatar)
+        return _panel_text_result(
+            args,
+            result,
+            name="panel/show-text",
+            filename=f"panel-show_{_safe_filename(uid)}_{_safe_filename(args.character)}.txt",
+            content=render_panel_show_text(result.data),
+        )
+    rendered = _show_render_result(args, result=result, uid=uid, cache=cache, avatar=avatar)
+    return _panel_text_result(
+        args,
+        rendered,
+        name="panel/show-text",
+        filename=f"panel-show_{_safe_filename(uid)}_{_safe_filename(args.character)}.txt",
+        content=render_panel_show_text(result.data),
+    )
 
 
 def _show_render_result(
@@ -666,8 +723,21 @@ def compare_command(args: argparse.Namespace) -> CommandResult:
         source=baseline["source"],
     )
     if not render_image_enabled(args):
-        return result
-    return _compare_render_result(args, result=result, render_builds=render_builds)
+        return _panel_text_result(
+            args,
+            result,
+            name="panel/compare-text",
+            filename=f"panel-compare_{safe_filename_part('_'.join(build_specs))}.txt",
+            content=render_panel_compare_text(result.data),
+        )
+    rendered = _compare_render_result(args, result=result, render_builds=render_builds)
+    return _panel_text_result(
+        args,
+        rendered,
+        name="panel/compare-text",
+        filename=f"panel-compare_{safe_filename_part('_'.join(build_specs))}.txt",
+        content=render_panel_compare_text(result.data),
+    )
 
 
 def save_command(args: argparse.Namespace) -> CommandResult:
@@ -683,7 +753,7 @@ def save_command(args: argparse.Namespace) -> CommandResult:
     }
     content = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
     artifact = _write_panel(args, uid, args.name, content)
-    return CommandResult(
+    result = CommandResult(
         data={
             "uid": uid,
             "saved": True,
@@ -693,6 +763,13 @@ def save_command(args: argparse.Namespace) -> CommandResult:
         },
         artifacts=[artifact],
         source=cache_source(cache),
+    )
+    return _panel_text_result(
+        args,
+        result,
+        name="panel/save-text",
+        filename=f"panel-save_{_safe_filename(uid)}_{_safe_filename(args.name)}.txt",
+        content=render_panel_save_text(result.data),
     )
 
 
@@ -719,8 +796,21 @@ def artifacts_command(args: argparse.Namespace) -> CommandResult:
         source=cache_source(cache),
     )
     if not render_image_enabled(args):
-        return result
-    return _artifacts_render_result(args, result=result, uid=uid, cache=cache)
+        return _panel_text_result(
+            args,
+            result,
+            name="panel/artifacts-text",
+            filename=f"panel-artifacts_{_safe_filename(uid)}_p{args.page}.txt",
+            content=render_panel_artifacts_text(result.data),
+        )
+    rendered = _artifacts_render_result(args, result=result, uid=uid, cache=cache)
+    return _panel_text_result(
+        args,
+        rendered,
+        name="panel/artifacts-text",
+        filename=f"panel-artifacts_{_safe_filename(uid)}_p{args.page}.txt",
+        content=render_panel_artifacts_text(result.data),
+    )
 
 
 def graduation_command(args: argparse.Namespace) -> CommandResult:
@@ -750,14 +840,68 @@ def graduation_command(args: argparse.Namespace) -> CommandResult:
         source=cache_source(cache),
     )
     if not render_image_enabled(args):
-        return result
-    return _graduation_render_result(args, result=result, uid=uid, region=region, cache=cache)
+        return _panel_text_result(
+            args,
+            result,
+            name="panel/graduation-text",
+            filename=f"panel-graduation_{_safe_filename(uid)}.txt",
+            content=render_panel_graduation_text(result.data),
+        )
+    rendered = _graduation_render_result(
+        args,
+        result=result,
+        uid=uid,
+        region=region,
+        cache=cache,
+    )
+    return _panel_text_result(
+        args,
+        rendered,
+        name="panel/graduation-text",
+        filename=f"panel-graduation_{_safe_filename(uid)}.txt",
+        content=render_panel_graduation_text(result.data),
+    )
 
 
 def _artifact_entries_by_score(cache: dict[str, object]) -> list[dict[str, object]]:
     artifacts = artifact_entries(cache)
     artifacts.sort(key=lambda item: _number(item.get("score")), reverse=True)
     return artifacts
+
+
+def _panel_text_result(
+    args: argparse.Namespace,
+    result: CommandResult,
+    *,
+    name: str,
+    filename: str,
+    content: str,
+) -> CommandResult:
+    if not render_text_enabled(args):
+        return result
+    text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        name=name,
+        filename=filename,
+        content=content,
+        description="Human-readable panel text",
+        kind="text",
+    )
+    artifacts = [*result.artifacts, text_artifact]
+    if any(artifact.get("kind") == "image" for artifact in result.artifacts):
+        data = {**result.data, "text_artifact_sha256": text_artifact["sha256"]}
+    else:
+        data = render_result_data(
+            args,
+            result.data,
+            {"render": name, "artifact_sha256": text_artifact["sha256"]},
+        )
+    return CommandResult(
+        data=data,
+        artifacts=artifacts,
+        source=result.source,
+        warnings=result.warnings,
+        pagination=result.pagination,
+    )
 
 
 def _provider(args: argparse.Namespace) -> EnkaProvider:
@@ -924,7 +1068,7 @@ def _build_delta(baseline: dict[str, object], build: dict[str, object]) -> dict[
         }
     return {
         "uid": build["uid"],
-        "character": build["character"],
+        "character": compare_panel.get("name") or build["character"],
         "artifact_score": round(
             _number(compare_panel.get("artifact_score"))
             - _number(base_panel.get("artifact_score")),
