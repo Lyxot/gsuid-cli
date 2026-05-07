@@ -19,7 +19,7 @@ from gsuid_cli.renderers.common import (
 
 TEXTURE = asset_path("wiki", "textures")
 AMBR_UI_URL = "https://gi.yatta.moe/assets/UI"
-GENSHINUID_RESOURCE_BASE = "https://example.test/GenshinUID/resource"
+GENSHINUID_RESOURCE_BASE = "genshinuid://resource"
 
 WHITE = (255, 255, 255)
 GRAY = (230, 230, 230)

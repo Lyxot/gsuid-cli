@@ -17,7 +17,7 @@ from gsuid_cli.renderers.common import (
 )
 
 TEXTURE = asset_path("player", "characters", "textures")
-GENSHINUID_RESOURCE_BASE = "https://example.test/GenshinUID/resource"
+GENSHINUID_RESOURCE_BASE = "genshinuid://resource"
 
 WIDTH = 1680
 CARD_SIZE = (374, 195)

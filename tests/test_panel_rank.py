@@ -165,9 +165,9 @@ def test_panel_show_render_image_writes_card(monkeypatch, tmp_path) -> None:
         "artifact_sha256": payload["artifacts"][0]["sha256"],
     }
     assert captured_urls == [
-        "https://example.test/GenshinUID/resource/gacha_img/%E5%AE%89%E6%9F%8F.png",
-        "https://example.test/GenshinUID/resource/chars/10000021.png",
-        "https://example.test/GenshinUID/resource/weapon/%E8%A5%BF%E9%A3%8E%E7%8C%8E%E5%BC%93.png",
+        "genshinuid://resource/gacha_img/%E5%AE%89%E6%9F%8F.png",
+        "genshinuid://resource/chars/10000021.png",
+        "genshinuid://resource/weapon/%E8%A5%BF%E9%A3%8E%E7%8C%8E%E5%BC%93.png",
         "https://enka.network/ui/UI_RelicIcon_15002_4.png",
         "https://enka.network/ui/UI_RelicIcon_15002_2.png",
     ]

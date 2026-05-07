@@ -19,6 +19,7 @@ from gsuid_cli.core.http import (
     raise_for_retcode,
 )
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.providers.assets import AssetProvider
 from gsuid_cli.providers.public.codes import parse_active_codes as _parse_active_codes
 
 _daily_domain = _public_daily.daily_domain
@@ -59,7 +60,7 @@ ASSETS_ROOT = Path(__file__).resolve().parents[2] / "assets"
 GENSHINUID_ABYSS_JS_PATH = ASSETS_ROOT / "guide" / "abyss" / "data" / "abyss.js"
 PRIMOGEMS_PLAN_ASSET_DIR = ASSETS_ROOT / "misc" / "primogems"
 GENSHINUID_RESOURCE_BASE = _public_common.GENSHINUID_RESOURCE_BASE
-GENSHINUID_RESOURCE_ASSET_BASE = f"{GENSHINUID_RESOURCE_BASE}/resource"
+GENSHINUID_RESOURCE_ASSET_BASE = f"{GENSHINUID_RESOURCE_BASE}resource"
 TEYVAT_RETURN_LIST_URL = "https://api.lelaer.com/ys/getRerunList.php"
 HAKUSH_ROLECOMBATS_URL = "https://api.hakush.in/gi/data/rolecombat.json"
 HAKUSH_ROLECOMBAT_URL = "https://api.hakush.in/gi/data/zh/rolecombat/{}.json"
@@ -450,13 +451,11 @@ class PublicDataProvider:
                 EXIT_INVALID_INPUT,
                 {"kind": kind},
             )
-        return self.http.request_bytes(
-            "GET",
+        return AssetProvider(self.http).image(
             _genshinuid_resource_url(endpoint, filename),
             provider="genshinuid-resource",
             region="cn",
             category=f"guide.{kind}.image",
-            expected_media_types=("image/",),
         )
 
     def announcements_list(self, *, limit: int) -> CommandResult:

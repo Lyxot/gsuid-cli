@@ -6,7 +6,7 @@ from urllib.parse import quote
 CN_TZ = timezone(timedelta(hours=8))
 AMBR_UI_URL = "https://gi.yatta.moe/assets/UI"
 AMBR_MONSTER_UI_URL = f"{AMBR_UI_URL}/monster"
-GENSHINUID_RESOURCE_BASE = "https://example.test/GenshinUID"
+GENSHINUID_RESOURCE_BASE = "genshinuid://"
 HAKUSH_UI_URL = "https://api.hakush.in/gi/UI"
 
 
@@ -52,7 +52,7 @@ def ambr_ui_icon_url(icon: object) -> str | None:
 
 
 def genshinuid_resource_url(endpoint: str, filename: str) -> str:
-    return f"{GENSHINUID_RESOURCE_BASE}/{endpoint}/{quote(filename)}"
+    return f"{GENSHINUID_RESOURCE_BASE}{endpoint}/{quote(filename)}"
 
 
 def monster_icon_url(icon: str | None) -> str | None:

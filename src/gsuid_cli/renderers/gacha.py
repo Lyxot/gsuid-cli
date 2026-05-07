@@ -23,7 +23,7 @@ from gsuid_cli.renderers.progress.collection import _color_background
 
 TEXTURE = asset_path("gacha", "textures")
 DATA = asset_path("panel", "data")
-GENSHINUID_RESOURCE_BASE = "https://example.test/GenshinUID/resource"
+GENSHINUID_RESOURCE_BASE = "genshinuid://resource"
 FALLBACK_CHARACTER_ID = "10000007"
 FALLBACK_CHARACTER_ICON_URL = f"{GENSHINUID_RESOURCE_BASE}/chars/{FALLBACK_CHARACTER_ID}.png"
 

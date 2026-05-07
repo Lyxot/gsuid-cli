@@ -1,6 +1,6 @@
 # HTTP Cache Policy
 
-This file is the source policy for provider HTTP response caching. If the policy changes, update `src/gsuid_cli/core/cache_policy.py` to match it.
+This file is the source policy for provider HTTP response caching. If the policy changes, update `src/gsuid_cli/core/cache_policy.py` to match it; if GenshinUID mirror selection changes, update `src/gsuid_cli/providers/resource_mirror.py`.
 
 ## Runtime Semantics
 
@@ -16,6 +16,8 @@ This file is the source policy for provider HTTP response caching. If the policy
 - Expired or version-stale persistent cache entries are deleted when encountered.
 - Cache keys must use sanitized URLs and must never include secrets.
 - The current Sophon build tag comes from `https://api-takumi.mihoyo.com/downloader/sophon_chunk/api/getBuild?branch=main&package_id=8xfMve0uwQ&password=CW8GbLNU8f&plat_app=ddxf5qt290cg` at `["data"]["tag"]`.
+- GenshinUID resource URLs under `genshinuid://` are logical URLs. They are resolved lazily through the fastest reachable resource mirror, while binary asset cache keys keep the logical URL so cached files are reused across mirror changes.
+- The GenshinUID mirror selection cache is stored under `$GSUID_HOME/cache/http/resource-mirror.genshinuid.json`. `--cache refresh` re-probes and replaces it, `--cache off` probes without storing it, and `--cache only` does not probe mirrors.
 
 ## Expiration Rules
 
@@ -28,6 +30,7 @@ This file is the source policy for provider HTTP response caching. If the policy
 | `daily-reset` | Next 04:00 UTC+8 after fetch. | Daily material schedule data. |
 | `game-version-tag` | Next 06:00 UTC+8 after fetch. | Sophon build-tag lookup used by `game-version` freshness checks. |
 | `game-version` | When stored `cache_version` differs from the Sophon build tag refreshed by `game-version-tag`. | Public wiki/guide/recommendation data and static render assets that usually change with game versions. |
+| `resource-mirror` | 6 hours after probe. | GenshinUID resource mirror selection; asset payloads still use the `game-version` rule. |
 
 ## URL Family Mapping
 
@@ -41,6 +44,7 @@ This file is the source policy for provider HTTP response caching. If the policy
 | `daily.materials`, `daily.materials.upgrade` | `daily-reset` | Daily domain schedule should roll over at CN daily reset. |
 | `codes.*`, `events.*`, `announcements.*`, `rerun.*` | `public-dynamic` | Public but can change during a version. |
 | Sophon `getBuild` URL | `game-version-tag` | Uses `data.tag`; the cached lookup refreshes daily at 06:00 UTC+8. |
+| `genshinuid://*` logical resource URLs | `resource-mirror` for mirror selection, normal request-category rule for fetched assets | Resolves to the fastest available GenshinUID resource mirror only when the asset is needed. Public static render assets usually use `game-version`; private/player categories may use shorter category rules. |
 | `wiki.*`, `guide.*`, `recommend.*` | `game-version` | Static public data normally changes when game data updates. |
 | Static binary assets fetched through `request_bytes` | `game-version` | Includes GenshinUID, AMBR, Hakush, MiniGG, MYS icon, and render-resource URLs unless a stricter rule is added. |
 | `meta.doctor.network` | `public-short` | Only checks provider reachability. |

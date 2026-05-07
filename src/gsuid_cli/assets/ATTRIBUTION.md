@@ -77,10 +77,10 @@ rendering.
   and `GenshinUID/utils/image/texture2d/`.
 - Player character portraits, weapon icons, and namecard backgrounds are
   fetched from the GenshinUID resource mirror under
-  `https://example.test/GenshinUID/resource/`.
+  `genshinuid://resource/`.
 - Character guide images and reference-panel images are fetched from the
   GenshinUID resource mirror under
-  `https://example.test/GenshinUID/wiki/`.
+  `genshinuid://wiki/`.
 - Build and holder recommendation data is fetched from GenshinUID
   `GenshinUID/genshinuid_adv/char_adv_list.json`.
 - Abyss guide schedule and monster data is bundled from GenshinUID

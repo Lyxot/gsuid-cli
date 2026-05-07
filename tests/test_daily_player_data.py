@@ -368,9 +368,9 @@ def test_player_characters_render_image_writes_character_card(monkeypatch, tmp_p
         "artifact_sha256": payload["artifacts"][0]["sha256"],
     }
     assert captured_urls == [
-        "https://example.test/GenshinUID/resource/chars/10000021.png",
-        "https://example.test/GenshinUID/resource/char_namecard_pic/10000021.png",
-        "https://example.test/GenshinUID/resource/weapon/Bow.png",
+        "genshinuid://resource/chars/10000021.png",
+        "genshinuid://resource/char_namecard_pic/10000021.png",
+        "genshinuid://resource/weapon/Bow.png",
     ]
     artifact = payload["artifacts"][0]
     path = Path(artifact["path"])
@@ -449,9 +449,9 @@ def test_player_summary_render_image_writes_full_role_card(monkeypatch, tmp_path
         "artifact_sha256": payload["artifacts"][0]["sha256"],
     }
     assert captured_urls == [
-        "https://example.test/GenshinUID/resource/chars/10000021.png",
-        "https://example.test/GenshinUID/resource/char_namecard_pic/10000021.png",
-        "https://example.test/GenshinUID/resource/weapon/Bow.png",
+        "genshinuid://resource/chars/10000021.png",
+        "genshinuid://resource/char_namecard_pic/10000021.png",
+        "genshinuid://resource/weapon/Bow.png",
         "https://upload.example.test/world.png",
         "https://upload.example.test/offering.png",
         "https://enka.network/ui/UI_AvatarIcon_PlayerGirl_Circle.png",
@@ -544,7 +544,7 @@ def test_player_inventory_calendar_diary_render_images(monkeypatch, tmp_path) ->
             assert image.getbbox() is not None
 
     assert (
-        "https://example.test/GenshinUID/resource/chars/10000021.png" in captured_urls
+        "genshinuid://resource/chars/10000021.png" in captured_urls
     )
 
 
@@ -969,9 +969,9 @@ def test_player_characters_render_fetches_mys_fallbacks_for_missing_resources(
 
     assert code == 0
     assert captured_urls == [
-        "https://example.test/GenshinUID/resource/chars/10000021.png",
-        "https://example.test/GenshinUID/resource/char_namecard_pic/10000021.png",
-        "https://example.test/GenshinUID/resource/weapon/Bow.png",
+        "genshinuid://resource/chars/10000021.png",
+        "genshinuid://resource/char_namecard_pic/10000021.png",
+        "genshinuid://resource/weapon/Bow.png",
         "https://upload.example.test/amber.png",
         "https://upload.example.test/amber-icon.png",
     ]

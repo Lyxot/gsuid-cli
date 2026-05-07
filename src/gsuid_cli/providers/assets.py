@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextvars import copy_context
 
 from gsuid_cli.core.errors import CliError
 from gsuid_cli.core.http import HttpClient, ProviderBytesResponse
+from gsuid_cli.providers.resource_mirror import (
+    is_genshinuid_resource_url,
+    resolve_genshinuid_resource_url,
+)
 
 
 class AssetProvider:
@@ -21,6 +25,7 @@ class AssetProvider:
         region: str,
         category: str,
     ) -> ProviderBytesResponse:
+        cache_url, url_resolver = self._resource_request(url)
         return self.http.request_bytes(
             "GET",
             url,
@@ -28,6 +33,8 @@ class AssetProvider:
             region=region,
             category=category,
             expected_media_types=("image/",),
+            cache_url=cache_url,
+            url_resolver=url_resolver,
         )
 
     def json_bytes(
@@ -38,6 +45,7 @@ class AssetProvider:
         region: str,
         category: str,
     ) -> ProviderBytesResponse:
+        cache_url, url_resolver = self._resource_request(url)
         return self.http.request_bytes(
             "GET",
             url,
@@ -45,7 +53,39 @@ class AssetProvider:
             region=region,
             category=category,
             expected_media_types=("application/json", "text/plain"),
+            cache_url=cache_url,
+            url_resolver=url_resolver,
         )
+
+    def _resource_request(
+        self,
+        url: str,
+    ) -> tuple[str | None, Callable[[], tuple[str, dict[str, object] | None]] | None]:
+        if not is_genshinuid_resource_url(url):
+            return None, None
+
+        def resolver() -> tuple[str, dict[str, object] | None]:
+            resolution = resolve_genshinuid_resource_url(
+                url,
+                timeout=self.http.timeout,
+                cache_policy=self.http.cache_policy,
+                output_dir=self.http.output_dir,
+                transport=self.http.transport,
+            )
+            if resolution is None:
+                return url, None
+            return (
+                resolution.url,
+                {
+                    "mirror": {
+                        "tag": resolution.tag,
+                        "base_url": resolution.base_url,
+                        "cached": resolution.cached,
+                    }
+                },
+            )
+
+        return url, resolver
 
 
 def fetch_render_images(

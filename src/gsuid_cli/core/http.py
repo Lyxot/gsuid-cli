@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
 from threading import Lock
@@ -295,9 +296,12 @@ class HttpClient:
         params: dict[str, object] | None = None,
         headers: dict[str, str] | None = None,
         expected_media_types: tuple[str, ...] | None = None,
+        cache_url: str | None = None,
+        url_resolver: Callable[[], tuple[str, dict[str, object] | None]] | None = None,
     ) -> ProviderBytesResponse:
         method = method.upper()
-        key = cache_key(method, url, params=params)
+        cache_identity_url = cache_url or url
+        key = cache_key(method, cache_identity_url, params=params)
         rule = cache_rule_for(
             method=method,
             provider=provider,
@@ -311,7 +315,7 @@ class HttpClient:
             else None
         )
         current_cache_version: str | None = None
-        details = _request_details(provider, region, category, method, url, params)
+        details = _request_details(provider, region, category, method, cache_identity_url, params)
         if asset_cache is not None:
             with asset_cache.locked(key):
                 if self.cache_policy in {"use", "only"}:
@@ -344,12 +348,15 @@ class HttpClient:
                     if cached is not None and _staleness_is_known(rule, current_cache_version):
                         asset_cache.delete(key)
                     if self.cache_policy == "only":
-                        raise _cache_miss(provider, region, category, method, url, params)
+                        raise _cache_miss(
+                            provider, region, category, method, cache_identity_url, params
+                        )
 
                 if self.cache_policy != "only":
+                    request_url, source_extra = _resolved_byte_url(url, url_resolver)
                     return self._request_bytes_uncached(
                         method,
-                        url,
+                        request_url,
                         provider=provider,
                         region=region,
                         category=category,
@@ -358,7 +365,9 @@ class HttpClient:
                         expected_media_types=expected_media_types,
                         asset_cache=asset_cache,
                         asset_key=key,
+                        asset_url=cache_identity_url,
                         asset_rule=rule,
+                        source_extra=source_extra,
                         asset_cache_version=cache_version_for(
                             rule,
                             current_cache_version
@@ -366,9 +375,10 @@ class HttpClient:
                         ),
                     )
         elif self.cache_policy != "only":
+            request_url, source_extra = _resolved_byte_url(url, url_resolver)
             return self._request_bytes_uncached(
                 method,
-                url,
+                request_url,
                 provider=provider,
                 region=region,
                 category=category,
@@ -377,11 +387,15 @@ class HttpClient:
                 expected_media_types=expected_media_types,
                 asset_cache=None,
                 asset_key=None,
+                asset_url=cache_identity_url,
                 asset_rule=None,
+                source_extra=source_extra,
                 asset_cache_version=None,
             )
 
-        raise _cache_miss(provider, region, category, method, url, params, details=details)
+        raise _cache_miss(
+            provider, region, category, method, cache_identity_url, params, details=details
+        )
 
     def _request_bytes_uncached(
         self,
@@ -396,7 +410,9 @@ class HttpClient:
         expected_media_types: tuple[str, ...] | None,
         asset_cache: AssetCache | None,
         asset_key: str | None,
+        asset_url: str,
         asset_rule: CacheRule | None,
+        source_extra: dict[str, object] | None,
         asset_cache_version: str | None,
     ) -> ProviderBytesResponse:
         try:
@@ -407,7 +423,7 @@ class HttpClient:
             if asset_cache is not None and asset_key is not None:
                 asset_cache.record_failure(
                     asset_key,
-                    url=url,
+                    url=asset_url,
                     params=params,
                     error_code="NETWORK_TIMEOUT",
                     message="Provider request timed out.",
@@ -429,7 +445,7 @@ class HttpClient:
             if asset_cache is not None and asset_key is not None:
                 asset_cache.record_failure(
                     asset_key,
-                    url=url,
+                    url=asset_url,
                     params=params,
                     error_code="NETWORK_ERROR",
                     message="Provider request failed.",
@@ -452,7 +468,7 @@ class HttpClient:
             if asset_cache is not None and asset_key is not None:
                 asset_cache.record_failure(
                     asset_key,
-                    url=url,
+                    url=asset_url,
                     params=params,
                     error_code="UPSTREAM_HTTP_ERROR",
                     message="Provider returned an HTTP error.",
@@ -485,7 +501,7 @@ class HttpClient:
             if asset_cache is not None and asset_key is not None:
                 asset_cache.record_failure(
                     asset_key,
-                    url=url,
+                    url=asset_url,
                     params=params,
                     error_code="UPSTREAM_INVALID_RESPONSE",
                     message="Provider returned an unexpected media type.",
@@ -520,7 +536,7 @@ class HttpClient:
         ):
             asset_cache.store_success(
                 asset_key,
-                url=url,
+                url=asset_url,
                 params=params,
                 media_type=media_type,
                 content=response.content,
@@ -534,13 +550,16 @@ class HttpClient:
             content=response.content,
             media_type=media_type,
             source=_record_source(
-                _source(
-                    provider,
-                    region,
-                    False,
-                    fetched_at,
-                    category=category,
-                    status_code=response.status_code,
+                _source_with_extra(
+                    _source(
+                        provider,
+                        region,
+                        False,
+                        fetched_at,
+                        category=category,
+                        status_code=response.status_code,
+                    ),
+                    source_extra,
                 )
             ),
             status_code=response.status_code,
@@ -770,6 +789,24 @@ def _record_source(source: dict[str, object]) -> dict[str, object]:
     if capture is not None:
         capture.add(source)
     return source
+
+
+def _source_with_extra(
+    source: dict[str, object],
+    extra: dict[str, object] | None,
+) -> dict[str, object]:
+    if extra:
+        source.update(extra)
+    return source
+
+
+def _resolved_byte_url(
+    url: str,
+    url_resolver: Callable[[], tuple[str, dict[str, object] | None]] | None,
+) -> tuple[str, dict[str, object] | None]:
+    if url_resolver is None:
+        return url, None
+    return url_resolver()
 
 
 def _metadata_text(metadata: dict[str, object], key: str) -> str | None:

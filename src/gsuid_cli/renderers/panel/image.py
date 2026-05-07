@@ -27,7 +27,7 @@ THEATER_TEXTURE = asset_path("challenge", "theater", "textures")
 HARD_TEXTURE = asset_path("challenge", "hard", "textures")
 GRADUATION_TEXTURE = TEXTURE / "graduation"
 FETTER_TEXTURE = TEXTURE / "fetter"
-GENSHINUID_RESOURCE_BASE = "https://example.test/GenshinUID/resource"
+GENSHINUID_RESOURCE_BASE = "genshinuid://resource"
 ENKA_UI_BASE = "https://enka.network/ui"
 
 WIDTH = 950

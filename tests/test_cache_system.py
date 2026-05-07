@@ -9,6 +9,8 @@ import pytest
 from gsuid_cli.core.cache_policy import cache_expires_at, cache_rule_for, cache_version_for
 from gsuid_cli.core.errors import CliError
 from gsuid_cli.core.http import GAME_VERSION_BUILD_URL, HttpClient
+from gsuid_cli.providers import resource_mirror
+from gsuid_cli.providers.assets import AssetProvider
 
 
 def _is_game_version_request(request: httpx.Request) -> bool:
@@ -457,6 +459,100 @@ def test_byte_cache_splits_assets_by_usage(monkeypatch, tmp_path) -> None:
     assert list((home / "cache" / "icons").glob("UI_ItemIcon_112023.*.png"))
     assert list((home / "cache" / "maps").glob("get_map.*.png"))
     assert list((home / "cache" / "wiki").glob("card.*.png"))
+
+
+def test_genshinuid_resource_mirror_uses_stable_cache_identity(monkeypatch, tmp_path) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setenv("GSUID_HOME", str(home))
+    monkeypatch.setattr(
+        resource_mirror,
+        "GENSHINUID_RESOURCE_MIRRORS",
+        {
+            "[bad]": "https://bad.example.test/root",
+            "[fast]": "https://mirror.example.test/sayu-bot",
+        },
+    )
+    requested: list[str] = []
+    logical_url = "genshinuid://resource/chars/10000021.png"
+    mirror_url = "https://mirror.example.test/sayu-bot/GenshinUID/resource/chars/10000021.png"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        requested.append(url)
+        if _is_game_version_request(request):
+            return httpx.Response(200, json={"data": {"tag": "6.5.0"}})
+        if url == "https://bad.example.test/root":
+            return httpx.Response(404, text="missing")
+        if url == "https://mirror.example.test/sayu-bot":
+            return httpx.Response(200, text="<pre>Index of /</pre>")
+        if url == mirror_url:
+            return httpx.Response(
+                200,
+                content=b"png-data",
+                headers={"content-type": "image/png"},
+            )
+        raise AssertionError(f"unexpected request: {url}")
+
+    client = HttpClient(
+        timeout=1,
+        cache_policy="use",
+        transport=httpx.MockTransport(handler),
+    )
+    first = AssetProvider(client).image(
+        logical_url,
+        provider="genshinuid-resource",
+        region="cn",
+        category="wiki.character.asset",
+    )
+
+    only_client = HttpClient(
+        timeout=1,
+        cache_policy="only",
+        transport=httpx.MockTransport(lambda request: pytest.fail(f"network: {request.url}")),
+    )
+    cached = AssetProvider(only_client).image(
+        logical_url,
+        provider="genshinuid-resource",
+        region="cn",
+        category="wiki.character.asset",
+    )
+    mirror_cache = home / "cache" / "http" / "resource-mirror.genshinuid.json"
+    assert mirror_cache.exists()
+    mirror_cache.unlink()
+
+    use_client = HttpClient(
+        timeout=1,
+        cache_policy="use",
+        transport=httpx.MockTransport(lambda request: pytest.fail(f"network: {request.url}")),
+    )
+    cached_without_mirror_cache = AssetProvider(use_client).image(
+        logical_url,
+        provider="genshinuid-resource",
+        region="cn",
+        category="wiki.character.asset",
+    )
+
+    metadata = json.loads(
+        next((home / "cache" / "assets").glob("10000021.*.metadata.json")).read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert first.content == b"png-data"
+    assert first.source["mirror"] == {
+        "tag": "[fast]",
+        "base_url": "https://mirror.example.test/sayu-bot",
+        "cached": False,
+    }
+    assert cached.content == b"png-data"
+    assert cached.source["cached"] is True
+    assert cached_without_mirror_cache.content == b"png-data"
+    assert cached_without_mirror_cache.source["cached"] is True
+    assert metadata["url"] == logical_url
+    assert not list((home / "cache" / "wiki").glob("10000021.*"))
+    assert "https://example.test" not in requested
+    assert mirror_url in requested
+
 
 def test_byte_cache_records_retry_metadata_on_failure(monkeypatch, tmp_path) -> None:
     home = tmp_path / "home"

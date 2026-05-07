@@ -17,7 +17,7 @@ from gsuid_cli.renderers.common import (
 
 PUBLIC_TEXTURE = asset_path("public", "textures")
 CHAR_CARD_TEXTURE = PUBLIC_TEXTURE / "char_card"
-GENSHINUID_RESOURCE_BASE = "https://example.test/GenshinUID/resource"
+GENSHINUID_RESOURCE_BASE = "genshinuid://resource"
 FOOTER_TEXT = "Created by gsuid-cli & Render style/assets by GenshinUID & Data by 米游社"
 
 

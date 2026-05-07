@@ -522,23 +522,23 @@ def test_gacha_summary_character_icon_urls_include_duplicate_name_candidates() -
 
     assert gacha_summary_item_urls([fallback_item]) == [FALLBACK_CHARACTER_ICON_URL]
     assert gacha_summary_item_urls([exact_item]) == [
-        "https://example.test/GenshinUID/resource/chars/10000022.png",
+        "genshinuid://resource/chars/10000022.png",
         FALLBACK_CHARACTER_ICON_URL,
     ]
     assert gacha_summary_item_urls([duplicate_name_item]) == [
-        "https://example.test/GenshinUID/resource/chars/10000116.png",
-        "https://example.test/GenshinUID/resource/chars/10000903.png",
+        "genshinuid://resource/chars/10000116.png",
+        "genshinuid://resource/chars/10000903.png",
         FALLBACK_CHARACTER_ICON_URL,
     ]
     assert gacha_summary_item_urls([duplicate_name_with_id]) == [
-        "https://example.test/GenshinUID/resource/chars/10000903.png",
-        "https://example.test/GenshinUID/resource/chars/10000116.png",
+        "genshinuid://resource/chars/10000903.png",
+        "genshinuid://resource/chars/10000116.png",
         FALLBACK_CHARACTER_ICON_URL,
     ]
     assert (
         gacha_summary_missing_icon_count(
             [duplicate_name_item],
-            {"https://example.test/GenshinUID/resource/chars/10000116.png": b"x"},
+            {"genshinuid://resource/chars/10000116.png": b"x"},
         )
         == 0
     )
