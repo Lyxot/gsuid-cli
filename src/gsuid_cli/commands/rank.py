@@ -8,7 +8,6 @@ from pathlib import Path
 
 from gsuid_cli.commands._shared import _safe_filename
 from gsuid_cli.commands.auth import _credential, _uid_and_region
-from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.http import HttpClient, raise_for_retcode
@@ -16,9 +15,9 @@ from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
 from gsuid_cli.providers import provider_for_region
 from gsuid_cli.providers.akasha import AkashaProvider
+from gsuid_cli.providers.assets import fetch_render_images
 from gsuid_cli.providers.mys import (
     ELEMENT_ID_BY_NAME,
-    RECORD_BASE_CN,
     _payload_data,
     server_for_uid,
 )
@@ -39,7 +38,6 @@ from gsuid_cli.renderers.rank_text import (
 
 RANK_IMAGE_WORKERS = 12
 DATA_PATH = asset_path("panel", "data")
-CHARACTER_DETAIL_PATH = "/game_record/app/genshin/api/character/detail"
 CROWN_ITEM_ID = 104319
 CONSTELLATION_SKILL_BONUS_RE = re.compile(r"<color=[^>]+>(.*?)</color>的技能等级提高3级")
 
@@ -348,34 +346,14 @@ def _mys_character_details(
     ]
     if not character_ids:
         return []
-    body = {
-        "character_ids": character_ids,
-        "role_id": uid,
-        "server": server_for_uid(uid),
-    }
-    response = provider.http.request_json(
-        "POST",
-        f"{RECORD_BASE_CN}{CHARACTER_DETAIL_PATH}",
-        provider="mys",
+    result = provider.character_details(
+        uid=uid,
+        cookie=cookie,
         region=region,
+        character_ids=character_ids,
         category="rank.list.character-detail",
-        headers=provider._record_headers_for_uid(uid, cookie, body=body),
-        json_body=body,
     )
-    raise_for_retcode(
-        response.payload,
-        provider="mys",
-        region=region,
-        category="rank.list.character-detail",
-        source=response.source,
-        debug=provider.http.debug,
-    )
-    data = _payload_data(
-        response.payload,
-        "rank.list.character-detail",
-        response.source,
-    )
-    return _list_of_dicts(data.get("list"))
+    return _list_of_dicts(result.data.get("details"))
 
 
 def _crown_title_stat(

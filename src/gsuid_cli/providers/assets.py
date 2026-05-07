@@ -6,7 +6,46 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextvars import copy_context
 
 from gsuid_cli.core.errors import CliError
-from gsuid_cli.core.http import HttpClient
+from gsuid_cli.core.http import HttpClient, ProviderBytesResponse
+
+
+class AssetProvider:
+    def __init__(self, http_client: HttpClient) -> None:
+        self.http = http_client
+
+    def image(
+        self,
+        url: str,
+        *,
+        provider: str,
+        region: str,
+        category: str,
+    ) -> ProviderBytesResponse:
+        return self.http.request_bytes(
+            "GET",
+            url,
+            provider=provider,
+            region=region,
+            category=category,
+            expected_media_types=("image/",),
+        )
+
+    def json_bytes(
+        self,
+        url: str,
+        *,
+        provider: str,
+        region: str,
+        category: str,
+    ) -> ProviderBytesResponse:
+        return self.http.request_bytes(
+            "GET",
+            url,
+            provider=provider,
+            region=region,
+            category=category,
+            expected_media_types=("application/json", "text/plain"),
+        )
 
 
 def fetch_render_images(
@@ -52,18 +91,18 @@ def _fetch_image(
     category: str,
 ) -> tuple[str, bytes | None]:
     try:
-        response = HttpClient(
-            timeout=args.timeout,
-            cache_policy=args.cache,
-            output_dir=args.output_dir,
-            debug=args.debug,
-        ).request_bytes(
-            "GET",
+        response = AssetProvider(
+            HttpClient(
+                timeout=args.timeout,
+                cache_policy=args.cache,
+                output_dir=args.output_dir,
+                debug=args.debug,
+            )
+        ).image(
             url,
             provider=provider,
             region=region,
             category=category,
-            expected_media_types=("image/",),
         )
     except CliError:
         return url, None

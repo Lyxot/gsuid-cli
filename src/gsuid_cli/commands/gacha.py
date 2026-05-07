@@ -9,7 +9,6 @@ from pathlib import Path
 
 from gsuid_cli import __version__
 from gsuid_cli.commands.auth import _credential, _uid_and_region
-from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
@@ -19,6 +18,7 @@ from gsuid_cli.core.secrets import SecretStore
 from gsuid_cli.core.state import state_db
 from gsuid_cli.core.time import utc_now
 from gsuid_cli.providers import provider_for_region
+from gsuid_cli.providers.assets import fetch_render_images
 from gsuid_cli.renderers.gacha import (
     gacha_summary_item_urls,
     gacha_summary_missing_icon_count,

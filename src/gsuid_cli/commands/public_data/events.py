@@ -10,11 +10,11 @@ from gsuid_cli.commands.public_data._common import (
     _provider,
     _safe_filename,
 )
-from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
+from gsuid_cli.providers.assets import fetch_render_images
 from gsuid_cli.renderers.events import (
     announcement_detail_image_urls,
     event_image_urls,

@@ -12,11 +12,11 @@ from gsuid_cli.commands._shared import (
     _write_image_artifact,
 )
 from gsuid_cli.commands.player import _player_title_render_context
-from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
+from gsuid_cli.providers.assets import fetch_render_images
 from gsuid_cli.renderers.player.summary import player_summary_mys_icon_urls
 from gsuid_cli.renderers.progress.achievements import (
     progress_achievement_image_urls,

@@ -13,12 +13,12 @@ from gsuid_cli.commands.public_data._common import (
     _provider,
     _safe_filename,
 )
-from gsuid_cli.commands.render_assets import fetch_render_images
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_UPSTREAM, CliError
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
 from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
+from gsuid_cli.providers.assets import fetch_render_images
 from gsuid_cli.providers.public import DAY_NAMES
 from gsuid_cli.renderers.daily.materials import render_daily_materials_card
 from gsuid_cli.renderers.daily.note import render_daily_note_card

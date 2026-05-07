@@ -20,7 +20,7 @@ from gsuid_cli.commands.panel_cache import (
     player_summary,
     save_panel_cache,
 )
-from gsuid_cli.commands.render_assets import fetch_render_images
+from gsuid_cli.commands.panel_enrichment import _panel_with_weapon_effect, _with_avatar_names
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.config import resolve_paths
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
@@ -29,8 +29,8 @@ from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
 from gsuid_cli.core.state import state_db
 from gsuid_cli.providers import provider_for_region
+from gsuid_cli.providers.assets import fetch_render_images
 from gsuid_cli.providers.enka import EnkaProvider
-from gsuid_cli.providers.public import AMBR_BASE_URL
 from gsuid_cli.renderers.panel import (
     panel_artifacts_asset_urls,
     panel_asset_urls,
@@ -630,75 +630,6 @@ def _merge_spiral_abyss(player: dict[str, object], value: object) -> None:
     player["abyss_chamber"] = int(match.group(2))
 
 
-def _panel_with_weapon_effect(
-    args: argparse.Namespace,
-    panel: dict[str, object],
-    avatar: dict[str, object],
-) -> dict[str, object]:
-    weapon = panel.get("weapon")
-    if not isinstance(weapon, dict) or weapon.get("effect"):
-        return panel
-    weapon_id = str(weapon.get("item_id") or "")
-    if len(weapon_id) != 5 or not weapon_id.isdigit():
-        return panel
-    try:
-        response = HttpClient(
-            timeout=args.timeout,
-            cache_policy=args.cache,
-            output_dir=args.output_dir,
-            debug=args.debug,
-        ).request_json(
-            "GET",
-            f"{AMBR_BASE_URL}/api/v2/chs/weapon/{weapon_id}",
-            provider="ambr",
-            region="cn",
-            category="panel.weapon_effect",
-        )
-    except CliError:
-        return panel
-    data = response.payload.get("data")
-    if not isinstance(data, dict):
-        return panel
-    effect = _weapon_effect_text(data.get("affix"), _weapon_affix(avatar))
-    if not effect:
-        return panel
-    next_weapon = {**weapon, "effect": effect}
-    return {**panel, "weapon": next_weapon}
-
-
-def _weapon_affix(avatar: dict[str, object]) -> int:
-    equips = avatar.get("equipList")
-    if not isinstance(equips, list):
-        return 1
-    for equip in equips:
-        if not isinstance(equip, dict):
-            continue
-        weapon = equip.get("weapon")
-        if not isinstance(weapon, dict):
-            continue
-        affix_map = weapon.get("affixMap")
-        if isinstance(affix_map, dict) and affix_map:
-            return min(max(int(_number(next(iter(affix_map.values())))) + 1, 1), 5)
-    return 1
-
-
-def _weapon_effect_text(affix: object, rank: int) -> str | None:
-    if not isinstance(affix, dict):
-        return None
-    first = next((item for item in affix.values() if isinstance(item, dict)), None)
-    if not isinstance(first, dict):
-        return None
-    upgrade = first.get("upgrade")
-    if not isinstance(upgrade, dict):
-        return None
-    text = upgrade.get(str(max(min(rank, 5), 1) - 1))
-    if not isinstance(text, str):
-        return None
-    text = re.sub(r"<br\s*/?>", "\n", text)
-    text = re.sub(r"<.*?>", "", text)
-    return text.replace("@", "").replace("#", "").strip()
-
-
 def compare_command(args: argparse.Namespace) -> CommandResult:
     default_uid, _region = _uid_and_region(args)
     build_specs = args.build or []
@@ -929,69 +860,6 @@ def _cache_metadata(args: argparse.Namespace, uid: str) -> dict[str, object]:
         "key": uid,
         "status": "updated",
     }
-
-
-def _with_avatar_names(
-    args: argparse.Namespace,
-    payload: dict[str, object],
-) -> tuple[dict[str, object], list[str]]:
-    avatars = payload.get("avatarInfoList")
-    if not isinstance(avatars, list):
-        return payload, []
-    avatar_dicts = [avatar for avatar in avatars if isinstance(avatar, dict)]
-    if all(avatar.get("name") or avatar.get("route") for avatar in avatar_dicts):
-        return payload, []
-
-    try:
-        names = _avatar_name_index(args)
-    except CliError:
-        return payload, ["character name enrichment failed; use avatar ids for panel lookup"]
-
-    enriched = []
-    changed = False
-    for avatar in avatar_dicts:
-        item = dict(avatar)
-        info = names.get(str(item.get("avatarId") or item.get("id") or ""))
-        if info:
-            if not item.get("name") and info.get("name"):
-                item["name"] = info["name"]
-                changed = True
-            if not item.get("route") and info.get("route"):
-                item["route"] = info["route"]
-                changed = True
-        enriched.append(item)
-    if not changed:
-        return payload, []
-    new_payload = dict(payload)
-    new_payload["avatarInfoList"] = enriched
-    return new_payload, []
-
-
-def _avatar_name_index(args: argparse.Namespace) -> dict[str, dict[str, object]]:
-    response = HttpClient(
-        timeout=args.timeout,
-        cache_policy=args.cache,
-        output_dir=args.output_dir,
-        debug=args.debug,
-    ).request_json(
-        "GET",
-        f"{AMBR_BASE_URL}/api/v2/chs/avatar",
-        provider="ambr",
-        region="cn",
-        category="panel.character_names",
-    )
-    data = response.payload.get("data")
-    items = data.get("items") if isinstance(data, dict) else None
-    if not isinstance(items, dict):
-        return {}
-    index: dict[str, dict[str, object]] = {}
-    for item in items.values():
-        if not isinstance(item, dict):
-            continue
-        item_id = str(item.get("id") or "")
-        if item_id:
-            index[item_id] = item
-    return index
 
 
 def _refresh_source(source: str) -> str:

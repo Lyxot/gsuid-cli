@@ -30,6 +30,7 @@ from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.schemas import command_envelope_schema, error_envelope_schema
 from gsuid_cli.core.secrets import SecretStore
+from gsuid_cli.providers.public import PublicDataProvider
 from gsuid_cli.renderers.utility_text import render_meta_command_text
 
 CAPABILITIES = [
@@ -374,17 +375,15 @@ def _credential_check() -> dict[str, object]:
 
 def _network_check(args: argparse.Namespace) -> dict[str, object]:
     try:
-        response = HttpClient(
-            timeout=args.timeout,
-            cache_policy="off",
-            output_dir=args.output_dir,
-            debug=args.debug,
-        ).request_json(
-            "GET",
-            "https://api.ambr.top/v2/chs/avatar",
-            provider="ambr",
+        response = PublicDataProvider(
+            HttpClient(
+                timeout=args.timeout,
+                cache_policy="off",
+                output_dir=args.output_dir,
+                debug=args.debug,
+            )
+        ).health_check(
             region=args.region,
-            category="meta.doctor.network",
         )
     except CliError as exc:
         return {
