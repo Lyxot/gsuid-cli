@@ -309,10 +309,29 @@ def _mapping_list(value: object) -> list[Mapping[str, object]]:
     return [item for item in value if isinstance(item, Mapping)]
 
 
+def _first_mapping(value: object) -> Mapping[str, object]:
+    values = _mapping_list(value)
+    return values[0] if values else {}
+
+
 def _sequence(value: object) -> list[object]:
     if not isinstance(value, list):
         return []
     return list(value)
+
+
+def _number(value: object) -> float:
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _number_text(value: object) -> str:
+    number = _number(value)
+    if number.is_integer():
+        return str(int(number))
+    return f"{number:.2f}".rstrip("0").rstrip(".")
 
 
 def _finish(lines: list[str]) -> str:

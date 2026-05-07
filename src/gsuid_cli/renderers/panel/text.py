@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 import json
-import unicodedata
 from collections.abc import Mapping
 from functools import lru_cache
 
 from gsuid_cli.renderers.common import asset_path
+from gsuid_cli.renderers.utility_text import (
+    _finish,
+    _mapping,
+    _number_text,
+    _sequence,
+    _text,
+)
 
 PERCENT_PROPS = {
     "FIGHT_PROP_ATTACK_PERCENT",
@@ -513,16 +519,6 @@ def _signed_number(value: object) -> str:
     return f"{sign}{_number_text(number)}"
 
 
-def _number_text(value: object) -> str:
-    try:
-        number = float(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return "0"
-    if number.is_integer():
-        return str(int(number))
-    return f"{number:.2f}".rstrip("0").rstrip(".")
-
-
 def _rounded_number(value: object) -> str:
     try:
         return str(round(float(value)))  # type: ignore[arg-type]
@@ -532,28 +528,6 @@ def _rounded_number(value: object) -> str:
 
 def _percent_text(value: object) -> str:
     return f"{_number_text(value)}%"
-
-
-def _text(value: object) -> str:
-    if value is None or value == "":
-        return "-"
-    text = "".join(
-        " " if unicodedata.category(char).startswith("C") else char for char in str(value)
-    )
-    text = " ".join(text.split())
-    return text or "-"
-
-
-def _mapping(value: object) -> Mapping[str, object]:
-    return value if isinstance(value, Mapping) else {}
-
-
-def _sequence(value: object) -> list[object]:
-    return value if isinstance(value, list) else []
-
-
-def _finish(lines: list[str]) -> str:
-    return "\n".join(lines).rstrip() + "\n"
 
 
 @lru_cache(maxsize=16)

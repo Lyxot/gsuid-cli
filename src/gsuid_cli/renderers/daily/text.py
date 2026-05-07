@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 from gsuid_cli.renderers.common import bool_value, int_value, sequence, text_value
+from gsuid_cli.renderers.utility_text import _finish, _yes_no
 
 WEEKDAY_LABELS = {
     "monday": "周一",
@@ -254,10 +255,3 @@ def _seconds_to_hms(seconds: int) -> str:
     hours, minutes = divmod(minutes, 60)
     return f"{hours:02d}:{minutes:02d}:{_seconds:02d}"
 
-
-def _yes_no(value: object) -> str:
-    return "是" if bool_value(value) else "否"
-
-
-def _finish(lines: list[str]) -> str:
-    return "\n".join(lines).rstrip() + "\n"

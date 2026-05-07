@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from functools import lru_cache
 
 from gsuid_cli.renderers.common import asset_path, int_value, sequence, text_value
+from gsuid_cli.renderers.utility_text import _finish, _first_mapping, _mapping, _mapping_list
 
 GCG_CARD_NAME_PATH = asset_path("progress", "gcg", "data", "card_names.json")
 
@@ -255,19 +256,6 @@ def _stats(data: Mapping[str, object]) -> Mapping[str, object]:
     return stats if isinstance(stats, Mapping) else {}
 
 
-def _mapping(value: object) -> Mapping[str, object]:
-    return value if isinstance(value, Mapping) else {}
-
-
-def _mapping_list(value: object) -> list[Mapping[str, object]]:
-    return [item for item in sequence(value) if isinstance(item, Mapping)]
-
-
-def _first_mapping(value: object) -> Mapping[str, object]:
-    values = _mapping_list(value)
-    return values[0] if values else {}
-
-
 def _optional_int_text(value: object) -> str:
     if value in (None, ""):
         return ""
@@ -282,10 +270,6 @@ def _percent_text(value: object) -> str:
     if percent < 0:
         return ""
     return f"{percent:g}%"
-
-
-def _finish(lines: list[str]) -> str:
-    return "\n".join(lines).rstrip() + "\n"
 
 
 @lru_cache(maxsize=1)

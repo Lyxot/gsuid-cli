@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 
 from gsuid_cli.renderers.common import int_value, sequence, text_value
+from gsuid_cli.renderers.utility_text import _finish, _mapping
 
 KIND_LABELS = {
     "character": "角色资料",
@@ -426,10 +427,6 @@ def _index_label(value: object, label: str) -> str:
     return f"{label} {index}" if index > 0 else label
 
 
-def _mapping(value: object) -> Mapping[str, object]:
-    return value if isinstance(value, Mapping) else {}
-
-
 def _name(item: Mapping[str, object]) -> str:
     return text_value(item.get("name")) or "未知"
 
@@ -443,6 +440,3 @@ def _clean_text(value: object) -> str | None:
     text = text.replace("**", "")
     return text.strip() or None
 
-
-def _finish(lines: Sequence[str]) -> str:
-    return "\n".join(lines).rstrip() + "\n"

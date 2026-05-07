@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 import json
-import re
 from collections.abc import Mapping
 from functools import lru_cache
 
 from gsuid_cli.renderers.common import asset_path
+from gsuid_cli.renderers.utility_text import (
+    _finish,
+    _mapping,
+    _number,
+    _number_text,
+    _sequence,
+    _text,
+)
 
 PANEL_DATA = asset_path("panel", "data")
 STAT_LABELS = {
@@ -289,40 +296,6 @@ def _percent_number(value: object) -> str:
 def _stars(value: object) -> str:
     count = int(_number(value))
     return "★" * count if count > 0 else ""
-
-
-def _number_text(value: object) -> str:
-    number = _number(value)
-    if number.is_integer():
-        return str(int(number))
-    return f"{number:.2f}".rstrip("0").rstrip(".")
-
-
-def _text(value: object) -> str:
-    if value is None or value == "":
-        return "-"
-    text = re.sub(r"[\x00-\x1f\x7f]+", " ", str(value))
-    text = " ".join(text.split())
-    return text or "-"
-
-
-def _mapping(value: object) -> Mapping[str, object]:
-    return value if isinstance(value, Mapping) else {}
-
-
-def _sequence(value: object) -> list[object]:
-    return value if isinstance(value, list) else []
-
-
-def _number(value: object) -> float:
-    try:
-        return float(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return 0.0
-
-
-def _finish(lines: list[str]) -> str:
-    return "\n".join(lines).rstrip() + "\n"
 
 
 @lru_cache(maxsize=16)

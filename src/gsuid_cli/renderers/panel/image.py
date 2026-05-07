@@ -18,7 +18,7 @@ from gsuid_cli.renderers.common import (
     text_value,
     v4_background,
 )
-from gsuid_cli.renderers.panel_metrics import panel_reference_metrics
+from gsuid_cli.renderers.panel.metrics import panel_reference_metrics
 
 TEXTURE = asset_path("panel", "textures")
 DATA = asset_path("panel", "data")

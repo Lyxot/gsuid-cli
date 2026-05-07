@@ -22,13 +22,12 @@ from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.state import state_db
 from gsuid_cli.providers.akasha import AkashaProvider
 from gsuid_cli.providers.enka import EnkaProvider
-from gsuid_cli.renderers.panel import render_panel_graduation
-from gsuid_cli.renderers.panel_metrics import (
+from gsuid_cli.renderers.panel import render_panel_compare_text, render_panel_graduation
+from gsuid_cli.renderers.panel.metrics import (
     _action_damage,
     _base_area,
     panel_reference_metrics,
 )
-from gsuid_cli.renderers.panel_text import render_panel_compare_text
 from gsuid_cli.renderers.rank_text import render_rank_artifact_text
 
 

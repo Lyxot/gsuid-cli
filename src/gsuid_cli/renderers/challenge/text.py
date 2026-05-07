@@ -4,6 +4,7 @@ from collections.abc import Mapping, Sequence
 
 from gsuid_cli.renderers.challenge.common import timestamp_text
 from gsuid_cli.renderers.common import int_value, sequence, text_value
+from gsuid_cli.renderers.utility_text import _finish, _first_mapping, _mapping, _mapping_list
 
 DIFFICULTY_LABELS = {
     1: "简单模式",
@@ -298,19 +299,3 @@ def _abyss_floors(abyss: Mapping[str, object]) -> list[Mapping[str, object]]:
         key=lambda floor: int_value(floor.get("index")),
     )
 
-
-def _first_mapping(value: object) -> Mapping[str, object]:
-    values = _mapping_list(value)
-    return values[0] if values else {}
-
-
-def _mapping(value: object) -> Mapping[str, object]:
-    return value if isinstance(value, Mapping) else {}
-
-
-def _mapping_list(value: object) -> list[Mapping[str, object]]:
-    return [item for item in sequence(value) if isinstance(item, Mapping)]
-
-
-def _finish(lines: list[str]) -> str:
-    return "\n".join(lines).rstrip() + "\n"

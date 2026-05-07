@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from gsuid_cli.renderers.common import sequence, text_value
+from gsuid_cli.renderers.utility_text import _finish
 
 FILTER_LABELS = {
     "active": "进行中",
@@ -209,6 +210,3 @@ def _filter_label(value: object) -> str:
         return "未知"
     return FILTER_LABELS.get(text, text)
 
-
-def _finish(lines: list[str]) -> str:
-    return "\n".join(lines).rstrip() + "\n"

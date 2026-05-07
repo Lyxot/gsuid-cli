@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
-from gsuid_cli.renderers.common import int_value, sequence, text_value
+from gsuid_cli.renderers.common import int_value, text_value
+from gsuid_cli.renderers.utility_text import _finish, _mapping, _mapping_list
 
 OCULUS_LABELS = {
     "anemoculus_number": "风神瞳",
@@ -449,14 +450,3 @@ def _optional_int_text(value: object) -> str | None:
         return None
     return str(int_value(value))
 
-
-def _mapping(value: object) -> Mapping[str, object]:
-    return value if isinstance(value, Mapping) else {}
-
-
-def _mapping_list(value: object) -> list[Mapping[str, object]]:
-    return [item for item in sequence(value) if isinstance(item, Mapping)]
-
-
-def _finish(lines: list[str]) -> str:
-    return "\n".join(lines).rstrip() + "\n"

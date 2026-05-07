@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 
 from gsuid_cli.renderers.common import int_value, sequence, text_value
+from gsuid_cli.renderers.utility_text import _finish, _mapping, _mapping_list
 
 
 def render_guide_abyss_text(data: Mapping[str, object]) -> str:
@@ -212,17 +213,5 @@ def _range_text(start: str | None, end: str | None) -> str:
     return start or end or "未知"
 
 
-def _mapping(value: object) -> Mapping[str, object]:
-    return value if isinstance(value, Mapping) else {}
-
-
-def _mapping_list(value: object) -> list[Mapping[str, object]]:
-    return [item for item in sequence(value) if isinstance(item, Mapping)]
-
-
 def _text_list(value: object) -> list[str]:
     return [text for item in sequence(value) if (text := text_value(item))]
-
-
-def _finish(lines: Sequence[str]) -> str:
-    return "\n".join(lines).rstrip() + "\n"
