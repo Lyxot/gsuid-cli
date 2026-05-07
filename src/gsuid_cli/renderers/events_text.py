@@ -209,4 +209,3 @@ def _filter_label(value: object) -> str:
     if text is None:
         return "未知"
     return FILTER_LABELS.get(text, text)
-

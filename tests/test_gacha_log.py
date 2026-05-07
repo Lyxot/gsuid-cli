@@ -379,7 +379,6 @@ def test_gacha_commands_render_text_write_artifacts(monkeypatch, tmp_path) -> No
 
     assert code == 0
     text = _artifact_text(payload, "gacha/authkey-text")
-    raw = json.dumps(payload, ensure_ascii=False)
     assert "祈愿链接凭据" in text
     assert "内容: 已隐藏" in text
 
@@ -398,7 +397,6 @@ def test_gacha_refresh_render_text_redacts_url(monkeypatch, tmp_path) -> None:
 
     assert code == 0
     text = _artifact_text(payload, "gacha/refresh-text")
-    raw = json.dumps(payload, ensure_ascii=False)
     assert "祈愿记录刷新" in text
     assert "新增: 2" in text
 
@@ -416,7 +414,6 @@ def test_gacha_authkey_refresh_render_text_redacts_secrets(monkeypatch, tmp_path
 
     assert code == 0
     text = _artifact_text(payload, "gacha/authkey-refresh-text")
-    raw = json.dumps(payload, ensure_ascii=False)
     assert "祈愿链接凭据刷新" in text
     assert "保存: 已保存" in text
     assert "内容: 已隐藏" in text

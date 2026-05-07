@@ -298,4 +298,3 @@ def _abyss_floors(abyss: Mapping[str, object]) -> list[Mapping[str, object]]:
         ],
         key=lambda floor: int_value(floor.get("index")),
     )
-

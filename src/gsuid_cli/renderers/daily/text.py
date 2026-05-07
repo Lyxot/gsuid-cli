@@ -254,4 +254,3 @@ def _seconds_to_hms(seconds: int) -> str:
     minutes, _seconds = divmod(max(seconds, 0), 60)
     hours, minutes = divmod(minutes, 60)
     return f"{hours:02d}:{minutes:02d}:{_seconds:02d}"
-

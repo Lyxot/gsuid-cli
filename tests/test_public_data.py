@@ -657,7 +657,6 @@ def test_guide_recommend_rerun_render_text_writes_artifacts(monkeypatch, tmp_pat
         assert expected in text
 
 
-
 def test_recommend_render_text_image_preserves_image_primary_artifact(
     monkeypatch, tmp_path
 ) -> None:
@@ -748,7 +747,6 @@ def test_event_render_text_writes_artifacts(monkeypatch, tmp_path) -> None:
         assert "图片: https://example.test/a.jpg" in text
 
 
-
 def test_codes_render_text_writes_artifact(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr(
@@ -769,7 +767,6 @@ def test_codes_render_text_writes_artifact(monkeypatch, tmp_path) -> None:
     assert "可用兑换码\n  - GENSHINGIFT" in text
     assert "    服务器: 美服、欧服、亚服、港澳台服" in text
     assert "    奖励: 原石 x50、Jueyun Chili Chicken x5、Stir-Fried Fish Noodles x5" in text
-
 
 
 def test_announcements_render_text_writes_artifacts(monkeypatch, tmp_path) -> None:

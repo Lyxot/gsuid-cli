@@ -219,7 +219,6 @@ def test_daily_signin_render_text_writes_artifact(monkeypatch, tmp_path) -> None
     assert "✓ 今日已签到" in text
 
 
-
 def test_daily_bbs_coin_render_text_writes_artifact(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
 
@@ -543,9 +542,7 @@ def test_player_inventory_calendar_diary_render_images(monkeypatch, tmp_path) ->
             assert image.size == size
             assert image.getbbox() is not None
 
-    assert (
-        "genshinuid://resource/chars/10000021.png" in captured_urls
-    )
+    assert "genshinuid://resource/chars/10000021.png" in captured_urls
 
 
 def test_player_inventory_render_data_image_preserves_structured_data(

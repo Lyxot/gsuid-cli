@@ -439,4 +439,3 @@ def _clean_text(value: object) -> str | None:
     text = re.sub(r"</?color[^>]*>", "", text)
     text = text.replace("**", "")
     return text.strip() or None
-

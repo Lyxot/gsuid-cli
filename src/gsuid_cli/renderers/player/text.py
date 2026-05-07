@@ -449,4 +449,3 @@ def _optional_int_text(value: object) -> str | None:
     if value in (None, ""):
         return None
     return str(int_value(value))
-

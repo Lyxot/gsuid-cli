@@ -147,8 +147,7 @@ def _find_fastest_mirror(
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(mirrors)) as executor:
         futures = [
-            executor.submit(_probe_mirror_once, tag, base_url, timeout)
-            for tag, base_url in mirrors
+            executor.submit(_probe_mirror_once, tag, base_url, timeout) for tag, base_url in mirrors
         ]
         probes = [
             probe
