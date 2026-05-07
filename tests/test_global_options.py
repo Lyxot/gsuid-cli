@@ -45,42 +45,24 @@ def test_default_render_data_shows_data_and_sources() -> None:
     assert payload["sources"][0]["provider"] == "local"
 
 
-def test_render_image_hides_data_and_sources() -> None:
-    stdout = io.StringIO()
-    stderr = io.StringIO()
+def test_non_data_render_hides_data_and_sources() -> None:
+    for render in ("image", "text"):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
 
-    code = run(
-        ["meta", "version", "--request-id=req-compact", "--render=image"],
-        stdout=stdout,
-        stderr=stderr,
-    )
+        code = run(
+            ["meta", "version", "--request-id=req-compact", f"--render={render}"],
+            stdout=stdout,
+            stderr=stderr,
+        )
 
-    assert code == 0
-    assert stderr.getvalue() == ""
-    payload = json.loads(stdout.getvalue())
-    assert payload["ok"] is True
-    assert payload["command"] == "meta.version"
-    assert "data" not in payload
-    assert "sources" not in payload
-
-
-def test_render_text_hides_data_and_sources() -> None:
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-
-    code = run(
-        ["meta", "version", "--request-id=req-compact", "--render=text"],
-        stdout=stdout,
-        stderr=stderr,
-    )
-
-    assert code == 0
-    assert stderr.getvalue() == ""
-    payload = json.loads(stdout.getvalue())
-    assert payload["ok"] is True
-    assert payload["command"] == "meta.version"
-    assert "data" not in payload
-    assert "sources" not in payload
+        assert code == 0
+        assert stderr.getvalue() == ""
+        payload = json.loads(stdout.getvalue())
+        assert payload["ok"] is True
+        assert payload["command"] == "meta.version"
+        assert "data" not in payload
+        assert "sources" not in payload
 
 
 def test_render_all_shows_data_and_sources() -> None:

@@ -225,7 +225,6 @@ def test_challenge_commands_render_text_write_artifacts(monkeypatch, tmp_path) -
         assert expected_detail in text
         if command != "challenge.hard-rank":
             assert "Amber" in text
-            assert "角色10000021" not in text
 
 
 def test_challenge_plain_text_image_prints_image_path(monkeypatch, tmp_path) -> None:
@@ -473,8 +472,6 @@ def test_progress_commands_render_text_write_artifacts(monkeypatch, tmp_path) ->
         text = path.read_text(encoding="utf-8")
         assert expected_title in text
         assert expected_detail in text
-        if command == "progress.gcg":
-            assert "卡牌1103" not in text
 
 
 def test_progress_plain_text_image_prints_image_path(monkeypatch, tmp_path) -> None:

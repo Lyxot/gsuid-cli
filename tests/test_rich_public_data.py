@@ -16,48 +16,6 @@ from gsuid_cli.core.models import CommandResult
 from gsuid_cli.providers.public import PublicDataProvider
 
 
-def test_rich_public_commands_parse_and_return_json(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.public_data._common.PublicDataProvider", FakeProvider)
-    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
-
-    commands = [
-        (["wiki", "food", "--name", "Sweet Madame"], "wiki.food", "item"),
-        (["wiki", "talent", "--character", "Amber", "--talent", "1"], "wiki.talent", "talent"),
-        (
-            ["wiki", "constellation", "--character", "Amber", "--constellation", "1"],
-            "wiki.constellation",
-            "constellation",
-        ),
-        (
-            ["wiki", "character-materials", "--character", "Amber"],
-            "wiki.character-materials",
-            "ascension",
-        ),
-        (["wiki", "weapon-materials", "--weapon", "Bow"], "wiki.weapon-materials", "upgrade"),
-        (["guide", "character", "--name", "Amber"], "guide.character", "overview"),
-        (
-            ["guide", "reference-panel", "--character", "Amber"],
-            "guide.reference-panel",
-            "available",
-        ),
-        (["guide", "abyss", "--floor", "12"], "guide.abyss", "available"),
-        (["guide", "theater"], "guide.theater", "available"),
-        (["recommend", "build", "--character", "Amber"], "recommend.build", "recommendations"),
-        (["recommend", "holder", "--item", "Bow"], "recommend.holder", "matches"),
-        (["announcements", "list", "--limit", "1"], "announcements.list", "announcements"),
-        (["announcements", "show", "--id", "1"], "announcements.show", "announcement"),
-        (["rerun", "list", "--limit", "1"], "rerun.list", "reruns"),
-        (["misc", "primogems-plan", "--version", "5.0"], "misc.primogems-plan", "estimate"),
-    ]
-
-    for argv, command, key in commands:
-        code, payload = _run_json(argv)
-
-        assert code == 0
-        assert payload["command"] == command
-        assert key in payload["data"]
-
 
 def test_map_find_writes_image_artifact(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))

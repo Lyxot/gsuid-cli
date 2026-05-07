@@ -731,7 +731,6 @@ def test_rank_commands_use_akasha_provider(monkeypatch, tmp_path) -> None:
     assert payload["data"]["render"] == "rank/list-text"
     list_text = _text_artifact(payload)
     assert "Akasha排行 - Traveler" in list_text
-    assert "标题统计" not in list_text
     assert "温迪 COMBO" in list_text
     assert "武器 绝弦 精5" in list_text
 

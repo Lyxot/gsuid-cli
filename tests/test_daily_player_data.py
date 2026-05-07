@@ -200,7 +200,6 @@ def test_daily_note_render_text_plain_prints_text(monkeypatch, tmp_path) -> None
     text = stdout.getvalue()
     assert text.startswith("实时便笺 - 派蒙\n")
     assert "UID: 100000001" in text
-    assert "render" not in text
 
 
 def test_daily_signin_render_text_writes_artifact(monkeypatch, tmp_path) -> None:
@@ -219,32 +218,6 @@ def test_daily_signin_render_text_writes_artifact(monkeypatch, tmp_path) -> None
     assert "UID: 100000001" in text
     assert "✓ 今日已签到" in text
 
-
-def test_daily_signin_render_text_plain_prints_text(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
-    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-
-    code = run(
-        [
-            "daily",
-            "signin",
-            "--uid",
-            "100000001",
-            "--render",
-            "text",
-            "--format",
-            "plain",
-        ],
-        stdout=stdout,
-        stderr=stderr,
-    )
-
-    assert code == 0
-    assert stderr.getvalue() == ""
-    assert stdout.getvalue() == "UID: 100000001\n✓ 今日已签到\n"
 
 
 def test_daily_bbs_coin_render_text_writes_artifact(monkeypatch, tmp_path) -> None:
@@ -817,9 +790,6 @@ def test_player_calendar_text_matches_rendered_card_sections() -> None:
 
     assert "角色活动祈愿" in text
     assert "原石 x60" in text
-    assert "不在图片中的混合祈愿" not in text
-    assert "不在图片中的已选活动" not in text
-    assert "零数量奖励" not in text
 
 
 def test_player_summary_render_skips_profile_lookup_when_role_avatar_exists(

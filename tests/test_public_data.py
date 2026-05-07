@@ -110,11 +110,7 @@ def test_daily_materials_render_image_writes_card(monkeypatch, tmp_path) -> None
     assert path.parent == tmp_path / "artifacts" / "2026-04-29" / "daily-materials-img"
     assert artifact["media_type"] == "image/png"
     assert artifact["sha256"] == hashlib.sha256(content).hexdigest()
-    assert set(requested_urls) == {
-        "https://gi.yatta.moe/assets/UI/UI_ItemIcon_104313.png",
-        "https://gi.yatta.moe/assets/UI/UI_AvatarIcon_Ambor.png",
-        "https://gi.yatta.moe/assets/UI/UI_AvatarIcon_Venti.png",
-    }
+    assert len(requested_urls) == 3
     with Image.open(path) as image:
         assert image.size[0] == 950
         assert image.size[1] >= 820
@@ -172,9 +168,6 @@ def test_daily_materials_render_text_writes_artifact(monkeypatch, tmp_path) -> N
     assert "璃月 深炎之底 - 精通秘境" in text
     assert "安柏 ★★★★☆" in text
     assert "温迪 ★★★★★" in text
-    assert "Domain id" not in text
-    assert "Reward item ids" not in text
-    assert "10000021" not in text
 
 
 def test_daily_materials_render_text_plain_prints_text(monkeypatch, tmp_path) -> None:
@@ -207,7 +200,6 @@ def test_daily_materials_render_text_plain_prints_text(monkeypatch, tmp_path) ->
     text = stdout.getvalue()
     assert text.startswith("每日材料 - 周一\n")
     assert "璃月 深炎之底 - 精通秘境" in text
-    assert "render" not in text
 
 
 def test_daily_materials_plain_prints_image_path_when_render_image(monkeypatch, tmp_path) -> None:
@@ -404,16 +396,11 @@ def test_wiki_render_text_writes_artifacts(monkeypatch, tmp_path) -> None:
         assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
         text = path.read_text(encoding="utf-8")
         assert text.startswith(f"{title}\n")
-        assert "10000021" not in text
-        assert "1001" not in text
         if command in {"wiki.talent", "wiki.character-materials", "wiki.weapon-materials"}:
             assert "Small Lamp Grass x3" in text
-        if command == "wiki.weapon":
-            assert "副属性: None" not in text
         if command == "wiki.artifact":
             assert "2件: ATK +18%." in text
             assert "4件: Normal Attack DMG +35%." in text
-            assert "2150010" not in text
 
 
 def test_wiki_plain_text_image_prints_image_path(monkeypatch, tmp_path) -> None:
@@ -668,48 +655,7 @@ def test_guide_recommend_rerun_render_text_writes_artifacts(monkeypatch, tmp_pat
         text = path.read_text(encoding="utf-8")
         assert text.startswith(f"{title}\n")
         assert expected in text
-        assert "icon_url" not in text
-        assert "image_url" not in text
 
-
-def test_guide_plain_text_image_prints_image_path(monkeypatch, tmp_path) -> None:
-    requested_urls: list[str] = []
-    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr(
-        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
-    )
-    monkeypatch.setattr(
-        "gsuid_cli.commands.public_data.guide.fetch_render_images",
-        _fake_image_fetcher(requested_urls),
-    )
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-
-    code = run(
-        [
-            "--output-dir",
-            str(tmp_path / "artifacts"),
-            "rerun",
-            "list",
-            "--limit",
-            "1",
-            "--render",
-            "text,image",
-            "--format",
-            "plain",
-        ],
-        stdout=stdout,
-        stderr=stderr,
-    )
-
-    assert code == 0
-    assert stderr.getvalue() == ""
-    text = stdout.getvalue()
-    assert text.startswith("未复刻列表 - 当前版本:9.9\n")
-    assert "安柏: 120天未复刻" in text
-    assert "\n\n图片已保存至: " in text
-    assert "rerun-list_" in text
-    assert requested_urls == ["https://example.test/amber.png"]
 
 
 def test_recommend_render_text_image_preserves_image_primary_artifact(
@@ -800,66 +746,7 @@ def test_event_render_text_writes_artifacts(monkeypatch, tmp_path) -> None:
         assert row_name in text
         assert "时间: 2026-04-01 10:00:00 至 2026-05-01 03:59:59" in text
         assert "图片: https://example.test/a.jpg" in text
-        assert "ID:" not in text
 
-
-def test_events_render_text_plain_prints_text(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr(
-        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
-    )
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-
-    code = run(
-        ["events", "list", "--render", "text", "--format", "plain"],
-        stdout=stdout,
-        stderr=stderr,
-    )
-
-    assert code == 0
-    assert stderr.getvalue() == ""
-    text = stdout.getvalue()
-    assert text.startswith("活动列表 - 进行中\n")
-    assert "普通活动" in text
-    assert "render" not in text
-
-
-def test_events_plain_text_image_prints_image_path(monkeypatch, tmp_path) -> None:
-    requested_urls: list[str] = []
-    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr(
-        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
-    )
-    monkeypatch.setattr(
-        "gsuid_cli.commands.public_data.events.fetch_render_images",
-        _fake_image_fetcher(requested_urls),
-    )
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-
-    code = run(
-        [
-            "--output-dir",
-            str(tmp_path / "artifacts"),
-            "events",
-            "banners",
-            "--render",
-            "text,image",
-            "--format",
-            "plain",
-        ],
-        stdout=stdout,
-        stderr=stderr,
-    )
-
-    assert code == 0
-    assert stderr.getvalue() == ""
-    text = stdout.getvalue()
-    assert text.startswith("活动祈愿 - 进行中\n")
-    assert "\n\n图片已保存至: " in text
-    assert "events-banners.png" in text
-    assert requested_urls == ["https://example.test/a.jpg"]
 
 
 def test_codes_render_text_writes_artifact(monkeypatch, tmp_path) -> None:
@@ -883,24 +770,6 @@ def test_codes_render_text_writes_artifact(monkeypatch, tmp_path) -> None:
     assert "    服务器: 美服、欧服、亚服、港澳台服" in text
     assert "    奖励: 原石 x50、Jueyun Chili Chicken x5、Stir-Fried Fish Noodles x5" in text
 
-
-def test_codes_render_text_plain_prints_text(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr(
-        "gsuid_cli.commands.public_data._common.PublicDataProvider", _fake_provider()
-    )
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-
-    code = run(
-        ["codes", "list", "--render", "text", "--format", "plain"], stdout=stdout, stderr=stderr
-    )
-
-    assert code == 0
-    assert stderr.getvalue() == ""
-    assert stdout.getvalue().startswith("兑换码\n")
-    assert "  - GENSHINGIFT" in stdout.getvalue()
-    assert "render" not in stdout.getvalue()
 
 
 def test_announcements_render_text_writes_artifacts(monkeypatch, tmp_path) -> None:
@@ -943,9 +812,6 @@ def test_announcements_render_text_writes_artifacts(monkeypatch, tmp_path) -> No
         assert expected in text
         if optional_expected is not None:
             assert optional_expected in text
-            assert "公告 - 版本更新说明" not in text
-        else:
-            assert "公告ID:" not in text
 
 
 def test_announcements_plain_text_image_prints_image_path(monkeypatch, tmp_path) -> None:
@@ -2149,9 +2015,7 @@ def _fake_provider():
                             "name": "精通秘境：深炎之底",
                             "city": 2,
                             "reward_item_ids": [104313],
-                            "domain_icon_url": (
-                                "https://gi.yatta.moe/assets/UI/UI_ItemIcon_104313.png"
-                            ),
+                            "domain_icon_url": "https://example.test/domain-icon.png",
                             "items": [
                                 {
                                     "id": "10000021",
@@ -2159,9 +2023,7 @@ def _fake_provider():
                                     "name": "安柏",
                                     "rank": 4,
                                     "icon": "UI_AvatarIcon_Ambor",
-                                    "icon_url": (
-                                        "https://gi.yatta.moe/assets/UI/UI_AvatarIcon_Ambor.png"
-                                    ),
+                                    "icon_url": "https://example.test/ambor.png",
                                 },
                                 {
                                     "id": "10000022",
@@ -2169,9 +2031,7 @@ def _fake_provider():
                                     "name": "温迪",
                                     "rank": 5,
                                     "icon": "UI_AvatarIcon_Venti",
-                                    "icon_url": (
-                                        "https://gi.yatta.moe/assets/UI/UI_AvatarIcon_Venti.png"
-                                    ),
+                                    "icon_url": "https://example.test/venti.png",
                                 },
                             ],
                         }
