@@ -17,7 +17,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "profile.list",
@@ -25,7 +24,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "profile.show",
@@ -33,7 +31,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "profile.default",
@@ -41,7 +38,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "profile.delete",
@@ -49,7 +45,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
 ]
 

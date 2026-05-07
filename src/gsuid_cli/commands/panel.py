@@ -61,7 +61,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "panel.list",
@@ -69,7 +68,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "panel.show",
@@ -77,7 +75,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "panel.compare",
@@ -85,7 +82,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "panel.save",
@@ -93,7 +89,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "panel.artifacts",
@@ -101,7 +96,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "panel.showcase",
@@ -109,7 +103,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "panel.graduation",
@@ -117,7 +110,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
 ]
 

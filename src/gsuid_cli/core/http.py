@@ -8,7 +8,15 @@ from typing import Any
 
 import httpx
 
-from gsuid_cli.core.cache import AssetCache, HttpCache, cache_key, sanitized_url
+from gsuid_cli.core.cache import AssetCache, CachedResponse, HttpCache, cache_key, sanitized_url
+from gsuid_cli.core.cache_policy import (
+    CacheRule,
+    asset_cache_usage,
+    cache_expires_at,
+    cache_is_fresh,
+    cache_rule_for,
+    cache_version_for,
+)
 from gsuid_cli.core.errors import (
     EXIT_AUTH,
     EXIT_CACHE,
@@ -20,6 +28,12 @@ from gsuid_cli.core.time import utc_now
 
 AUTH_RETCODES = {-100, 10001, 10102}
 VERIFICATION_RETCODES = {10035, 5003, 10041, 1034}
+GAME_VERSION_BUILD_URL = (
+    "https://api-takumi.mihoyo.com/downloader/sophon_chunk/api/getBuild"
+    "?branch=main&package_id=8xfMve0uwQ&password=CW8GbLNU8f&plat_app=ddxf5qt290cg"
+)
+GAME_VERSION_PROVIDER = "sophon"
+GAME_VERSION_CATEGORY = "cache.game-version"
 _SOURCE_CAPTURE: ContextVar[_SourceCapture | None] = ContextVar(
     "gsuid_source_capture",
     default=None,
@@ -81,7 +95,7 @@ class HttpClient:
         self.cache_policy = cache_policy
         self.output_dir = output_dir
         self.cache = HttpCache(output_dir) if cache_policy != "off" else None
-        self._assets: AssetCache | None = None
+        self._assets: dict[str, AssetCache] = {}
         self.debug = debug
         self.transport = transport
 
@@ -99,9 +113,26 @@ class HttpClient:
     ) -> ProviderResponse:
         method = method.upper()
         key = cache_key(method, url, params=params, body=json_body)
-        if method == "GET" and self.cache is not None and self.cache_policy in {"use", "only"}:
-            cached = self.cache.get(key) if self.cache_policy == "use" else self.cache.require(key)
+        rule = cache_rule_for(
+            method=method,
+            provider=provider,
+            category=category,
+            response_kind="json",
+        )
+        cache_enabled = method == "GET" and self.cache is not None and rule.cacheable
+        current_cache_version: str | None = None
+        if cache_enabled and self.cache_policy in {"use", "only"}:
+            cached = self.cache.get(key)
             if cached is not None:
+                current_cache_version = self._current_cache_version(
+                    rule,
+                    required=self.cache_policy == "only",
+                )
+            if cached is not None and _cached_json_is_fresh(
+                cached,
+                rule,
+                current_cache_version=current_cache_version,
+            ):
                 return ProviderResponse(
                     payload=cached.payload,
                     source=_record_source(
@@ -117,14 +148,13 @@ class HttpClient:
                     ),
                     status_code=cached.status_code,
                 )
+            if cached is not None and _staleness_is_known(rule, current_cache_version):
+                self.cache.delete(key)
+            if self.cache_policy == "only":
+                raise _cache_miss(provider, region, category, method, url, params)
 
         if self.cache_policy == "only":
-            raise CliError(
-                "CACHE_MISS",
-                "No in-memory provider response is available for this request.",
-                EXIT_CACHE,
-                _request_details(provider, region, category, method, url, params),
-            )
+            raise _cache_miss(provider, region, category, method, url, params)
 
         try:
             with httpx.Client(timeout=self.timeout, transport=self.transport) as client:
@@ -217,13 +247,25 @@ class HttpClient:
                 fetched_at=fetched_at,
             )
 
-        if method == "GET" and self.cache is not None and self.cache_policy in {"use", "refresh"}:
-            self.cache.set(
-                key,
-                payload=payload,
-                fetched_at=fetched_at,
-                status_code=response.status_code,
+        if cache_enabled and self.cache_policy in {"use", "refresh"}:
+            current_cache_version = current_cache_version or self._current_cache_version(
+                rule,
+                required=False,
             )
+            cache_version = cache_version_for(rule, current_cache_version)
+            if not rule.versioned or cache_version is not None:
+                self.cache.set(
+                    key,
+                    url=url,
+                    params=params,
+                    payload=payload,
+                    fetched_at=fetched_at,
+                    status_code=response.status_code,
+                    expires_at=cache_expires_at(fetched_at, rule),
+                    cache_policy=rule.name,
+                    cache_version=cache_version,
+                    persist=rule.persist,
+                )
 
         return ProviderResponse(
             payload=payload,
@@ -256,19 +298,34 @@ class HttpClient:
     ) -> ProviderBytesResponse:
         method = method.upper()
         key = cache_key(method, url, params=params)
-        asset_cache = (
-            self._asset_cache() if method == "GET" and self.cache_policy != "off" else None
+        rule = cache_rule_for(
+            method=method,
+            provider=provider,
+            category=category,
+            response_kind="asset",
         )
+        usage = asset_cache_usage(provider=provider, category=category, url=cache_identity_url)
+        asset_cache = (
+            self._asset_cache(usage)
+            if method == "GET" and self.cache_policy != "off" and rule.cacheable
+            else None
+        )
+        current_cache_version: str | None = None
         details = _request_details(provider, region, category, method, url, params)
         if asset_cache is not None:
             with asset_cache.locked(key):
                 if self.cache_policy in {"use", "only"}:
-                    cached = (
-                        asset_cache.get(key)
-                        if self.cache_policy == "use"
-                        else asset_cache.require(key, details=details)
-                    )
+                    cached = asset_cache.get(key)
                     if cached is not None:
+                        current_cache_version = self._current_cache_version(
+                            rule,
+                            required=self.cache_policy == "only",
+                        )
+                    if cached is not None and _cached_asset_is_fresh(
+                        cached.metadata,
+                        rule,
+                        current_cache_version=current_cache_version,
+                    ):
                         return ProviderBytesResponse(
                             content=cached.content,
                             media_type=cached.media_type,
@@ -284,6 +341,10 @@ class HttpClient:
                             ),
                             status_code=_metadata_status_code(cached.metadata),
                         )
+                    if cached is not None and _staleness_is_known(rule, current_cache_version):
+                        asset_cache.delete(key)
+                    if self.cache_policy == "only":
+                        raise _cache_miss(provider, region, category, method, url, params)
 
                 if self.cache_policy != "only":
                     return self._request_bytes_uncached(
@@ -297,6 +358,12 @@ class HttpClient:
                         expected_media_types=expected_media_types,
                         asset_cache=asset_cache,
                         asset_key=key,
+                        asset_rule=rule,
+                        asset_cache_version=cache_version_for(
+                            rule,
+                            current_cache_version
+                            or self._current_cache_version(rule, required=False),
+                        ),
                     )
         elif self.cache_policy != "only":
             return self._request_bytes_uncached(
@@ -310,14 +377,11 @@ class HttpClient:
                 expected_media_types=expected_media_types,
                 asset_cache=None,
                 asset_key=None,
+                asset_rule=None,
+                asset_cache_version=None,
             )
 
-        raise CliError(
-            "CACHE_MISS",
-            "No cached asset is available for this request.",
-            EXIT_CACHE,
-            details,
-        )
+        raise _cache_miss(provider, region, category, method, url, params, details=details)
 
     def _request_bytes_uncached(
         self,
@@ -332,6 +396,8 @@ class HttpClient:
         expected_media_types: tuple[str, ...] | None,
         asset_cache: AssetCache | None,
         asset_key: str | None,
+        asset_rule: CacheRule | None,
+        asset_cache_version: str | None,
     ) -> ProviderBytesResponse:
         try:
             with httpx.Client(timeout=self.timeout, transport=self.transport) as client:
@@ -446,7 +512,12 @@ class HttpClient:
                     )
                 ),
             )
-        if asset_cache is not None and asset_key is not None:
+        if (
+            asset_cache is not None
+            and asset_key is not None
+            and asset_rule is not None
+            and (not asset_rule.versioned or asset_cache_version is not None)
+        ):
             asset_cache.store_success(
                 asset_key,
                 url=url,
@@ -455,6 +526,9 @@ class HttpClient:
                 content=response.content,
                 status_code=response.status_code,
                 fetched_at=fetched_at,
+                expires_at=cache_expires_at(fetched_at, asset_rule),
+                cache_policy=asset_rule.name,
+                cache_version=asset_cache_version,
             )
         return ProviderBytesResponse(
             content=response.content,
@@ -472,10 +546,144 @@ class HttpClient:
             status_code=response.status_code,
         )
 
-    def _asset_cache(self) -> AssetCache:
-        if self._assets is None:
-            self._assets = AssetCache(self.output_dir)
-        return self._assets
+    def _asset_cache(self, usage: str) -> AssetCache:
+        if usage not in self._assets:
+            self._assets[usage] = AssetCache(self.output_dir, usage=usage)
+        return self._assets[usage]
+
+    def _current_cache_version(self, rule: CacheRule, *, required: bool) -> str | None:
+        if not rule.versioned:
+            return None
+        try:
+            return self._current_game_version_tag()
+        except CliError:
+            if required:
+                raise
+            return None
+
+    def _current_game_version_tag(self) -> str:
+        if self.cache is None:
+            raise _cache_miss(
+                GAME_VERSION_PROVIDER,
+                "cn",
+                GAME_VERSION_CATEGORY,
+                "GET",
+                GAME_VERSION_BUILD_URL,
+                None,
+            )
+        method = "GET"
+        rule = cache_rule_for(
+            method=method,
+            provider=GAME_VERSION_PROVIDER,
+            category=GAME_VERSION_CATEGORY,
+            response_kind="json",
+        )
+        key = cache_key(method, GAME_VERSION_BUILD_URL)
+        if self.cache_policy in {"use", "only"}:
+            cached = self.cache.get(key)
+            if cached is not None and _cached_json_is_fresh(
+                cached,
+                rule,
+                current_cache_version=None,
+            ):
+                tag = _game_version_tag(cached.payload)
+                if tag is not None:
+                    return tag
+            if cached is not None:
+                self.cache.delete(key)
+            if self.cache_policy == "only":
+                raise _cache_miss(
+                    GAME_VERSION_PROVIDER,
+                    "cn",
+                    GAME_VERSION_CATEGORY,
+                    method,
+                    GAME_VERSION_BUILD_URL,
+                    None,
+                )
+
+        try:
+            with httpx.Client(timeout=self.timeout, transport=self.transport) as client:
+                response = client.request(method, GAME_VERSION_BUILD_URL)
+        except httpx.TimeoutException as exc:
+            raise _game_version_error(
+                "NETWORK_TIMEOUT",
+                "Provider request timed out.",
+                EXIT_NETWORK,
+                method=method,
+                retryable=True,
+            ) from exc
+        except httpx.RequestError as exc:
+            raise _game_version_error(
+                "NETWORK_ERROR",
+                "Provider request failed.",
+                EXIT_NETWORK,
+                method=method,
+                retryable=True,
+            ) from exc
+
+        fetched_at = utc_now()
+        if response.status_code >= 400:
+            raise _game_version_error(
+                "UPSTREAM_HTTP_ERROR",
+                "Provider returned an HTTP error.",
+                EXIT_UPSTREAM,
+                method=method,
+                status_code=response.status_code,
+                body=response.text,
+                debug=self.debug,
+                retryable=response.status_code >= 500,
+            )
+
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise _game_version_error(
+                "UPSTREAM_INVALID_RESPONSE",
+                "Provider returned a non-JSON response.",
+                EXIT_UPSTREAM,
+                method=method,
+                status_code=response.status_code,
+                body=response.text,
+                debug=self.debug,
+                retryable=False,
+            ) from exc
+        if not isinstance(payload, dict):
+            raise _game_version_error(
+                "UPSTREAM_INVALID_RESPONSE",
+                "Provider returned an unexpected JSON shape.",
+                EXIT_UPSTREAM,
+                method=method,
+                status_code=response.status_code,
+                body=response.text,
+                debug=self.debug,
+                retryable=False,
+            )
+        tag = _game_version_tag(payload)
+        if tag is None:
+            raise _game_version_error(
+                "UPSTREAM_INVALID_RESPONSE",
+                "Provider response did not include a game version tag.",
+                EXIT_UPSTREAM,
+                method=method,
+                status_code=response.status_code,
+                body=response.text,
+                debug=self.debug,
+                retryable=False,
+            )
+
+        if self.cache_policy in {"use", "refresh"}:
+            self.cache.set(
+                key,
+                url=GAME_VERSION_BUILD_URL,
+                params=None,
+                payload=payload,
+                fetched_at=fetched_at,
+                status_code=response.status_code,
+                expires_at=cache_expires_at(fetched_at, rule),
+                cache_policy=rule.name,
+                cache_version=None,
+            )
+        return tag
 
 
 def raise_for_retcode(
@@ -580,6 +788,81 @@ def _metadata_status_code(metadata: dict[str, object]) -> int:
     return 200
 
 
+def _game_version_tag(payload: dict[str, object]) -> str | None:
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        return None
+    tag = data.get("tag")
+    if not isinstance(tag, str) or not tag.strip():
+        return None
+    return tag.strip()
+
+
+def _game_version_error(
+    code: str,
+    message: str,
+    exit_code: int,
+    *,
+    method: str,
+    status_code: int | None = None,
+    body: str | None = None,
+    debug: bool = False,
+    retryable: bool,
+) -> CliError:
+    details = _request_details(
+        GAME_VERSION_PROVIDER,
+        "cn",
+        GAME_VERSION_CATEGORY,
+        method,
+        GAME_VERSION_BUILD_URL,
+        None,
+    )
+    if status_code is not None:
+        details["status_code"] = status_code
+    if debug and body is not None:
+        details["body_preview"] = body[:200]
+    return CliError(code, message, exit_code, details, retryable=retryable)
+
+
+def _cached_json_is_fresh(
+    cached: CachedResponse,
+    rule: CacheRule,
+    *,
+    current_cache_version: str | None,
+) -> bool:
+    return cache_is_fresh(
+        fetched_at=cached.fetched_at,
+        expires_at=cached.expires_at,
+        cache_version=cached.cache_version,
+        current_cache_version=current_cache_version,
+        rule=rule,
+        now=utc_now(),
+    )
+
+
+def _cached_asset_is_fresh(
+    metadata: dict[str, object],
+    rule: CacheRule,
+    *,
+    current_cache_version: str | None,
+) -> bool:
+    fetched_at = _metadata_text(metadata, "fetched_at")
+    if fetched_at is None:
+        return False
+    return cache_is_fresh(
+        fetched_at=fetched_at,
+        expires_at=_metadata_text(metadata, "expires_at"),
+        cache_version=_metadata_text(metadata, "cache_version"),
+        current_cache_version=current_cache_version,
+        rule=rule,
+        now=utc_now(),
+    )
+
+
+def _staleness_is_known(rule: CacheRule, current_cache_version: str | None) -> bool:
+    return not rule.versioned or current_cache_version is not None
+
+
 def _media_type_matches(media_type: str, expected_media_types: tuple[str, ...]) -> bool:
     return any(
         media_type.startswith(expected) if expected.endswith("/") else media_type == expected
@@ -665,6 +948,24 @@ def _request_details(
         "method": method,
         "url": sanitized_url(url, params=params),
     }
+
+
+def _cache_miss(
+    provider: str,
+    region: str,
+    category: str,
+    method: str,
+    url: str,
+    params: dict[str, object] | None,
+    *,
+    details: dict[str, object] | None = None,
+) -> CliError:
+    return CliError(
+        "CACHE_MISS",
+        "No fresh cached provider response is available for this request.",
+        EXIT_CACHE,
+        details or _request_details(provider, region, category, method, url, params),
+    )
 
 
 def _is_auth_retcode(retcode: Any) -> bool:

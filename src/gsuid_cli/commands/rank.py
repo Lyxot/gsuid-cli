@@ -48,7 +48,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "rank.character",
@@ -56,7 +55,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "rank.artifact",
@@ -64,7 +62,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
 ]
 

@@ -40,7 +40,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "wiki.weapon",
@@ -48,7 +47,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "wiki.artifact",
@@ -56,7 +54,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "wiki.enemy",
@@ -64,7 +61,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "wiki.food",
@@ -72,7 +68,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "wiki.talent",
@@ -80,7 +75,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "wiki.constellation",
@@ -88,7 +82,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "wiki.character-materials",
@@ -96,7 +89,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "wiki.weapon-materials",
@@ -104,7 +96,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "use",
     },
 ]
 

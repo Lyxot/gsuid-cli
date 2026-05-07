@@ -49,7 +49,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "challenge.theater",
@@ -57,7 +56,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "challenge.hard",
@@ -65,7 +63,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "challenge.hard-rank",
@@ -73,7 +70,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
 ]
 

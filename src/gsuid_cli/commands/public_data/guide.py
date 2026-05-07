@@ -44,7 +44,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "all"],
-        "cache": "use",
     },
     {
         "command": "guide.reference-panel",
@@ -52,7 +51,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "all"],
-        "cache": "use",
     },
     {
         "command": "guide.route",
@@ -60,7 +58,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "all"],
-        "cache": "use",
     },
     {
         "command": "guide.abyss",
@@ -68,7 +65,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "guide.theater",
@@ -76,7 +72,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "recommend.build",
@@ -84,7 +79,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "recommend.holder",
@@ -92,7 +86,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "map.find",
@@ -100,7 +93,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "all"],
-        "cache": "use",
     },
     {
         "command": "rerun.list",
@@ -108,7 +100,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "misc.primogems-plan",
@@ -116,7 +107,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "all"],
-        "cache": "use",
     },
 ]
 

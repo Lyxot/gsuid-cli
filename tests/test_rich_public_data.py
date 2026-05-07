@@ -16,7 +16,6 @@ from gsuid_cli.core.models import CommandResult
 from gsuid_cli.providers.public import PublicDataProvider
 
 
-
 def test_map_find_writes_image_artifact(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands.public_data._common.PublicDataProvider", FakeProvider)
@@ -98,32 +97,6 @@ def test_talent_index_must_be_positive(monkeypatch, tmp_path) -> None:
     assert payload["error"]["code"] == "INVALID_ARGUMENT"
 
 
-def test_resources_sync_command(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.resources.PublicDataProvider", FakeProvider)
-
-    code, payload = _run_json(["resources", "sync", "--scope", "maps"])
-
-    assert code == 0
-    assert payload["command"] == "resources.sync"
-    assert payload["data"]["scope"] == "maps"
-    assert "MiniGG maps are query-specific" in payload["data"]["source_limitations"][0]
-    assert "MiniGG maps are query-specific" in payload["warnings"][0]
-
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    code = run(
-        ["resources", "sync", "--scope", "maps", "--render", "text", "--format", "plain"],
-        stdout=stdout,
-        stderr=stderr,
-    )
-
-    assert code == 0
-    assert "资源同步" in stdout.getvalue()
-    assert "MiniGG 地图按查询生成" in stdout.getvalue()
-    assert "警告: MiniGG 地图按查询生成" in stderr.getvalue()
-
-
 def test_provider_character_talent_and_materials_from_ambr() -> None:
     provider = PublicDataProvider(
         _sequence_client(
@@ -146,37 +119,6 @@ def test_provider_character_talent_and_materials_from_ambr() -> None:
     assert constellation.data["constellation"]["name"] == "One Arrow"
     assert materials.data["ascension"] == {"1001": 3}
     assert materials.data["talents"][0]["promote"]["1"]["coinCost"] == 1000
-
-
-def test_provider_sync_resources_from_ambr() -> None:
-    provider = PublicDataProvider(
-        _sequence_client(
-            [
-                _json_response(_ambr_index("10000021", "Amber")),
-                _json_response(_ambr_index("15501", "Bow")),
-                _json_response(_ambr_index("15001", "Artifact")),
-                _json_response(_ambr_index("20010101", "Enemy")),
-                _json_response(_ambr_index("108001", "Food")),
-                _json_response({"response": 200, "data": {"monday": {}, "tuesday": {}}}),
-                _json_response({"1": {"id": 1, "name": {"CHS": "Event"}}}),
-            ]
-        )
-    )
-
-    result = provider.sync_resources(scope="all")
-
-    kinds = {row["kind"] for row in result.data["synced"]}
-    assert result.data["count"] == 7
-    assert {
-        "character",
-        "weapon",
-        "artifact",
-        "enemy",
-        "food",
-        "daily-materials",
-        "events",
-    } == kinds
-    assert result.warnings
 
 
 def test_provider_map_image_uses_minigg_params() -> None:
@@ -336,24 +278,6 @@ class FakeProvider:
 
     def primogems_plan(self, *, version: str | None) -> CommandResult:
         return CommandResult(data={"version": version, "estimate": None}, source=_source("ambr"))
-
-    def sync_resources(self, *, scope: str) -> CommandResult:
-        return CommandResult(
-            data={
-                "scope": scope,
-                "synced": [],
-                "count": 0,
-                "source_limitations": [
-                    "MiniGG maps are query-specific; "
-                    "use map find or guide route to create map artifacts"
-                ],
-            },
-            warnings=[
-                "MiniGG maps are query-specific; "
-                "use map find or guide route to create map artifacts"
-            ],
-            source=_source("local"),
-        )
 
     def map_image(
         self,

@@ -39,7 +39,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "daily.note",
@@ -47,7 +46,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "daily.signin",
@@ -55,7 +53,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "daily.bbs-coin",
@@ -63,7 +60,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
 ]
 

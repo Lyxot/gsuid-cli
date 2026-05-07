@@ -53,7 +53,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "progress.exploration",
@@ -61,7 +60,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "progress.collection",
@@ -69,7 +67,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "progress.achievements",
@@ -77,7 +74,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "progress.achievement-guide",
@@ -85,7 +81,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "progress.commission-guide",
@@ -93,7 +88,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "progress.gcg",
@@ -101,7 +95,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "progress.gcg-deck",
@@ -109,7 +102,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
 ]
 

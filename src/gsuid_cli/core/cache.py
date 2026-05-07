@@ -16,13 +16,13 @@ from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 from filelock import FileLock
 
 from gsuid_cli.core.config import resolve_paths
-from gsuid_cli.core.errors import EXIT_CACHE, CliError
 
 SECRET_QUERY_KEYS = {
     "authkey",
     "cookie",
     "login_ticket",
     "game_token",
+    "password",
     "stoken",
     "ticket",
     "token",
@@ -34,6 +34,9 @@ class CachedResponse:
     payload: dict[str, object]
     fetched_at: str
     status_code: int
+    expires_at: str | None = None
+    cache_policy: str | None = None
+    cache_version: str | None = None
 
 
 @dataclass(frozen=True)
@@ -49,41 +52,117 @@ class HttpCache:
     _lock: ClassVar[threading.RLock] = threading.RLock()
 
     def __init__(self, output_dir: str | None = None) -> None:
-        self._namespace = str(resolve_paths(output_dir).home)
+        paths = resolve_paths(output_dir)
+        self._namespace = str(paths.home)
+        self.path = paths.cache / "http"
+        self.path.mkdir(mode=0o700, parents=True, exist_ok=True)
 
     def get(self, key: str) -> CachedResponse | None:
         with self._lock:
-            return self._items.get((self._namespace, key))
-
-    def require(self, key: str) -> CachedResponse:
-        cached = self.get(key)
-        if cached is None:
-            raise CliError(
-                "CACHE_MISS",
-                "No in-memory provider response is available for this request.",
-                EXIT_CACHE,
-            )
-        return cached
+            cached = self._items.get((self._namespace, key))
+            if cached is not None:
+                return cached
+            cached = self._read(key)
+            if cached is not None:
+                self._items[(self._namespace, key)] = cached
+            return cached
 
     def set(
         self,
         key: str,
         *,
+        url: str,
+        params: dict[str, object] | None,
         payload: dict[str, object],
         fetched_at: str,
         status_code: int,
+        expires_at: str | None,
+        cache_policy: str,
+        cache_version: str | None,
+        persist: bool = True,
     ) -> None:
+        cached = CachedResponse(
+            payload=payload,
+            fetched_at=fetched_at,
+            status_code=status_code,
+            expires_at=expires_at,
+            cache_policy=cache_policy,
+            cache_version=cache_version,
+        )
         with self._lock:
-            self._items[(self._namespace, key)] = CachedResponse(
-                payload=payload,
-                fetched_at=fetched_at,
-                status_code=status_code,
+            self._items[(self._namespace, key)] = cached
+            if not persist:
+                return
+            _atomic_write_json(
+                self._response_path(key),
+                {
+                    "key": key,
+                    "url": sanitized_url(url, params=params),
+                    "status": "ok",
+                    "payload": payload,
+                    "status_code": status_code,
+                    "fetched_at": fetched_at,
+                    "updated_at": fetched_at,
+                    "expires_at": expires_at,
+                    "cache_policy": cache_policy,
+                    "cache_version": cache_version,
+                },
             )
+
+    def clear(self) -> tuple[int, int]:
+        removed_files = 0
+        removed_dirs = 0
+        if self.path.exists():
+            for item in list(self.path.iterdir()):
+                if item.is_dir() and not item.is_symlink():
+                    removed_files += len([path for path in item.rglob("*") if path.is_file()])
+                    removed_dirs += len([path for path in item.rglob("*") if path.is_dir()]) + 1
+                    shutil.rmtree(item)
+                elif _unlink_file(item):
+                    removed_files += 1
+        with self._lock:
+            for namespace, key in list(self._items):
+                if namespace == self._namespace:
+                    self._items.pop((namespace, key), None)
+        self.path.mkdir(mode=0o700, parents=True, exist_ok=True)
+        return removed_files, removed_dirs
+
+    def delete(self, key: str) -> bool:
+        with self._lock:
+            self._items.pop((self._namespace, key), None)
+            return _unlink_file(self._response_path(key))
+
+    def _read(self, key: str) -> CachedResponse | None:
+        raw = _read_json_file(self._response_path(key))
+        if not isinstance(raw, dict) or raw.get("key") != key or raw.get("status") != "ok":
+            return None
+        payload = raw.get("payload")
+        if not isinstance(payload, dict):
+            return None
+        fetched_at = raw.get("fetched_at")
+        if not isinstance(fetched_at, str):
+            return None
+        return CachedResponse(
+            payload=payload,
+            fetched_at=fetched_at,
+            status_code=_int_value(raw.get("status_code"), 200),
+            expires_at=raw.get("expires_at") if isinstance(raw.get("expires_at"), str) else None,
+            cache_policy=(
+                raw.get("cache_policy") if isinstance(raw.get("cache_policy"), str) else None
+            ),
+            cache_version=(
+                raw.get("cache_version") if isinstance(raw.get("cache_version"), str) else None
+            ),
+        )
+
+    def _response_path(self, key: str) -> Path:
+        return self.path / f"response.{_short_hash(key)}.json"
 
 
 class AssetCache:
-    def __init__(self, output_dir: str | None = None) -> None:
-        self.path = resolve_paths(output_dir).cache_assets
+    def __init__(self, output_dir: str | None = None, usage: str | None = None) -> None:
+        paths = resolve_paths(output_dir)
+        self.path = paths.cache / _safe_usage(usage) if usage else paths.cache_assets
         self.path.mkdir(mode=0o700, parents=True, exist_ok=True)
 
     @contextmanager
@@ -107,17 +186,6 @@ class AssetCache:
             metadata=metadata,
         )
 
-    def require(self, key: str, *, details: dict[str, object] | None = None) -> CachedAsset:
-        cached = self.get(key)
-        if cached is None:
-            raise CliError(
-                "CACHE_MISS",
-                "No cached asset is available for this request.",
-                EXIT_CACHE,
-                details or {},
-            )
-        return cached
-
     def store_success(
         self,
         key: str,
@@ -128,6 +196,9 @@ class AssetCache:
         content: bytes,
         status_code: int,
         fetched_at: str,
+        expires_at: str | None,
+        cache_policy: str,
+        cache_version: str | None,
     ) -> CachedAsset:
         previous = self.metadata(key) or {}
         asset_path = self.path / _asset_filename(url, key, media_type)
@@ -146,7 +217,10 @@ class AssetCache:
             "sha256": content_hash,
             "bytes": len(content),
             "fetched_at": fetched_at,
+            "expires_at": expires_at,
             "updated_at": fetched_at,
+            "cache_policy": cache_policy,
+            "cache_version": cache_version,
             "retry_count": int(previous.get("retry_count") or 0),
             "last_error": None,
         }
@@ -213,6 +287,19 @@ class AssetCache:
             if isinstance(raw, dict) and raw.get("key") == key:
                 return raw
         return None
+
+    def delete(self, key: str) -> tuple[int, int]:
+        removed_files = 0
+        removed_paths: set[Path] = set()
+        metadata = self.metadata(key)
+        asset_path = self._safe_asset_path(metadata.get("path")) if metadata else None
+        if asset_path is not None and _unlink_file(asset_path):
+            removed_files += 1
+            removed_paths.add(asset_path)
+        for path in self._metadata_paths(key):
+            if path not in removed_paths and _unlink_file(path):
+                removed_files += 1
+        return removed_files, 0
 
     def clear(self) -> tuple[int, int]:
         removed_files = 0
@@ -328,9 +415,17 @@ def _metadata_key(path: Path) -> str | None:
     return None
 
 
+def _int_value(value: object, default: int) -> int:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return default
+
+
 def _unlink_file(path: Path) -> bool:
     try:
-        if path.exists() and (path.is_file() or path.is_symlink()):
+        if path.is_symlink() or path.is_file():
             path.unlink()
             return True
     except FileNotFoundError:
@@ -375,6 +470,12 @@ def _safe_stem(value: str) -> str:
     safe = re.sub(r"[^0-9A-Za-z._\-\u4e00-\u9fff]+", "_", value)
     safe = safe.strip("._-")
     return safe[:100] or "asset"
+
+
+def _safe_usage(value: str) -> str:
+    safe = re.sub(r"[^0-9A-Za-z._-]+", "-", value)
+    safe = safe.strip(".-")
+    return safe[:48] or "assets"
 
 
 def _suffix(value: str) -> str:

@@ -37,7 +37,6 @@ CAPABILITIES = [
         "auth": "gacha_url",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "gacha.summary",
@@ -45,7 +44,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "gacha.export",
@@ -53,7 +51,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "gacha.import",
@@ -61,7 +58,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "gacha.authkey",
@@ -69,7 +65,6 @@ CAPABILITIES = [
         "auth": "gacha_url",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "gacha.authkey.refresh",
@@ -77,7 +72,6 @@ CAPABILITIES = [
         "auth": "cookie+stoken",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
 ]
 

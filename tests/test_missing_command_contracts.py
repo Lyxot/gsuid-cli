@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import io
 
+import httpx
+import pytest
 from helpers import run_json_with_stderr as _run_json
 
 from gsuid_cli.cli import run
+from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 
 
@@ -49,6 +52,26 @@ def test_cache_clear_scope_removes_only_selected_files(monkeypatch, tmp_path) ->
     assert asset_lock.exists()
 
 
+def test_cache_clear_asset_bucket_scope_removes_only_that_bucket(monkeypatch, tmp_path) -> None:
+    home = tmp_path / "home"
+    maps_file = home / "cache" / "maps" / "map.1234.png"
+    icons_file = home / "cache" / "icons" / "icon.1234.png"
+    maps_file.parent.mkdir(parents=True)
+    icons_file.parent.mkdir(parents=True)
+    maps_file.write_text("map", encoding="utf-8")
+    icons_file.write_text("icon", encoding="utf-8")
+    monkeypatch.setenv("GSUID_HOME", str(home))
+
+    code, payload, stderr = _run_json(["cache", "clear", "--scope", "maps"])
+
+    assert code == 0
+    assert stderr == ""
+    assert payload["command"] == "cache.clear"
+    assert payload["data"]["removed_files"] == 1
+    assert not maps_file.exists()
+    assert icons_file.exists()
+
+
 def test_cache_clear_artifacts_ignores_global_output_dir(monkeypatch, tmp_path) -> None:
     home = tmp_path / "home"
     output = tmp_path / "output"
@@ -71,6 +94,34 @@ def test_cache_clear_artifacts_ignores_global_output_dir(monkeypatch, tmp_path) 
     assert output_file.exists()
 
 
+def test_cache_clear_http_scope_removes_only_http_cache(monkeypatch, tmp_path) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setenv("GSUID_HOME", str(home))
+    asset_file = home / "cache" / "assets" / "icon.1234.png"
+    asset_file.parent.mkdir(parents=True)
+    asset_file.write_text("asset", encoding="utf-8")
+    client = HttpClient(
+        timeout=1,
+        cache_policy="use",
+        transport=httpx.MockTransport(lambda _request: httpx.Response(200, json={"data": {}})),
+    )
+    client.request_json(
+        "GET",
+        "https://example.test/data.json",
+        provider="ambr",
+        region="cn",
+        category="events.list",
+    )
+
+    code, payload, stderr = _run_json(["cache", "clear", "--scope", "http"])
+
+    assert code == 0
+    assert stderr == ""
+    assert payload["data"]["removed_files"] == 1
+    assert not list((home / "cache" / "http").glob("*.json"))
+    assert asset_file.exists()
+
+
 def test_cache_clear_render_text_plain(monkeypatch, tmp_path) -> None:
     home = tmp_path / "home"
     asset_file = home / "cache" / "assets" / "icon.1234.png"
@@ -90,6 +141,71 @@ def test_cache_clear_render_text_plain(monkeypatch, tmp_path) -> None:
     assert stderr.getvalue() == ""
     assert "缓存清理" in stdout.getvalue()
     assert "删除文件: 1" in stdout.getvalue()
+
+
+def test_cache_size_reports_cache_and_artifact_usage(monkeypatch, tmp_path) -> None:
+    home = tmp_path / "home"
+    http_file = home / "cache" / "http" / "response.1.json"
+    maps_file = home / "cache" / "maps" / "map.1234.png"
+    artifact_file = home / "artifacts" / "old.png"
+    for path in (http_file, maps_file, artifact_file):
+        path.parent.mkdir(parents=True, exist_ok=True)
+    http_file.write_bytes(b"1234")
+    maps_file.write_bytes(b"abcdef")
+    artifact_file.write_bytes(b"xyz")
+    monkeypatch.setenv("GSUID_HOME", str(home))
+
+    code, payload, stderr = _run_json(["cache", "size", "--scope", "all"])
+
+    assert code == 0
+    assert stderr == ""
+    assert payload["command"] == "cache.size"
+    assert payload["data"]["bytes"] == 13
+    by_scope = {item["scope"]: item for item in payload["data"]["entries"]}
+    assert by_scope["http"]["bytes"] == 4
+    assert by_scope["maps"]["bytes"] == 6
+    assert by_scope["artifacts"]["bytes"] == 3
+
+
+def test_cache_size_render_text_plain(monkeypatch, tmp_path) -> None:
+    home = tmp_path / "home"
+    icon_file = home / "cache" / "icons" / "icon.1234.png"
+    icon_file.parent.mkdir(parents=True)
+    icon_file.write_bytes(b"icon")
+    monkeypatch.setenv("GSUID_HOME", str(home))
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = run(
+        ["cache", "size", "--scope", "icons", "--render", "text", "--format", "plain"],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    assert "缓存大小" in stdout.getvalue()
+    assert "总大小: 4 B" in stdout.getvalue()
+
+
+def test_cache_size_does_not_follow_symlinks(monkeypatch, tmp_path) -> None:
+    home = tmp_path / "home"
+    icons = home / "cache" / "icons"
+    icons.mkdir(parents=True)
+    outside = tmp_path / "outside.bin"
+    outside.write_bytes(b"outside")
+    try:
+        (icons / "outside.bin").symlink_to(outside)
+    except OSError:
+        pytest.skip("symlinks are not available")
+    monkeypatch.setenv("GSUID_HOME", str(home))
+
+    code, payload, stderr = _run_json(["cache", "size", "--scope", "icons"])
+
+    assert code == 0
+    assert stderr == ""
+    assert payload["data"]["bytes"] == 0
+    assert payload["data"]["files"] == 0
 
 
 def test_source_limited_missing_commands_return_structured_results(monkeypatch, tmp_path) -> None:

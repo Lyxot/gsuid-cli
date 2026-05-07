@@ -39,8 +39,7 @@ def render_meta_command_text(command: str, data: Mapping[str, object]) -> str:
             lines.append(
                 f"  - {_text(item.get('command'))}: "
                 f"认证 {_text(item.get('auth'))}，"
-                f"渲染 {_join(item.get('render'))}，"
-                f"缓存 {_text(item.get('cache'))}"
+                f"渲染 {_join(item.get('render'))}"
             )
         return _finish(lines)
     if command == "meta.schema":
@@ -154,27 +153,24 @@ def render_cache_clear_text(data: Mapping[str, object]) -> str:
     return _finish(lines)
 
 
-def render_resources_sync_text(data: Mapping[str, object]) -> str:
+def render_cache_size_text(data: Mapping[str, object]) -> str:
     lines = [
-        "资源同步",
+        "缓存大小",
         f"范围: {_scope_label(data.get('scope'))}",
-        f"缓存: {_text(data.get('cache_backend'))}",
-        f"持久化JSON缓存: {_yes_no(data.get('persistent_json_cache'))}",
-        f"同步项: {_text(data.get('count'))}",
+        f"总大小: {_text(data.get('size'))}",
+        f"文件: {_text(data.get('files'))}，目录: {_text(data.get('dirs'))}",
     ]
-    synced = _mapping_list(data.get("synced"))
-    if synced:
+    entries = _mapping_list(data.get("entries"))
+    if entries:
         lines.extend(["", "明细:"])
-    for item in synced:
+    for item in entries:
         lines.append(
-            f"  - {_scope_label(item.get('scope'))} / {_text(item.get('kind'))}: "
-            f"{_text(item.get('count'))} 条"
+            f"  - {_scope_label(item.get('scope'))}: "
+            f"{_text(item.get('size'))}，"
+            f"{_text(item.get('files'))} 个文件，"
+            f"{_text(item.get('dirs'))} 个目录"
         )
-    limitations = _sequence(data.get("source_limitations"))
-    if limitations:
-        lines.extend(["", "限制:"])
-    for item in limitations:
-        lines.append(f"  - {_translate_warning(item)}")
+        lines.append(f"    路径: {_text(item.get('path'))}")
     return _finish(lines)
 
 
@@ -251,7 +247,8 @@ def _suffix_id(value: object) -> str:
 def _scope_label(value: object) -> str:
     return {
         "all": "全部",
-        "assets": "静态资源缓存",
+        "http": "HTTP响应缓存",
+        "assets": "默认资源缓存",
         "artifacts": "产物",
         "icons": "图标",
         "maps": "地图",
@@ -261,18 +258,6 @@ def _scope_label(value: object) -> str:
 
 def _status_label(value: object) -> str:
     return {"ok": "正常", "warn": "警告", "error": "错误"}.get(str(value), _text(value))
-
-
-def _translate_warning(value: object) -> str:
-    text = _text(value)
-    return {
-        "icon sync refreshes wiki icon references; binary icon files are not downloaded": (
-            "图标同步只刷新百科图标引用，不下载二进制图标文件"
-        ),
-        "MiniGG maps are query-specific; use map find or guide route to create map artifacts": (
-            "MiniGG 地图按查询生成；请使用 map find 或 guide route 创建地图图片"
-        ),
-    }.get(text, text)
 
 
 def _yes_no(value: object) -> str:

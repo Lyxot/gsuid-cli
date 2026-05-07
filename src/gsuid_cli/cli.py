@@ -28,7 +28,6 @@ from gsuid_cli.commands import (
     progress,
     public_data,
     rank,
-    resources,
 )
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.envelope import error_envelope, success_envelope
@@ -59,14 +58,6 @@ HOISTED_GLOBAL_FLAG_OPTIONS = {"--quiet", "--debug"}
 OUTPUT_FORMATS = {"json", "pretty-json", "plain"}
 ANSI_YELLOW = "\033[33m"
 ANSI_RESET = "\033[0m"
-PLAIN_WARNING_TRANSLATIONS = {
-    "icon sync refreshes wiki icon references; binary icon files are not downloaded": (
-        "图标同步只刷新百科图标引用，不下载二进制图标文件"
-    ),
-    "MiniGG maps are query-specific; use map find or guide route to create map artifacts": (
-        "MiniGG 地图按查询生成；请使用 map find 或 guide route 创建地图图片"
-    ),
-}
 SENSITIVE_KEY_PARTS = (
     "authkey",
     "cookie",
@@ -191,7 +182,6 @@ def build_parser() -> argparse.ArgumentParser:
     batch.register(groups)
     cache.register(groups)
     public_data.register(groups)
-    resources.register(groups)
     monitor.register(groups)
     player.register(groups)
     challenge.register(groups)
@@ -538,8 +528,6 @@ def _write_plain_warnings(payload: dict[str, object], stderr: TextIO) -> None:
 
 
 def _plain_warning_text(warning: str) -> str:
-    if warning in PLAIN_WARNING_TRANSLATIONS:
-        return PLAIN_WARNING_TRANSLATIONS[warning]
     match = re.fullmatch(r"(\d+) MiB free", warning)
     if match:
         return f"剩余 {match.group(1)} MiB"

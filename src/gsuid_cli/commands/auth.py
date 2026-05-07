@@ -32,7 +32,6 @@ CAPABILITIES = [
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "auth.cookie.test",
@@ -40,7 +39,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "auth.cookie.delete",
@@ -48,7 +46,6 @@ CAPABILITIES = [
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "auth.stoken.set",
@@ -56,7 +53,6 @@ CAPABILITIES = [
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "auth.stoken.test",
@@ -64,7 +60,6 @@ CAPABILITIES = [
         "auth": "stoken",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "auth.stoken.delete",
@@ -72,7 +67,6 @@ CAPABILITIES = [
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "auth.gacha-url.set",
@@ -80,7 +74,6 @@ CAPABILITIES = [
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "auth.gacha-url.test",
@@ -88,7 +81,6 @@ CAPABILITIES = [
         "auth": "gacha_url",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "auth.gacha-url.delete",
@@ -96,7 +88,6 @@ CAPABILITIES = [
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "auth.qrcode.start",
@@ -104,7 +95,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "auth.qrcode.poll",
@@ -112,7 +102,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "auth.qrcode.complete",
@@ -120,7 +109,6 @@ CAPABILITIES = [
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "auth.qrcode.login",
@@ -128,7 +116,6 @@ CAPABILITIES = [
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "auth.device.set",
@@ -136,7 +123,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "auth.device.test",
@@ -144,7 +130,6 @@ CAPABILITIES = [
         "auth": "device",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "auth.device.delete",
@@ -152,7 +137,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
 ]
 

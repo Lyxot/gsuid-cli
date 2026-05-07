@@ -55,7 +55,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "player.characters",
@@ -63,7 +62,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "player.inventory",
@@ -71,7 +69,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
         "coverage": "owned_character_ascension_and_equipped_weapon_materials",
     },
     {
@@ -80,7 +77,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "player.diary",
@@ -88,7 +84,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "player.register-time",
@@ -96,7 +91,6 @@ CAPABILITIES = [
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
         "availability": "upstream-limited",
         "limitations": [
             "Uses the legacy MYS anniversary endpoint, which may return provider retcode -502."

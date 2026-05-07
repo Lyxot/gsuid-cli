@@ -81,7 +81,6 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     }.issubset(commands)
     assert {"guide.character", "guide.route", "recommend.build", "map.find"}.issubset(commands)
     assert {"announcements.list", "rerun.list", "misc.primogems-plan"}.issubset(commands)
-    assert "resources.sync" in commands
     assert {"daily.note", "daily.signin", "player.summary", "player.characters"}.issubset(commands)
     assert {"daily.bbs-coin", "player.inventory", "player.calendar"}.issubset(commands)
     assert "player.register-time" in commands
@@ -110,7 +109,7 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert capability_by_command["player.calendar"]["auth"] == "cookie"
     assert capability_by_command["player.register-time"]["auth"] == "cookie"
     assert capability_by_command["player.register-time"]["availability"] == "upstream-limited"
-    assert capability_by_command["map.find"]["cache"] == "use"
+    assert "cache" not in capability_by_command["map.find"]
     assert "data" in capability_by_command["map.find"]["render"]
     assert payload["data"]["regions"] == ["cn"]
     assert payload["data"]["formats"] == ["json", "pretty-json", "plain"]

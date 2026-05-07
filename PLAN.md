@@ -24,9 +24,13 @@ Default output is JSON on stdout. Logs, progress, and warnings that are not part
 
 Cache system decisions:
 
-- HTTP JSON/game-record calls should not use persistent cache storage because the data changes rapidly. Keep only a short-lived in-memory cache within one CLI process when useful.
-- Static assets are cached permanently under `$GSUID_HOME/cache/assets` until manually cleaned.
-- Static asset cache paths should be flattened for easy system preview and cross-command reuse. Use the original file name plus a hash while preserving the corresponding file suffix.
+- Provider HTTP cache policy is documented in `docs/http-cache-policy.md`; update that file first when cache TTLs or expiration strategy should change.
+- GET JSON responses may use persistent HTTP cache storage under `$GSUID_HOME/cache/http` when their provider URL family is cacheable and persistent. Private player/game-record categories use memory-only short cache.
+- Static assets are cached under `$GSUID_HOME/cache/<usage>` with the expiration strategy documented in `docs/http-cache-policy.md`. Game-version caches store the Sophon build tag and expire when the refreshed tag changes.
+- Binary asset cache files are split by usage under `$GSUID_HOME/cache` using scope names: `assets`, `icons`, `maps`, and `wiki`.
+- Expired or version-stale persistent cache entries are deleted when encountered. `--cache refresh` persists versioned responses only when the Sophon tag lookup succeeds.
+- Command capabilities do not record cache behavior; cache policy is request-level and `sources[].cached` records observed cache use.
+- Static asset cache paths should be flattened within each usage bucket for easy system preview and cross-command reuse. Use the original file name plus a hash while preserving the corresponding file suffix.
 - Store asset metadata, including URL, content type, fetched time, hash, size, status, and retry/failure information.
 - Add a file-locking dependency if needed. Support large per-process parallel asset downloads while keeping writes safe across multiple CLI instances.
 - Limit asset download concurrency per process only; no cross-process global rate limiter is required.
@@ -106,7 +110,11 @@ $GSUID_HOME/
   config.toml                  Non-secret defaults.
   state.sqlite                 Accounts, profiles, cache metadata, gacha summaries.
   cache/
-    assets/                    Flattened permanent static asset cache.
+    http/                      Persistent provider JSON response cache.
+    assets/                    Default remote binary asset cache.
+    icons/                     Icon/profile/avatar binary cache.
+    maps/                      Map tile/image binary cache.
+    wiki/                      Wiki/guide/public-data binary cache.
   artifacts/
     YYYY-MM-DD/
       REQUEST_ID/
@@ -265,8 +273,8 @@ gsuid meta capabilities
 gsuid meta schema [--command COMMAND]
 gsuid meta doctor [--check network|storage|credentials|resources|all]
 gsuid meta paths
-gsuid cache clear [--scope assets|artifacts|all]
-gsuid resources sync [--scope wiki|icons|maps|all]
+gsuid cache clear [--scope http|assets|icons|maps|wiki|artifacts|all]
+gsuid cache size [--scope http|assets|icons|maps|wiki|artifacts|all]
 ```
 
 Return data:
@@ -276,6 +284,8 @@ Return data:
 - `meta.schema`: JSON schema for the envelope or one command's `data`.
 - `meta.doctor`: checks with `name`, `status`, `message`, `details`.
 - `meta.paths`: resolved home, cache, data, artifact, and config paths.
+- `cache.clear`: scope, cleared paths, removed file count, removed directory count.
+- `cache.size`: scope, per-scope paths, byte totals, file count, directory count.
 
 ### Profiles, Accounts, And Credentials
 
@@ -664,7 +674,7 @@ tests/
 ### Provider Rules
 
 - Every provider call must have a timeout.
-- Every provider response must record provider, URL category, status code, cached flag, fetched_at.
+- Every provider response must record provider, URL family, status code, cached flag, fetched_at.
 - Cache keys must exclude secrets.
 - Retry only safe idempotent GET requests by default.
 - POST actions like sign-in must not retry unless the provider response proves idempotency.
@@ -709,6 +719,11 @@ tests/
 ### Stage 15: Full Global Options — completed.
 ### Stage 16: Help Information Coverage — completed.
 ### Stage 16.5: Cache System Redesign — completed.
+### Stage 16.6: HTTP Cache Expiration Policy — completed.
+
+- Result: provider HTTP cache expiration is documented in `docs/http-cache-policy.md` and enforced for no-store actions, memory-only private data, daily-reset data, public dynamic data, Sophon-tagged public data, and static assets. Cache maintenance commands understand the split asset buckets (`assets`, `icons`, `maps`, `wiki`) stored under matching `$GSUID_HOME/cache/<scope>` paths, remove expired persistent entries when encountered, and can report cache/artifact disk usage by scope. Command capabilities omit cache behavior because cache policy is request-level.
+- Verification: cache tests, provider/command/docs tests, command reference check, `ruff`, `py_compile`, and `git diff --check` passed.
+- Next: keep future cache policy edits in `docs/http-cache-policy.md` first, then sync `src/gsuid_cli/core/cache_policy.py`.
 ### Stage 17: GenshinUID Image Parity — completed.
 ### Stage 18: Text Output And Result Surface Refactor — completed.
 ### Stage 18b: Text Render Artifacts — completed.

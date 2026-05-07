@@ -39,7 +39,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "events.banners",
@@ -47,7 +46,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "codes.list",
@@ -55,7 +53,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "announcements.list",
@@ -63,7 +60,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "use",
     },
     {
         "command": "announcements.show",
@@ -71,7 +67,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
-        "cache": "use",
     },
 ]
 

@@ -20,7 +20,6 @@ from gsuid_cli.commands import (
     progress,
     public_data,
     rank,
-    resources,
 )
 from gsuid_cli.commands._text import command_text_result, safe_filename_part
 from gsuid_cli.core.config import resolve_paths
@@ -40,7 +39,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "meta.paths",
@@ -48,7 +46,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "meta.capabilities",
@@ -56,7 +53,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "meta.schema",
@@ -64,7 +60,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "meta.errors",
@@ -72,7 +67,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
     {
         "command": "meta.doctor",
@@ -80,7 +74,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
 ]
 
@@ -212,7 +205,6 @@ def _capabilities() -> list[dict[str, object]]:
         + batch.CAPABILITIES
         + cache.CAPABILITIES
         + public_data.CAPABILITIES
-        + resources.CAPABILITIES
         + monitor.CAPABILITIES
         + player.CAPABILITIES
         + challenge.CAPABILITIES

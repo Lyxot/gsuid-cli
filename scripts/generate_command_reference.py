@@ -28,37 +28,19 @@ def render_command_reference() -> str:
         "",
         "Generated from `gsuid meta capabilities`.",
         "",
-        "| Command | Auth | Render | Cache | Description |",
-        "| --- | --- | --- | --- | --- |",
+        "| Command | Auth | Render | Description |",
+        "| --- | --- | --- | --- |",
     ]
     for group in sorted(grouped):
         for command in sorted(grouped[group], key=lambda item: str(item["command"])):
             lines.append(
-                "| `{command}` | `{auth}` | `{render}` | `{cache}` | {description} |".format(
+                "| `{command}` | `{auth}` | `{render}` | {description} |".format(
                     command=command["command"],
                     auth=command["auth"],
                     render=", ".join(command["render"]),
-                    cache=command["cache"],
                     description=_escape_pipes(_description(command)),
                 )
             )
-    lines.extend(
-        [
-            "",
-            "Notes:",
-            "",
-            "- JSON mode is the stable machine contract.",
-            "- `--render data` includes `data` and `sources`; artifact-only renders "
-            "keep stdout compact.",
-            "- `--debug` writes a redacted debug artifact.",
-            "- `auth` describes required credential type, not whether a command can fail upstream.",
-            "- `render` lists supported result modes; artifacts are returned by absolute path.",
-            "- Stage 17 is porting GenshinUID-parity renderers group by group; "
-            "`meta capabilities` is the source of truth for current image support.",
-            "- `cache` describes intended command cache behavior.",
-            "",
-        ]
-    )
     return "\n".join(lines)
 
 

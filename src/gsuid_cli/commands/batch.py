@@ -21,7 +21,6 @@ CAPABILITIES = [
         "auth": "mixed",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "mixed",
     },
     {
         "command": "batch.plan",
@@ -29,7 +28,6 @@ CAPABILITIES = [
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
-        "cache": "off",
     },
 ]
 
