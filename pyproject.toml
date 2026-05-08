@@ -49,7 +49,6 @@ gsuid_cli = [
   "assets/gacha/textures/*/*.png",
   "assets/guide/abyss/textures/*.png",
   "assets/guide/abyss/textures/bg/*.jpg",
-  "assets/guide/abyss/data/*.js",
   "assets/guide/theater/textures/*.png",
   "assets/misc/primogems/*.png",
   "assets/panel/data/*.json",

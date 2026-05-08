@@ -18,16 +18,6 @@ from gsuid_cli.providers.public.common import (
 )
 
 
-def local_genshinuid_abyss_source() -> dict[str, object]:
-    return {
-        "provider": "genshinuid",
-        "region": "cn",
-        "cached": True,
-        "fetched_at": None,
-        "path": "package:assets/guide/abyss/data/abyss.js",
-    }
-
-
 def parse_genshinuid_js(js_code: str) -> dict[str, object]:
     source = re.sub(r"(?m)^\s*//.*$", "", js_code).replace("Auto Generated", "")
 

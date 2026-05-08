@@ -46,6 +46,7 @@ This file is the source policy for provider HTTP response caching. If the policy
 | Sophon `getBuild` URL | `game-version-tag` | Uses `data.tag`; the cached lookup refreshes daily at 06:00 UTC+8. |
 | `genshinuid://*` logical resource URLs | `resource-mirror` for mirror selection, normal request-category rule for fetched assets | Resolves to the fastest available GenshinUID resource mirror only when the asset is needed. Public static render assets usually use `game-version`; private/player categories may use shorter category rules. |
 | `wiki.*`, `guide.*`, `recommend.*` | `game-version` | Static public data normally changes when game data updates. |
+| GenshinUID GitHub/jsDelivr raw files for `guide.*` | `game-version` | Raw guide data such as `GenshinUID/genshinuid_guide/abyss.js` resolves the latest commit for that path on GenshinUID's default branch history, then fetches the raw file through jsDelivr instead of bundling it in the package. |
 | Static binary assets fetched through `request_bytes` | `game-version` | Includes GenshinUID, AMBR, Hakush, MiniGG, MYS icon, and render-resource URLs unless a stricter rule is added. |
 | `meta.doctor.network` | `public-short` | Only checks provider reachability. |
 

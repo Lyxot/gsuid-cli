@@ -721,9 +721,6 @@ tests/
 ### Stage 16.5: Cache System Redesign — completed.
 ### Stage 16.6: HTTP Cache Expiration Policy — completed.
 ### Stage 16.7: GenshinUID Resource Mirrors — completed.
-
-- Result: GenshinUID resource assets now use stable `genshinuid://` logical URLs and resolve lazily through the fastest reachable GenshinUID resource mirror at provider fetch time. Mirror selection is cached under `$GSUID_HOME/cache/http/resource-mirror.genshinuid.json` for 6 hours, `--cache refresh` re-probes it, `--cache off` avoids storing it, and `--cache only` does not probe mirrors. Binary asset cache keys use the logical URL so cached files are reusable across mirror changes; fresh cache hits do not require mirror selection.
-- Verification: separate review agent found no correctness bug and two low-severity cleanup/docs findings; both were applied. Focused cache/provider tests, public/rich data tests, panel/daily/gacha render-adjacent tests, full `pytest`, targeted `ruff`, `py_compile`, and `git diff --check` passed. Full `ruff check .` is blocked by pre-existing unused locals in `tests/test_gacha_log.py`.
 ### Stage 17: GenshinUID Image Parity — completed.
 ### Stage 18: Text Output And Result Surface Refactor — completed.
 ### Stage 18b: Text Render Artifacts — completed.

@@ -1270,9 +1270,8 @@ def test_recommend_build_uses_genshinuid_adv_data() -> None:
 
 
 def test_guide_abyss_uses_genshinuid_abyss_js_data(monkeypatch, tmp_path) -> None:
-    abyss_js = tmp_path / "abyss.js"
-    abyss_js.write_text(
-        """
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    abyss_js = """
 var _SpiralAbyssSchedule = [
   {"Name": "9.9", "Show": "9.9", "OpenTime": "2026/01/01 - 2026/12/31", "Floors": [1, 2, 3, 4]}
 ]
@@ -1293,16 +1292,43 @@ var _SpiralAbyssFloorConfig = {
     ]
   }
 }
-""",
-        encoding="utf-8",
+"""
+    revision = "d7f257336b709273d5371a43da70cc6df2c35980"
+    requested_urls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested_urls.append(str(request.url))
+        if str(request.url).startswith(public_provider.GENSHINUID_ABYSS_JS_COMMITS_URL):
+            assert request.url.params["path"] == public_provider.GENSHINUID_ABYSS_JS_PATH
+            assert request.url.params["per_page"] == "1"
+            return httpx.Response(200, json=[{"sha": revision}])
+        return httpx.Response(
+            200,
+            content=abyss_js.encode("utf-8"),
+            headers={"content-type": "application/javascript"},
+        )
+
+    provider = PublicDataProvider(
+        HttpClient(
+            timeout=1,
+            cache_policy="off",
+            transport=httpx.MockTransport(handler),
+        )
     )
-    monkeypatch.setattr(public_provider, "GENSHINUID_ABYSS_JS_PATH", abyss_js)
-    provider = PublicDataProvider(_sequence_client([]))
 
     result = provider.guide_abyss(version="9.9", floor=12)
 
+    assert requested_urls == [
+        (
+            f"{public_provider.GENSHINUID_ABYSS_JS_COMMITS_URL}"
+            "?path=GenshinUID%2Fgenshinuid_guide%2Fabyss.js&per_page=1"
+        ),
+        public_provider._genshinuid_abyss_js_url(revision),
+    ]
     assert result.data["available"] is True
-    assert result.source["path"] == "package:assets/guide/abyss/data/abyss.js"
+    assert result.source["provider"] == "genshinuid"
+    assert result.source["category"] == "guide.abyss.data"
+    assert result.source["revision"] == revision
     assert result.data["version"] == "9.9"
     abyss = result.data["abyss"]
     assert abyss["disorder"] == "上半 草元素伤害提升。"

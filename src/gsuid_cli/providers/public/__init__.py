@@ -30,7 +30,6 @@ _genshinuid_resource_url = _public_common.genshinuid_resource_url
 _indexed_item = _public_wiki.indexed_item
 _is_banner_event = _public_events.is_banner_event
 _list_value = _public_common.list_value
-_local_genshinuid_abyss_source = _public_guide.local_genshinuid_abyss_source
 _normalize_abyss_floor = _public_guide.normalize_abyss_floor
 _normalize_theater = _public_guide.normalize_theater
 _normalize_wiki_item = _public_wiki.normalize_wiki_item
@@ -56,8 +55,10 @@ GENSHINUID_ADV_LIST_URL = (
     "https://raw.githubusercontent.com/KimigaiiWuyi/GenshinUID/"
     "main/GenshinUID/genshinuid_adv/char_adv_list.json"
 )
+GENSHINUID_ABYSS_JS_COMMITS_URL = "https://api.github.com/repos/KimigaiiWuyi/GenshinUID/commits"
+GENSHINUID_ABYSS_JS_PATH = "GenshinUID/genshinuid_guide/abyss.js"
+GENSHINUID_JSDELIVR_BASE = "https://cdn.jsdelivr.net/gh/KimigaiiWuyi/GenshinUID"
 ASSETS_ROOT = Path(__file__).resolve().parents[2] / "assets"
-GENSHINUID_ABYSS_JS_PATH = ASSETS_ROOT / "guide" / "abyss" / "data" / "abyss.js"
 PRIMOGEMS_PLAN_ASSET_DIR = ASSETS_ROOT / "misc" / "primogems"
 GENSHINUID_RESOURCE_BASE = _public_common.GENSHINUID_RESOURCE_BASE
 GENSHINUID_RESOURCE_ASSET_BASE = f"{GENSHINUID_RESOURCE_BASE}resource"
@@ -537,7 +538,7 @@ class PublicDataProvider:
                 "schedule": selected,
                 "abyss": floor_data,
                 "source_limitations": [
-                    "abyss guide data is bundled from GenshinUID abyss.js; "
+                    "abyss guide data is fetched from GenshinUID abyss.js via jsDelivr; "
                     "rendered credit is 妮可少年"
                 ],
             },
@@ -755,28 +756,86 @@ class PublicDataProvider:
         return payload, response.source
 
     def _abyss_js(self) -> tuple[dict[str, object], dict[str, object]]:
-        source = _local_genshinuid_abyss_source()
+        revision = self._genshinuid_abyss_js_revision()
+        url = _genshinuid_abyss_js_url(revision)
+        response = self.http.request_bytes(
+            "GET",
+            url,
+            provider="genshinuid",
+            region="cn",
+            category="guide.abyss.data",
+            expected_media_types=("application/javascript", "application/x-javascript", "text/"),
+        )
         try:
-            js_code = GENSHINUID_ABYSS_JS_PATH.read_text(encoding="utf-8")
-        except OSError as exc:
+            js_code = response.content.decode("utf-8")
+        except UnicodeDecodeError as exc:
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "Bundled abyss guide data is unavailable.",
+                "Provider returned invalid abyss guide data encoding.",
                 EXIT_UPSTREAM,
-                {"path": str(GENSHINUID_ABYSS_JS_PATH)},
-                source=source,
+                {"url": url, "revision": revision},
+                source=response.source,
             ) from exc
         try:
             payload = _parse_genshinuid_js(js_code)
         except ValueError as exc:
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "Bundled abyss guide data is invalid.",
+                "Provider returned invalid abyss guide data.",
                 EXIT_UPSTREAM,
-                {"path": str(GENSHINUID_ABYSS_JS_PATH)},
-                source=source,
+                {"url": url, "revision": revision},
+                source=response.source,
             ) from exc
+        source = dict(response.source)
+        source["revision"] = revision
         return payload, source
+
+    def _genshinuid_abyss_js_revision(self) -> str:
+        response = self.http.request_bytes(
+            "GET",
+            GENSHINUID_ABYSS_JS_COMMITS_URL,
+            provider="github",
+            region="global",
+            category="guide.abyss.revision",
+            params={
+                "path": GENSHINUID_ABYSS_JS_PATH,
+                "per_page": "1",
+            },
+            headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "gsuid-cli",
+            },
+            expected_media_types=("application/json",),
+        )
+        try:
+            payload = json.loads(response.content.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise CliError(
+                "UPSTREAM_INVALID_RESPONSE",
+                "Provider returned invalid GenshinUID revision data.",
+                EXIT_UPSTREAM,
+                {"url": GENSHINUID_ABYSS_JS_COMMITS_URL, "path": GENSHINUID_ABYSS_JS_PATH},
+                source=response.source,
+            ) from exc
+        if not isinstance(payload, list) or not payload:
+            raise CliError(
+                "NO_RESULT",
+                "No GenshinUID abyss.js revision was found.",
+                EXIT_NO_RESULT,
+                {"url": GENSHINUID_ABYSS_JS_COMMITS_URL, "path": GENSHINUID_ABYSS_JS_PATH},
+                source=response.source,
+            )
+        first = payload[0]
+        sha = first.get("sha") if isinstance(first, dict) else None
+        if not isinstance(sha, str) or re.fullmatch(r"[0-9a-f]{40}", sha) is None:
+            raise CliError(
+                "UPSTREAM_INVALID_RESPONSE",
+                "Provider returned an invalid GenshinUID revision.",
+                EXIT_UPSTREAM,
+                {"url": GENSHINUID_ABYSS_JS_COMMITS_URL, "path": GENSHINUID_ABYSS_JS_PATH},
+                source=response.source,
+            )
+        return sha
 
     def _avatar_names_by_id(self) -> dict[str, str]:
         response = self._ambr_json(f"{AMBR_BASE_URL}/api/v2/chs/avatar", category="guide.avatar")
@@ -1149,6 +1208,10 @@ def _version_sort_key(version: str) -> tuple[int, ...]:
     for part in re.findall(r"\d+", version):
         parts.append(int(part))
     return tuple(parts)
+
+
+def _genshinuid_abyss_js_url(revision: str) -> str:
+    return f"{GENSHINUID_JSDELIVR_BASE}@{revision}/{GENSHINUID_ABYSS_JS_PATH}"
 
 
 def _local_primogems_plan_source() -> dict[str, object]:

@@ -83,8 +83,9 @@ rendering.
   `genshinuid://wiki/`.
 - Build and holder recommendation data is fetched from GenshinUID
   `GenshinUID/genshinuid_adv/char_adv_list.json`.
-- Abyss guide schedule and monster data is bundled from GenshinUID
-  `GenshinUID/genshinuid_guide/abyss.js`, where the rendered data credit is
-  `妮可少年`; theater guide data is fetched from the Hakush rolecombat API used by GenshinUID.
+- Abyss guide schedule and monster data is fetched from GenshinUID
+  `GenshinUID/genshinuid_guide/abyss.js` by resolving the latest commit for
+  that path on the default branch history and then using jsDelivr, where the
+  rendered data credit is `妮可少年`; theater guide data is fetched from the Hakush rolecombat API used by GenshinUID.
 - The CLI renderer code that uses these assets is adapted for this
   repository's command contract and static asset cache.
