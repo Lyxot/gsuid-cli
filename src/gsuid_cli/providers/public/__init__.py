@@ -58,6 +58,12 @@ GENSHINUID_ADV_LIST_URL = (
 GENSHINUID_ABYSS_JS_COMMITS_URL = "https://api.github.com/repos/KimigaiiWuyi/GenshinUID/commits"
 GENSHINUID_ABYSS_JS_PATH = "GenshinUID/genshinuid_guide/abyss.js"
 GENSHINUID_JSDELIVR_BASE = "https://cdn.jsdelivr.net/gh/KimigaiiWuyi/GenshinUID"
+GENSHINUID_ACHIEVEMENT_GUIDE_URL = (
+    f"{GENSHINUID_JSDELIVR_BASE}@main/GenshinUID/genshinuid_achievement/all_achi.json"
+)
+GENSHINUID_COMMISSION_GUIDE_URL = (
+    f"{GENSHINUID_JSDELIVR_BASE}@main/GenshinUID/genshinuid_achievement/daily_achi.json"
+)
 ASSETS_ROOT = Path(__file__).resolve().parents[2] / "assets"
 PRIMOGEMS_PLAN_ASSET_DIR = ASSETS_ROOT / "misc" / "primogems"
 GENSHINUID_RESOURCE_BASE = _public_common.GENSHINUID_RESOURCE_BASE
@@ -581,6 +587,50 @@ class PublicDataProvider:
             },
             warnings=warnings,
             source=detail.source,
+        )
+
+    def achievement_guide(self, *, query: str) -> CommandResult:
+        response = self.http.request_json(
+            "GET",
+            GENSHINUID_ACHIEVEMENT_GUIDE_URL,
+            provider="genshinuid",
+            region="cn",
+            category="guide.achievement.data",
+        )
+        match = _achievement_guide_match(response.payload, query)
+        return CommandResult(
+            data={
+                "query": query,
+                "kind": "achievement",
+                "available": True,
+                "matches": [match] if match else [],
+                "count": 1 if match else 0,
+                "source": "GenshinUID all_achi.json",
+            },
+            source=response.source,
+            warnings=[] if match else [f"暂无匹配成就攻略: {query}"],
+        )
+
+    def commission_guide(self, *, query: str) -> CommandResult:
+        response = self.http.request_json(
+            "GET",
+            GENSHINUID_COMMISSION_GUIDE_URL,
+            provider="genshinuid",
+            region="cn",
+            category="guide.commission.data",
+        )
+        match = _commission_guide_match(response.payload, query)
+        return CommandResult(
+            data={
+                "query": query,
+                "kind": "commission",
+                "available": True,
+                "matches": [match] if match else [],
+                "count": 1 if match else 0,
+                "source": "GenshinUID daily_achi.json",
+            },
+            source=response.source,
+            warnings=[] if match else [f"暂无匹配委托攻略: {query}"],
         )
 
     def rerun_list(self, *, limit: int) -> CommandResult:
@@ -1222,6 +1272,67 @@ def _local_primogems_plan_source() -> dict[str, object]:
         "fetched_at": None,
         "path": "package:assets/misc/primogems",
     }
+
+
+def _achievement_guide_match(
+    payload: dict[str, object],
+    query: str,
+) -> dict[str, object] | None:
+    name, detail = _guide_match(payload, query)
+    if detail is None:
+        return None
+    return {
+        "name": name,
+        "book": _text(detail.get("book")),
+        "description": _text(detail.get("desc")),
+        "guide": _text(detail.get("guide")),
+        "link": _text(detail.get("link")),
+    }
+
+
+def _commission_guide_match(
+    payload: dict[str, object],
+    query: str,
+) -> dict[str, object] | None:
+    name, detail = _guide_match(payload, query)
+    if detail is None:
+        return None
+    return {
+        "name": name,
+        "achievement": _text(detail.get("achievement")),
+        "description": _text(detail.get("desc")),
+        "guide": _text(detail.get("guide")),
+        "link": _text(detail.get("link")),
+    }
+
+
+def _guide_match(
+    payload: dict[str, object],
+    query: str,
+) -> tuple[str, dict[str, object] | None]:
+    if query in payload and isinstance(payload[query], dict):
+        return query, payload[query]
+    query_chars = set(_chinese_text(query))
+    best_name = ""
+    best_detail: dict[str, object] | None = None
+    best_score = 0
+    for name, value in payload.items():
+        if not isinstance(value, dict):
+            continue
+        normalized_name = _chinese_text(str(name))
+        normalized_name = normalized_name.replace("每日委托", "").replace("世界任务", "")
+        if not normalized_name:
+            continue
+        score = len(set(normalized_name) & query_chars)
+        if score >= len(normalized_name) / 2 and score > best_score:
+            best_score = score
+            best_name = str(name)
+            best_detail = value
+    return best_name, best_detail
+
+
+def _chinese_text(value: str) -> str:
+    return "".join(re.findall("[\u4e00-\u9fa5]", value))
 
 
 def _current_daily_day() -> str:

@@ -12,6 +12,7 @@ from gsuid_cli.commands._shared import (
     _write_image_artifact,
 )
 from gsuid_cli.commands.player import _player_title_render_context
+from gsuid_cli.commands.public_data._common import _provider as _public_provider
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
@@ -77,14 +78,14 @@ CAPABILITIES = [
     },
     {
         "command": "progress.achievement-guide",
-        "description": "Report achievement guide lookup support status.",
+        "description": "Look up GenshinUID achievement guide data.",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "progress.commission-guide",
-        "description": "Report commission guide lookup support status.",
+        "description": "Look up GenshinUID commission achievement guide data.",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
@@ -129,7 +130,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 
     achievement_guide = commands.add_parser(
         "achievement-guide",
-        help="Report achievement guide lookup support status.",
+        help="Look up achievement guide data.",
     )
     achievement_guide.add_argument("--query", required=True)
     achievement_guide.set_defaults(
@@ -139,7 +140,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 
     commission_guide = commands.add_parser(
         "commission-guide",
-        help="Report commission guide lookup support status.",
+        help="Look up commission guide data.",
     )
     commission_guide.add_argument("--query", required=True)
     commission_guide.set_defaults(
@@ -267,14 +268,14 @@ def achievements_command(args: argparse.Namespace) -> CommandResult:
 
 
 def achievement_guide_command(args: argparse.Namespace) -> CommandResult:
-    result = _source_limited_guide("achievement", args.query)
+    result = _public_provider(args).achievement_guide(query=args.query)
     if not render_text_enabled(args):
         return result
     return _guide_render_result(args, result, "achievement")
 
 
 def commission_guide_command(args: argparse.Namespace) -> CommandResult:
-    result = _source_limited_guide("commission", args.query)
+    result = _public_provider(args).commission_guide(query=args.query)
     if not render_text_enabled(args):
         return result
     return _guide_render_result(args, result, "commission")
@@ -317,22 +318,6 @@ def gcg_deck_command(args: argparse.Namespace) -> CommandResult:
         cookie=cookie,
         credential_source=credential_source,
         storage_backend=storage_backend,
-    )
-
-
-def _source_limited_guide(kind: str, query: str) -> CommandResult:
-    guide_name = {"achievement": "成就攻略", "commission": "委托攻略"}.get(kind, "攻略")
-    message = f"{guide_name}数据暂未从已配置来源提供"
-    return CommandResult(
-        data={
-            "query": query,
-            "kind": kind,
-            "available": False,
-            "matches": [],
-            "count": 0,
-            "source_limitations": [message],
-        },
-        warnings=[message],
     )
 
 

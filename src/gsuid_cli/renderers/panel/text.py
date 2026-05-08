@@ -487,7 +487,9 @@ def _override_label(value: object) -> str:
 
 
 def _source_label(value: object) -> str:
-    return {"enka": "Enka", "mys": "米游社", "auto": "自动"}.get(str(value), _text(value))
+    return {"enka": "Enka", "mys": "米游社", "enka+mys": "Enka + 米游社", "auto": "自动"}.get(
+        str(value), _text(value)
+    )
 
 
 def _constellation_text(value: object) -> str:

@@ -18,8 +18,11 @@ from gsuid_cli.commands.player import (
 )
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
+from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.region import ensure_supported_region
 from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
+from gsuid_cli.providers.akasha import AkashaProvider
 from gsuid_cli.providers.assets import fetch_render_images
 from gsuid_cli.renderers.challenge.abyss import (
     challenge_abyss_image_urls,
@@ -66,7 +69,7 @@ CAPABILITIES = [
     },
     {
         "command": "challenge.hard-rank",
-        "description": "Report hard challenge ranking support status.",
+        "description": "Show the Akasha Stygian Onslaught ranking.",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
@@ -98,7 +101,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 
     hard_rank = commands.add_parser(
         "hard-rank",
-        help="Report hard challenge ranking support status.",
+        help="Show the Akasha Stygian Onslaught ranking.",
     )
     hard_rank.set_defaults(handler=hard_rank_command, command_name="challenge.hard-rank")
 
@@ -181,16 +184,16 @@ def hard_command(args: argparse.Namespace) -> CommandResult:
 
 
 def hard_rank_command(args: argparse.Namespace) -> CommandResult:
-    message = "hard challenge global ranking is not available from configured sources"
-    result = CommandResult(
-        data={
-            "available": False,
-            "entries": [],
-            "count": 0,
-            "source_limitations": [message],
-        },
-        warnings=[message],
-    )
+    region = args.region or "cn"
+    ensure_supported_region(region)
+    result = AkashaProvider(
+        HttpClient(
+            timeout=args.timeout,
+            cache_policy=args.cache,
+            output_dir=args.output_dir,
+            debug=args.debug,
+        )
+    ).stygian_rank(region=region)
     if not render_text_enabled(args):
         return result
     return _hard_rank_render_result(args, result)

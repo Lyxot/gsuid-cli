@@ -36,7 +36,7 @@ This file is the source policy for provider HTTP response caching. If the policy
 
 | URL Family | Rule | Notes |
 | --- | --- | --- |
-| `auth.*`, `device.*`, `daily.signin*`, `gacha.authkey.refresh` | `no-store` | Login, token, sign-in, and device mutation/status data must be live. |
+| `auth.*`, `device.*`, `daily.signin*`, `daily.bbs-coin*`, `gacha.authkey.refresh` | `no-store` | Login, token, sign-in, BBS task actions, and device mutation/status data must be live. |
 | `daily.note*` | `private-short` | Resin, expeditions, commissions, and similar player state should not stay stale or persist on disk. |
 | `player.*`, `challenge.*`, `progress.*`, `gacha.refresh` | `private-short` | Prevents duplicate immediate requests without hiding normal account changes or persisting private payloads. |
 | `rank.*`, Akasha provider JSON | `public-short` | Leaderboards move frequently. |

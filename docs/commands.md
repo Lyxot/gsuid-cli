@@ -33,10 +33,10 @@ Generated from `gsuid meta capabilities`.
 | `cache.size` | `none` | `data, text, all` | Show local cache and artifact disk usage by scope. |
 | `challenge.abyss` | `cookie` | `data, image, text, all` | Show authenticated Spiral Abyss data. |
 | `challenge.hard` | `cookie` | `data, image, text, all` | Show authenticated Stygian Onslaught hard challenge data. |
-| `challenge.hard-rank` | `none` | `data, text, all` | Report hard challenge ranking support status. |
+| `challenge.hard-rank` | `none` | `data, text, all` | Show the Akasha Stygian Onslaught ranking. |
 | `challenge.theater` | `cookie` | `data, image, text, all` | Show authenticated Imaginarium Theater data. |
 | `codes.list` | `none` | `data, text, all` | List public active redeem-code rows. |
-| `daily.bbs-coin` | `none` | `data, text, all` | Report BBS coin task support status. |
+| `daily.bbs-coin` | `stoken` | `data, text, all` | Run and report MYS BBS coin tasks. |
 | `daily.materials` | `none` | `data, image, text, all` | List daily talent and weapon material domains. |
 | `daily.note` | `cookie` | `data, image, text, all` | Show current resin, commissions, expeditions, and teapot status. |
 | `daily.signin` | `cookie` | `data, text, all` | Claim or report the MYS daily sign-in status. |
@@ -66,7 +66,7 @@ Generated from `gsuid meta capabilities`.
 | `panel.compare` | `none` | `data, image, text, all` | Compare cached panel stats for two or more builds. |
 | `panel.graduation` | `none` | `data, image, text, all` | Summarize local cached graduation inputs and render GenshinUID-style rows. |
 | `panel.list` | `none` | `data, text, all` | List cached character panels for a UID. |
-| `panel.refresh` | `none` | `data, text, all` | Refresh Enka showcase panel data into the local cache. |
+| `panel.refresh` | `none` | `data, text, all` | Refresh Enka showcase or MYS character detail panel data into the local cache. |
 | `panel.save` | `none` | `data, text, all` | Save one cached panel as a JSON artifact. |
 | `panel.show` | `none` | `data, image, text, all` | Show one cached character panel. |
 | `panel.showcase` | `none` | `data, image, text, all` | Show the cached public showcase summary. |
@@ -81,10 +81,10 @@ Generated from `gsuid meta capabilities`.
 | `profile.init` | `none` | `data, text, all` | Create or update a local profile. |
 | `profile.list` | `none` | `data, text, all` | List local profiles. |
 | `profile.show` | `none` | `data, text, all` | Show one local profile. |
-| `progress.achievement-guide` | `none` | `data, text, all` | Report achievement guide lookup support status. |
+| `progress.achievement-guide` | `none` | `data, text, all` | Look up GenshinUID achievement guide data. |
 | `progress.achievements` | `cookie` | `data, image, text, all` | Show authenticated achievement category data. |
 | `progress.collection` | `cookie` | `data, image, text, all` | Show authenticated collection count data. |
-| `progress.commission-guide` | `none` | `data, text, all` | Report commission guide lookup support status. |
+| `progress.commission-guide` | `none` | `data, text, all` | Look up GenshinUID commission achievement guide data. |
 | `progress.completion` | `cookie` | `data, image, text, all` | Show authenticated account completion summary data. |
 | `progress.exploration` | `cookie` | `data, image, text, all` | Show authenticated world exploration data. |
 | `progress.gcg` | `cookie` | `data, image, text, all` | Show authenticated Genius Invokation TCG data. |

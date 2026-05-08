@@ -23,6 +23,8 @@ BUILDS_API = f"{BASE_URL}/builds"
 LEADERBOARD_API = f"{BASE_URL}/v2/leaderboards/categories"
 SORT_API = f"{BASE_URL}/leaderboards"
 ARTIFACT_API = f"{BASE_URL}/artifacts"
+STYGIAN_API = f"{BASE_URL}/accounts"
+HASH_ROW_API = f"{BASE_URL}/getCollectionSize/"
 DEFAULT_SESSION_ID = "NVybrjSdSZISA0JRuKFoZIndoCfDWdA2"
 HEADERS = {
     "User-Agent": "GsCore / GenshinUID / 6.2.0",
@@ -235,6 +237,53 @@ class AkashaProvider:
             source=response.source,
         )
 
+    def stygian_rank(self, *, region: str) -> CommandResult:
+        ensure_supported_region(region)
+        response = self._request_json(
+            "GET",
+            STYGIAN_API,
+            region=region,
+            category="challenge.hard-rank",
+            params={
+                "sort": "playerInfo.stygianScore",
+                "order": "-1",
+                "size": 20,
+                "page": 1,
+                "filter": "",
+                "uids": "",
+                "fromId": "",
+            },
+        )
+        entries = [_stygian_entry(item) for item in _list_of_dicts(response.payload.get("data"))]
+        entries = [item for item in entries if item["uid"]]
+        total_count = self._stygian_total_count(response.payload, region)
+        if total_count is None:
+            total_count = len(entries)
+        return CommandResult(
+            data={
+                "available": True,
+                "source": PROVIDER,
+                "entries": entries[:18],
+                "count": len(entries[:18]),
+                "total_count": total_count,
+            },
+            source=response.source,
+        )
+
+    def _stygian_total_count(self, payload: dict[str, object], region: str) -> int | None:
+        total_rows_hash = payload.get("totalRowsHash")
+        if not total_rows_hash:
+            return None
+        response = self._request_json(
+            "GET",
+            HASH_ROW_API,
+            region=region,
+            category="challenge.hard-rank.count",
+            params={"variant": "accounts", "hash": str(total_rows_hash)},
+        )
+        total = _number(response.payload.get("totalRows"))
+        return int(total) if total else None
+
     def _session_id(self, region: str) -> str:
         response = self._request_json(
             "GET",
@@ -414,6 +463,29 @@ def _player(payload: dict[str, object]) -> dict[str, object]:
         "stygian_index": player.get("stygianIndex"),
         "stygian_seconds": player.get("stygianSeconds"),
     }
+
+
+def _stygian_entry(item: dict[str, object]) -> dict[str, object]:
+    player = _dict_value(item.get("playerInfo"))
+    seconds = int(_number(player.get("stygianSeconds")))
+    return {
+        "uid": str(item.get("uid") or ""),
+        "nickname": player.get("nickname"),
+        "level": int(_number(player.get("level"))),
+        "region": player.get("region"),
+        "signature": player.get("signature"),
+        "stygian_index": int(_number(player.get("stygianIndex"))),
+        "stygian_seconds": seconds,
+        "stygian_time": _seconds_text(seconds),
+        "achievement_count": int(_number(player.get("finishAchievementNum"))),
+    }
+
+
+def _seconds_text(seconds: int) -> str:
+    if seconds <= 0:
+        return "-"
+    minutes, second = divmod(seconds, 60)
+    return f"{minutes:02d}:{second:02d}"
 
 
 def _player_profile_url(player: dict[str, object]) -> str | None:

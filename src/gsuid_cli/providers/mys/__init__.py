@@ -16,6 +16,7 @@ from gsuid_cli.providers.mys.auth import (
     _record_headers,
     server_for_uid,
 )
+from gsuid_cli.providers.mys.bbs import MysBbsMixin
 from gsuid_cli.providers.mys.challenge import MysChallengeMixin
 from gsuid_cli.providers.mys.constants import CARD_PATH, INDEX_PATH, PROVIDER, RECORD_BASE_CN
 from gsuid_cli.providers.mys.constants import (
@@ -39,6 +40,7 @@ from gsuid_cli.providers.mys.signin import MysSigninMixin
 
 
 class MysProvider(
+    MysBbsMixin,
     MysChallengeMixin,
     MysDeviceMixin,
     MysGachaMixin,

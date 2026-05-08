@@ -186,6 +186,21 @@ def render_challenge_hard_rank_text(data: Mapping[str, object]) -> str:
         f"可用: {'是' if data.get('available') else '否'}",
         f"数量: {data.get('count', 0)}",
     ]
+    if data.get("total_count") not in (None, ""):
+        lines.append(f"总人数: {data['total_count']}")
+    entries = _mapping_list(data.get("entries"))
+    if entries:
+        lines.extend(["", "排行:"])
+        for index, entry in enumerate(entries, start=1):
+            nickname = text_value(entry.get("nickname")) or "未知玩家"
+            uid = text_value(entry.get("uid")) or "-"
+            difficulty = text_value(entry.get("stygian_index")) or "-"
+            time_text = text_value(entry.get("stygian_time")) or "-"
+            achievement = text_value(entry.get("achievement_count")) or "-"
+            lines.append(
+                f"  {index}. {nickname} UID {uid}: "
+                f"难度 {difficulty}，用时 {time_text}，成就 {achievement}"
+            )
     limitations = [
         text
         for text in (text_value(item) for item in sequence(data.get("source_limitations")))

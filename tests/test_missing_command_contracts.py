@@ -7,8 +7,11 @@ import pytest
 from helpers import run_json_with_stderr as _run_json
 
 from gsuid_cli.cli import run
+from gsuid_cli.commands import challenge as challenge_commands
+from gsuid_cli.commands import progress as progress_commands
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.secrets import SecretStore
 
 
 def test_meta_doctor_storage_reports_checks(monkeypatch, tmp_path) -> None:
@@ -208,13 +211,78 @@ def test_cache_size_does_not_follow_symlinks(monkeypatch, tmp_path) -> None:
     assert payload["data"]["files"] == 0
 
 
-def test_source_limited_missing_commands_return_structured_results(monkeypatch, tmp_path) -> None:
+def _fake_bbs_provider(_region: str, _http_client: HttpClient):
+    class FakeProvider:
+        def daily_bbs_coin(self, **kwargs: object) -> CommandResult:
+            return CommandResult(
+                data={
+                    "uid": kwargs["uid"],
+                    "available": True,
+                    "tasks": [],
+                    "actions": [],
+                    "points_received": 10,
+                    "failures": [],
+                    "source": "mihoyo-bbs",
+                },
+                source={"provider": "mys", "region": "cn", "cached": False, "fetched_at": "now"},
+            )
+
+    return FakeProvider()
+
+
+class _FakeHardRankProvider:
+    def __init__(self, _http_client: HttpClient) -> None:
+        pass
+
+    def stygian_rank(self, *, region: str) -> CommandResult:
+        return CommandResult(
+            data={
+                "available": True,
+                "entries": [{"uid": "100000001", "nickname": "派蒙"}],
+                "count": 1,
+                "total_count": 1,
+            },
+            source={"provider": "akasha", "region": region, "cached": False, "fetched_at": "now"},
+        )
+
+
+class _FakeGuideProvider:
+    def achievement_guide(self, *, query: str) -> CommandResult:
+        return CommandResult(
+            data={
+                "query": query,
+                "kind": "achievement",
+                "available": True,
+                "matches": [{"name": query, "book": "天地万象"}],
+                "count": 1,
+            },
+            source={"provider": "genshinuid", "region": "cn", "cached": False, "fetched_at": "now"},
+        )
+
+    def commission_guide(self, *, query: str) -> CommandResult:
+        return CommandResult(
+            data={
+                "query": query,
+                "kind": "commission",
+                "available": True,
+                "matches": [{"name": query, "achievement": "Yo dala？"}],
+                "count": 1,
+            },
+            source={"provider": "genshinuid", "region": "cn", "cached": False, "fetched_at": "now"},
+        )
+
+
+def test_stage_14_2_commands_return_structured_results(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_bbs_provider)
+    monkeypatch.setattr(challenge_commands, "AkashaProvider", _FakeHardRankProvider)
+    monkeypatch.setattr(progress_commands, "_public_provider", lambda _args: _FakeGuideProvider())
+    SecretStore().set_secret("stoken", "100000001", "stuid=1;stoken=secret")
     commands = [
         ["daily", "bbs-coin", "--uid", "100000001"],
         ["challenge", "hard-rank"],
-        ["progress", "achievement-guide", "--query", "commission"],
-        ["progress", "commission-guide", "--query", "anna"],
+        ["progress", "achievement-guide", "--query", "昨日重现"],
+        ["progress", "commission-guide", "--query", "诗歌交流"],
     ]
 
     for argv in commands:
@@ -223,8 +291,7 @@ def test_source_limited_missing_commands_return_structured_results(monkeypatch, 
         assert code == 0
         assert stderr == ""
         assert payload["ok"] is True
-        assert payload["warnings"]
-        assert payload["data"]["source_limitations"]
+        assert payload["data"].get("source_limitations") in (None, [])
 
 
 def test_progress_gcg_deck_uses_provider(monkeypatch, tmp_path) -> None:

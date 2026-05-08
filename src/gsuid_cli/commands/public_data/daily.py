@@ -5,7 +5,7 @@ import argparse
 from gsuid_cli.commands import player as player_commands
 from gsuid_cli.commands._shared import _cookie_context
 from gsuid_cli.commands._shared import _provider as _auth_provider
-from gsuid_cli.commands.auth import _uid_and_region
+from gsuid_cli.commands.auth import _credential, _uid_and_region
 from gsuid_cli.commands.public_data._common import (
     _append_url,
     _optional_bool,
@@ -56,8 +56,8 @@ CAPABILITIES = [
     },
     {
         "command": "daily.bbs-coin",
-        "description": "Report BBS coin task support status.",
-        "auth": "none",
+        "description": "Run and report MYS BBS coin tasks.",
+        "auth": "stoken",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
@@ -124,18 +124,14 @@ def daily_signin_command(args: argparse.Namespace) -> CommandResult:
 def daily_bbs_coin_command(args: argparse.Namespace) -> CommandResult:
     uid, region = _uid_and_region(args)
     ensure_supported_region(region)
-    result = CommandResult(
-        data={
-            "uid": uid,
-            "available": False,
-            "tasks": [],
-            "points_received": None,
-            "failures": [],
-            "source_limitations": [
-                "当前 CLI 未配置稳定的米游社任务来源，暂不支持自动执行米游币任务"
-            ],
-        },
-        warnings=["每日米游币任务数据暂不可用：当前 CLI 未配置稳定的米游社任务来源"],
+    args.credential_kind = "stoken"
+    stoken, credential_source, storage_backend = _credential(args, uid)
+    result = _auth_provider(args, region).daily_bbs_coin(
+        uid=uid,
+        stoken=stoken,
+        region=region,
+        credential_source=credential_source,
+        storage_backend=storage_backend,
     )
     if not render_text_enabled(args):
         return result
@@ -162,7 +158,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     signin.add_argument("--uid", dest="command_uid")
     signin.set_defaults(handler=daily_signin_command, command_name="daily.signin")
 
-    bbs_coin = commands.add_parser("bbs-coin", help="Report BBS coin task support status.")
+    bbs_coin = commands.add_parser("bbs-coin", help="Run and report MYS BBS coin tasks.")
     bbs_coin.add_argument("--uid", dest="command_uid")
     bbs_coin.set_defaults(handler=daily_bbs_coin_command, command_name="daily.bbs-coin")
 

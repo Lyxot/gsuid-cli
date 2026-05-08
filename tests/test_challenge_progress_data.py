@@ -163,6 +163,7 @@ def test_challenge_abyss_render_data_image_preserves_structured_data(monkeypatch
 def test_challenge_commands_render_text_write_artifacts(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
+    monkeypatch.setattr(challenge_commands, "AkashaProvider", FakeHardRankProvider)
     monkeypatch.setattr(challenge_commands, "fetch_render_images", _fail_image_fetcher)
     monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
@@ -194,7 +195,7 @@ def test_challenge_commands_render_text_write_artifacts(monkeypatch, tmp_path) -
             "challenge.hard-rank",
             "challenge/hard-rank-text",
             "幽境危战排行",
-            "可用: 否",
+            "可用: 是",
         ),
     ]
 
@@ -285,6 +286,7 @@ def test_challenge_abyss_render_text_image_preserves_image_primary_artifact(
 
 def test_challenge_hard_rank_plain_text_prints_warning(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(challenge_commands, "AkashaProvider", FakeHardRankProvider)
     stdout = io.StringIO()
     stderr = io.StringIO()
 
@@ -296,8 +298,8 @@ def test_challenge_hard_rank_plain_text_prints_warning(monkeypatch, tmp_path) ->
 
     assert code == 0
     assert stdout.getvalue().startswith("幽境危战排行\n")
-    assert "\033[33m警告: hard challenge global ranking is not available" in stderr.getvalue()
-    assert stderr.getvalue().endswith("\033[0m\n")
+    assert "可用: 是" in stdout.getvalue()
+    assert stderr.getvalue() == ""
 
 
 def test_progress_render_images(monkeypatch, tmp_path) -> None:
@@ -383,6 +385,7 @@ def test_progress_render_images(monkeypatch, tmp_path) -> None:
 def test_progress_commands_render_text_write_artifacts(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
+    monkeypatch.setattr(progress_commands, "_public_provider", lambda _args: FakeGuideProvider())
     monkeypatch.setattr(progress_commands, "fetch_render_images", _fail_image_fetcher)
     monkeypatch.setattr("gsuid_cli.commands.player.fetch_render_images", _fail_image_fetcher)
     monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
@@ -422,14 +425,14 @@ def test_progress_commands_render_text_write_artifacts(monkeypatch, tmp_path) ->
             "progress.achievement-guide",
             "progress/achievement-guide-text",
             "成就攻略查询",
-            "可用: 否",
+            "分类: 天地万象",
         ),
         (
             ["progress", "commission-guide", "--query", "anna"],
             "progress.commission-guide",
             "progress/commission-guide-text",
             "委托攻略查询",
-            "可用: 否",
+            "关联成就: Yo dala？",
         ),
         (
             ["progress", "gcg", "--uid", "100000001"],
@@ -530,6 +533,11 @@ def test_progress_render_text_image_preserves_image_primary_artifact(monkeypatch
 
 def test_progress_guide_plain_text_prints_warning(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        progress_commands,
+        "_public_provider",
+        lambda _args: FakeNoMatchGuideProvider(),
+    )
     stdout = io.StringIO()
     stderr = io.StringIO()
 
@@ -550,7 +558,7 @@ def test_progress_guide_plain_text_prints_warning(monkeypatch, tmp_path) -> None
 
     assert code == 0
     assert stdout.getvalue().startswith("成就攻略查询\n")
-    assert "\033[33m警告: 成就攻略数据暂未从已配置来源提供" in stderr.getvalue()
+    assert "\033[33m警告: 暂无匹配成就攻略: commission" in stderr.getvalue()
     assert stderr.getvalue().endswith("\033[0m\n")
 
 
@@ -1198,6 +1206,91 @@ def _fake_provider(_region: str, _http_client: HttpClient):
             )
 
     return FakeProvider()
+
+
+class FakeHardRankProvider:
+    def __init__(self, _http_client: HttpClient) -> None:
+        pass
+
+    def stygian_rank(self, *, region: str) -> CommandResult:
+        assert region == "cn"
+        return CommandResult(
+            data={
+                "available": True,
+                "source": "akasha",
+                "entries": [
+                    {
+                        "uid": "100000001",
+                        "nickname": "派蒙",
+                        "level": 60,
+                        "stygian_index": 6,
+                        "stygian_seconds": 90,
+                        "stygian_time": "01:30",
+                        "achievement_count": 900,
+                    }
+                ],
+                "count": 1,
+                "total_count": 1,
+            },
+            source=_source(region),
+        )
+
+
+class FakeGuideProvider:
+    def achievement_guide(self, *, query: str) -> CommandResult:
+        return CommandResult(
+            data={
+                "query": query,
+                "kind": "achievement",
+                "available": True,
+                "matches": [
+                    {
+                        "name": "昨日重现",
+                        "book": "天地万象",
+                        "description": "激活60首旋律。",
+                        "guide": "日常购买",
+                        "link": "",
+                    }
+                ],
+                "count": 1,
+            },
+            source=_source("cn"),
+        )
+
+    def commission_guide(self, *, query: str) -> CommandResult:
+        return CommandResult(
+            data={
+                "query": query,
+                "kind": "commission",
+                "available": True,
+                "matches": [
+                    {
+                        "name": "诗歌交流",
+                        "achievement": "Yo dala？",
+                        "description": "与丘丘人交流成功。",
+                        "guide": "选择正确选项",
+                        "link": "",
+                    }
+                ],
+                "count": 1,
+            },
+            source=_source("cn"),
+        )
+
+
+class FakeNoMatchGuideProvider:
+    def achievement_guide(self, *, query: str) -> CommandResult:
+        return CommandResult(
+            data={
+                "query": query,
+                "kind": "achievement",
+                "available": True,
+                "matches": [],
+                "count": 0,
+            },
+            warnings=[f"暂无匹配成就攻略: {query}"],
+            source=_source("cn"),
+        )
 
 
 def _fake_stats() -> dict[str, object]:

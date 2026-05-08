@@ -189,6 +189,7 @@ def _action_category(category: str) -> bool:
         (
             "auth.",
             "device.",
+            "daily.bbs-coin",
             "daily.signin",
             "gacha.authkey.refresh",
         )

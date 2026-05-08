@@ -133,7 +133,10 @@ def render_daily_bbs_coin_text(data: Mapping[str, object]) -> str:
     lines.append("任务")
     if tasks:
         for task in tasks:
-            lines.append(f"  - {task}")
+            if isinstance(task, Mapping):
+                lines.append(f"  - {_bbs_task_text(task)}")
+            else:
+                lines.append(f"  - {task}")
     else:
         lines.append("  暂无")
 
@@ -152,6 +155,17 @@ def render_daily_bbs_coin_text(data: Mapping[str, object]) -> str:
             lines.append(f"  - {limitation}")
 
     return _finish(lines)
+
+
+def _bbs_task_text(task: Mapping[str, object]) -> str:
+    label = text_value(task.get("label")) or text_value(task.get("key")) or "任务"
+    status = "已完成" if bool_value(task.get("completed")) else "未完成"
+    happened = int_value(task.get("happened_times"), -1)
+    remaining = int_value(task.get("remaining"), -1)
+    details = [status]
+    if happened >= 0 and remaining >= 0:
+        details.append(f"已做 {happened}，剩余 {remaining}")
+    return f"{label}: {'，'.join(details)}"
 
 
 def _items(domain: Mapping[str, object]) -> list[Mapping[str, object]]:

@@ -157,6 +157,7 @@ def _append_character(lines: list[str], item: Mapping[str, object]) -> None:
     desc = _clean_text(item.get("description"))
     if desc:
         lines.extend(["", desc])
+    _append_level_info(lines, item)
 
 
 def _append_weapon(lines: list[str], item: Mapping[str, object]) -> None:
@@ -176,6 +177,7 @@ def _append_weapon(lines: list[str], item: Mapping[str, object]) -> None:
             lines.append(f"  - {effect_name}")
         if effect_desc:
             lines.append(f"    {effect_desc}")
+    _append_level_info(lines, item)
 
 
 def _append_artifact(lines: list[str], item: Mapping[str, object]) -> None:
@@ -331,6 +333,35 @@ def _weapon_effect(item: Mapping[str, object]) -> tuple[str | None, str | None]:
     upgrade = _mapping(affix.get("upgrade"))
     effect = text_value(upgrade.get("0")) or text_value(next(iter(upgrade.values()), ""))
     return text_value(affix.get("name")) or "武器特效", _clean_text(effect)
+
+
+def _append_level_info(lines: list[str], item: Mapping[str, object]) -> None:
+    level_info = _mapping(item.get("level_info"))
+    if not level_info:
+        return
+    lines.extend(["", "等级请求:"])
+    _append_field(lines, "等级", level_info.get("level"))
+    _append_field(lines, "突破阶数", level_info.get("promote_level"))
+    _append_field(lines, "当前突破上限", level_info.get("unlock_max_level"))
+    _append_field(lines, "需求冒险等阶", level_info.get("required_player_level"))
+    add_props = _mapping(level_info.get("add_props"))
+    if add_props:
+        lines.append("突破加成:")
+        for prop, value in add_props.items():
+            lines.append(f"  - {_prop_label(prop) or prop}: {_stat_value(prop, value)}")
+
+
+def _stat_value(prop: object, value: object) -> str:
+    number_text = text_value(value) or "-"
+    prop_text = text_value(prop) or ""
+    if prop_text in PROP_LABELS and any(
+        token in prop_text for token in ("PERCENT", "CRITICAL", "HURT", "EFFICIENCY")
+    ):
+        try:
+            return f"{float(number_text) * 100:.1f}%"
+        except ValueError:
+            return number_text
+    return number_text
 
 
 def _base_attack(value: object) -> int | None:

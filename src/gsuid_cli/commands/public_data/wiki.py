@@ -103,14 +103,55 @@ CAPABILITIES = [
 def wiki_command(args: argparse.Namespace) -> CommandResult:
     result = _provider(args).wiki_lookup(kind=args.wiki_kind, query=_wiki_query(args))
     if getattr(args, "level", None) is not None:
-        result.data["requested_level"] = args.level
-        result.warnings.append("level-specific stats are not implemented; returned base wiki data")
+        _apply_level_request(result, _positive(args.level, "level"))
     if render_image_enabled(args) and args.wiki_kind not in WIKI_LOOKUP_IMAGE_KINDS:
         if not render_text_enabled(args):
             return result
     if render_image_enabled(args) or render_text_enabled(args):
         return _wiki_render_result(args, result, args.wiki_kind)
     return result
+
+
+def _apply_level_request(result: CommandResult, level: int) -> None:
+    item = result.data.get("item")
+    if not isinstance(item, dict):
+        result.data["requested_level"] = level
+        result.warnings.append("level data could not be applied because wiki item data is missing")
+        return
+    result.data["requested_level"] = level
+    item["requested_level"] = level
+    level_info = _level_info(item, level)
+    if level_info:
+        item["level_info"] = level_info
+        result.data["item"] = item
+        result.warnings.append(
+            "level request matched public promotion data; "
+            "exact growth-curve stats are not available from the current source"
+        )
+        return
+    result.warnings.append("level-specific stats are not available from the current public source")
+
+
+def _level_info(item: dict[str, object], level: int) -> dict[str, object] | None:
+    promote = item.get("upgrade")
+    if isinstance(promote, dict):
+        promote = promote.get("promote")
+    rows = [row for row in promote if isinstance(row, dict)] if isinstance(promote, list) else []
+    if not rows:
+        return None
+    sorted_rows = sorted(rows, key=lambda row: _number(row.get("unlockMaxLevel")))
+    selected = next(
+        (row for row in sorted_rows if _number(row.get("unlockMaxLevel")) >= level),
+        sorted_rows[-1],
+    )
+    add_props = selected.get("addProps")
+    return {
+        "level": level,
+        "promote_level": selected.get("promoteLevel"),
+        "unlock_max_level": selected.get("unlockMaxLevel"),
+        "required_player_level": selected.get("requiredPlayerLevel"),
+        "add_props": add_props if isinstance(add_props, dict) else {},
+    }
 
 
 def talent_command(args: argparse.Namespace) -> CommandResult:
@@ -385,11 +426,6 @@ def _wiki_render_result(
     data = render_result_data(args, result.data, render_data)
     if item_result is not None:
         warnings.extend(item_result.warnings)
-    if image_enabled and render_kind == "weapon":
-        warnings.append(
-            "weapon level-specific stats are not available from the current public source; "
-            "rendered base public wiki stats"
-        )
     return CommandResult(
         data=data,
         artifacts=artifacts,
@@ -542,3 +578,10 @@ def _wiki_query(args: argparse.Namespace) -> str:
             {"command": args.command_name},
         )
     return query
+
+
+def _number(value: object) -> float:
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return 0.0

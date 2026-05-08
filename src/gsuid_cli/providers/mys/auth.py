@@ -10,6 +10,8 @@ from http.cookies import CookieError, SimpleCookie
 
 from gsuid_cli.providers.mys.constants import (
     APP_VERSION,
+    BBS_SALT,
+    BBS_SIGN_SALT,
     PASSPORT_SALT,
     RECORD_SALT,
     SERVER_BY_UID_PREFIX,
@@ -129,12 +131,44 @@ def _authkey_headers(stoken: str) -> dict[str, str]:
     }
 
 
+def _bbs_headers(stoken: str, body: dict[str, object] | None = None) -> dict[str, str]:
+    return {
+        **_headers(stoken),
+        "DS": _bbs_sign_ds(body) if body is not None else _bbs_ds(),
+        "User-Agent": "okhttp/4.8.0",
+        "x-rpc-client_type": "2",
+        "x-rpc-sys_version": "6.0.1",
+        "x-rpc-channel": "miyousheluodi",
+        "x-rpc-device_id": _generate_seed(32).upper(),
+        "x-rpc-device_name": _random_text(random.randint(1, 10)),
+        "x-rpc-device_model": "Mi 10",
+        "Referer": "https://app.mihoyo.com",
+    }
+
+
 def _web_ds() -> str:
     # Ported from gsuid_core.utils.api.mys.tools.get_web_ds_token.
     timestamp = str(int(time.time()))
     random_text = "".join(random.sample(string.ascii_lowercase + string.digits, 6))
     digest = hashlib.md5(f"salt={WEB_SALT}&t={timestamp}&r={random_text}".encode()).hexdigest()
     return f"{timestamp},{random_text},{digest}"
+
+
+def _bbs_ds() -> str:
+    timestamp = str(int(time.time()))
+    random_text = "".join(random.sample(string.ascii_lowercase + string.digits, 6))
+    digest = hashlib.md5(f"salt={BBS_SALT}&t={timestamp}&r={random_text}".encode()).hexdigest()
+    return f"{timestamp},{random_text},{digest}"
+
+
+def _bbs_sign_ds(body: dict[str, object] | None) -> str:
+    timestamp = str(int(time.time()))
+    random_number = str(random.randint(100000, 200000))
+    body_text = _signed_body_text(body)
+    digest = hashlib.md5(
+        f"salt={BBS_SIGN_SALT}&t={timestamp}&r={random_number}&b={body_text}&q=".encode()
+    ).hexdigest()
+    return f"{timestamp},{random_number},{digest}"
 
 
 def _already_signed(payload: dict[str, object]) -> bool:

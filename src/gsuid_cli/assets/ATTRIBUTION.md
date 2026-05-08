@@ -87,5 +87,8 @@ rendering.
   `GenshinUID/genshinuid_guide/abyss.js` by resolving the latest commit for
   that path on the default branch history and then using jsDelivr, where the
   rendered data credit is `妮可少年`; theater guide data is fetched from the Hakush rolecombat API used by GenshinUID.
+- Achievement and commission guide lookup data is fetched from GenshinUID
+  `GenshinUID/genshinuid_achievement/all_achi.json` and
+  `GenshinUID/genshinuid_achievement/daily_achi.json`.
 - The CLI renderer code that uses these assets is adapted for this
   repository's command contract and static asset cache.

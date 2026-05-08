@@ -19,6 +19,7 @@ from gsuid_cli.commands.panel_cache import find_avatar, normalized_avatar
 from gsuid_cli.core.errors import EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.secrets import SecretStore
 from gsuid_cli.core.state import state_db
 from gsuid_cli.providers.akasha import AkashaProvider
 from gsuid_cli.providers.enka import EnkaProvider
@@ -125,8 +126,8 @@ def test_panel_refresh_list_show_compare_and_save(monkeypatch, tmp_path) -> None
     assert code == 0
     assert payload["data"]["count"] == 2
     assert payload["data"]["characters"][0]["name"] == "安柏"
-    assert payload["data"]["characters"][0]["graduation_score"] is None
-    assert payload["warnings"]
+    assert payload["data"]["characters"][0]["graduation_score"] is not None
+    assert payload["warnings"] == []
 
 
 def test_panel_show_render_image_writes_card(monkeypatch, tmp_path) -> None:
@@ -672,13 +673,114 @@ def test_panel_missing_cache_returns_no_result(monkeypatch, tmp_path) -> None:
     assert payload["error"]["code"] == "NO_RESULT"
 
 
-def test_panel_refresh_rejects_mys_source(monkeypatch, tmp_path) -> None:
+def test_panel_refresh_mys_source_requires_cookie(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
 
     code, payload = _run_json(["panel", "refresh", "--uid", "100000001", "--source", "mys"])
 
-    assert code == 1
-    assert payload["error"]["code"] == "INVALID_ARGUMENT"
+    assert code == 2
+    assert payload["error"]["code"] == "AUTH_REQUIRED"
+
+
+def test_panel_refresh_auto_fetches_mys_but_keeps_current_enka(monkeypatch, tmp_path) -> None:
+    mys_provider = FakeMysPanelProvider()
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr(panel_commands, "provider_for_region", lambda _region, _http: mys_provider)
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(["panel", "refresh", "--uid", "100000001"])
+
+    assert code == 0
+    assert payload["data"]["source"] == "enka"
+    assert payload["data"]["requested_source"] == "auto"
+    assert [source["provider"] for source in payload["sources"]] == ["mys", "enka"]
+    assert mys_provider.summary_calls == 1
+    assert mys_provider.details_calls == 1
+
+
+def test_panel_refresh_auto_uses_mys_when_enka_is_outdated(monkeypatch, tmp_path) -> None:
+    mys_provider = FakeMysPanelProvider()
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", StaleFakeEnkaProvider)
+    monkeypatch.setattr(panel_commands, "provider_for_region", lambda _region, _http: mys_provider)
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(["panel", "refresh", "--uid", "100000001"])
+
+    assert code == 0
+    assert payload["data"]["source"] == "enka+mys"
+    assert payload["sources"][-1]["provider"] == "enka+mys"
+    assert "MYS 替换过期角色" in payload["warnings"][0]
+    assert "安柏" in payload["warnings"][0]
+    assert "等级不一致" in payload["warnings"][0]
+
+
+def test_panel_refresh_auto_adds_mys_only_characters(monkeypatch, tmp_path) -> None:
+    mys_provider = FakeMysPanelProvider(extra_avatar=_xiangling_avatar())
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr(panel_commands, "provider_for_region", lambda _region, _http: mys_provider)
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+
+    code, payload = _run_json(["panel", "refresh", "--uid", "100000001"])
+
+    assert code == 0
+    assert payload["data"]["source"] == "enka+mys"
+    assert payload["data"]["character_count"] == 3
+    assert "MYS 补充角色: 香菱" in payload["warnings"]
+
+    code, payload = _run_json(["panel", "list", "--uid", "100000001"])
+
+    assert code == 0
+    assert payload["data"]["count"] == 3
+    assert payload["data"]["characters"][2]["name"] == "香菱"
+
+
+def test_panel_refresh_mys_keeps_matching_enka_cache(monkeypatch, tmp_path) -> None:
+    mys_provider = FakeMysPanelProvider()
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr(panel_commands, "provider_for_region", lambda _region, _http: mys_provider)
+
+    code, payload = _run_json(["panel", "refresh", "--uid", "100000001", "--source", "enka"])
+    assert code == 0
+    assert payload["data"]["source"] == "enka"
+
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+    code, payload = _run_json(["panel", "refresh", "--uid", "100000001", "--source", "mys"])
+
+    assert code == 0
+    assert payload["data"]["source"] == "enka"
+    assert payload["data"]["cache"]["status"] == "unchanged"
+    assert payload["sources"][-1]["provider"] == "enka"
+    assert "保留已有面板缓存" in payload["warnings"][0]
+
+
+def test_panel_refresh_mys_supplements_existing_enka_cache(monkeypatch, tmp_path) -> None:
+    mys_provider = FakeMysPanelProvider(extra_avatar=_xiangling_avatar())
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr(panel_commands, "provider_for_region", lambda _region, _http: mys_provider)
+
+    code, payload = _run_json(["panel", "refresh", "--uid", "100000001", "--source", "enka"])
+    assert code == 0
+    assert payload["data"]["source"] == "enka"
+
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+    code, payload = _run_json(["panel", "refresh", "--uid", "100000001", "--source", "mys"])
+
+    assert code == 0
+    assert payload["data"]["source"] == "enka+mys"
+    assert payload["data"]["character_count"] == 3
+    assert payload["data"]["cache"]["status"] == "updated"
+    assert "MYS 补充角色: 香菱" in payload["warnings"]
+
+    code, payload = _run_json(["panel", "refresh", "--uid", "100000001", "--source", "mys"])
+
+    assert code == 0
+    assert payload["data"]["source"] == "enka+mys"
+    assert payload["data"]["cache"]["status"] == "unchanged"
 
 
 def test_panel_compare_requires_two_builds(monkeypatch, tmp_path) -> None:
@@ -1022,6 +1124,54 @@ class FakeEnkaProvider:
         return CommandResult(data=_enka_payload(), source=_source())
 
 
+class StaleFakeEnkaProvider(FakeEnkaProvider):
+    def profile(self, *, uid: str, region: str) -> CommandResult:
+        result = super().profile(uid=uid, region=region)
+        payload = json.loads(json.dumps(result.data))
+        payload["avatarInfoList"][0]["level"] = 70
+        return CommandResult(data=payload, source=result.source)
+
+
+class FakeMysPanelProvider:
+    def __init__(self, *, extra_avatar: dict[str, object] | None = None) -> None:
+        self.summary_calls = 0
+        self.details_calls = 0
+        avatars = [*_enka_payload()["avatarInfoList"]]
+        if extra_avatar is not None:
+            avatars.append(extra_avatar)
+        self.details = [_mys_detail_from_avatar(avatar) for avatar in avatars]
+
+    def player_summary(self, **kwargs) -> CommandResult:
+        assert kwargs["uid"] == "100000001"
+        assert kwargs["cookie"] == "account_id=1;cookie_token=secret"
+        self.summary_calls += 1
+        return CommandResult(
+            data={
+                "summary": {
+                    "role": {
+                        "nickname": "Traveler",
+                        "level": 60,
+                        "region": "cn_gf01",
+                    },
+                    "stats": {
+                        "world_level": 8,
+                        "achievement_number": 900,
+                    },
+                    "avatars": [{"id": detail["base"]["id"]} for detail in self.details],
+                }
+            },
+            source=_mys_source(),
+        )
+
+    def character_details(self, **kwargs) -> CommandResult:
+        assert kwargs["uid"] == "100000001"
+        assert kwargs["cookie"] == "account_id=1;cookie_token=secret"
+        assert kwargs["character_ids"] == [detail["base"]["id"] for detail in self.details]
+        assert kwargs["category"] == "panel.refresh.mys"
+        self.details_calls += 1
+        return CommandResult(data={"details": self.details}, source=_mys_source())
+
+
 class FakeAkashaProvider:
     def __init__(self, _http_client) -> None:
         pass
@@ -1142,6 +1292,15 @@ def _source() -> dict[str, object]:
     }
 
 
+def _mys_source() -> dict[str, object]:
+    return {
+        "provider": "mys",
+        "region": "cn",
+        "cached": False,
+        "fetched_at": "2026-04-29T10:31:00Z",
+    }
+
+
 def _akasha_source() -> dict[str, object]:
     return {
         "provider": "akasha",
@@ -1205,6 +1364,40 @@ def _akasha_artifact() -> dict[str, object]:
         "owner": {"region": "NA", "nickname": "Night"},
         "stars": 5,
         "substats": {"Crit RATE": 23.3, "Crit DMG": 7.8},
+    }
+
+
+def _mys_detail_from_avatar(avatar: dict[str, object]) -> dict[str, object]:
+    panel = normalized_avatar(avatar)
+    weapon = panel["weapon"]
+    assert isinstance(weapon, dict)
+    avatar_id = int(str(panel["avatar_id"]))
+    weapon_id = int(str(weapon.get("item_id") or avatar_id))
+    return {
+        "base": {
+            "id": avatar_id,
+            "name": panel["name"],
+            "level": panel["level"],
+            "fetter": panel["friendship"],
+        },
+        "weapon": {
+            "id": weapon_id,
+            "name": weapon["name"],
+            "level": weapon["level"],
+            "affix_level": weapon["affix"],
+            "rarity": weapon["rank"],
+            "main_property": {"property_type": 4, "final": "454"},
+            "sub_property": {"property_type": 23, "final": "61.3%"},
+        },
+        "constellations": [
+            {"id": index + 1, "is_actived": True}
+            for index in range(int(panel["constellation"] or 0))
+        ],
+        "skills": [],
+        "base_properties": [],
+        "extra_properties": [],
+        "element_properties": [],
+        "relics": [],
     }
 
 
@@ -1373,6 +1566,20 @@ def _enka_payload() -> dict[str, object]:
             ),
         ],
     }
+
+
+def _xiangling_avatar() -> dict[str, object]:
+    return _avatar(
+        avatar_id=10000023,
+        name="Xiangling",
+        level=90,
+        weapon="The Catch",
+        substats=[
+            ("FIGHT_PROP_CRITICAL", 7.0),
+            ("FIGHT_PROP_CRITICAL_HURT", 14.0),
+        ],
+        extra_artifact_score=0.0,
+    )
 
 
 def _avatar(

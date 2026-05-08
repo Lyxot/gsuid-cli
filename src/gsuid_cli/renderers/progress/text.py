@@ -112,6 +112,11 @@ def render_progress_guide_status_text(data: Mapping[str, object]) -> str:
     if limitations:
         lines.extend(["", "来源限制:"])
         lines.extend(f"  - {limitation}" for limitation in limitations)
+    matches = _mapping_list(data.get("matches"))
+    if matches:
+        lines.extend(["", "结果:"])
+        for match in matches:
+            _append_guide_match(lines, kind, match)
     return _finish(lines)
 
 
@@ -232,6 +237,28 @@ def _action_card_text(card: Mapping[str, object]) -> str:
     if cost_value:
         suffix += f"，费用 {cost_value}"
     return f"{name}{suffix}"
+
+
+def _append_guide_match(lines: list[str], kind: str, match: Mapping[str, object]) -> None:
+    name = text_value(match.get("name")) or "未命名"
+    lines.append(f"  - {name}")
+    if kind == "achievement":
+        book = text_value(match.get("book"))
+        if book:
+            lines.append(f"    分类: {book}")
+    else:
+        achievement = text_value(match.get("achievement"))
+        if achievement:
+            lines.append(f"    关联成就: {achievement}")
+    description = text_value(match.get("description"))
+    if description:
+        lines.append(f"    描述: {description}")
+    guide = text_value(match.get("guide"))
+    if guide:
+        lines.append(f"    攻略: {guide}")
+    link = text_value(match.get("link"))
+    if link:
+        lines.append(f"    链接: {link}")
 
 
 def _card_name(card: Mapping[str, object]) -> str:

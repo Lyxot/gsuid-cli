@@ -20,6 +20,13 @@ from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.secrets import SecretStore
 from gsuid_cli.providers.mys import RECORD_SALT, MysProvider
+from gsuid_cli.providers.mys import auth as mys_auth
+from gsuid_cli.providers.mys.constants import (
+    BBS_LIKE_PATH,
+    BBS_LIST_PATH,
+    BBS_SIGN_SALT,
+    BBS_TASKS_LIST_PATH,
+)
 from gsuid_cli.renderers.player import summary as player_summary_renderer
 from gsuid_cli.renderers.player.calendar import render_player_calendar_card
 from gsuid_cli.renderers.player.summary import (
@@ -221,6 +228,8 @@ def test_daily_signin_render_text_writes_artifact(monkeypatch, tmp_path) -> None
 
 def test_daily_bbs_coin_render_text_writes_artifact(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
+    SecretStore().set_secret("stoken", "100000001", "stuid=1;stoken=secret")
 
     code, payload = _run_json(["daily", "bbs-coin", "--uid", "100000001", "--render", "text"])
 
@@ -231,13 +240,14 @@ def test_daily_bbs_coin_render_text_writes_artifact(monkeypatch, tmp_path) -> No
     assert artifact["kind"] == "text"
     text = Path(artifact["path"]).read_text(encoding="utf-8")
     assert "米游币任务" in text
-    assert "可用: 否" in text
-    assert "来源限制" in text
-    assert "当前 CLI 未配置稳定的米游社任务来源" in text
+    assert "可用: 是" in text
+    assert "讨论区签到: 已完成" in text
 
 
 def test_daily_bbs_coin_plain_prints_warning(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _warning_bbs_provider)
+    SecretStore().set_secret("stoken", "100000001", "stuid=1;stoken=secret")
     stdout = io.StringIO()
     stderr = io.StringIO()
 
@@ -249,8 +259,101 @@ def test_daily_bbs_coin_plain_prints_warning(monkeypatch, tmp_path) -> None:
 
     assert code == 0
     assert stdout.getvalue().startswith("米游币任务\n")
-    assert "\033[33m警告: 每日米游币任务数据暂不可用" in stderr.getvalue()
+    assert "\033[33m警告: 点赞帖子失败" in stderr.getvalue()
     assert stderr.getvalue().endswith("\033[0m\n")
+
+
+def test_bbs_sign_ds_uses_sent_json_body(monkeypatch) -> None:
+    monkeypatch.setattr(mys_auth.time, "time", lambda: 1000)
+    monkeypatch.setattr(mys_auth.random, "randint", lambda _left, _right: 123456)
+
+    ds = mys_auth._bbs_sign_ds({"post_id": "1", "is_cancel": False})
+
+    body = '{"post_id":"1","is_cancel":false}'
+    digest = hashlib.md5(f"salt={BBS_SIGN_SALT}&t=1000&r=123456&b={body}&q=".encode()).hexdigest()
+    assert ds == f"1000,123456,{digest}"
+
+
+def test_daily_bbs_coin_like_requests_sign_sent_body(monkeypatch) -> None:
+    requests: list[httpx.Request] = []
+    task_calls = 0
+    monkeypatch.setattr(mys_auth.time, "time", lambda: 1000)
+    monkeypatch.setattr(mys_auth.random, "randint", lambda _left, _right: 123456)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal task_calls
+        requests.append(request)
+        if request.url.path.endswith(BBS_TASKS_LIST_PATH):
+            task_calls += 1
+            if task_calls > 1:
+                return _json_response(_bbs_task_payload(can_get_points=0))
+            return _json_response(
+                _bbs_task_payload(
+                    can_get_points=10,
+                    states=[
+                        {"mission_id": 58, "is_get_award": True, "happened_times": 1},
+                        {"mission_id": 59, "is_get_award": True, "happened_times": 7},
+                        {"mission_id": 60, "is_get_award": False, "happened_times": 9},
+                        {"mission_id": 61, "is_get_award": True, "happened_times": 1},
+                    ],
+                )
+            )
+        if request.url.path.endswith(BBS_LIST_PATH):
+            return _json_response(
+                {
+                    "retcode": 0,
+                    "message": "OK",
+                    "data": {"list": [{"post": {"post_id": "post-1", "subject": "subject"}}]},
+                }
+            )
+        if request.url.path.endswith(BBS_LIKE_PATH):
+            return _json_response({"retcode": 0, "message": "OK", "data": {}})
+        raise AssertionError(f"unexpected BBS request: {request.url}")
+
+    provider = MysProvider(
+        HttpClient(timeout=1, cache_policy="off", transport=httpx.MockTransport(handler))
+    )
+
+    result = provider.daily_bbs_coin(
+        uid="100000001",
+        stoken="stuid=1;stoken=secret",
+        region="cn",
+        credential_source="environment",
+        storage_backend=None,
+    )
+
+    like_requests = [request for request in requests if request.url.path.endswith(BBS_LIKE_PATH)]
+    assert result.warnings == []
+    assert [request.content.decode() for request in like_requests] == [
+        '{"post_id":"post-1","is_cancel":false}',
+        '{"post_id":"post-1","is_cancel":true}',
+    ]
+    assert [request.headers["DS"] for request in like_requests] == [
+        _expected_bbs_sign_ds('{"post_id":"post-1","is_cancel":false}'),
+        _expected_bbs_sign_ds('{"post_id":"post-1","is_cancel":true}'),
+    ]
+
+
+def _expected_bbs_sign_ds(body: str) -> str:
+    digest = hashlib.md5(f"salt={BBS_SIGN_SALT}&t=1000&r=123456&b={body}&q=".encode()).hexdigest()
+    return f"1000,123456,{digest}"
+
+
+def _bbs_task_payload(
+    *,
+    can_get_points: int,
+    states: list[dict[str, object]] | None = None,
+) -> dict[str, object]:
+    return {
+        "retcode": 0,
+        "message": "OK",
+        "data": {
+            "can_get_points": can_get_points,
+            "already_received_points": 0,
+            "total_points": 100,
+            "states": states or [],
+        },
+    }
 
 
 def test_daily_note_render_uses_player_summary_and_daily_signin_status(
@@ -1571,6 +1674,41 @@ def _fake_provider(_region: str, _http_client: HttpClient):
                 storage_backend=storage_backend,
             )
 
+        def daily_bbs_coin(
+            self,
+            *,
+            uid: str,
+            stoken: str,
+            region: str,
+            credential_source: str,
+            storage_backend: str | None,
+        ) -> CommandResult:
+            return CommandResult(
+                data={
+                    "uid": uid,
+                    "credential_source": credential_source,
+                    "storage_backend": storage_backend,
+                    "stoken_seen": stoken.startswith("stuid="),
+                    "available": True,
+                    "tasks": [
+                        {
+                            "key": "bbs_sign",
+                            "label": "讨论区签到",
+                            "completed": True,
+                            "happened_times": 1,
+                            "remaining": 0,
+                        }
+                    ],
+                    "actions": [],
+                    "points_received": 10,
+                    "points_available": 0,
+                    "total_points": 100,
+                    "failures": [],
+                    "source": "mihoyo-bbs",
+                },
+                source=_source(region),
+            )
+
         def player_summary(
             self,
             *,
@@ -1734,6 +1872,26 @@ def _fake_provider(_region: str, _http_client: HttpClient):
                     "register_time": {"registered_at": "2020-09-15T20:26:40+08:00"},
                 },
                 source=_source(region),
+            )
+
+    return FakeProvider()
+
+
+def _warning_bbs_provider(_region: str, _http_client: HttpClient):
+    class FakeProvider:
+        def daily_bbs_coin(self, **kwargs) -> CommandResult:
+            return CommandResult(
+                data={
+                    "uid": kwargs["uid"],
+                    "available": True,
+                    "tasks": [],
+                    "actions": [],
+                    "points_received": 0,
+                    "failures": ["点赞帖子失败"],
+                    "source": "mihoyo-bbs",
+                },
+                warnings=["点赞帖子失败"],
+                source=_source(str(kwargs["region"])),
             )
 
     return FakeProvider()
