@@ -240,7 +240,6 @@ def test_daily_bbs_coin_render_text_writes_artifact(monkeypatch, tmp_path) -> No
     assert artifact["kind"] == "text"
     text = Path(artifact["path"]).read_text(encoding="utf-8")
     assert "米游币任务" in text
-    assert "可用: 是" in text
     assert "讨论区签到: 已完成" in text
 
 
@@ -410,7 +409,7 @@ def test_daily_note_render_falls_back_when_player_summary_fails(monkeypatch, tmp
     assert calls == ["daily_note", "player.summary", "daily_signin_status"]
     assert captured["nickname"] is None
     assert captured["level"] is None
-    assert "daily note player header data is unavailable" in payload["warnings"][0]
+    assert "实时便笺玩家头部数据不可用" in payload["warnings"][0]
 
 
 def test_daily_note_render_fetches_expedition_avatar_urls(monkeypatch, tmp_path) -> None:

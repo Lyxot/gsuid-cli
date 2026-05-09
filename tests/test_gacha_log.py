@@ -760,7 +760,7 @@ def test_gacha_authkey_help_lists_status_and_refresh(capsys: pytest.CaptureFixtu
     help_text = stdout.getvalue() or capsys.readouterr().out
     assert "status" in help_text
     assert "refresh" in help_text
-    assert "With no action, status is returned." in help_text
+    assert "如果不指定操作，将返回状态。" in help_text
 
 
 def test_gacha_authkey_refresh_stores_generated_url_without_printing_it(

@@ -35,40 +35,42 @@ LATEST_ANNOUNCEMENT_SCAN_LIMIT = 10000
 CAPABILITIES = [
     {
         "command": "events.list",
-        "description": "List public event announcements.",
+        "description": "列出正在进行和即将开始的活动。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "events.banners",
-        "description": "List public event banner artwork URLs.",
+        "description": "列出活动横幅图片 URL。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "codes.list",
-        "description": "List public active redeem-code rows.",
+        "description": "列出当前可用的兑换码。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "announcements.list",
-        "description": "List public game announcement rows.",
+        "description": "列出公开的游戏公告。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "announcements.show",
-        "description": "Show one public game announcement row.",
+        "description": "显示单条公开的公告。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
 ]
+
+_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
 
 
 def events_list_command(args: argparse.Namespace) -> CommandResult:
@@ -95,7 +97,7 @@ def codes_list_command(args: argparse.Namespace) -> CommandResult:
         render_name="codes/list-text",
         filename="codes-list.txt",
         content=render_codes_text(result.data),
-        description="Human-readable redeem code list",
+        description="兑换码列表",
     )
 
 
@@ -128,49 +130,49 @@ def announcements_show_command(args: argparse.Namespace) -> CommandResult:
 
 
 def register_events(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    events = groups.add_parser("events", help="Show public event data.")
+    events = groups.add_parser("events", help="显示公开的活动数据。")
     commands = events.add_subparsers(dest="events_command", required=True, metavar="<command>")
 
-    list_parser = commands.add_parser("list", help="List active and upcoming events.")
+    list_parser = commands.add_parser("list", help=_HELPS["events.list"])
     _add_event_args(list_parser)
     list_parser.set_defaults(handler=events_list_command, command_name="events.list")
 
-    banners = commands.add_parser("banners", help="List event banner artwork URLs.")
+    banners = commands.add_parser("banners", help=_HELPS["events.banners"])
     _add_event_args(banners)
     banners.set_defaults(handler=events_banners_command, command_name="events.banners")
 
 
 def register_codes(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    codes = groups.add_parser("codes", help="Show public redeem-code data.")
+    codes = groups.add_parser("codes", help="显示公开的兑换码数据。")
     commands = codes.add_subparsers(dest="codes_command", required=True, metavar="<command>")
-    list_parser = commands.add_parser("list", help="List active redeem-code rows.")
+    list_parser = commands.add_parser("list", help=_HELPS["codes.list"])
     list_parser.set_defaults(handler=codes_list_command, command_name="codes.list")
 
 
 def register_announcements(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    announcements = groups.add_parser("announcements", help="Show public announcement rows.")
+    announcements = groups.add_parser("announcements", help="显示公开的游戏公告。")
     commands = announcements.add_subparsers(
         dest="announcements_command",
         required=True,
         metavar="<command>",
     )
 
-    list_parser = commands.add_parser("list", help="List public announcements.")
+    list_parser = commands.add_parser("list", help=_HELPS["announcements.list"])
     list_parser.add_argument("--limit", type=int, default=20)
     list_parser.set_defaults(
         handler=announcements_list_command,
         command_name="announcements.list",
     )
 
-    show = commands.add_parser("show", help="Show one public announcement.")
+    show = commands.add_parser("show", help=_HELPS["announcements.show"])
     selector = show.add_mutually_exclusive_group(required=True)
     selector.add_argument("--id")
-    selector.add_argument("--latest", action="store_true", help="Show the newest announcement.")
+    selector.add_argument("--latest", action="store_true", help="显示最新公告。")
     show.set_defaults(handler=announcements_show_command, command_name="announcements.show")
 
 
 def _add_event_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--all", action="store_true", help="Include expired events.")
+    parser.add_argument("--all", action="store_true", help="包含已结束的活动。")
     parser.add_argument("--limit", type=int, default=20)
 
 
@@ -192,7 +194,7 @@ def _events_render_result(
             provider="event-assets",
             region="cn",
             category=f"events.{command_segment}.asset",
-            unavailable_warning="{count} event banner images unavailable; rendered placeholders",
+            unavailable_warning="{count} 个活动横幅图片不可用，已使用占位图",
             max_workers=EVENT_IMAGE_WORKERS,
         )
         png = render_events_card(result.data, kind=render_kind, asset_images=asset_images)
@@ -201,7 +203,7 @@ def _events_render_result(
             filename=f"{render_name.replace('/', '-')}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style event list card",
+            description="活动列表卡片图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -218,7 +220,7 @@ def _events_render_result(
             name=text_render_name,
             filename=f"{render_name.replace('/', '-')}.txt",
             content=render_events_text(result.data, kind=render_kind),
-            description="Human-readable event list text",
+            description="活动列表文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -287,7 +289,7 @@ def _announcements_list_render_result(
             filename="announcements-list.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style announcement list card",
+            description="游戏公告列表卡片图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -303,7 +305,7 @@ def _announcements_list_render_result(
             name=text_render_name,
             filename="announcements-list.txt",
             content=render_announcements_list_text(result.data),
-            description="Human-readable announcement list text",
+            description="公告列表文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -342,7 +344,7 @@ def _announcement_detail_render_result(
             provider="announcement-assets",
             region="cn",
             category="announcements.show.asset",
-            unavailable_warning="{count} announcement images unavailable; omitted from render",
+            unavailable_warning="{count} 张公告图片不可用，已在渲染时忽略",
             max_workers=EVENT_IMAGE_WORKERS,
         )
         png = render_announcement_detail_card(announcement, asset_images=asset_images)
@@ -351,7 +353,7 @@ def _announcement_detail_render_result(
             filename=f"announcements-show_{_safe_filename(ann_id)}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style announcement detail card",
+            description="公告详情卡片图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -368,7 +370,7 @@ def _announcement_detail_render_result(
             name=text_render_name,
             filename=f"announcements-show_{_safe_filename(ann_id)}.txt",
             content=render_announcement_detail_text(announcement),
-            description="Human-readable announcement detail text",
+            description="公告详情文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -409,7 +411,7 @@ def _latest_announcement(result: CommandResult) -> tuple[str, str]:
         return newest[1], newest[2]
     raise CliError(
         "NO_RESULT",
-        "No latest announcement is available.",
+        "找不到最新的公告。",
         EXIT_NO_RESULT,
         {"command": "announcements.show", "selector": "latest"},
         source=result.source,

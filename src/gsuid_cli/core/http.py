@@ -172,7 +172,7 @@ class HttpClient:
         except httpx.TimeoutException as exc:
             raise _network_error(
                 code="NETWORK_TIMEOUT",
-                message="Provider request timed out.",
+                message="数据源请求超时。",
                 provider=provider,
                 region=region,
                 category=category,
@@ -184,7 +184,7 @@ class HttpClient:
         except httpx.RequestError as exc:
             raise _network_error(
                 code="NETWORK_ERROR",
-                message="Provider request failed.",
+                message="数据源请求失败。",
                 provider=provider,
                 region=region,
                 category=category,
@@ -198,7 +198,7 @@ class HttpClient:
         if response.status_code >= 400:
             raise _upstream_error(
                 code="UPSTREAM_HTTP_ERROR",
-                message="Provider returned an HTTP error.",
+                message="数据源返回了 HTTP 错误。",
                 provider=provider,
                 region=region,
                 category=category,
@@ -217,7 +217,7 @@ class HttpClient:
         except ValueError as exc:
             raise _upstream_error(
                 code="UPSTREAM_INVALID_RESPONSE",
-                message="Provider returned a non-JSON response.",
+                message="数据源返回了非 JSON 响应。",
                 provider=provider,
                 region=region,
                 category=category,
@@ -234,7 +234,7 @@ class HttpClient:
         if not isinstance(payload, dict):
             raise _upstream_error(
                 code="UPSTREAM_INVALID_RESPONSE",
-                message="Provider returned an unexpected JSON shape.",
+                message="数据源返回了非预期的 JSON 数据格式。",
                 provider=provider,
                 region=region,
                 category=category,
@@ -426,12 +426,12 @@ class HttpClient:
                     url=asset_url,
                     params=params,
                     error_code="NETWORK_TIMEOUT",
-                    message="Provider request timed out.",
+                    message="数据源请求超时。",
                     attempted_at=attempted_at,
                 )
             raise _network_error(
                 code="NETWORK_TIMEOUT",
-                message="Provider request timed out.",
+                message="数据源请求超时。",
                 provider=provider,
                 region=region,
                 category=category,
@@ -448,12 +448,12 @@ class HttpClient:
                     url=asset_url,
                     params=params,
                     error_code="NETWORK_ERROR",
-                    message="Provider request failed.",
+                    message="数据源请求失败。",
                     attempted_at=attempted_at,
                 )
             raise _network_error(
                 code="NETWORK_ERROR",
-                message="Provider request failed.",
+                message="数据源请求失败。",
                 provider=provider,
                 region=region,
                 category=category,
@@ -471,13 +471,13 @@ class HttpClient:
                     url=asset_url,
                     params=params,
                     error_code="UPSTREAM_HTTP_ERROR",
-                    message="Provider returned an HTTP error.",
+                    message="数据源返回了 HTTP 错误。",
                     attempted_at=fetched_at,
                     status_code=response.status_code,
                 )
             raise _upstream_error(
                 code="UPSTREAM_HTTP_ERROR",
-                message="Provider returned an HTTP error.",
+                message="数据源返回了 HTTP 错误。",
                 provider=provider,
                 region=region,
                 category=category,
@@ -504,7 +504,7 @@ class HttpClient:
                     url=asset_url,
                     params=params,
                     error_code="UPSTREAM_INVALID_RESPONSE",
-                    message="Provider returned an unexpected media type.",
+                    message="数据源返回了非预期的媒体类型。",
                     attempted_at=fetched_at,
                     status_code=response.status_code,
                 )
@@ -513,7 +513,7 @@ class HttpClient:
             details["expected_media_types"] = list(expected_media_types)
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "Provider returned an unexpected media type.",
+                "数据源返回了非预期的媒体类型。",
                 EXIT_UPSTREAM,
                 details,
                 retryable=False,
@@ -681,7 +681,7 @@ class HttpClient:
         if tag is None:
             raise _game_version_error(
                 "UPSTREAM_INVALID_RESPONSE",
-                "Provider response did not include a game version tag.",
+                "数据源响应中未包含游戏版本标识。",
                 EXIT_UPSTREAM,
                 method=method,
                 status_code=response.status_code,
@@ -718,7 +718,7 @@ def raise_for_retcode(
     if retcode in (0, "0", None):
         return
 
-    message = str(payload.get("message") or "Provider rejected the request.")
+    message = str(payload.get("message") or "数据源拒绝了请求。")
     details: dict[str, object] = {
         "provider": provider,
         "region": region,
@@ -732,7 +732,7 @@ def raise_for_retcode(
     if _is_auth_retcode(retcode):
         raise CliError(
             "AUTH_EXPIRED",
-            "The cookie is expired or rejected by the provider.",
+            "Cookie 已过期或被数据源拒绝。",
             EXIT_AUTH,
             details,
             retryable=False,
@@ -742,7 +742,7 @@ def raise_for_retcode(
     if _is_verification_retcode(retcode):
         raise CliError(
             "UPSTREAM_VERIFICATION_REQUIRED",
-            "Provider requires device or challenge verification before returning this data.",
+            "数据源在返回此数据前需要进行设备或验证码挑战验证。",
             EXIT_UPSTREAM,
             details,
             retryable=False,
@@ -751,7 +751,7 @@ def raise_for_retcode(
 
     raise CliError(
         "UPSTREAM_REJECTED",
-        "Provider rejected the request.",
+        "数据源拒绝了请求。",
         EXIT_UPSTREAM,
         details,
         retryable=False,
@@ -999,7 +999,7 @@ def _cache_miss(
 ) -> CliError:
     return CliError(
         "CACHE_MISS",
-        "No fresh cached provider response is available for this request.",
+        "此请求没有可用的最新缓存数据源响应。",
         EXIT_CACHE,
         details or _request_details(provider, region, category, method, url, params),
     )

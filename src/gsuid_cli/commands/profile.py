@@ -13,63 +13,65 @@ from gsuid_cli.renderers.local_auth import render_profile_command_text
 CAPABILITIES = [
     {
         "command": "profile.init",
-        "description": "Create or update a local profile.",
+        "description": "创建或更新配置文件。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "profile.list",
-        "description": "List local profiles.",
+        "description": "列出配置文件。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "profile.show",
-        "description": "Show one local profile.",
+        "description": "显示一个配置文件。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "profile.default",
-        "description": "Set the default local profile.",
+        "description": "设置默认配置文件。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "profile.delete",
-        "description": "Delete a local profile.",
+        "description": "删除配置文件。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
 ]
 
+_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    profile = groups.add_parser("profile", help="Manage local profiles.")
+    profile = groups.add_parser("profile", help="管理本地配置文件。")
     commands = profile.add_subparsers(dest="profile_command", required=True, metavar="<command>")
 
-    init = commands.add_parser("init", help="Create or update a profile.")
+    init = commands.add_parser("init", help=_HELPS["profile.init"])
     init.add_argument("--name")
     init.add_argument("--region", choices=("cn", "os"), dest="profile_region")
     init.set_defaults(handler=init_command, command_name="profile.init")
 
-    list_parser = commands.add_parser("list", help="List profiles.")
+    list_parser = commands.add_parser("list", help=_HELPS["profile.list"])
     list_parser.set_defaults(handler=list_command, command_name="profile.list")
 
-    show = commands.add_parser("show", help="Show a profile.")
+    show = commands.add_parser("show", help=_HELPS["profile.show"])
     show.add_argument("--name")
     show.set_defaults(handler=show_command, command_name="profile.show")
 
-    default = commands.add_parser("default", help="Set the default profile.")
+    default = commands.add_parser("default", help=_HELPS["profile.default"])
     default.add_argument("--name")
     default.set_defaults(handler=default_command, command_name="profile.default")
 
-    delete = commands.add_parser("delete", help="Delete a profile.")
+    delete = commands.add_parser("delete", help=_HELPS["profile.delete"])
     delete.add_argument("--name", required=True)
     delete.set_defaults(handler=delete_command, command_name="profile.delete")
 
@@ -143,7 +145,7 @@ def get_profile_default_uid(conn: sqlite3.Connection, name: str) -> str | None:
 def _profile_name(args: argparse.Namespace) -> str:
     name = getattr(args, "name", None) or args.profile
     if not name:
-        raise CliError("INVALID_ARGUMENT", "profile name is required", EXIT_INVALID_INPUT)
+        raise CliError("INVALID_ARGUMENT", "需要提供配置文件名称", EXIT_INVALID_INPUT)
     return name
 
 
@@ -176,7 +178,7 @@ def _get_profile(conn: sqlite3.Connection, name: str) -> sqlite3.Row:
     if row is None:
         raise CliError(
             "NO_RESULT",
-            f"Profile not found: {name}",
+            f"未找到配置文件: {name}",
             EXIT_NO_RESULT,
             {"profile": name},
         )
@@ -212,5 +214,5 @@ def _profile_text_result(
         name=f"profile/{action}-text",
         filename=f"profile-{action}_{safe_filename_part(subject)}.txt",
         content=render_profile_command_text(command, data),
-        description="Human-readable local profile text",
+        description="本地配置文件文本",
     )

@@ -13,19 +13,21 @@ from gsuid_cli.renderers.utility_text import render_monitor_once_text
 CAPABILITIES = [
     {
         "command": "monitor.once",
-        "description": "Run one local health check pass with caller thresholds.",
+        "description": "运行一次本地健康检查。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
 ]
 
+_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    monitor = groups.add_parser("monitor", help="Run local health checks.")
+    monitor = groups.add_parser("monitor", help="运行本地健康检查。")
     commands = monitor.add_subparsers(dest="monitor_command", required=True, metavar="<command>")
 
-    once = commands.add_parser("once", help="Run one local health check pass.")
+    once = commands.add_parser("once", help=_HELPS["monitor.once"])
     once.add_argument("--min-free-mb", type=int, default=100)
     once.add_argument("--max-asset-cache-files", type=int)
     once.add_argument("--max-artifact-files", type=int)
@@ -44,7 +46,7 @@ def once_command(args: argparse.Namespace) -> CommandResult:
             "storage.free_mb",
             free_mb,
             args.min_free_mb,
-            f"{free_mb} MiB free",
+            f"剩余 {free_mb} MiB",
         )
     ]
     if args.max_asset_cache_files is not None:
@@ -54,7 +56,7 @@ def once_command(args: argparse.Namespace) -> CommandResult:
                 "cache.asset_files",
                 count,
                 args.max_asset_cache_files,
-                f"{count} cached asset files",
+                f"静态资源缓存文件 {count} 个",
             )
         )
     if args.max_artifact_files is not None:
@@ -64,7 +66,7 @@ def once_command(args: argparse.Namespace) -> CommandResult:
                 "artifacts.files",
                 count,
                 args.max_artifact_files,
-                f"{count} artifact files",
+                f"产物文件 {count} 个",
             )
         )
 
@@ -98,7 +100,7 @@ def _validate_threshold(name: str, value: int | None, *, allow_zero: bool) -> No
     if value < minimum:
         raise CliError(
             "INVALID_ARGUMENT",
-            f"{name} must be at least {minimum}",
+            f"{name} 必须至少为 {minimum}",
             EXIT_INVALID_INPUT,
             {name.replace("-", "_"): value},
         )

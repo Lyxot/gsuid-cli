@@ -33,47 +33,49 @@ from gsuid_cli.renderers.gacha import (
 CAPABILITIES = [
     {
         "command": "gacha.refresh",
-        "description": "Refresh local gacha logs from a stored authkey URL.",
+        "description": "刷新本地祈愿记录。",
         "auth": "gacha_url",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "gacha.summary",
-        "description": "Summarize local gacha logs.",
+        "description": "显示本地祈愿记录。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "gacha.export",
-        "description": "Export local gacha logs as UIGF JSON.",
+        "description": "导出本地祈愿记录。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "gacha.import",
-        "description": "Import UIGF JSON into local gacha storage.",
+        "description": "导入 UIGF 祈愿记录。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "gacha.authkey",
-        "description": "Show stored gacha authkey URL availability without revealing it.",
+        "description": "显示已存储的祈愿 URL 状态。",
         "auth": "gacha_url",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "gacha.authkey.refresh",
-        "description": "Generate and store a gacha authkey URL from cookie and stoken.",
+        "description": "使用 Cookie 和 Stoken 生成并存储祈愿 URL。",
         "auth": "cookie+stoken",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
 ]
+
+_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
 
 GACHA_TYPES = ("100", "200", "301", "302", "400", "500")
 GACHA_REFRESH_REQUEST_DELAY_SECONDS = 0.9
@@ -107,21 +109,21 @@ REQUIRED_ITEM_FIELDS = {
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    gacha = groups.add_parser("gacha", help="Manage local gacha logs.")
+    gacha = groups.add_parser("gacha", help="管理本地祈愿记录。")
     commands = gacha.add_subparsers(dest="gacha_command", required=True, metavar="<command>")
 
-    refresh = commands.add_parser("refresh", help="Refresh local gacha logs.")
+    refresh = commands.add_parser("refresh", help=_HELPS["gacha.refresh"])
     refresh.add_argument("--uid", dest="command_uid")
     refresh.add_argument("--force", action="store_true")
     refresh.add_argument("--full", action="store_true")
     refresh.set_defaults(handler=refresh_command, command_name="gacha.refresh")
 
-    summary = commands.add_parser("summary", help="Summarize local gacha logs.")
+    summary = commands.add_parser("summary", help=_HELPS["gacha.summary"])
     summary.add_argument("--uid", dest="command_uid")
     summary.add_argument("--banner", choices=tuple(BANNER_TYPES), default="all")
     summary.set_defaults(handler=summary_command, command_name="gacha.summary")
 
-    export = commands.add_parser("export", help="Export local gacha logs.")
+    export = commands.add_parser("export", help=_HELPS["gacha.export"])
     export.add_argument("--uid", dest="command_uid")
     export.add_argument(
         "--format",
@@ -132,7 +134,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     export.add_argument("--output")
     export.set_defaults(handler=export_command, command_name="gacha.export")
 
-    import_parser = commands.add_parser("import", help="Import UIGF gacha logs.")
+    import_parser = commands.add_parser("import", help=_HELPS["gacha.import"])
     import_parser.add_argument("--uid", dest="command_uid")
     import_parser.add_argument("--file", required=True)
     import_parser.add_argument(
@@ -145,21 +147,21 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 
     authkey = commands.add_parser(
         "authkey",
-        help="Show or refresh stored gacha authkey URL status.",
-        description="Show stored gacha authkey URL status. With no action, status is returned.",
+        help="显示或刷新已存储的祈愿 URL 状态。",
+        description="显示已存储的祈愿 URL 状态。如果不指定操作，将返回状态。",
     )
     authkey.add_argument("--uid", dest="command_uid")
     authkey.set_defaults(handler=authkey_command, command_name="gacha.authkey")
     authkey_actions = authkey.add_subparsers(dest="authkey_action", metavar="<action>")
     authkey_status = authkey_actions.add_parser(
         "status",
-        help="Show stored gacha authkey URL status.",
+        help=_HELPS["gacha.authkey"],
     )
     authkey_status.add_argument("--uid", dest="command_uid")
     authkey_status.set_defaults(handler=authkey_command, command_name="gacha.authkey")
     authkey_refresh = authkey_actions.add_parser(
         "refresh",
-        help="Generate and store a gacha authkey URL.",
+        help="生成并存储祈愿 URL。",
     )
     authkey_refresh.add_argument("--uid", dest="command_uid")
     authkey_refresh.set_defaults(
@@ -346,7 +348,7 @@ def import_command(args: argparse.Namespace) -> CommandResult | dict[str, object
         render_name="gacha/import-text",
         filename=f"gacha-import_{uid}.txt",
         content=render_gacha_import_text(data),
-        description="Human-readable gacha import status",
+        description="祈愿记录导入状态文本",
         render_data={"uid": uid},
     )
 
@@ -372,7 +374,7 @@ def authkey_command(args: argparse.Namespace) -> CommandResult | dict[str, objec
         render_name="gacha/authkey-text",
         filename=f"gacha-authkey_{uid}.txt",
         content=render_gacha_authkey_text(data),
-        description="Human-readable gacha authkey status",
+        description="祈愿状态文本",
         render_data={"uid": uid},
     )
 
@@ -388,7 +390,7 @@ def authkey_refresh_command(args: argparse.Namespace) -> CommandResult:
         render_name="gacha/authkey-refresh-text",
         filename=f"gacha-authkey-refresh_{uid}.txt",
         content=render_gacha_authkey_text(result.data, refreshed=True),
-        description="Human-readable gacha authkey refresh status",
+        description="祈愿刷新状态文本",
         render_data={"uid": uid},
     )
 
@@ -819,7 +821,7 @@ def _summary_render_result(
             filename=f"gacha-summary_{uid}_{banner}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style gacha summary card",
+            description="祈愿记录汇总卡片图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -839,7 +841,7 @@ def _summary_render_result(
                 items=items,
                 summary=_summary_mapping(data),
             ),
-            description="Human-readable gacha summary text",
+            description="祈愿记录汇总文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -967,7 +969,7 @@ def _refresh_render_result(args: argparse.Namespace, result: CommandResult) -> C
         render_name="gacha/refresh-text",
         filename=f"gacha-refresh_{uid}.txt",
         content=render_gacha_refresh_text(result.data),
-        description="Human-readable gacha refresh status",
+        description="祈愿记录刷新状态文本",
         render_data={"uid": uid},
     )
 
@@ -987,7 +989,7 @@ def _export_render_result(
             result.data,
             artifact_path=export_artifact.get("path"),
         ),
-        description="Human-readable gacha export status",
+        description="祈愿记录导出状态文本",
         render_data={"uid": uid},
     )
 
@@ -1159,7 +1161,7 @@ def _write_export(
         filename=filename,
         media_type="application/json",
         content=content,
-        description=f"Gacha log export ({export_format})",
+        description=f"祈愿记录导出 ({export_format})",
         kind="json",
     )
 
@@ -1172,5 +1174,5 @@ def _artifact_for_path(path: Path, content: bytes) -> dict[str, object]:
         "media_type": "application/json",
         "bytes": len(content),
         "sha256": hashlib.sha256(content).hexdigest(),
-        "description": "Gacha log export",
+        "description": "祈愿记录导出",
     }

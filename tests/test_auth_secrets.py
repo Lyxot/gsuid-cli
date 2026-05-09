@@ -111,7 +111,7 @@ def test_qrcode_login_shows_terminal_code_and_stores_credentials(monkeypatch, tm
     assert payload["command"] == "auth.qrcode.login"
     assert payload["data"]["stored"] is True
     assert "请使用米游社APP扫码登录" in stderr
-    assert "QR login status: confirmed" in stderr
+    assert "二维码登录状态: confirmed" in stderr
     assert "█" in stderr
 
     raw_payload = json.dumps(payload, ensure_ascii=False)

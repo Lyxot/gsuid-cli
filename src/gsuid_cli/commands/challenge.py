@@ -48,60 +48,62 @@ CHALLENGE_IMAGE_WORKERS = 12
 CAPABILITIES = [
     {
         "command": "challenge.abyss",
-        "description": "Show authenticated Spiral Abyss data.",
+        "description": "显示深境螺旋数据。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "challenge.theater",
-        "description": "Show authenticated Imaginarium Theater data.",
+        "description": "显示幻想真境剧诗数据。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "challenge.hard",
-        "description": "Show authenticated Stygian Onslaught hard challenge data.",
+        "description": "显示深罪旋曜挑战数据。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "challenge.hard-rank",
-        "description": "Show the Akasha Stygian Onslaught ranking.",
+        "description": "显示 Akasha 深罪旋曜排名。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
 ]
 
+_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    challenge = groups.add_parser("challenge", help="Show authenticated challenge data.")
+    challenge = groups.add_parser("challenge", help="显示挑战数据。")
     commands = challenge.add_subparsers(
         dest="challenge_command", required=True, metavar="<command>"
     )
 
-    abyss = commands.add_parser("abyss", help="Show Spiral Abyss data.")
+    abyss = commands.add_parser("abyss", help=_HELPS["challenge.abyss"])
     _add_uid(abyss)
     _add_season(abyss)
     abyss.add_argument("--floor", type=int)
     abyss.set_defaults(handler=abyss_command, command_name="challenge.abyss")
 
-    theater = commands.add_parser("theater", help="Show Imaginarium Theater data.")
+    theater = commands.add_parser("theater", help=_HELPS["challenge.theater"])
     _add_uid(theater)
     _add_season(theater)
     theater.set_defaults(handler=theater_command, command_name="challenge.theater")
 
-    hard = commands.add_parser("hard", help="Show hard challenge data.")
+    hard = commands.add_parser("hard", help=_HELPS["challenge.hard"])
     _add_uid(hard)
     _add_season(hard)
     hard.set_defaults(handler=hard_command, command_name="challenge.hard")
 
     hard_rank = commands.add_parser(
         "hard-rank",
-        help="Show the Akasha Stygian Onslaught ranking.",
+        help=_HELPS["challenge.hard-rank"],
     )
     hard_rank.set_defaults(handler=hard_rank_command, command_name="challenge.hard-rank")
 
@@ -235,7 +237,7 @@ def _abyss_render_result(
         if not _has_abyss_floor_data(abyss):
             raise CliError(
                 "NO_RESULT",
-                "Abyss image render requires at least one challenge floor.",
+                "渲染深境螺旋图片至少需要一层挑战数据。",
                 EXIT_NO_RESULT,
                 {
                     "uid": uid,
@@ -272,7 +274,7 @@ def _abyss_render_result(
             provider="mys",
             region=region,
             category="challenge.abyss.image",
-            unavailable_warning="{count} challenge abyss images unavailable; rendered placeholders",
+            unavailable_warning="{count} 个深境螺旋挑战图片不可用，已使用占位图",
             max_workers=CHALLENGE_IMAGE_WORKERS,
         )
         png = render_challenge_abyss_card(
@@ -287,7 +289,7 @@ def _abyss_render_result(
             filename=f"challenge-abyss_{_safe_filename(uid)}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style Spiral Abyss card",
+            description="深境螺旋卡片图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -313,7 +315,7 @@ def _abyss_render_result(
             name="challenge/abyss-text",
             filename=f"challenge-abyss_{_safe_filename(uid)}.txt",
             content=render_challenge_abyss_text(uid=uid, abyss=abyss, summary=summary),
-            description="Human-readable Spiral Abyss challenge text",
+            description="深境螺旋挑战文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -368,7 +370,7 @@ def _theater_render_result(
             region=region,
             category="challenge.theater.image",
             unavailable_warning=(
-                "{count} challenge theater images unavailable; rendered placeholders"
+                "{count} 个幻想真境剧诗图片不可用，已使用占位图"
             ),
             max_workers=CHALLENGE_IMAGE_WORKERS,
         )
@@ -384,7 +386,7 @@ def _theater_render_result(
             filename=f"challenge-theater_{_safe_filename(uid)}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style Imaginarium Theater card",
+            description="幻想真境剧诗卡片图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -410,7 +412,7 @@ def _theater_render_result(
             name="challenge/theater-text",
             filename=f"challenge-theater_{_safe_filename(uid)}.txt",
             content=render_challenge_theater_text(uid=uid, theater=theater, summary=summary),
-            description="Human-readable Imaginarium Theater challenge text",
+            description="幻想真境剧诗挑战文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -464,7 +466,7 @@ def _hard_render_result(
             provider="mys",
             region=region,
             category="challenge.hard.image",
-            unavailable_warning="{count} challenge hard images unavailable; rendered placeholders",
+            unavailable_warning="{count} 个深罪旋曜挑战图片不可用，已使用占位图",
             max_workers=CHALLENGE_IMAGE_WORKERS,
         )
         png = render_challenge_hard_card(
@@ -479,7 +481,7 @@ def _hard_render_result(
             filename=f"challenge-hard_{_safe_filename(uid)}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style hard challenge card",
+            description="深罪旋曜挑战卡片图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -505,7 +507,7 @@ def _hard_render_result(
             name="challenge/hard-text",
             filename=f"challenge-hard_{_safe_filename(uid)}.txt",
             content=render_challenge_hard_text(uid=uid, hard=hard, summary=summary),
-            description="Human-readable hard challenge text",
+            description="深罪旋曜挑战文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -533,7 +535,7 @@ def _hard_rank_render_result(args: argparse.Namespace, result: CommandResult) ->
         name="challenge/hard-rank-text",
         filename="challenge-hard-rank.txt",
         content=render_challenge_hard_rank_text(result.data),
-        description="Human-readable hard challenge ranking support status",
+        description="深罪旋曜排名支持状态文本",
         kind="text",
     )
     data = render_result_data(

@@ -714,14 +714,14 @@ tests/
 ### Stage 11: Guides, Maps, And Rich Public Data — completed.
 ### Stage 12: Batch And Agent Hardening — completed.
 ### Stage 13: Documentation, CI, And Release — completed.
+### Stage 13.1: Chinese Localization Of User-Facing Strings — completed.
+
+- Scope: translate all English user-facing strings to Chinese in text renderers, error messages (`errors.py`, `http.py`), provider warnings, and `source_limitations`; remove meaningless labels such as `可用:` from text renders.
+- Result: translated all `ERROR_CATALOG` descriptions, all `CliError` messages in `http.py` and `providers/public/`, all `source_limitations` strings, and all warning strings; removed `可用:` lines from `challenge/text.py`, `daily/text.py`, and `progress/text.py`; updated 4 test assertions to match new strings.
+- Verification: `ruff check .` clean; `310 passed, 1 skipped`.
 ### Stage 14: Missing Command Contract Completion — completed.
 ### Stage 14.1: Source-Limited Player Data Ports — completed.
 ### Stage 14.2: Source-Limited Command Completion — completed.
-
-- Scope: revisit `daily.bbs-coin`, `challenge.hard-rank`, `progress.achievement-guide`, `progress.commission-guide`, `player.register-time`, `panel.graduation`, `panel.refresh --source mys`, and `wiki character/weapon --level`.
-- References: use local GenshinUID at `~/Github/GenshinUID` and gsuid_core at `~/Github/gsuid_core` for behavior, endpoint selection, signing, and data mapping.
-- Result: implemented `daily.bbs-coin` through MYS BBS mission APIs with body-aware POST signing and retcode diagnostics, `challenge.hard-rank` through Akasha's Stygian ranking API, guide lookups through GenshinUID achievement JSON, `panel.refresh --source mys/auto` through per-character Enka/MYS merge, and `panel.graduation` through existing reference metrics. `player.register-time` remains explicitly upstream-limited because GenshinUID uses the same legacy anniversary source. `wiki character/weapon --level` now records matched promotion data and warns that exact growth-curve stats are unavailable from the current public source.
-- Verification: separate review completed; review findings applied. `ruff check .`, `ruff format --check .`, affected suites (`119 passed`), and `pytest -q` (`310 passed, 1 skipped`).
 ### Stage 15: Full Global Options — completed.
 ### Stage 16: Help Information Coverage — completed.
 ### Stage 16.5: Cache System Redesign — completed.

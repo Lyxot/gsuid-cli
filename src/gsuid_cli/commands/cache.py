@@ -16,30 +16,32 @@ ASSET_SCOPES = {"assets", "icons", "maps", "wiki"}
 CAPABILITIES = [
     {
         "command": "cache.clear",
-        "description": "Clear local cache and artifact files by scope.",
+        "description": "清理本地缓存文件。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "cache.size",
-        "description": "Show local cache and artifact disk usage by scope.",
+        "description": "显示本地缓存和产物的磁盘使用情况。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
 ]
 
+_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    cache = groups.add_parser("cache", help="Manage local cache files.")
+    cache = groups.add_parser("cache", help="管理本地缓存文件。")
     commands = cache.add_subparsers(dest="cache_command", required=True, metavar="<command>")
 
-    clear = commands.add_parser("clear", help="Clear local cache files.")
+    clear = commands.add_parser("clear", help=_HELPS["cache.clear"])
     clear.add_argument("--scope", choices=CACHE_SCOPES, default="all")
     clear.set_defaults(handler=clear_command, command_name="cache.clear")
 
-    size = commands.add_parser("size", help="Show local cache and artifact disk usage.")
+    size = commands.add_parser("size", help=_HELPS["cache.size"])
     size.add_argument("--scope", choices=CACHE_SCOPES, default="all")
     size.set_defaults(handler=size_command, command_name="cache.size")
 

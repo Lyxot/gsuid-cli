@@ -233,9 +233,9 @@ def test_monitor_once_reports_threshold_warnings(tmp_path, monkeypatch) -> None:
     by_name = {check["name"]: check for check in payload["data"]["checks"]}
     assert by_name["cache.asset_files"]["value"] == 1
     assert by_name["cache.asset_files"]["status"] == "warn"
-    assert by_name["cache.asset_files"]["message"] == "1 cached asset files"
+    assert by_name["cache.asset_files"]["message"] == "静态资源缓存文件 1 个"
     assert payload["data"]["thresholds"]["max_asset_cache_files"] == 0
-    assert payload["warnings"] == ["1 cached asset files"]
+    assert payload["warnings"] == ["静态资源缓存文件 1 个"]
 
 
 def test_monitor_once_render_text_plain_prints_chinese_warning(tmp_path, monkeypatch) -> None:

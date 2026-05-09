@@ -51,21 +51,21 @@ PLAYER_CALENDAR_ICON_WORKERS = 12
 CAPABILITIES = [
     {
         "command": "player.summary",
-        "description": "Show authenticated player profile summary data.",
+        "description": "显示玩家资料汇总数据。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "player.characters",
-        "description": "Show authenticated player character details.",
+        "description": "显示玩家角色详情。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "player.inventory",
-        "description": "Show owned-character and equipped-weapon material counts.",
+        "description": "显示已拥有角色和已装备武器的材料数量。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
@@ -73,63 +73,65 @@ CAPABILITIES = [
     },
     {
         "command": "player.calendar",
-        "description": "Show authenticated player activity calendar data.",
+        "description": "显示玩家活动日历数据。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "player.diary",
-        "description": "Show authenticated monthly traveler diary data.",
+        "description": "显示旅行者札记数据。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "player.register-time",
-        "description": "Attempt to show Genshin account registration time.",
+        "description": "尝试显示原神账号注册时间。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
         "availability": "upstream-limited",
         "limitations": [
-            "Uses the legacy MYS anniversary endpoint, which may return provider retcode -502."
+            "使用旧版米游社周年庆接口，可能返回数据源错误码 -502。"
         ],
     },
 ]
 
+_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    player = groups.add_parser("player", help="Show authenticated player data.")
+    player = groups.add_parser("player", help="显示玩家数据。")
     commands = player.add_subparsers(dest="player_command", required=True, metavar="<command>")
 
-    summary = commands.add_parser("summary", help="Show player summary data.")
+    summary = commands.add_parser("summary", help=_HELPS["player.summary"])
     summary.add_argument("--uid", dest="command_uid")
     summary.set_defaults(handler=summary_command, command_name="player.summary")
 
-    characters = commands.add_parser("characters", help="Show player character details.")
+    characters = commands.add_parser("characters", help=_HELPS["player.characters"])
     characters.add_argument("--uid", dest="command_uid")
     characters.set_defaults(handler=characters_command, command_name="player.characters")
 
     inventory = commands.add_parser(
         "inventory",
-        help="Show owned-character and equipped-weapon material counts.",
+        help=_HELPS["player.inventory"],
     )
     inventory.add_argument("--uid", dest="command_uid")
     inventory.set_defaults(handler=inventory_command, command_name="player.inventory")
 
-    calendar = commands.add_parser("calendar", help="Show player activity calendar data.")
+    calendar = commands.add_parser("calendar", help=_HELPS["player.calendar"])
     calendar.add_argument("--uid", dest="command_uid")
     calendar.set_defaults(handler=calendar_command, command_name="player.calendar")
 
-    diary = commands.add_parser("diary", help="Show monthly traveler diary data.")
+    diary = commands.add_parser("diary", help=_HELPS["player.diary"])
     diary.add_argument("--uid", dest="command_uid")
     diary.add_argument("--month", help="Diary month in YYYY-MM format.")
     diary.set_defaults(handler=diary_command, command_name="player.diary")
 
     register_time = commands.add_parser(
         "register-time",
-        help="Attempt to show Genshin account registration time.",
+        help=_HELPS["player.register-time"],
     )
     register_time.add_argument("--uid", dest="command_uid")
     register_time.set_defaults(handler=register_time_command, command_name="player.register-time")
@@ -301,7 +303,7 @@ def _characters_render_result(
     if not isinstance(characters_value, list):
         raise CliError(
             "UPSTREAM_INVALID_RESPONSE",
-            "Provider returned player character data without renderable characters.",
+            "数据源返回的玩家角色数据中不包含可渲染的角色。",
             EXIT_UPSTREAM,
             {"command": "player.characters"},
             source=result.source,
@@ -318,7 +320,7 @@ def _characters_render_result(
             filename=f"player-characters_{_safe_filename(uid)}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style player character list card",
+            description="玩家角色列表卡片图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -334,7 +336,7 @@ def _characters_render_result(
             name="player/characters-text",
             filename=f"player-characters_{_safe_filename(uid)}.txt",
             content=render_player_characters_text(result.data),
-            description="Human-readable player character list text",
+            description="玩家角色列表文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -372,7 +374,7 @@ def _summary_render_result(
     if not isinstance(summary, Mapping):
         raise CliError(
             "UPSTREAM_INVALID_RESPONSE",
-            "Provider returned player summary data without a renderable summary.",
+            "数据源返回的玩家汇总数据中不包含可渲染的汇总。",
             EXIT_UPSTREAM,
             {"command": "player.summary"},
             source=result.source,
@@ -414,7 +416,7 @@ def _summary_render_result(
             provider="mys",
             region=region,
             category="player.summary.icon",
-            unavailable_warning="{count} player summary icons unavailable; rendered placeholders",
+            unavailable_warning="{count} 个玩家资料汇总图标不可用，已使用占位图",
             max_workers=PLAYER_SUMMARY_ICON_WORKERS,
         )
         profile_images, profile_image_warnings = _player_profile_image_assets(
@@ -432,7 +434,7 @@ def _summary_render_result(
             filename=f"player-summary_{_safe_filename(uid)}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style full player role-info card",
+            description="玩家角色信息卡片图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -459,7 +461,7 @@ def _summary_render_result(
                 summary=summary,
                 characters=characters,
             ),
-            description="Human-readable player summary text",
+            description="玩家资料汇总文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -514,7 +516,7 @@ def _inventory_render_result(
             provider="mys",
             region=region,
             category="player.inventory.icon",
-            unavailable_warning="{count} player inventory icons unavailable; rendered placeholders",
+            unavailable_warning="{count} 个玩家背包材料图标不可用，已使用占位图",
             max_workers=PLAYER_INVENTORY_ICON_WORKERS,
         )
         png = render_player_inventory_card(
@@ -529,7 +531,7 @@ def _inventory_render_result(
             filename=f"player-inventory_{_safe_filename(uid)}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style player inventory card",
+            description="玩家背包材料卡片图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -556,7 +558,7 @@ def _inventory_render_result(
             name="player/inventory-text",
             filename=f"player-inventory_{_safe_filename(uid)}.txt",
             content=render_player_inventory_text(uid=uid, summary=summary, inventory=inventory),
-            description="Human-readable player inventory text",
+            description="玩家背包材料文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -615,7 +617,7 @@ def _calendar_render_result(
             provider="mys",
             region=region,
             category="player.calendar.icon",
-            unavailable_warning="{count} player calendar icons unavailable; rendered placeholders",
+            unavailable_warning="{count} 个玩家活动日历图标不可用，已使用占位图",
             max_workers=PLAYER_CALENDAR_ICON_WORKERS,
         )
         png = render_player_calendar_card(
@@ -630,7 +632,7 @@ def _calendar_render_result(
             filename=f"player-calendar_{_safe_filename(uid)}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style player activity calendar card",
+            description="玩家活动日历卡片图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -657,7 +659,7 @@ def _calendar_render_result(
             name="player/calendar-text",
             filename=f"player-calendar_{_safe_filename(uid)}.txt",
             content=render_player_calendar_text(uid=uid, summary=summary, calendar=calendar),
-            description="Human-readable player activity calendar text",
+            description="玩家活动日历文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -721,7 +723,7 @@ def _diary_render_result(
             filename=f"player-diary_{_safe_filename(uid)}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style monthly traveler diary card",
+            description="旅行者札记卡片图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -748,7 +750,7 @@ def _diary_render_result(
             name="player/diary-text",
             filename=f"player-diary_{_safe_filename(uid)}.txt",
             content=render_player_diary_text(uid=uid, summary=summary, diary=diary),
-            description="Human-readable player diary text",
+            description="旅行者札记文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -781,7 +783,7 @@ def _register_time_render_result(
         name="player/register-time-text",
         filename=f"player-register-time_{_safe_filename(uid)}.txt",
         content=render_player_register_time_text(result.data),
-        description="Human-readable player registration time text",
+        description="玩家注册时间文本",
         kind="text",
     )
     data = render_result_data(

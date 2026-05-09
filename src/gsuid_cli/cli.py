@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import sys
 import time
 import uuid
@@ -69,77 +68,77 @@ SENSITIVE_KEY_PARTS = (
     "token",
 )
 OPTION_HELP = {
-    "--all": "Include normally omitted rows.",
-    "--app-id": "QR login app id from auth.qrcode.start.",
-    "--artifact-source-character": "Character whose artifacts should be reused for comparison.",
-    "--banner": "Gacha banner category to summarize.",
-    "--build": "Saved or cached build name to compare.",
-    "--cache": "Process JSON and static asset cache policy.",
-    "--character": "Character name or id.",
-    "--check": "Diagnostic check category to run.",
-    "--constellation": "Constellation name, number, or level.",
-    "--cookie": "Cookie value for this one credential write.",
-    "--cookie-file": "Read the cookie value from a file.",
-    "--cookie-stdin": "Read the cookie value from stdin.",
-    "--date": "Calendar date for the requested data.",
-    "--day": "Weekday name or number.",
-    "--debug": "Include debug diagnostics in error details.",
-    "--deck-id": "Genius Invokation TCG deck id.",
-    "--default": "Mark the created or selected record as default.",
-    "--device": "QR login device id from auth.qrcode.start.",
-    "--file": "Input file path.",
-    "--floor": "Challenge floor number.",
-    "--force": "Bypass local freshness or duplicate-stop shortcuts where supported.",
-    "--full": "Use the larger full-refresh page limit.",
-    "--id": "Provider id for the requested row.",
-    "--item": "Item name or id.",
-    "--label": "Human-readable local account label.",
-    "--level": "Target level for derived wiki data.",
-    "--limit": "Maximum rows to return.",
-    "--login-timeout": "Maximum QR login wait time in seconds.",
-    "--map": "Map source or map id.",
-    "--material": "Material name or id.",
-    "--max-artifact-files": "Warn when artifact files exceed this count.",
-    "--max-asset-cache-files": "Warn when static asset cache files exceed this count.",
-    "--min-free-mb": "Warn when free disk space is below this many MB.",
-    "--name": "Name value for this command.",
-    "--nearby": "Number of nearby rank rows to include.",
-    "--output": "Output file path.",
-    "--output-dir": "Artifact output directory.",
-    "--page": "Result page number.",
-    "--poll-interval": "QR login poll interval in seconds.",
-    "--profile": "Local profile name.",
-    "--query": "Search query.",
-    "--quiet": "Suppress non-result stderr logs.",
-    "--region": "Target API region.",
-    "--render": "Comma-separated render modes. Repeat to select multiple modes.",
-    "--request-id": "Caller-supplied request id.",
-    "--scope": "Operation scope.",
-    "--season": "Challenge season selector.",
-    "--sort": "Sort field.",
-    "--source": "Data source provider.",
-    "--stoken": "Stoken value for this one credential write.",
-    "--stoken-file": "Read the stoken value from a file.",
-    "--stoken-stdin": "Read the stoken value from stdin.",
-    "--talent": "Talent name or id.",
-    "--ticket": "QR login ticket from auth.qrcode.start.",
-    "--timeout": "HTTP timeout in seconds.",
-    "--uid": "Target Genshin UID. Overrides the profile default.",
-    "--url": "Secret URL value for this one credential write.",
-    "--url-file": "Read the secret URL value from a file.",
-    "--url-stdin": "Read the secret URL value from stdin.",
-    "--version": "Game or guide version selector.",
-    "--weapon": "Weapon name or id.",
+    "--all": "包含通常省略的行。",
+    "--app-id": "来自 auth.qrcode.start 的二维码登录 app id。",
+    "--artifact-source-character": "要复用其圣遗物进行对比的角色。",
+    "--banner": "要汇总的祈愿卡池分类。",
+    "--build": "要对比的已保存或已缓存的配置名称。",
+    "--cache": "处理 JSON 和静态资源的缓存策略。",
+    "--character": "角色名称或 ID。",
+    "--check": "要运行的诊断检查分类。",
+    "--constellation": "命之座名称、序号或等级。",
+    "--cookie": "用于此次凭据写入的 Cookie 值。",
+    "--cookie-file": "从文件读取 Cookie 值。",
+    "--cookie-stdin": "从标准输入读取 Cookie 值。",
+    "--date": "请求数据的日历日期。",
+    "--day": "工作日名称或数字。",
+    "--debug": "在错误详情中包含调试诊断信息。",
+    "--deck-id": "七圣召唤牌组 ID。",
+    "--default": "将创建或选择的记录标记为默认。",
+    "--device": "来自 auth.qrcode.start 的二维码登录设备 ID。",
+    "--file": "输入文件路径。",
+    "--floor": "挑战层数。",
+    "--force": "在支持的情况下绕过本地时效性或防重复快捷策略。",
+    "--full": "使用较大的完全刷新分页限制。",
+    "--id": "请求行的数据源 ID。",
+    "--item": "物品名称或 ID。",
+    "--label": "本地账号标签。",
+    "--level": "派生 wiki 数据的目标等级。",
+    "--limit": "返回的最大行数。",
+    "--login-timeout": "二维码登录最大等待时间（秒）。",
+    "--map": "地图来源或地图 ID。",
+    "--material": "材料名称或 ID。",
+    "--max-artifact-files": "当产物文件超过此数量时发出警告。",
+    "--max-asset-cache-files": "当静态资源缓存文件超过此数量时发出警告。",
+    "--min-free-mb": "当可用磁盘空间低于此 MB 数时发出警告。",
+    "--name": "此命令的名称值。",
+    "--nearby": "要包含的附近排名行数。",
+    "--output": "输出文件路径。",
+    "--output-dir": "产物输出目录。",
+    "--page": "结果页码。",
+    "--poll-interval": "二维码登录轮询间隔（秒）。",
+    "--profile": "本地配置文件名称。",
+    "--query": "搜索查询。",
+    "--quiet": "抑制非结果的 stderr 日志。",
+    "--region": "目标 API 区服。",
+    "--render": "逗号分隔的渲染模式。重复使用以选择多个模式。",
+    "--request-id": "调用者提供的请求 ID。",
+    "--scope": "操作范围。",
+    "--season": "挑战赛季选择器。",
+    "--sort": "排序字段。",
+    "--source": "数据源提供者。",
+    "--stoken": "用于此次凭据写入的 Stoken 值。",
+    "--stoken-file": "从文件读取 Stoken 值。",
+    "--stoken-stdin": "从标准输入读取 Stoken 值。",
+    "--talent": "天赋名称或 ID。",
+    "--ticket": "来自 auth.qrcode.start 的二维码登录 ticket。",
+    "--timeout": "HTTP 超时时间（秒）。",
+    "--uid": "目标原神 UID。覆盖配置文件默认值。",
+    "--url": "用于此次凭据写入的安全 URL 值。",
+    "--url-file": "从文件读取安全 URL 值。",
+    "--url-stdin": "从标准输入读取安全 URL 值。",
+    "--version": "游戏或指南版本选择器。",
+    "--weapon": "武器名称或 ID。",
 }
 DEST_HELP = {
-    "account_region": "Account API region.",
-    "account_uid": "Account Genshin UID.",
-    "command_uid": "Target Genshin UID. Overrides the profile default.",
-    "export_format": "Gacha export format.",
-    "format": "Stdout output format.",
-    "import_format": "Gacha import format.",
-    "profile_region": "Profile default API region.",
-    "query": "Search query or lookup name.",
+    "account_region": "账号 API 区服。",
+    "account_uid": "账号原神 UID。",
+    "command_uid": "目标原神 UID。覆盖配置文件默认值。",
+    "export_format": "祈愿记录导出格式。",
+    "format": "标准输出格式。",
+    "import_format": "祈愿记录导入格式。",
+    "profile_region": "配置文件默认 API 区服。",
+    "query": "搜索查询或查找名称。",
 }
 
 
@@ -151,7 +150,11 @@ class GsuidArgumentParser(argparse.ArgumentParser):
 def build_parser() -> argparse.ArgumentParser:
     parser = GsuidArgumentParser(
         prog="gsuid",
-        description="Agent-oriented Genshin Impact CLI.",
+        description="面向 Agent 的原神命令行工具。",
+        add_help=False,
+    )
+    parser.add_argument(
+        "-h", "--help", action="help", default=argparse.SUPPRESS, help="显示此帮助信息并退出。"
     )
     parser.add_argument("--profile", default=os.environ.get("GSUID_PROFILE", "default"))
     parser.add_argument("--uid")
@@ -172,7 +175,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--request-id")
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--debug", action="store_true")
-    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}", help="显示版本号并退出。"
+    )
 
     groups = parser.add_subparsers(dest="group", required=True, metavar="<group>")
     meta.register(groups)
@@ -276,7 +281,7 @@ def run(
         return exc.exit_code
     except KeyboardInterrupt:
         context = _error_context(args_list)
-        error = CliError("INTERRUPTED", "Interrupted.", EXIT_INTERRUPTED)
+        error = CliError("INTERRUPTED", "已中断。", EXIT_INTERRUPTED)
         payload = error_envelope(
             command=context["command"],
             request_id=context["request_id"],
@@ -301,7 +306,7 @@ def run(
         details = {}
         if context["debug"]:
             details = {"type": type(exc).__name__, "message": str(exc)}
-        error = CliError("INTERNAL_ERROR", "Internal bug.", EXIT_INTERNAL_BUG, details)
+        error = CliError("INTERNAL_ERROR", "内部错误。", EXIT_INTERNAL_BUG, details)
         payload = error_envelope(
             command=context["command"],
             request_id=context["request_id"],
@@ -377,8 +382,8 @@ def _default_action_help(action: argparse.Action) -> str:
 def _label_help(value: str) -> str:
     label = value.replace("_", " ").replace("-", " ").strip()
     if not label:
-        return "Value for this argument."
-    return f"{label.capitalize()} value."
+        return "此参数的值。"
+    return f"{label.capitalize()} 的值。"
 
 
 def _validate_runtime_defaults(args: argparse.Namespace) -> None:
@@ -528,15 +533,6 @@ def _write_plain_warnings(payload: dict[str, object], stderr: TextIO) -> None:
 
 
 def _plain_warning_text(warning: str) -> str:
-    match = re.fullmatch(r"(\d+) MiB free", warning)
-    if match:
-        return f"剩余 {match.group(1)} MiB"
-    match = re.fullmatch(r"(\d+) cached asset files", warning)
-    if match:
-        return f"静态资源缓存文件 {match.group(1)} 个"
-    match = re.fullmatch(r"(\d+) artifact files", warning)
-    if match:
-        return f"产物文件 {match.group(1)} 个"
     return warning
 
 
@@ -557,14 +553,14 @@ def _payload_with_debug_artifact(
             name="debug-envelope",
             filename="debug-envelope.json",
             content=content,
-            description="Debug envelope with data and sources",
+            description="带有数据和来源的调试包",
             media_type="application/json; charset=utf-8",
             kind="debug",
         )
     except OSError as exc:
         warnings = result.setdefault("warnings", [])
         if isinstance(warnings, list):
-            warnings.append(f"debug artifact write failed: {type(exc).__name__}")
+            warnings.append(f"调试产物写入失败: {type(exc).__name__}")
         return result
     result["artifacts"] = [*_artifact_list(result), artifact]
     return result

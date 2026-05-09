@@ -44,47 +44,49 @@ CONSTELLATION_SKILL_BONUS_RE = re.compile(r"<color=[^>]+>(.*?)</color>的技能�
 CAPABILITIES = [
     {
         "command": "rank.list",
-        "description": "Render a UID's Akasha rank list.",
+        "description": "显示指定 UID 的排行列表。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "rank.character",
-        "description": "Show a character Akasha leaderboard or nearby UID rank rows.",
+        "description": "显示角色排行榜。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "rank.artifact",
-        "description": "Show the Akasha global artifact leaderboard.",
+        "description": "显示圣遗物排行榜。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
 ]
 
+_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    rank = groups.add_parser("rank", help="Show Akasha rankings.")
+    rank = groups.add_parser("rank", help="显示 Akasha 排行榜。")
     commands = rank.add_subparsers(dest="rank_command", required=True, metavar="<command>")
 
-    list_parser = commands.add_parser("list", help="Show a UID rank list.")
+    list_parser = commands.add_parser("list", help=_HELPS["rank.list"])
     list_parser.add_argument("--uid", dest="command_uid")
     list_parser.set_defaults(handler=list_command, command_name="rank.list")
 
-    character = commands.add_parser("character", help="Show a character leaderboard.")
+    character = commands.add_parser("character", help=_HELPS["rank.character"])
     character.add_argument("--uid", dest="command_uid")
     character.add_argument("--character", required=True)
     character.add_argument("--nearby", action="store_true")
     character.set_defaults(handler=character_command, command_name="rank.character")
 
-    artifact = commands.add_parser("artifact", help="Show the artifact leaderboard.")
+    artifact = commands.add_parser("artifact", help=_HELPS["rank.artifact"])
     artifact.add_argument(
         "--sort",
         default="双爆",
-        help="Akasha artifact sort, e.g. 双爆, 暴击率, crit-rate, recharge.",
+        help="Akasha 圣遗物排序方式，例如：双爆, 暴击率, crit-rate, recharge。",
     )
     artifact.set_defaults(handler=artifact_command, command_name="rank.artifact")
 
@@ -186,7 +188,7 @@ def _list_render_result(
             filename=f"rank-list_{_safe_filename(uid)}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID 风格 Akasha 排名列表",
+            description="Akasha 排名列表图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -523,7 +525,7 @@ def _character_render_result(
             filename=f"rank-character_{_safe_filename(_character_name(character_id))}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID 风格 Akasha 角色排行榜",
+            description="Akasha 角色排行榜图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -591,7 +593,7 @@ def _artifact_render_result(
             filename=f"rank-artifact_{_safe_filename(str(result.data.get('sort') or 'crit'))}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID 风格 Akasha 圣遗物排行榜",
+            description="Akasha 圣遗物排行榜图片",
             kind="image",
         )
         output_artifacts.append(image_artifact)
@@ -646,7 +648,7 @@ def _find_user_character(data: dict[str, object], character_id: str, uid: str) -
             return character
     raise CliError(
         "NO_RESULT",
-        f"No Akasha rank data is available for {_character_name(character_id)} on this UID.",
+        f"此 UID 上没有 {_character_name(character_id)} 的 Akasha 排行数据。",
         EXIT_NO_RESULT,
         {"uid": uid, "character_id": character_id},
     )
@@ -669,7 +671,7 @@ def _character_id(query: str) -> str:
             return _character_id(str(name))
     raise CliError(
         "NO_RESULT",
-        "No character matched the rank query.",
+        "没有找到与排行查询匹配的角色。",
         EXIT_NO_RESULT,
         {"query": query},
     )

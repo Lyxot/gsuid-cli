@@ -101,7 +101,6 @@ def render_progress_guide_status_text(data: Mapping[str, object]) -> str:
     lines = [
         GUIDE_LABELS.get(kind, "攻略查询"),
         f"查询: {text_value(data.get('query')) or '-'}",
-        f"可用: {'是' if data.get('available') else '否'}",
         f"数量: {data.get('count', 0)}",
     ]
     limitations = [

@@ -35,70 +35,72 @@ from gsuid_cli.renderers.utility_text import render_meta_command_text
 CAPABILITIES = [
     {
         "command": "meta.version",
-        "description": "Show package, Python, and git version metadata.",
+        "description": "显示版本元信息。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "meta.paths",
-        "description": "Show resolved local storage paths.",
+        "description": "显示解析后的本地路径。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "meta.capabilities",
-        "description": "Show implemented command capabilities.",
+        "description": "显示已实现的功能信息。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "meta.schema",
-        "description": "Show JSON envelope schema metadata.",
+        "description": "显示 JSON 数据包的 schema 元信息。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "meta.errors",
-        "description": "Show stable machine-readable error metadata.",
+        "description": "显示稳定的错误元信息。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "meta.doctor",
-        "description": "Run local diagnostics for storage, credentials, resources, or network.",
+        "description": "运行本地诊断。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
 ]
 
+_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    meta = groups.add_parser("meta", help="CLI metadata and diagnostics.")
+    meta = groups.add_parser("meta", help="CLI 元信息和诊断。")
     commands = meta.add_subparsers(dest="meta_command", required=True, metavar="<command>")
 
-    version = commands.add_parser("version", help="Show version metadata.")
+    version = commands.add_parser("version", help=_HELPS["meta.version"])
     version.set_defaults(handler=version_command, command_name="meta.version")
 
-    paths = commands.add_parser("paths", help="Show resolved local paths.")
+    paths = commands.add_parser("paths", help=_HELPS["meta.paths"])
     paths.set_defaults(handler=paths_command, command_name="meta.paths")
 
-    capabilities = commands.add_parser("capabilities", help="Show implemented capabilities.")
+    capabilities = commands.add_parser("capabilities", help=_HELPS["meta.capabilities"])
     capabilities.set_defaults(handler=capabilities_command, command_name="meta.capabilities")
 
-    schema = commands.add_parser("schema", help="Show JSON envelope schema metadata.")
+    schema = commands.add_parser("schema", help=_HELPS["meta.schema"])
     schema.add_argument("--command")
     schema.set_defaults(handler=schema_command, command_name="meta.schema")
 
-    errors = commands.add_parser("errors", help="Show stable error metadata.")
+    errors = commands.add_parser("errors", help=_HELPS["meta.errors"])
     errors.set_defaults(handler=errors_command, command_name="meta.errors")
 
-    doctor = commands.add_parser("doctor", help="Run local diagnostics.")
+    doctor = commands.add_parser("doctor", help=_HELPS["meta.doctor"])
     doctor.add_argument(
         "--check",
         choices=("network", "storage", "credentials", "resources", "all"),
@@ -141,7 +143,7 @@ def schema_command(args: argparse.Namespace) -> CommandResult | dict[str, object
         if args.command not in commands:
             raise CliError(
                 "NO_RESULT",
-                "No schema is available for this command.",
+                "该命令没有可用的 schema。",
                 EXIT_NO_RESULT,
                 {"command": args.command},
             )
@@ -222,77 +224,77 @@ def _global_options() -> list[dict[str, object]]:
             "value": "NAME",
             "default": "default",
             "placement": "anywhere",
-            "description": "Local profile name.",
+            "description": "本地配置文件名称。",
         },
         {
             "name": "--uid",
             "value": "UID",
             "default": None,
             "placement": "anywhere",
-            "description": "Target Genshin UID. Overrides profile default.",
+            "description": "目标原神 UID。覆盖配置文件默认值。",
         },
         {
             "name": "--region",
             "value": "cn|os",
             "default": "cn",
             "placement": "anywhere",
-            "description": "Target API region.",
+            "description": "目标 API 区服。",
         },
         {
             "name": "--format",
             "value": "json|pretty-json|plain",
             "default": "json",
             "placement": "anywhere",
-            "description": "Stdout output format.",
+            "description": "标准输出格式。",
         },
         {
             "name": "--render",
             "value": "data|image|text|all",
             "default": "data",
             "placement": "anywhere",
-            "description": "Comma-separated render modes. Repeatable.",
+            "description": "逗号分隔的渲染模式。可重复使用。",
         },
         {
             "name": "--output-dir",
             "value": "PATH",
             "default": "$GSUID_HOME/artifacts",
             "placement": "anywhere",
-            "description": "Artifact output directory.",
+            "description": "产物输出目录。",
         },
         {
             "name": "--cache",
             "value": "use|refresh|only|off",
             "default": "use",
             "placement": "anywhere",
-            "description": "Process JSON and static asset cache policy.",
+            "description": "处理 JSON 和静态资源的缓存策略。",
         },
         {
             "name": "--timeout",
             "value": "SECONDS",
             "default": 20,
             "placement": "anywhere",
-            "description": "HTTP timeout.",
+            "description": "HTTP 超时时间。",
         },
         {
             "name": "--request-id",
             "value": "ID",
             "default": "generated UUID",
             "placement": "anywhere",
-            "description": "Caller-supplied request id.",
+            "description": "调用者提供的请求 ID。",
         },
         {
             "name": "--quiet",
             "value": None,
             "default": False,
             "placement": "anywhere",
-            "description": "Suppress non-result stderr logs.",
+            "description": "抑制非结果的 stderr 日志。",
         },
         {
             "name": "--debug",
             "value": None,
             "default": False,
             "placement": "anywhere",
-            "description": "Include debug diagnostics in error details.",
+            "description": "在错误详情中包含调试诊断信息。",
         },
     ]
 

@@ -50,87 +50,89 @@ PROGRESS_IMAGE_WORKERS = 12
 CAPABILITIES = [
     {
         "command": "progress.completion",
-        "description": "Show authenticated account completion summary data.",
+        "description": "显示账号完成度汇总。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "progress.exploration",
-        "description": "Show authenticated world exploration data.",
+        "description": "显示世界探索数据。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "progress.collection",
-        "description": "Show authenticated collection count data.",
+        "description": "显示收集进度数据。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "progress.achievements",
-        "description": "Show authenticated achievement category data.",
+        "description": "显示成就分类数据。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "progress.achievement-guide",
-        "description": "Look up GenshinUID achievement guide data.",
+        "description": "查找成就攻略数据。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "progress.commission-guide",
-        "description": "Look up GenshinUID commission achievement guide data.",
+        "description": "查找委托攻略数据。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "progress.gcg",
-        "description": "Show authenticated Genius Invokation TCG data.",
+        "description": "显示七圣召唤数据。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "progress.gcg-deck",
-        "description": "Show authenticated Genius Invokation TCG deck data.",
+        "description": "显示七圣召唤卡组数据。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
 ]
 
+_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    progress = groups.add_parser("progress", help="Show authenticated progress data.")
+    progress = groups.add_parser("progress", help="显示进度数据。")
     commands = progress.add_subparsers(dest="progress_command", required=True, metavar="<command>")
 
-    completion = commands.add_parser("completion", help="Show account completion summary.")
+    completion = commands.add_parser("completion", help=_HELPS["progress.completion"])
     _add_uid(completion)
     completion.set_defaults(handler=completion_command, command_name="progress.completion")
 
-    exploration = commands.add_parser("exploration", help="Show world exploration data.")
+    exploration = commands.add_parser("exploration", help=_HELPS["progress.exploration"])
     _add_uid(exploration)
     exploration.set_defaults(handler=exploration_command, command_name="progress.exploration")
 
-    collection = commands.add_parser("collection", help="Show collection count data.")
+    collection = commands.add_parser("collection", help=_HELPS["progress.collection"])
     _add_uid(collection)
     collection.set_defaults(handler=collection_command, command_name="progress.collection")
 
-    achievements = commands.add_parser("achievements", help="Show achievement category data.")
+    achievements = commands.add_parser("achievements", help=_HELPS["progress.achievements"])
     _add_uid(achievements)
     achievements.add_argument("--query")
     achievements.set_defaults(handler=achievements_command, command_name="progress.achievements")
 
     achievement_guide = commands.add_parser(
         "achievement-guide",
-        help="Look up achievement guide data.",
+        help=_HELPS["progress.achievement-guide"],
     )
     achievement_guide.add_argument("--query", required=True)
     achievement_guide.set_defaults(
@@ -140,7 +142,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 
     commission_guide = commands.add_parser(
         "commission-guide",
-        help="Look up commission guide data.",
+        help=_HELPS["progress.commission-guide"],
     )
     commission_guide.add_argument("--query", required=True)
     commission_guide.set_defaults(
@@ -148,11 +150,11 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
         command_name="progress.commission-guide",
     )
 
-    gcg = commands.add_parser("gcg", help="Show Genius Invokation TCG data.")
+    gcg = commands.add_parser("gcg", help=_HELPS["progress.gcg"])
     _add_uid(gcg)
     gcg.set_defaults(handler=gcg_command, command_name="progress.gcg")
 
-    gcg_deck = commands.add_parser("gcg-deck", help="Show Genius Invokation TCG deck data.")
+    gcg_deck = commands.add_parser("gcg-deck", help=_HELPS["progress.gcg-deck"])
     _add_uid(gcg_deck)
     gcg_deck.add_argument("--deck-id", type=int)
     gcg_deck.set_defaults(handler=gcg_deck_command, command_name="progress.gcg-deck")
@@ -346,7 +348,7 @@ def _completion_render_result(
             region=region,
             category="progress.completion.icon",
             unavailable_warning=(
-                "{count} progress completion icons unavailable; rendered placeholders"
+                "{count} 个探索完成度图标不可用，已使用占位图"
             ),
             max_workers=PROGRESS_IMAGE_WORKERS,
         )
@@ -355,7 +357,7 @@ def _completion_render_result(
             args,
             name="progress/completion",
             filename=f"progress-completion_{_safe_filename(uid)}.png",
-            description="GenshinUID-style completion card",
+            description="探索完成度卡片图片",
             content=png,
         )
         artifacts.append(image_artifact)
@@ -372,7 +374,7 @@ def _completion_render_result(
             name="progress/completion-text",
             filename=f"progress-completion_{_safe_filename(uid)}.txt",
             content=render_progress_completion_text(uid=uid, completion=completion),
-            description="Human-readable completion progress text",
+            description="探索完成度文本",
         )
         artifacts.append(text_artifact)
         _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -431,7 +433,7 @@ def _exploration_render_result(
             args,
             name="progress/exploration",
             filename=f"progress-exploration_{_safe_filename(uid)}.png",
-            description="GenshinUID-style exploration progress card",
+            description="世界探索进度卡片图片",
             content=png,
         )
         artifacts.append(image_artifact)
@@ -448,7 +450,7 @@ def _exploration_render_result(
             name="progress/exploration-text",
             filename=f"progress-exploration_{_safe_filename(uid)}.txt",
             content=render_progress_exploration_text(uid=uid, exploration=exploration),
-            description="Human-readable exploration progress text",
+            description="世界探索进度文本",
         )
         artifacts.append(text_artifact)
         _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -499,7 +501,7 @@ def _collection_render_result(
             args,
             name="progress/collection",
             filename=f"progress-collection_{_safe_filename(uid)}.png",
-            description="GenshinUID-style collection progress card",
+            description="收集进度卡片图片",
             content=png,
         )
         artifacts.append(image_artifact)
@@ -516,7 +518,7 @@ def _collection_render_result(
             name="progress/collection-text",
             filename=f"progress-collection_{_safe_filename(uid)}.txt",
             content=render_progress_collection_text(uid=uid, collection=collection),
-            description="Human-readable collection progress text",
+            description="收集进度文本",
         )
         artifacts.append(text_artifact)
         _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -562,7 +564,7 @@ def _achievements_render_result(
             provider="mys",
             region=region,
             category="progress.achievements.icon",
-            unavailable_warning="{count} achievement icons unavailable; rendered placeholders",
+            unavailable_warning="{count} 个成就图标不可用，已使用占位图",
             max_workers=PROGRESS_IMAGE_WORKERS,
         )
         png = render_progress_achievements_card(
@@ -576,7 +578,7 @@ def _achievements_render_result(
             args,
             name="progress/achievements",
             filename=f"progress-achievements_{_safe_filename(uid)}.png",
-            description="GenshinUID-style achievements card",
+            description="成就分类进度卡片图片",
             content=png,
         )
         artifacts.append(image_artifact)
@@ -597,7 +599,7 @@ def _achievements_render_result(
                 achievements=achievements,
                 query=result.data.get("query"),
             ),
-            description="Human-readable achievements progress text",
+            description="成就分类进度文本",
         )
         artifacts.append(text_artifact)
         _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -626,7 +628,7 @@ def _gcg_render_result(
         if not has_gcg_covers(gcg):
             raise CliError(
                 "NO_RESULT",
-                "GCG image render requires activated cover cards.",
+                "七圣召唤图片渲染需要已启用的卡组封面。",
                 EXIT_NO_RESULT,
                 {"uid": uid},
                 source=result.source,
@@ -637,7 +639,7 @@ def _gcg_render_result(
             provider="mys",
             region=region,
             category="progress.gcg.card",
-            unavailable_warning="{count} GCG card images unavailable; rendered placeholders",
+            unavailable_warning="{count} 个七圣召唤卡片图片不可用，已使用占位图",
             max_workers=PROGRESS_IMAGE_WORKERS,
         )
         png = render_progress_gcg_card(uid=uid, gcg=gcg, asset_images=images)
@@ -645,7 +647,7 @@ def _gcg_render_result(
             args,
             name="progress/gcg",
             filename=f"progress-gcg_{_safe_filename(uid)}.png",
-            description="GenshinUID-style GCG overview card",
+            description="七圣召唤概览卡片图片",
             content=png,
         )
         artifacts.append(image_artifact)
@@ -662,7 +664,7 @@ def _gcg_render_result(
             name="progress/gcg-text",
             filename=f"progress-gcg_{_safe_filename(uid)}.txt",
             content=render_progress_gcg_text(uid=uid, gcg=gcg),
-            description="Human-readable GCG progress text",
+            description="七圣召唤进度文本",
         )
         artifacts.append(text_artifact)
         _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -699,7 +701,7 @@ def _gcg_deck_render_result(
         if not deck:
             raise CliError(
                 "NO_RESULT",
-                "No GCG deck matched the request.",
+                "没有匹配请求的七圣召唤卡组。",
                 EXIT_NO_RESULT,
                 {"uid": uid, "deck_id": result.data.get("deck_id")},
                 source=result.source,
@@ -720,7 +722,7 @@ def _gcg_deck_render_result(
             provider="mys",
             region=region,
             category="progress.gcg-deck.card",
-            unavailable_warning="{count} GCG deck card images unavailable; rendered placeholders",
+            unavailable_warning="{count} 个七圣召唤卡组图片不可用，已使用占位图",
             max_workers=PROGRESS_IMAGE_WORKERS,
         )
         png = render_progress_gcg_deck_card(
@@ -734,7 +736,7 @@ def _gcg_deck_render_result(
             args,
             name="progress/gcg-deck",
             filename=f"progress-gcg-deck_{_safe_filename(uid)}.png",
-            description="GenshinUID-style GCG deck card",
+            description="七圣召唤卡组卡片图片",
             content=png,
         )
         artifacts.append(image_artifact)
@@ -751,7 +753,7 @@ def _gcg_deck_render_result(
             name="progress/gcg-deck-text",
             filename=f"progress-gcg-deck_{_safe_filename(uid)}.txt",
             content=render_progress_gcg_deck_text(uid=uid, data=result.data),
-            description="Human-readable GCG deck progress text",
+            description="七圣召唤卡组进度文本",
         )
         artifacts.append(text_artifact)
         _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -775,7 +777,7 @@ def _guide_render_result(
         name=f"progress/{kind}-guide-text",
         filename=f"progress-{kind}-guide.txt",
         content=render_progress_guide_status_text(result.data),
-        description=f"Human-readable {kind} guide support status",
+        description=f" {kind} 攻略支持状态文本",
     )
     data = render_result_data(
         args,

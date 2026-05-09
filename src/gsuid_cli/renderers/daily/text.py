@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 from gsuid_cli.renderers.common import bool_value, int_value, sequence, text_value
-from gsuid_cli.renderers.utility_text import _finish, _yes_no
+from gsuid_cli.renderers.utility_text import _finish
 
 WEEKDAY_LABELS = {
     "monday": "周一",
@@ -124,7 +124,6 @@ def render_daily_bbs_coin_text(data: Mapping[str, object]) -> str:
     lines = ["米游币任务"]
     if data.get("uid") not in (None, ""):
         lines.append(f"UID: {data['uid']}")
-    lines.append(f"可用: {_yes_no(data.get('available'))}")
     if data.get("points_received") is not None:
         lines.append(f"已获取米游币: {data['points_received']}")
 

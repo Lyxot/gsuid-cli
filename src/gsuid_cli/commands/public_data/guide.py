@@ -40,75 +40,77 @@ WIKI_IMAGE_WORKERS = 8
 CAPABILITIES = [
     {
         "command": "guide.character",
-        "description": "Show public character guide facts and GenshinUID guide image.",
+        "description": "显示角色攻略内容。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "all"],
     },
     {
         "command": "guide.reference-panel",
-        "description": "Show the GenshinUID reference-panel image for a character.",
+        "description": "显示角色的参考面板。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "all"],
     },
     {
         "command": "guide.route",
-        "description": "Fetch a public material route map artifact.",
+        "description": "获取材料讨伐路线图。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "all"],
     },
     {
         "command": "guide.abyss",
-        "description": "Show public abyss guide data and GenshinUID-style monster layout.",
+        "description": "显示深境螺旋攻略数据。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "guide.theater",
-        "description": "Show public theater guide data and GenshinUID-style monster layout.",
+        "description": "显示幻想真境剧诗攻略数据。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "recommend.build",
-        "description": "Show GenshinUID character build recommendations.",
+        "description": "显示角色养成建议。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "recommend.holder",
-        "description": "Show GenshinUID holder recommendations for a weapon or artifact.",
+        "description": "显示武器或圣遗物的建议使用者。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "map.find",
-        "description": "Fetch a public MiniGG material map artifact.",
+        "description": "获取资源分布图。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "all"],
     },
     {
         "command": "rerun.list",
-        "description": "List rerun rows and render the GenshinUID return list.",
+        "description": "列出祈愿池复刻信息。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "misc.primogems-plan",
-        "description": "Show the GenshinUID static version-plan primogem image.",
+        "description": "显示原石获取预估图。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "all"],
     },
 ]
+
+_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
 
 
 def guide_character_command(args: argparse.Namespace) -> CommandResult:
@@ -196,70 +198,70 @@ def primogems_plan_command(args: argparse.Namespace) -> CommandResult:
 
 
 def register_guides(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    guide = groups.add_parser("guide", help="Show public guide data.")
+    guide = groups.add_parser("guide", help="显示公开的攻略数据。")
     commands = guide.add_subparsers(dest="guide_command", required=True, metavar="<command>")
 
-    character = commands.add_parser("character", help="Show character guide facts.")
+    character = commands.add_parser("character", help=_HELPS["guide.character"])
     character.add_argument("--name", required=True)
     character.set_defaults(handler=guide_character_command, command_name="guide.character")
 
-    reference = commands.add_parser("reference-panel", help="Show reference panel availability.")
+    reference = commands.add_parser("reference-panel", help=_HELPS["guide.reference-panel"])
     reference.add_argument("--character", required=True)
     reference.set_defaults(handler=reference_panel_command, command_name="guide.reference-panel")
 
-    route = commands.add_parser("route", help="Fetch a material route map artifact.")
+    route = commands.add_parser("route", help=_HELPS["guide.route"])
     route.add_argument("--material", required=True)
     route.add_argument("--map", choices=("teyvat", "chasm", "enkanomiya"), default="teyvat")
     route.set_defaults(handler=guide_route_command, command_name="guide.route")
 
-    abyss = commands.add_parser("abyss", help="Show abyss guide data.")
+    abyss = commands.add_parser("abyss", help=_HELPS["guide.abyss"])
     abyss.add_argument("--version")
     abyss.add_argument("--floor", type=int, choices=(11, 12))
     abyss.set_defaults(handler=guide_abyss_command, command_name="guide.abyss")
 
-    theater = commands.add_parser("theater", help="Show theater guide data.")
+    theater = commands.add_parser("theater", help=_HELPS["guide.theater"])
     theater.add_argument("--version")
     theater.set_defaults(handler=guide_theater_command, command_name="guide.theater")
 
 
 def register_recommend(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    recommend = groups.add_parser("recommend", help="Show recommendation data.")
+    recommend = groups.add_parser("recommend", help="显示建议数据。")
     commands = recommend.add_subparsers(
         dest="recommend_command",
         required=True,
         metavar="<command>",
     )
 
-    build = commands.add_parser("build", help="Show character build recommendation availability.")
+    build = commands.add_parser("build", help=_HELPS["recommend.build"])
     build.add_argument("--character", required=True)
     build.set_defaults(handler=recommend_build_command, command_name="recommend.build")
 
-    holder = commands.add_parser("holder", help="Show item holder recommendation availability.")
+    holder = commands.add_parser("holder", help=_HELPS["recommend.holder"])
     holder.add_argument("--item", required=True)
     holder.set_defaults(handler=recommend_holder_command, command_name="recommend.holder")
 
 
 def register_map(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    map_group = groups.add_parser("map", help="Fetch public map artifacts.")
+    map_group = groups.add_parser("map", help="获取公开的地图图片。")
     commands = map_group.add_subparsers(dest="map_command", required=True, metavar="<command>")
-    find = commands.add_parser("find", help="Fetch a material map artifact.")
+    find = commands.add_parser("find", help=_HELPS["map.find"])
     find.add_argument("--item", required=True)
     find.add_argument("--map", choices=("teyvat", "chasm", "enkanomiya"), default="teyvat")
     find.set_defaults(handler=map_find_command, command_name="map.find")
 
 
 def register_rerun(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    rerun = groups.add_parser("rerun", help="Show public rerun data.")
+    rerun = groups.add_parser("rerun", help="显示公开的复刻数据。")
     commands = rerun.add_subparsers(dest="rerun_command", required=True, metavar="<command>")
-    list_parser = commands.add_parser("list", help="List banner rows for rerun analysis.")
+    list_parser = commands.add_parser("list", help=_HELPS["rerun.list"])
     list_parser.add_argument("--limit", type=int, default=20)
     list_parser.set_defaults(handler=rerun_list_command, command_name="rerun.list")
 
 
 def register_misc(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    misc = groups.add_parser("misc", help="Show miscellaneous public data.")
+    misc = groups.add_parser("misc", help="显示其他的公开数据。")
     commands = misc.add_subparsers(dest="misc_command", required=True, metavar="<command>")
-    primogems = commands.add_parser("primogems-plan", help="Show primogem estimate availability.")
+    primogems = commands.add_parser("primogems-plan", help=_HELPS["misc.primogems-plan"])
     primogems.add_argument("--version")
     primogems.set_defaults(handler=primogems_plan_command, command_name="misc.primogems-plan")
 
@@ -280,7 +282,7 @@ def _guide_image_result(
         f"{_image_ext(response.media_type)}",
         media_type=response.media_type,
         content=response.content,
-        description=f"GenshinUID {render_name} image",
+        description=f"{render_name} 图片",
         kind="image",
     )
     render_data = {
@@ -325,7 +327,7 @@ def _guide_abyss_render_result(args: argparse.Namespace, result: CommandResult) 
             region="cn",
             category="guide.abyss.asset",
             unavailable_warning=(
-                "{count} guide abyss monster images unavailable; rendered placeholders"
+                "{count} 个深境螺旋怪物图片不可用，已使用占位图"
             ),
             max_workers=WIKI_IMAGE_WORKERS,
         )
@@ -335,7 +337,7 @@ def _guide_abyss_render_result(args: argparse.Namespace, result: CommandResult) 
             filename=f"guide-abyss_{_safe_filename(str(name))}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style abyss guide monster layout",
+            description="深境螺旋怪物排布图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -351,7 +353,7 @@ def _guide_abyss_render_result(args: argparse.Namespace, result: CommandResult) 
             name="guide/abyss-text",
             filename=f"guide-abyss_{_safe_filename(str(name))}.txt",
             content=render_guide_abyss_text(result.data),
-            description="Human-readable abyss guide text",
+            description="深境螺旋攻略文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -390,7 +392,7 @@ def _guide_theater_render_result(args: argparse.Namespace, result: CommandResult
             provider="guide-assets",
             region="cn",
             category="guide.theater.asset",
-            unavailable_warning="{count} guide theater images unavailable; rendered placeholders",
+            unavailable_warning="{count} 个幻想真境剧诗图片不可用，已使用占位图",
             max_workers=WIKI_IMAGE_WORKERS,
         )
         png = render_guide_theater_card(theater, asset_images=asset_images)
@@ -399,7 +401,7 @@ def _guide_theater_render_result(args: argparse.Namespace, result: CommandResult
             filename=f"guide-theater_{_safe_filename(name)}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style theater guide monster layout",
+            description="幻想真境剧诗怪物排布图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -415,7 +417,7 @@ def _guide_theater_render_result(args: argparse.Namespace, result: CommandResult
             name="guide/theater-text",
             filename=f"guide-theater_{_safe_filename(name)}.txt",
             content=render_guide_theater_text(result.data),
-            description="Human-readable theater guide text",
+            description="幻想真境剧诗攻略文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -446,19 +448,19 @@ def _recommend_render_result(
     if render_kind == "build":
         name = _optional_text(result.data.get("character")) or "build"
         render_name = "recommend/build"
-        description = "GenshinUID-style build recommendation card"
+        description = "养成建议卡片图片"
         text_content = render_recommend_build_text(result.data)
-        text_description = "Human-readable build recommendation text"
+        text_description = "养成建议文本"
     elif render_kind == "holder":
         name = _optional_text(result.data.get("item")) or "holder"
         render_name = "recommend/holder"
-        description = "GenshinUID-style holder recommendation card"
+        description = "建议使用者卡片图片"
         text_content = render_recommend_holder_text(result.data)
-        text_description = "Human-readable holder recommendation text"
+        text_description = "建议使用者文本"
     else:
         raise CliError(
             "INVALID_ARGUMENT",
-            "recommend renderer is not implemented for this command.",
+            "此命令未实现推荐渲染器。",
             EXIT_INVALID_INPUT,
             {"render": render_kind},
         )
@@ -530,7 +532,7 @@ def _rerun_render_result(args: argparse.Namespace, result: CommandResult) -> Com
             provider="rerun-assets",
             region="cn",
             category="rerun.list.asset",
-            unavailable_warning="{count} rerun images unavailable; rendered placeholders",
+            unavailable_warning="{count} 张复刻图片不可用，已使用占位图",
             max_workers=WIKI_IMAGE_WORKERS,
         )
         png = render_rerun_list(result.data, asset_images=asset_images)
@@ -539,7 +541,7 @@ def _rerun_render_result(args: argparse.Namespace, result: CommandResult) -> Com
             filename=f"rerun-list_{_safe_filename(version)}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style rerun return list",
+            description="复刻列表卡片图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -555,7 +557,7 @@ def _rerun_render_result(args: argparse.Namespace, result: CommandResult) -> Com
             name="rerun/list-text",
             filename=f"rerun-list_{_safe_filename(version)}.txt",
             content=render_rerun_list_text(result.data),
-            description="Human-readable rerun list text",
+            description="复刻列表文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -583,7 +585,7 @@ def _primogems_plan_render_result(args: argparse.Namespace, result: CommandResul
     if selected_version is None:
         raise CliError(
             "NO_RESULT",
-            "No bundled GenshinUID primogem plan image matches the requested version.",
+            "未找到匹配指定版本的预估原石获取图。",
             EXIT_NO_RESULT,
             {
                 "version": result.data.get("version"),
@@ -597,7 +599,7 @@ def _primogems_plan_render_result(args: argparse.Namespace, result: CommandResul
     except OSError as exc:
         raise CliError(
             "NO_RESULT",
-            "Bundled GenshinUID primogem plan image is missing.",
+            "内置的原石预估图丢失。",
             EXIT_NO_RESULT,
             {"version": selected_version, "path": str(image_path)},
             source=result.source,
@@ -607,7 +609,7 @@ def _primogems_plan_render_result(args: argparse.Namespace, result: CommandResul
         filename=f"primogems-plan_{_safe_filename(selected_version)}.png",
         media_type="image/png",
         content=content,
-        description="GenshinUID static version-plan primogem image",
+        description="版本原石预估图片",
         kind="image",
     )
     render_data = {
@@ -648,7 +650,7 @@ def _map_artifact_command(
         filename=filename,
         media_type=response.media_type,
         content=response.content,
-        description=f"{command} image artifact",
+        description=f"{command} 图片",
         kind="image",
     )
     return CommandResult(
@@ -660,7 +662,7 @@ def _map_artifact_command(
             "bounds": None,
             "artifact_sha256": artifact["sha256"],
             "source_limitations": [
-                "MiniGG map output is image-only; marker coordinates are not available"
+                "MiniGG 地图输出仅包含图片；不可获取标记坐标信息"
             ],
         },
         artifacts=[artifact],

@@ -195,7 +195,7 @@ def test_challenge_commands_render_text_write_artifacts(monkeypatch, tmp_path) -
             "challenge.hard-rank",
             "challenge/hard-rank-text",
             "幽境危战排行",
-            "可用: 是",
+            "数量: 1",
         ),
     ]
 
@@ -298,7 +298,7 @@ def test_challenge_hard_rank_plain_text_prints_warning(monkeypatch, tmp_path) ->
 
     assert code == 0
     assert stdout.getvalue().startswith("幽境危战排行\n")
-    assert "可用: 是" in stdout.getvalue()
+    assert "数量: 1" in stdout.getvalue()
     assert stderr.getvalue() == ""
 
 

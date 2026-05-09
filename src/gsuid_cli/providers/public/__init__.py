@@ -204,7 +204,7 @@ class PublicDataProvider:
                 raise
             upgrades = {}
             warnings.append(
-                "daily material upgrade data is unavailable; returned domains without item matches"
+                "日常材料升级数据不可用；返回的秘境不包含物品匹配"
             )
         selected_day = _day_from_date(date) or day or _current_daily_day()
         if selected_day not in DAY_NAMES:
@@ -218,7 +218,7 @@ class PublicDataProvider:
         if not isinstance(day_data, dict):
             raise CliError(
                 "NO_RESULT",
-                "No daily material data is available for this day.",
+                "此日期没有可用的日常材料数据。",
                 EXIT_NO_RESULT,
                 {"day": selected_day},
                 source=response.source,
@@ -265,7 +265,7 @@ class PublicDataProvider:
         if talent_item is None:
             raise CliError(
                 "NO_RESULT",
-                "No talent matched the requested index.",
+                "没有匹配请求索引的天赋。",
                 EXIT_NO_RESULT,
                 {"character": character, "talent": talent},
                 source=base.source,
@@ -292,7 +292,7 @@ class PublicDataProvider:
             if constellation_item is None:
                 raise CliError(
                     "NO_RESULT",
-                    "No constellation matched the requested index.",
+                    "没有匹配请求索引的命座。",
                     EXIT_NO_RESULT,
                     {"character": character, "constellation": constellation},
                     source=base.source,
@@ -370,7 +370,7 @@ class PublicDataProvider:
                 },
                 "recommendations": [],
                 "source_limitations": [
-                    "curated builds are not available from the Project Amber source"
+                    "Project Amber 数据源不提供精选养成建议"
                 ],
             },
             source=base.source,
@@ -402,7 +402,7 @@ class PublicDataProvider:
         if info is None:
             raise CliError(
                 "NO_RESULT",
-                "No build recommendation matched the character.",
+                "没有与该角色匹配的养成建议。",
                 EXIT_NO_RESULT,
                 {"character": character, "resolved_character": name},
                 source=source,
@@ -435,7 +435,7 @@ class PublicDataProvider:
         if not matches:
             raise CliError(
                 "NO_RESULT",
-                "No weapon or artifact matched the item query.",
+                "没有与查询匹配的武器或圣遗物。",
                 EXIT_NO_RESULT,
                 {"item": item, "queries": sorted(query_names)},
             )
@@ -454,7 +454,7 @@ class PublicDataProvider:
         else:
             raise CliError(
                 "INVALID_ARGUMENT",
-                "Unsupported guide image kind.",
+                "不支持的攻略图片类型。",
                 EXIT_INVALID_INPUT,
                 {"kind": kind},
             )
@@ -515,7 +515,7 @@ class PublicDataProvider:
                 return CommandResult(data={"announcement": announcement}, source=response.source)
         raise CliError(
             "NO_RESULT",
-            "No announcement matched the id.",
+            "没有匹配该 id 的公告。",
             EXIT_NO_RESULT,
             {"id": announcement_id},
             source=response.source,
@@ -544,8 +544,8 @@ class PublicDataProvider:
                 "schedule": selected,
                 "abyss": floor_data,
                 "source_limitations": [
-                    "abyss guide data is fetched from GenshinUID abyss.js via jsDelivr; "
-                    "rendered credit is 妮可少年"
+                    "深境螺旋攻略数据通过 jsDelivr 从 GenshinUID abyss.js 获取；"
+                    "图片渲染署名为 妮可少年"
                 ],
             },
             warnings=selected_warnings,
@@ -575,7 +575,7 @@ class PublicDataProvider:
             avatar_names = self._avatar_names_by_id()
         except CliError:
             avatar_names = {}
-            warnings.append("theater avatar names are unavailable; rendered avatar ids instead")
+            warnings.append("幻想真境剧诗角色名称不可用；渲染了角色 id 作为替代")
         theater = _normalize_theater(detail.payload, event_id=event_id, avatar_names=avatar_names)
         return CommandResult(
             data={
@@ -583,7 +583,7 @@ class PublicDataProvider:
                 "requested_version": version,
                 "available": True,
                 "theater": theater,
-                "source_limitations": ["theater guide data is sourced from Hakush rolecombat data"],
+                "source_limitations": ["幻想真境剧诗攻略数据来源于 Hakush rolecombat 数据"],
             },
             warnings=warnings,
             source=detail.source,
@@ -645,7 +645,7 @@ class PublicDataProvider:
         if int(response.payload.get("code") or 0) != 200:
             raise CliError(
                 "UPSTREAM_REJECTED",
-                "Teyvat return-list provider rejected the request.",
+                "提瓦特复刻列表数据源拒绝了请求。",
                 EXIT_UPSTREAM,
                 {"code": response.payload.get("code")},
                 source=response.source,
@@ -671,7 +671,7 @@ class PublicDataProvider:
         selected_version = _select_primogems_version(version, available_versions)
         warnings = []
         if selected_version is None:
-            warnings.append("primogem plan image unavailable for the requested version")
+            warnings.append("所请求版本的原石获取预估图不可用")
         return CommandResult(
             data={
                 "version": version,
@@ -680,7 +680,7 @@ class PublicDataProvider:
                 "estimate_available": selected_version is not None,
                 "estimate": None,
                 "source_limitations": [
-                    "GenshinUID provides this command as a static version-plan image"
+                    "GenshinUID 提供了静态的版本原石预估图片"
                 ],
             },
             warnings=warnings,
@@ -701,7 +701,7 @@ class PublicDataProvider:
         if not response.media_type.startswith("image/"):
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "MiniGG returned a non-image map response.",
+                "MiniGG 返回了非图片的地图响应。",
                 EXIT_UPSTREAM,
                 {"item": item, "map": map_name, "media_type": response.media_type},
                 source=response.source,
@@ -720,7 +720,7 @@ class PublicDataProvider:
         if status not in (200, "200", None):
             raise CliError(
                 "UPSTREAM_REJECTED",
-                "Provider rejected the request.",
+                "数据源拒绝了请求。",
                 EXIT_UPSTREAM,
                 {"provider": "ambr", "category": category, "response": status},
                 source=response.source,
@@ -790,7 +790,7 @@ class PublicDataProvider:
         except (UnicodeDecodeError, ValueError) as exc:
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "Provider returned invalid recommendation data.",
+                "数据源返回了无效的建议数据。",
                 EXIT_UPSTREAM,
                 {"url": GENSHINUID_ADV_LIST_URL},
                 source=response.source,
@@ -798,7 +798,7 @@ class PublicDataProvider:
         if not isinstance(payload, dict):
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "Provider returned recommendation data with an unexpected shape.",
+                "数据源返回了非预期的建议数据格式。",
                 EXIT_UPSTREAM,
                 {"url": GENSHINUID_ADV_LIST_URL},
                 source=response.source,
@@ -821,7 +821,7 @@ class PublicDataProvider:
         except UnicodeDecodeError as exc:
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "Provider returned invalid abyss guide data encoding.",
+                "数据源返回了无效的深境螺旋攻略数据编码。",
                 EXIT_UPSTREAM,
                 {"url": url, "revision": revision},
                 source=response.source,
@@ -831,7 +831,7 @@ class PublicDataProvider:
         except ValueError as exc:
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "Provider returned invalid abyss guide data.",
+                "数据源返回了无效的深境螺旋攻略数据。",
                 EXIT_UPSTREAM,
                 {"url": url, "revision": revision},
                 source=response.source,
@@ -862,7 +862,7 @@ class PublicDataProvider:
         except (UnicodeDecodeError, ValueError) as exc:
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "Provider returned invalid GenshinUID revision data.",
+                "数据源返回了无效的 GenshinUID 修订版本数据。",
                 EXIT_UPSTREAM,
                 {"url": GENSHINUID_ABYSS_JS_COMMITS_URL, "path": GENSHINUID_ABYSS_JS_PATH},
                 source=response.source,
@@ -870,7 +870,7 @@ class PublicDataProvider:
         if not isinstance(payload, list) or not payload:
             raise CliError(
                 "NO_RESULT",
-                "No GenshinUID abyss.js revision was found.",
+                "未找到 GenshinUID abyss.js 的修订版本。",
                 EXIT_NO_RESULT,
                 {"url": GENSHINUID_ABYSS_JS_COMMITS_URL, "path": GENSHINUID_ABYSS_JS_PATH},
                 source=response.source,
@@ -880,7 +880,7 @@ class PublicDataProvider:
         if not isinstance(sha, str) or re.fullmatch(r"[0-9a-f]{40}", sha) is None:
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "Provider returned an invalid GenshinUID revision.",
+                "数据源返回了无效的 GenshinUID 修订版本。",
                 EXIT_UPSTREAM,
                 {"url": GENSHINUID_ABYSS_JS_COMMITS_URL, "path": GENSHINUID_ABYSS_JS_PATH},
                 source=response.source,
@@ -930,7 +930,7 @@ def _find_item(
             return item
     raise CliError(
         "NO_RESULT",
-        f"No {kind} matched the query.",
+        f"没有匹配查询的 {kind}。",
         EXIT_NO_RESULT,
         {"kind": kind, "query": query},
         source=source,
@@ -1159,7 +1159,7 @@ def _teyvat_rerun_groups(
     if not isinstance(result, list) or len(result) < 4:
         raise CliError(
             "UPSTREAM_INVALID_RESPONSE",
-            "Teyvat return-list response did not contain four rerun groups.",
+            "提瓦特复刻列表响应未包含四个复刻组。",
             EXIT_UPSTREAM,
             {"result_type": type(result).__name__},
             source=source,
@@ -1342,7 +1342,7 @@ def _current_daily_day() -> str:
 def _invalid(category: str, source: dict[str, object]) -> CliError:
     return CliError(
         "UPSTREAM_INVALID_RESPONSE",
-        "Provider returned an unexpected response shape.",
+        "数据源返回了非预期的响应数据格式。",
         EXIT_UPSTREAM,
         {"provider": "public", "category": category},
         source=source,

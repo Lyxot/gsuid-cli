@@ -1022,7 +1022,7 @@ def test_daily_materials_keeps_base_data_when_upgrade_unavailable() -> None:
 
     assert result.data["domains"][0]["items"] == []
     assert result.warnings == [
-        "daily material upgrade data is unavailable; returned domains without item matches"
+        "日常材料升级数据不可用；返回的秘境不包含物品匹配"
     ]
 
 

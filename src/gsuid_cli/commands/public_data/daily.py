@@ -35,33 +35,39 @@ DAILY_NOTE_AVATAR_WORKERS = 5
 CAPABILITIES = [
     {
         "command": "daily.materials",
-        "description": "List daily talent and weapon material domains.",
+        "description": "列出今日天赋和武器突破材料秘境。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "daily.note",
-        "description": "Show current resin, commissions, expeditions, and teapot status.",
+        "description": "显示当前账号日常状态。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "daily.signin",
-        "description": "Claim or report the MYS daily sign-in status.",
+        "description": "领取或报告米游社每日签到状态。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "daily.bbs-coin",
-        "description": "Run and report MYS BBS coin tasks.",
+        "description": "运行并报告米游社通行币任务状态。",
         "auth": "stoken",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
 ]
+
+_HELPS = {
+    str(c.get("command", "")): str(c.get("description", ""))
+    for c in CAPABILITIES
+    if isinstance(c, dict)
+}
 
 
 def daily_materials_command(args: argparse.Namespace) -> CommandResult:
@@ -116,7 +122,7 @@ def daily_signin_command(args: argparse.Namespace) -> CommandResult:
         render_name="daily/signin-text",
         filename=f"daily-signin_{_safe_filename(uid)}.txt",
         content=render_daily_signin_text(result.data),
-        description="Human-readable daily sign-in status",
+        description="每日签到状态文本",
         render_data={"uid": uid},
     )
 
@@ -141,28 +147,28 @@ def daily_bbs_coin_command(args: argparse.Namespace) -> CommandResult:
         render_name="daily/bbs-coin-text",
         filename=f"daily-bbs-coin_{_safe_filename(uid)}.txt",
         content=render_daily_bbs_coin_text(result.data),
-        description="Human-readable daily BBS coin status",
+        description="米游社通行币状态文本",
         render_data={"uid": uid},
     )
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    daily = groups.add_parser("daily", help="Show daily data.")
+    daily = groups.add_parser("daily", help="显示日常数据。")
     commands = daily.add_subparsers(dest="daily_command", required=True, metavar="<command>")
 
-    note = commands.add_parser("note", help="Show current daily account status.")
+    note = commands.add_parser("note", help=_HELPS["daily.note"])
     note.add_argument("--uid", dest="command_uid")
     note.set_defaults(handler=daily_note_command, command_name="daily.note")
 
-    signin = commands.add_parser("signin", help="Claim or report MYS daily sign-in status.")
+    signin = commands.add_parser("signin", help=_HELPS["daily.signin"])
     signin.add_argument("--uid", dest="command_uid")
     signin.set_defaults(handler=daily_signin_command, command_name="daily.signin")
 
-    bbs_coin = commands.add_parser("bbs-coin", help="Run and report MYS BBS coin tasks.")
+    bbs_coin = commands.add_parser("bbs-coin", help=_HELPS["daily.bbs-coin"])
     bbs_coin.add_argument("--uid", dest="command_uid")
     bbs_coin.set_defaults(handler=daily_bbs_coin_command, command_name="daily.bbs-coin")
 
-    materials = commands.add_parser("materials", help="List daily material domains.")
+    materials = commands.add_parser("materials", help="列出日常材料秘境。")
     selectors = materials.add_mutually_exclusive_group()
     selectors.add_argument("--date")
     selectors.add_argument("--day", choices=sorted(DAY_NAMES))
@@ -212,7 +218,7 @@ def _daily_materials_render_result(
     if not isinstance(domains, list):
         raise CliError(
             "UPSTREAM_INVALID_RESPONSE",
-            "Provider returned daily material data without renderable domains.",
+            "数据源返回的日常材料数据中不包含可渲染的秘境。",
             EXIT_UPSTREAM,
             {"command": "daily.materials"},
             source=result.source,
@@ -229,7 +235,7 @@ def _daily_materials_render_result(
             provider="ambr",
             region="cn",
             category="daily.materials.icon",
-            unavailable_warning="{count} daily materials icons unavailable; rendered placeholders",
+            unavailable_warning="{count} 个日常材料图标不可用，已使用占位图",
             max_workers=DAILY_MATERIAL_ICON_WORKERS,
         )
         png = render_daily_materials_card(
@@ -242,7 +248,7 @@ def _daily_materials_render_result(
             filename=f"daily-materials_{_safe_filename(day)}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style daily materials card",
+            description="日常材料卡片图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -263,7 +269,7 @@ def _daily_materials_render_result(
             name="daily/materials-text",
             filename=f"daily-materials_{_safe_filename(day)}.txt",
             content=text,
-            description="Human-readable daily materials text",
+            description="日常材料文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -316,7 +322,7 @@ def _daily_note_render_result(
     if not isinstance(note, dict):
         raise CliError(
             "UPSTREAM_INVALID_RESPONSE",
-            "Provider returned daily note data without a renderable note object.",
+            "数据源返回的实时便笺数据中不包含可渲染的便笺对象。",
             EXIT_UPSTREAM,
             {"command": "daily.note"},
             source=result.source,
@@ -341,7 +347,7 @@ def _daily_note_render_result(
             provider="mys",
             region=region,
             category="daily.note.avatar",
-            unavailable_warning="daily note expedition avatar unavailable; rendered placeholder",
+            unavailable_warning="实时便笺探索派遣角色头像不可用，已使用占位图",
             max_workers=DAILY_NOTE_AVATAR_WORKERS,
         )
         png = render_daily_note_card(
@@ -357,7 +363,7 @@ def _daily_note_render_result(
             filename=f"daily-note_{_safe_filename(uid)}.png",
             media_type="image/png",
             content=png,
-            description="GenshinUID-style daily note card",
+            description="实时便笺卡片图片",
             kind="image",
         )
         artifacts.append(image_artifact)
@@ -380,7 +386,7 @@ def _daily_note_render_result(
             name="daily/note-text",
             filename=f"daily-note_{_safe_filename(uid)}.txt",
             content=text,
-            description="Human-readable daily note text",
+            description="实时便笺文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -412,19 +418,19 @@ def _daily_note_header(
     try:
         result = player_commands.summary_command(summary_args)
     except CliError:
-        return None, None, ["daily note player header data is unavailable; rendered fallback title"]
+        return None, None, ["实时便笺玩家头部数据不可用，已使用后备标题"]
 
     summary = result.data.get("summary")
     if not isinstance(summary, dict):
-        return None, None, ["daily note player header data is unavailable; rendered fallback title"]
+        return None, None, ["实时便笺玩家头部数据不可用，已使用后备标题"]
     role = summary.get("role")
     if not isinstance(role, dict):
-        return None, None, ["daily note player header data is unavailable; rendered fallback title"]
+        return None, None, ["实时便笺玩家头部数据不可用，已使用后备标题"]
     nickname = _optional_text(role.get("nickname"))
     level = role.get("level")
     warnings = list(result.warnings)
     if nickname is None or level in (None, ""):
-        warnings.append("daily note player header data is unavailable; rendered fallback title")
+        warnings.append("实时便笺玩家头部数据不可用，已使用后备标题")
     return nickname, level, warnings
 
 
@@ -438,7 +444,7 @@ def _daily_note_sign_status(
     storage_backend: str | None,
 ) -> tuple[bool | None, list[str]]:
     if not hasattr(provider, "daily_signin_status"):
-        return None, ["daily note sign-in status is unavailable; rendered fallback sign state"]
+        return None, ["实时便笺签到状态不可用，已使用后备签到状态"]
     try:
         result = provider.daily_signin_status(
             uid=uid,
@@ -448,10 +454,10 @@ def _daily_note_sign_status(
             storage_backend=storage_backend,
         )
     except CliError:
-        return None, ["daily note sign-in status is unavailable; rendered fallback sign state"]
+        return None, ["实时便笺签到状态不可用，已使用后备签到状态"]
     signed = _signed_from_signin_result(result.data)
     if signed is None:
-        return None, ["daily note sign-in status is unavailable; rendered fallback sign state"]
+        return None, ["实时便笺签到状态不可用，已使用后备签到状态"]
     return signed, result.warnings
 
 

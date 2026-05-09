@@ -183,7 +183,6 @@ def render_challenge_hard_text(
 def render_challenge_hard_rank_text(data: Mapping[str, object]) -> str:
     lines = [
         "幽境危战排行",
-        f"可用: {'是' if data.get('available') else '否'}",
         f"数量: {data.get('count', 0)}",
     ]
     if data.get("total_count") not in (None, ""):

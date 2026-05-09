@@ -116,80 +116,80 @@ MYS_PERCENT_PROP_IDS = {
 CAPABILITIES = [
     {
         "command": "panel.refresh",
-        "description": (
-            "Refresh Enka showcase or MYS character detail panel data into the local cache."
-        ),
+        "description": "刷新面板数据。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "panel.list",
-        "description": "List cached character panels for a UID.",
+        "description": "列出已缓存的面板。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "panel.show",
-        "description": "Show one cached character panel.",
+        "description": "显示一个已缓存的面板。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "panel.compare",
-        "description": "Compare cached panel stats for two or more builds.",
+        "description": "对比已缓存的面板。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "panel.save",
-        "description": "Save one cached panel as a JSON artifact.",
+        "description": "保存已缓存面板的 JSON 产物。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "panel.artifacts",
-        "description": "List cached artifacts for a UID.",
+        "description": "列出已缓存的圣遗物。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "panel.showcase",
-        "description": "Show the cached public showcase summary.",
+        "description": "显示已缓存的展柜汇总。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "panel.graduation",
-        "description": "Summarize local cached graduation inputs and render GenshinUID-style rows.",
+        "description": "汇总本地毕业度数据。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
 ]
 
+_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    panel = groups.add_parser("panel", help="Manage Enka panel cache.")
+    panel = groups.add_parser("panel", help="管理 Enka 面板缓存。")
     commands = panel.add_subparsers(dest="panel_command", required=True, metavar="<command>")
 
-    refresh = commands.add_parser("refresh", help="Refresh panel data.")
+    refresh = commands.add_parser("refresh", help=_HELPS["panel.refresh"])
     refresh.add_argument("--uid", dest="command_uid")
     refresh.add_argument("--source", choices=("auto", "enka", "mys"), default="auto")
     refresh.add_argument("--force", action="store_true")
     refresh.set_defaults(handler=refresh_command, command_name="panel.refresh")
 
-    list_parser = commands.add_parser("list", help="List cached panels.")
+    list_parser = commands.add_parser("list", help=_HELPS["panel.list"])
     list_parser.add_argument("--uid", dest="command_uid")
     list_parser.set_defaults(handler=list_command, command_name="panel.list")
 
-    show = commands.add_parser("show", help="Show a cached panel.")
+    show = commands.add_parser("show", help=_HELPS["panel.show"])
     show.add_argument("--uid", dest="command_uid")
     show.add_argument("--character", required=True)
     show.add_argument("--constellation", type=int)
@@ -197,28 +197,28 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     show.add_argument("--artifact-source-character")
     show.set_defaults(handler=show_command, command_name="panel.show")
 
-    compare = commands.add_parser("compare", help="Compare cached panels.")
+    compare = commands.add_parser("compare", help=_HELPS["panel.compare"])
     compare.add_argument("--uid", dest="command_uid")
     compare.add_argument("--build", action="append", required=True)
     compare.set_defaults(handler=compare_command, command_name="panel.compare")
 
-    save = commands.add_parser("save", help="Save a cached panel JSON artifact.")
+    save = commands.add_parser("save", help=_HELPS["panel.save"])
     save.add_argument("--uid", dest="command_uid")
     save.add_argument("--character", required=True)
     save.add_argument("--name", required=True)
     save.add_argument("--output")
     save.set_defaults(handler=save_command, command_name="panel.save")
 
-    artifacts = commands.add_parser("artifacts", help="List cached artifacts.")
+    artifacts = commands.add_parser("artifacts", help=_HELPS["panel.artifacts"])
     artifacts.add_argument("--uid", dest="command_uid")
     artifacts.add_argument("--page", type=int, default=1)
     artifacts.set_defaults(handler=artifacts_command, command_name="panel.artifacts")
 
-    showcase = commands.add_parser("showcase", help="Show cached showcase summary.")
+    showcase = commands.add_parser("showcase", help=_HELPS["panel.showcase"])
     showcase.add_argument("--uid", dest="command_uid")
     showcase.set_defaults(handler=showcase_command, command_name="panel.showcase")
 
-    graduation = commands.add_parser("graduation", help="Summarize local graduation inputs.")
+    graduation = commands.add_parser("graduation", help=_HELPS["panel.graduation"])
     graduation.add_argument("--uid", dest="command_uid")
     graduation.set_defaults(handler=graduation_command, command_name="panel.graduation")
 
@@ -359,7 +359,7 @@ def _show_render_result(
     if not isinstance(panel, dict):
         raise CliError(
             "UPSTREAM_INVALID_RESPONSE",
-            "Panel data did not contain a renderable character panel.",
+            "面板数据中不包含可渲染的角色面板。",
             EXIT_INVALID_INPUT,
             {"command": "panel.show"},
             source=result.source,
@@ -371,7 +371,7 @@ def _show_render_result(
         provider="panel",
         region="cn",
         category="panel.show.asset",
-        unavailable_warning="{count} panel images unavailable; rendered placeholders",
+            unavailable_warning="{count} 个角色面板图片不可用，已使用占位图",
         max_workers=PANEL_IMAGE_WORKERS,
     )
     png = render_panel_show_card(
@@ -387,7 +387,7 @@ def _show_render_result(
         filename=f"panel-show_{_safe_filename(uid)}_{_safe_filename(character_name)}.png",
         media_type="image/png",
         content=png,
-        description="GenshinUID-style Enka character panel card",
+        description="角色面板卡片图片",
         kind="image",
     )
     render_data = {
@@ -428,7 +428,7 @@ def _compare_render_result(
         provider="panel",
         region="cn",
         category="panel.compare.asset",
-        unavailable_warning="{count} panel compare images unavailable; rendered placeholders",
+        unavailable_warning="{count} 个面板对比图片不可用，已使用占位图",
         max_workers=PANEL_IMAGE_WORKERS,
     )
 
@@ -460,7 +460,7 @@ def _compare_render_result(
         filename=f"panel-compare_{_safe_filename(names)}.png",
         media_type="image/png",
         content=png,
-        description="GenshinUID-style Enka panel comparison",
+        description="面板对比图片",
         kind="image",
     )
     render_data = {
@@ -493,7 +493,7 @@ def _artifacts_render_result(
         provider="panel",
         region="cn",
         category="panel.artifacts.asset",
-        unavailable_warning="{count} panel artifact images unavailable; rendered placeholders",
+        unavailable_warning="{count} 个圣遗物图片不可用，已使用占位图",
         max_workers=PANEL_IMAGE_WORKERS,
     )
     png = render_panel_artifacts_library(
@@ -508,7 +508,7 @@ def _artifacts_render_result(
         filename=f"panel-artifacts_{_safe_filename(uid)}_p{args.page}.png",
         media_type="image/png",
         content=png,
-        description="GenshinUID-style Enka artifact warehouse",
+        description="圣遗物仓库图片",
         kind="image",
     )
     render_data = {
@@ -542,7 +542,7 @@ def _showcase_render_result(
         provider="panel",
         region="cn",
         category="panel.showcase.asset",
-        unavailable_warning="{count} panel showcase images unavailable; rendered placeholders",
+        unavailable_warning="{count} 个展柜图片不可用，已使用占位图",
         max_workers=PANEL_IMAGE_WORKERS,
     )
     png = render_panel_showcase(
@@ -557,7 +557,7 @@ def _showcase_render_result(
         filename=f"panel-showcase_{_safe_filename(uid)}.png",
         media_type="image/png",
         content=png,
-        description="GenshinUID-style Enka showcase summary",
+        description="展柜汇总图片",
         kind="image",
     )
     render_data = {
@@ -592,7 +592,7 @@ def _graduation_render_result(
         provider="panel",
         region="cn",
         category="panel.graduation.asset",
-        unavailable_warning="{count} panel graduation images unavailable; rendered placeholders",
+        unavailable_warning="{count} 个毕业度图片不可用，已使用占位图",
         max_workers=PANEL_IMAGE_WORKERS,
     )
     png = render_panel_graduation(
@@ -607,7 +607,7 @@ def _graduation_render_result(
         filename=f"panel-graduation_{_safe_filename(uid)}.png",
         media_type="image/png",
         content=png,
-        description="GenshinUID-style Enka graduation summary",
+        description="毕业度汇总图片",
         kind="image",
     )
     render_data = {
@@ -869,7 +869,7 @@ def _panel_text_result(
         name=name,
         filename=filename,
         content=content,
-        description="Human-readable panel text",
+        description="面板文本",
         kind="text",
     )
     artifacts = [*result.artifacts, text_artifact]
@@ -1006,7 +1006,7 @@ def _refresh_panel_cache(
         raise mys_error
     raise CliError(
         "UPSTREAM_INVALID_RESPONSE",
-        "No panel provider returned data.",
+        "没有任何面板数据源返回数据。",
         EXIT_UPSTREAM,
         {"uid": uid, "source": args.source},
     )
@@ -1647,7 +1647,7 @@ def _write_panel(
         filename=filename,
         media_type="application/json",
         content=content,
-        description="Saved character panel",
+        description="已保存的角色面板",
         kind="json",
     )
 

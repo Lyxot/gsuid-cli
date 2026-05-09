@@ -28,121 +28,123 @@ from gsuid_cli.renderers.local_auth import render_auth_command_text
 CAPABILITIES = [
     {
         "command": "auth.cookie.set",
-        "description": "Store a cookie in the OS keyring.",
+        "description": "将 Cookie 存储在操作系统凭据管理器中。",
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.cookie.test",
-        "description": "Validate cookie availability against the CN provider.",
+        "description": "在国服数据源处验证 Cookie 是否可用。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.cookie.delete",
-        "description": "Delete a stored cookie from the OS keyring.",
+        "description": "从操作系统凭据管理器中删除已存储的 Cookie。",
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.stoken.set",
-        "description": "Store a stoken in the OS keyring.",
+        "description": "将 Stoken 存储在操作系统凭据管理器中。",
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.stoken.test",
-        "description": "Check local stoken availability without provider validation.",
+        "description": "检查本地 Stoken 的可用性，不进行数据源验证。",
         "auth": "stoken",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.stoken.delete",
-        "description": "Delete a stored stoken from the OS keyring.",
+        "description": "从操作系统凭据管理器中删除已存储的 Stoken。",
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.gacha-url.set",
-        "description": "Store a gacha authkey URL in the OS keyring.",
+        "description": "将祈愿 URL 存储在操作系统凭据管理器中。",
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.gacha-url.test",
-        "description": "Check local gacha URL availability without provider validation.",
+        "description": "检查本地祈愿 URL 的可用性，不进行数据源验证。",
         "auth": "gacha_url",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.gacha-url.delete",
-        "description": "Delete a stored gacha authkey URL from the OS keyring.",
+        "description": "从操作系统凭据管理器中删除已存储的祈愿 URL。",
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.qrcode.start",
-        "description": "Create a QR login session.",
+        "description": "创建二维码登录会话。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "auth.qrcode.poll",
-        "description": "Poll a QR login session once.",
+        "description": "轮询一次二维码登录会话。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.qrcode.complete",
-        "description": "Complete a confirmed QR login and store credentials.",
+        "description": "完成已确认的二维码登录。",
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.qrcode.login",
-        "description": "Run interactive QR login and store credentials.",
+        "description": "运行交互式二维码登录。",
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "auth.device.set",
-        "description": "Bind and store MYS device metadata for account requests.",
+        "description": "绑定并存储米游社设备元数据。",
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.device.test",
-        "description": "Check local MYS device metadata availability.",
+        "description": "检查本地米游社设备元数据可用性。",
         "auth": "device",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.device.delete",
-        "description": "Delete local MYS device metadata.",
+        "description": "删除本地米游社设备元数据。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
 ]
 
+_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    auth = groups.add_parser("auth", help="Manage local credentials.")
+    auth = groups.add_parser("auth", help="管理本地凭据。")
     credentials = auth.add_subparsers(dest="credential", required=True, metavar="<credential>")
     _register_credential(credentials, "cookie", "cookie")
     _register_credential(credentials, "stoken", "stoken")
@@ -265,7 +267,7 @@ def qrcode_login_command(args: argparse.Namespace) -> CommandResult:
 
     _write_interactive(args, "请使用米游社APP扫码登录")
     _write_interactive(args, _qrcode_terminal(url))
-    _write_interactive(args, "Waiting for scan confirmation...")
+    _write_interactive(args, "等待扫码确认...")
 
     deadline = time.monotonic() + args.login_timeout
     last_status: str | None = None
@@ -281,7 +283,7 @@ def qrcode_login_command(args: argparse.Namespace) -> CommandResult:
         last_result = poll_result
         status = str(poll_result.data["status"])
         if status != last_status:
-            _write_interactive(args, f"QR login status: {status}")
+            _write_interactive(args, f"二维码登录状态: {status}")
             last_status = status
         if status == "confirmed":
             result = provider.complete_qrcode_login(
@@ -301,7 +303,7 @@ def qrcode_login_command(args: argparse.Namespace) -> CommandResult:
 
     raise CliError(
         "QR_LOGIN_TIMEOUT",
-        "QR login timed out before confirmation.",
+        "二维码登录在确认前超时。",
         EXIT_NO_RESULT,
         {"timeout_seconds": args.login_timeout},
         source=last_result.source,
@@ -337,7 +339,7 @@ def device_test_command(args: argparse.Namespace) -> CommandResult | dict[str, o
     if row is None or not row["device_id"] or not row["device_fp"]:
         raise CliError(
             "AUTH_REQUIRED",
-            "No MYS device metadata is available for this UID.",
+            "此 UID 没有可用的米游社设备元数据。",
             EXIT_AUTH,
             {"uid": uid, "credential_type": "device"},
         )
@@ -435,10 +437,10 @@ def _register_credential(
     value_name: str,
 ) -> None:
     kind = cli_name.replace("-", "_")
-    credential = credentials.add_parser(cli_name, help=f"Manage {cli_name} credentials.")
+    credential = credentials.add_parser(cli_name, help=f"管理 {cli_name} 凭据。")
     actions = credential.add_subparsers(dest="credential_action", required=True, metavar="<action>")
 
-    set_parser = actions.add_parser("set", help=f"Store a {cli_name} in the OS keyring.")
+    set_parser = actions.add_parser("set", help=f"将 {cli_name} 存储在操作系统凭据管理器中。")
     set_parser.add_argument("--uid", dest="command_uid")
     sources = set_parser.add_mutually_exclusive_group(required=True)
     sources.add_argument(f"--{value_name}-stdin", action="store_true")
@@ -451,7 +453,7 @@ def _register_credential(
         value_name=value_name,
     )
 
-    test_parser = actions.add_parser("test", help=f"Check local {cli_name} availability.")
+    test_parser = actions.add_parser("test", help=f"检查本地 {cli_name} 可用性。")
     test_parser.add_argument("--uid", dest="command_uid")
     test_parser.set_defaults(
         handler=test_command,
@@ -459,7 +461,7 @@ def _register_credential(
         credential_kind=kind,
     )
 
-    delete_parser = actions.add_parser("delete", help=f"Delete a stored {cli_name}.")
+    delete_parser = actions.add_parser("delete", help=f"删除已存储的 {cli_name}。")
     delete_parser.add_argument("--uid", dest="command_uid")
     delete_parser.set_defaults(
         handler=delete_command,
@@ -471,26 +473,26 @@ def _register_credential(
 def _register_qrcode(
     credentials: argparse._SubParsersAction[argparse.ArgumentParser],
 ) -> None:
-    qrcode_parser = credentials.add_parser("qrcode", help="Manage QR login sessions.")
+    qrcode_parser = credentials.add_parser("qrcode", help="管理二维码登录会话。")
     actions = qrcode_parser.add_subparsers(
         dest="qrcode_action",
         required=True,
         metavar="<action>",
     )
 
-    start = actions.add_parser("start", help="Create a QR login session.")
+    start = actions.add_parser("start", help=_HELPS["auth.qrcode.start"])
     start.set_defaults(handler=qrcode_start_command, command_name="auth.qrcode.start")
 
-    poll = actions.add_parser("poll", help="Poll a QR login session once.")
+    poll = actions.add_parser("poll", help=_HELPS["auth.qrcode.poll"])
     _add_qrcode_session_args(poll)
     poll.set_defaults(handler=qrcode_poll_command, command_name="auth.qrcode.poll")
 
-    complete = actions.add_parser("complete", help="Complete a confirmed QR login.")
+    complete = actions.add_parser("complete", help=_HELPS["auth.qrcode.complete"])
     _add_qrcode_session_args(complete)
     complete.add_argument("--uid", dest="command_uid")
     complete.set_defaults(handler=qrcode_complete_command, command_name="auth.qrcode.complete")
 
-    login = actions.add_parser("login", help="Run interactive QR login.")
+    login = actions.add_parser("login", help=_HELPS["auth.qrcode.login"])
     login.add_argument("--uid", dest="command_uid")
     login.add_argument("--poll-interval", type=float, default=2.0)
     login.add_argument("--login-timeout", type=float, default=120.0)
@@ -500,9 +502,9 @@ def _register_qrcode(
 def _register_device(
     credentials: argparse._SubParsersAction[argparse.ArgumentParser],
 ) -> None:
-    device = credentials.add_parser("device", help="Manage MYS device binding.")
+    device = credentials.add_parser("device", help="管理米游社设备绑定。")
     actions = device.add_subparsers(dest="device_action", required=True, metavar="<action>")
-    set_parser = actions.add_parser("set", help="Bind and store MYS device metadata.")
+    set_parser = actions.add_parser("set", help=_HELPS["auth.device.set"])
     set_parser.add_argument("--uid", dest="command_uid")
     _add_device_payload_args(set_parser)
     set_parser.set_defaults(
@@ -511,11 +513,11 @@ def _register_device(
         credential_kind="cookie",
     )
 
-    test = actions.add_parser("test", help="Check local MYS device metadata availability.")
+    test = actions.add_parser("test", help=_HELPS["auth.device.test"])
     test.add_argument("--uid", dest="command_uid")
     test.set_defaults(handler=device_test_command, command_name="auth.device.test")
 
-    delete = actions.add_parser("delete", help="Delete local MYS device metadata.")
+    delete = actions.add_parser("delete", help=_HELPS["auth.device.delete"])
     delete.add_argument("--uid", dest="command_uid")
     delete.set_defaults(handler=device_delete_command, command_name="auth.device.delete")
 
@@ -550,7 +552,7 @@ def _uid_and_region(args: argparse.Namespace) -> tuple[str, str]:
             if uid is None:
                 raise CliError(
                     "INVALID_ARGUMENT",
-                    "uid is required when the selected profile has no default account",
+                    "当所选配置文件没有默认账号时，需要提供 UID",
                     EXIT_INVALID_INPUT,
                     {"profile": args.profile},
                 )
@@ -582,7 +584,7 @@ def _credential(args: argparse.Namespace, uid: str) -> tuple[str, str, str | Non
     if value is None:
         raise CliError(
             "AUTH_REQUIRED",
-            f"No {CREDENTIALS[args.credential_kind].label} is available for this UID.",
+            f"此 UID 没有可用的 {CREDENTIALS[args.credential_kind].label}。",
             EXIT_AUTH,
             {"uid": uid, "credential_type": args.credential_kind},
         )
@@ -602,11 +604,11 @@ def _read_value(args: argparse.Namespace) -> str:
     elif stdin_requested:
         value = sys.stdin.read()
     else:
-        raise CliError("INVALID_ARGUMENT", "credential value is required", EXIT_INVALID_INPUT)
+        raise CliError("INVALID_ARGUMENT", "需要提供凭据值", EXIT_INVALID_INPUT)
 
     value = value.rstrip("\r\n")
     if not value:
-        raise CliError("INVALID_ARGUMENT", "credential value is empty", EXIT_INVALID_INPUT)
+        raise CliError("INVALID_ARGUMENT", "凭据值为空", EXIT_INVALID_INPUT)
     return value
 
 
@@ -618,20 +620,20 @@ def _read_device_payload(args: argparse.Namespace) -> dict[str, object]:
     elif args.device_stdin:
         raw = sys.stdin.read()
     else:
-        raise CliError("INVALID_ARGUMENT", "device payload is required", EXIT_INVALID_INPUT)
+        raise CliError("INVALID_ARGUMENT", "需要设备 payload", EXIT_INVALID_INPUT)
 
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise CliError(
             "INVALID_ARGUMENT",
-            "device payload must be valid JSON",
+            "设备 payload 必须是有效的 JSON",
             EXIT_INVALID_INPUT,
         ) from exc
     if not isinstance(payload, dict):
         raise CliError(
             "INVALID_ARGUMENT",
-            "device payload must be a JSON object",
+            "设备 payload 必须是一个 JSON 对象",
             EXIT_INVALID_INPUT,
         )
     return payload
@@ -759,14 +761,14 @@ def _validate_qrcode_login_timing(args: argparse.Namespace) -> None:
     if args.poll_interval <= 0:
         raise CliError(
             "INVALID_ARGUMENT",
-            "poll interval must be greater than 0",
+            "轮询间隔必须大于 0",
             EXIT_INVALID_INPUT,
             {"poll_interval": args.poll_interval},
         )
     if args.login_timeout <= 0:
         raise CliError(
             "INVALID_ARGUMENT",
-            "login timeout must be greater than 0",
+            "登录超时时间必须大于 0",
             EXIT_INVALID_INPUT,
             {"login_timeout": args.login_timeout},
         )
@@ -791,7 +793,7 @@ def _auth_text_result(
         name=f"{command.replace('.', '/')}-text",
         filename=f"{command.replace('.', '-')}_{safe_filename_part(subject)}.txt",
         content=render_auth_command_text(command, data),
-        description="Human-readable local authentication text",
+        description="本地认证文本",
     )
 
 
@@ -831,7 +833,7 @@ def _qrcode_render_result(
             name=f"{command.replace('.', '/')}-text",
             filename=f"{command.replace('.', '-')}_{safe_filename_part(subject)}.txt",
             content=_qrcode_text_content(command, result.data, url),
-            description="Human-readable local authentication text",
+            description="本地认证文本",
             kind="text",
         )
         artifacts.append(text_artifact)
@@ -867,7 +869,7 @@ def _qrcode_image_artifact(
         filename=f"{command.replace('.', '-')}_{safe_filename_part(subject)}.png",
         media_type="image/png",
         content=_qrcode_png(url),
-        description="MiHoYo QR login image",
+        description="米哈游二维码登录图片",
         kind="image",
     )
 

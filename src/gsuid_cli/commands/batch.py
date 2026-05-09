@@ -17,30 +17,32 @@ from gsuid_cli.renderers.utility_text import render_batch_command_text
 CAPABILITIES = [
     {
         "command": "batch.run",
-        "description": "Execute JSONL batch commands and return nested envelopes.",
+        "description": "执行 JSONL 批处理命令。",
         "auth": "mixed",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "batch.plan",
-        "description": "Validate JSONL batch commands without executing them.",
+        "description": "验证 JSONL 批处理命令。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
 ]
 
+_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    batch = groups.add_parser("batch", help="Execute or validate command batches.")
+    batch = groups.add_parser("batch", help="执行或验证批处理命令。")
     commands = batch.add_subparsers(dest="batch_command", required=True, metavar="<command>")
 
-    run_parser = commands.add_parser("run", help="Execute a JSONL command batch.")
+    run_parser = commands.add_parser("run", help=_HELPS["batch.run"])
     run_parser.add_argument("--file", required=True)
     run_parser.set_defaults(handler=run_command, command_name="batch.run")
 
-    plan = commands.add_parser("plan", help="Validate a JSONL command batch.")
+    plan = commands.add_parser("plan", help=_HELPS["batch.plan"])
     plan.add_argument("--file", required=True)
     plan.set_defaults(handler=plan_command, command_name="batch.plan")
 

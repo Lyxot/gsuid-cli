@@ -15,65 +15,67 @@ from gsuid_cli.renderers.local_auth import render_account_command_text
 CAPABILITIES = [
     {
         "command": "account.add",
-        "description": "Add or update a local account.",
+        "description": "添加或更新账号。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "account.list",
-        "description": "List local accounts.",
+        "description": "列出账号。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "account.show",
-        "description": "Show one local account.",
+        "description": "显示账号。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "account.default",
-        "description": "Set the default account for the selected profile.",
+        "description": "设置默认账号。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "account.remove",
-        "description": "Remove a local account.",
+        "description": "移除账号。",
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
 ]
 
+_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    account = groups.add_parser("account", help="Manage local Genshin accounts.")
+    account = groups.add_parser("account", help="管理本地原神账号。")
     commands = account.add_subparsers(dest="account_command", required=True, metavar="<command>")
 
-    add = commands.add_parser("add", help="Add or update an account.")
+    add = commands.add_parser("add", help=_HELPS["account.add"])
     add.add_argument("--uid", dest="account_uid")
     add.add_argument("--region", choices=("cn", "os"), dest="account_region")
     add.add_argument("--label")
     add.add_argument("--default", action="store_true")
     add.set_defaults(handler=add_command, command_name="account.add")
 
-    list_parser = commands.add_parser("list", help="List accounts.")
+    list_parser = commands.add_parser("list", help=_HELPS["account.list"])
     list_parser.set_defaults(handler=list_command, command_name="account.list")
 
-    show = commands.add_parser("show", help="Show an account.")
+    show = commands.add_parser("show", help=_HELPS["account.show"])
     show.add_argument("--uid", dest="account_uid")
     show.set_defaults(handler=show_command, command_name="account.show")
 
-    default = commands.add_parser("default", help="Set the default account.")
+    default = commands.add_parser("default", help=_HELPS["account.default"])
     default.add_argument("--uid", dest="account_uid")
     default.set_defaults(handler=default_command, command_name="account.default")
 
-    remove = commands.add_parser("remove", help="Remove an account.")
+    remove = commands.add_parser("remove", help=_HELPS["account.remove"])
     remove.add_argument("--uid", dest="account_uid")
     remove.set_defaults(handler=remove_command, command_name="account.remove")
 
@@ -207,7 +209,7 @@ def _get_account(conn: sqlite3.Connection, uid: str) -> sqlite3.Row:
     if row is None:
         raise CliError(
             "NO_RESULT",
-            f"Account not found: {uid}",
+            f"未找到账号: {uid}",
             EXIT_NO_RESULT,
             {"uid": uid},
         )
@@ -246,5 +248,5 @@ def _account_text_result(
         name=f"account/{action}-text",
         filename=f"account-{action}_{safe_filename_part(subject)}.txt",
         content=render_account_command_text(command, data),
-        description="Human-readable local account text",
+        description="本地账号文本",
     )

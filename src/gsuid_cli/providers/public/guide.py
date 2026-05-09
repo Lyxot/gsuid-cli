@@ -51,7 +51,7 @@ def select_abyss_schedule(
                 return _abyss_schedule(row), []
         raise CliError(
             "NO_RESULT",
-            "No abyss guide schedule matched the requested version.",
+            "没有与请求版本匹配的深境螺旋攻略。",
             EXIT_NO_RESULT,
             {"version": version},
             source=source,
@@ -73,17 +73,17 @@ def select_abyss_schedule(
             if start <= now:
                 selected = _abyss_schedule(row)
                 return selected, [
-                    "no current abyss guide schedule matched today's date; "
-                    f"used latest known GenshinUID schedule {selected['name']}"
+                    "当前日期没有匹配的深境螺旋攻略；"
+                    f"已使用最新已知的 GenshinUID 攻略 {selected['name']}"
                 ]
     if schedule_rows:
         selected = _abyss_schedule(schedule_rows[-1])
         return selected, [
-            "no dated abyss guide schedule is available; used latest GenshinUID schedule"
+            "没有带日期的深境螺旋攻略可用；已使用最新 GenshinUID 攻略"
         ]
     raise CliError(
         "NO_RESULT",
-        "No abyss guide schedules are available.",
+        "没有可用的深境螺旋攻略。",
         EXIT_NO_RESULT,
         source=source,
     )
@@ -101,7 +101,7 @@ def normalize_abyss_floor(
     if floor_index < 0 or floor_index >= len(floors):
         raise CliError(
             "NO_RESULT",
-            "No abyss guide floor matched the request.",
+            "没有与请求匹配的深境螺旋层数。",
             EXIT_NO_RESULT,
             {"version": schedule.get("name"), "floor": floor},
             source=source,
@@ -112,7 +112,7 @@ def normalize_abyss_floor(
     if not floor_config:
         raise CliError(
             "NO_RESULT",
-            "No abyss guide floor config matched the schedule.",
+            "没有与排期匹配的深境螺旋楼层配置。",
             EXIT_NO_RESULT,
             {"version": schedule.get("name"), "floor": floor, "floor_id": floor_id},
             source=source,
@@ -143,7 +143,7 @@ def select_theater_event(
             return version, []
         raise CliError(
             "NO_RESULT",
-            "No theater guide event matched the requested version.",
+            "没有与请求版本匹配的幻想真境剧诗攻略活动。",
             EXIT_NO_RESULT,
             {"version": version},
             source=source,
@@ -164,15 +164,15 @@ def select_theater_event(
         for start, _end, event_id in reversed(dated):
             if start <= now:
                 return event_id, [
-                    "no current theater guide event matched today's date; "
-                    f"used latest known Hakush rolecombat event {event_id}"
+                    "当前日期没有匹配的幻想真境剧诗攻略活动；"
+                    f"已使用最新已知的 Hakush rolecombat 活动 {event_id}"
                 ]
     if events:
         event_id = sorted(events, key=lambda key: int(key) if key.isdigit() else 0)[-1]
-        return event_id, ["no dated theater guide event is available; used latest event id"]
+        return event_id, ["没有带日期的幻想真境剧诗攻略活动可用；已使用最新的活动 id"]
     raise CliError(
         "NO_RESULT",
-        "No theater guide events are available.",
+        "没有可用的幻想真境剧诗攻略活动。",
         EXIT_NO_RESULT,
         source=source,
     )
