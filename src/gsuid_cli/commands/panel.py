@@ -371,7 +371,7 @@ def _show_render_result(
         provider="panel",
         region="cn",
         category="panel.show.asset",
-            unavailable_warning="{count} 个角色面板图片不可用，已使用占位图",
+        unavailable_warning="{count} 个角色面板图片不可用，已使用占位图",
         max_workers=PANEL_IMAGE_WORKERS,
     )
     png = render_panel_show_card(

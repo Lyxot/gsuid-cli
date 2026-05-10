@@ -369,9 +369,7 @@ def _theater_render_result(
             provider="mys",
             region=region,
             category="challenge.theater.image",
-            unavailable_warning=(
-                "{count} 个幻想真境剧诗图片不可用，已使用占位图"
-            ),
+            unavailable_warning=("{count} 个幻想真境剧诗图片不可用，已使用占位图"),
             max_workers=CHALLENGE_IMAGE_WORKERS,
         )
         png = render_challenge_theater_card(

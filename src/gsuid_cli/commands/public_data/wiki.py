@@ -130,10 +130,7 @@ def _apply_level_request(result: CommandResult, level: int) -> None:
     if level_info:
         item["level_info"] = level_info
         result.data["item"] = item
-        result.warnings.append(
-            "等级请求与公开的突破数据匹配；"
-            "当前数据源不提供精确的成长曲线属性"
-        )
+        result.warnings.append("等级请求与公开的突破数据匹配；当前数据源不提供精确的成长曲线属性")
         return
     result.warnings.append("当前公开数据源不提供特定等级的属性")
 

@@ -347,9 +347,7 @@ def _completion_render_result(
             provider="mys",
             region=region,
             category="progress.completion.icon",
-            unavailable_warning=(
-                "{count} 个探索完成度图标不可用，已使用占位图"
-            ),
+            unavailable_warning=("{count} 个探索完成度图标不可用，已使用占位图"),
             max_workers=PROGRESS_IMAGE_WORKERS,
         )
         png = render_progress_completion_card(completion=completion, asset_images=images)

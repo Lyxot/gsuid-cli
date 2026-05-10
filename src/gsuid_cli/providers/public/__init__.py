@@ -203,9 +203,7 @@ class PublicDataProvider:
             if require_upgrade:
                 raise
             upgrades = {}
-            warnings.append(
-                "日常材料升级数据不可用；返回的秘境不包含物品匹配"
-            )
+            warnings.append("日常材料升级数据不可用；返回的秘境不包含物品匹配")
         selected_day = _day_from_date(date) or day or _current_daily_day()
         if selected_day not in DAY_NAMES:
             raise CliError(
@@ -369,9 +367,7 @@ class PublicDataProvider:
                     "talents": _talent_materials(item.get("talent")),
                 },
                 "recommendations": [],
-                "source_limitations": [
-                    "Project Amber 数据源不提供精选养成建议"
-                ],
+                "source_limitations": ["Project Amber 数据源不提供精选养成建议"],
             },
             source=base.source,
         )
@@ -679,9 +675,7 @@ class PublicDataProvider:
                 "available_versions": available_versions,
                 "estimate_available": selected_version is not None,
                 "estimate": None,
-                "source_limitations": [
-                    "GenshinUID 提供了静态的版本原石预估图片"
-                ],
+                "source_limitations": ["GenshinUID 提供了静态的版本原石预估图片"],
             },
             warnings=warnings,
             source=_local_primogems_plan_source(),

@@ -78,9 +78,7 @@ def select_abyss_schedule(
                 ]
     if schedule_rows:
         selected = _abyss_schedule(schedule_rows[-1])
-        return selected, [
-            "没有带日期的深境螺旋攻略可用；已使用最新 GenshinUID 攻略"
-        ]
+        return selected, ["没有带日期的深境螺旋攻略可用；已使用最新 GenshinUID 攻略"]
     raise CliError(
         "NO_RESULT",
         "没有可用的深境螺旋攻略。",

@@ -326,9 +326,7 @@ def _guide_abyss_render_result(args: argparse.Namespace, result: CommandResult) 
             provider="guide-assets",
             region="cn",
             category="guide.abyss.asset",
-            unavailable_warning=(
-                "{count} 个深境螺旋怪物图片不可用，已使用占位图"
-            ),
+            unavailable_warning=("{count} 个深境螺旋怪物图片不可用，已使用占位图"),
             max_workers=WIKI_IMAGE_WORKERS,
         )
         png = render_guide_abyss_card(render_abyss, asset_images=asset_images)
@@ -661,9 +659,7 @@ def _map_artifact_command(
             "marker_count": None,
             "bounds": None,
             "artifact_sha256": artifact["sha256"],
-            "source_limitations": [
-                "MiniGG 地图输出仅包含图片；不可获取标记坐标信息"
-            ],
+            "source_limitations": ["MiniGG 地图输出仅包含图片；不可获取标记坐标信息"],
         },
         artifacts=[artifact],
         source=response.source,

@@ -92,9 +92,7 @@ CAPABILITIES = [
         "regions": ["cn"],
         "render": ["data", "text", "all"],
         "availability": "upstream-limited",
-        "limitations": [
-            "使用旧版米游社周年庆接口，可能返回数据源错误码 -502。"
-        ],
+        "limitations": ["使用旧版米游社周年庆接口，可能返回数据源错误码 -502。"],
     },
 ]
 
