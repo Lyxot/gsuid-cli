@@ -1,8 +1,8 @@
-# Command Reference
+# 命令参考文档 (Command Reference)
 
-Generated from `gsuid meta capabilities`.
+本文档由 `gsuid meta capabilities` 命令自动生成。
 
-| Command | Auth | Render | Description |
+| 命令 | 权限 | 渲染支持 | 描述 |
 | --- | --- | --- | --- |
 | `account.add` | `none` | `data, text, all` | 添加或更新账号。 |
 | `account.default` | `none` | `data, text, all` | 设置默认账号。 |
@@ -74,7 +74,7 @@ Generated from `gsuid meta capabilities`.
 | `player.characters` | `cookie` | `data, image, text, all` | 显示玩家角色详情。 |
 | `player.diary` | `cookie` | `data, image, text, all` | 显示旅行者札记数据。 |
 | `player.inventory` | `cookie` | `data, image, text, all` | 显示已拥有角色和已装备武器的材料数量。 Coverage: `owned_character_ascension_and_equipped_weapon_materials`. |
-| `player.register-time` | `cookie` | `data, text, all` | 尝试显示原神账号注册时间。 Availability: `upstream-limited`. Limitations: 使用旧版米游社周年庆接口，可能返回数据源错误码 -502。 |
+| `player.register-time` | `cookie` | `data, text, all` | 尝试显示原神账号注册时间。 区服: `upstream-limited`. 限制: 使用旧版米游社周年庆接口，可能返回数据源错误码 -502。 |
 | `player.summary` | `cookie` | `data, image, text, all` | 显示玩家资料汇总数据。 |
 | `profile.default` | `none` | `data, text, all` | 设置默认配置文件。 |
 | `profile.delete` | `none` | `data, text, all` | 删除配置文件。 |

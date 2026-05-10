@@ -24,11 +24,11 @@ def render_command_reference() -> str:
         grouped[group].append(command)
 
     lines = [
-        "# Command Reference",
+        "# 命令参考文档 (Command Reference)",
         "",
-        "Generated from `gsuid meta capabilities`.",
+        "本文档由 `gsuid meta capabilities` 命令自动生成。",
         "",
-        "| Command | Auth | Render | Description |",
+        "| 命令 | 权限 | 渲染支持 | 描述 |",
         "| --- | --- | --- | --- |",
     ]
     for group in sorted(grouped):
@@ -71,10 +71,10 @@ def _description(command: dict[str, Any]) -> str:
         description += f" Coverage: `{coverage}`."
     availability = command.get("availability")
     if availability:
-        description += f" Availability: `{availability}`."
+        description += f" 区服: `{availability}`."
     limitations = command.get("limitations")
     if isinstance(limitations, list) and limitations:
-        description += " Limitations: " + "; ".join(str(item) for item in limitations)
+        description += " 限制: " + "; ".join(str(item) for item in limitations)
     return description
 
 
