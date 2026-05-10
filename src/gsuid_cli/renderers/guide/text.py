@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from gsuid_cli.renderers._text_helpers import _finish, _mapping, _mapping_list
 from gsuid_cli.renderers.common import int_value, sequence, text_value
-from gsuid_cli.renderers.utility_text import _finish, _mapping, _mapping_list
 
 
 def render_guide_abyss_text(data: Mapping[str, object]) -> str:

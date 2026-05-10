@@ -4,6 +4,7 @@ from collections.abc import Mapping
 
 from PIL import Image, ImageDraw
 
+from gsuid_cli.renderers._text_helpers import _mapping
 from gsuid_cli.renderers.common import (
     asset_path,
     crop_center,
@@ -231,10 +232,6 @@ def _ratio_frame(current: int, previous: int) -> int:
 
 def _group_by(month_data: Mapping[str, object]) -> list[Mapping[str, object]]:
     return [item for item in sequence(month_data.get("group_by")) if isinstance(item, Mapping)]
-
-
-def _mapping(value: object) -> Mapping[str, object]:
-    return value if isinstance(value, Mapping) else {}
 
 
 def _int_carry(value: int) -> str:

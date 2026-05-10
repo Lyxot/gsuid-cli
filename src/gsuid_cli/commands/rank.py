@@ -6,9 +6,15 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-from gsuid_cli.commands._shared import _safe_filename
+from gsuid_cli.commands._text import (
+    helps_from,
+    record_primary_image,
+    record_text_artifact,
+    safe_filename_part,
+    write_image_artifact,
+    write_text_artifact,
+)
 from gsuid_cli.commands.auth import _credential, _uid_and_region
-from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.http import HttpClient, raise_for_retcode
 from gsuid_cli.core.models import CommandResult
@@ -22,7 +28,7 @@ from gsuid_cli.providers.mys import (
     server_for_uid,
 )
 from gsuid_cli.renderers.common import asset_path
-from gsuid_cli.renderers.rank import (
+from gsuid_cli.renderers.rank.image import (
     artifact_rank_asset_urls,
     character_rank_asset_urls,
     render_artifact_rank,
@@ -30,7 +36,7 @@ from gsuid_cli.renderers.rank import (
     render_user_rank_list,
     user_rank_asset_urls,
 )
-from gsuid_cli.renderers.rank_text import (
+from gsuid_cli.renderers.rank.text import (
     render_rank_artifact_text,
     render_rank_character_text,
     render_rank_list_text,
@@ -65,7 +71,7 @@ CAPABILITIES = [
     },
 ]
 
-_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+_HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -183,40 +189,26 @@ def _list_render_result(
             characters=characters,
             asset_images=images,
         )
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="rank/list",
-            filename=f"rank-list_{_safe_filename(uid)}.png",
-            media_type="image/png",
+            filename=f"rank-list_{safe_filename_part(uid)}.png",
             content=png,
             description="Akasha 排名列表图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend(image_warnings)
-        render_data.update(
-            {
-                "render": "rank/list",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name="rank/list-text",
-            filename=f"rank-list_{_safe_filename(uid)}.txt",
+            filename=f"rank-list_{safe_filename_part(uid)}.txt",
             content=render_rank_list_text(result_data),
             description="适合命令行阅读的 Akasha 排名列表文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": "rank/list-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result_data, render_data)
     return CommandResult(
         data=data,
@@ -520,40 +512,26 @@ def _character_render_result(
             selected_uid=selected_uid,
             asset_images=images,
         )
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="rank/character",
-            filename=f"rank-character_{_safe_filename(_character_name(character_id))}.png",
-            media_type="image/png",
+            filename=f"rank-character_{safe_filename_part(_character_name(character_id))}.png",
             content=png,
             description="Akasha 角色排行榜图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend(image_warnings)
-        render_data.update(
-            {
-                "render": "rank/character",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name="rank/character-text",
-            filename=f"rank-character_{_safe_filename(_character_name(character_id))}.txt",
+            filename=f"rank-character_{safe_filename_part(_character_name(character_id))}.txt",
             content=render_rank_character_text(result.data),
             description="适合命令行阅读的 Akasha 角色排行榜文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": "rank/character-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -588,40 +566,28 @@ def _artifact_render_result(
             artifacts=artifacts,
             asset_images=images,
         )
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        sort_filename = safe_filename_part(str(result.data.get("sort") or "crit"))
+        image_artifact = write_image_artifact(
+            args,
             name="rank/artifact",
-            filename=f"rank-artifact_{_safe_filename(str(result.data.get('sort') or 'crit'))}.png",
-            media_type="image/png",
+            filename=f"rank-artifact_{sort_filename}.png",
             content=png,
             description="Akasha 圣遗物排行榜图片",
-            kind="image",
         )
         output_artifacts.append(image_artifact)
         warnings.extend(image_warnings)
-        render_data.update(
-            {
-                "render": "rank/artifact",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        sort_text_filename = safe_filename_part(str(result.data.get("sort") or "crit"))
+        text_artifact = write_text_artifact(
+            args,
             name="rank/artifact-text",
-            filename=f"rank-artifact_{_safe_filename(str(result.data.get('sort') or 'crit'))}.txt",
+            filename=f"rank-artifact_{sort_text_filename}.txt",
             content=render_rank_artifact_text(result.data),
             description="适合命令行阅读的 Akasha 圣遗物排行榜文本",
-            kind="text",
         )
         output_artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": "rank/artifact-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,

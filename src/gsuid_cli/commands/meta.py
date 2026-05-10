@@ -21,7 +21,7 @@ from gsuid_cli.commands import (
     public_data,
     rank,
 )
-from gsuid_cli.commands._text import command_text_result, safe_filename_part
+from gsuid_cli.commands._text import command_subject_text_result, helps_from
 from gsuid_cli.core.config import resolve_paths
 from gsuid_cli.core.envelope import SCHEMA
 from gsuid_cli.core.errors import ERROR_CATALOG, EXIT_NO_RESULT, CliError
@@ -77,7 +77,7 @@ CAPABILITIES = [
     },
 ]
 
-_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+_HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -188,12 +188,11 @@ def _meta_text_result(
     command = str(getattr(args, "command_name", "meta.capabilities"))
     action = command.rsplit(".", 1)[-1]
     subject = data.get("command") or data.get("check") or action
-    return command_text_result(
+    return command_subject_text_result(
         args,
         data,
-        name=f"meta/{action}-text",
-        filename=f"meta-{action}_{safe_filename_part(subject)}.txt",
-        content=render_meta_command_text(command, data),
+        subject=subject,
+        render_fn=render_meta_command_text,
         description="适合命令行阅读的元信息文本",
     )
 

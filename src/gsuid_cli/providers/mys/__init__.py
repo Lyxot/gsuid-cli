@@ -18,14 +18,13 @@ from gsuid_cli.providers.mys.auth import (
 )
 from gsuid_cli.providers.mys.bbs import MysBbsMixin
 from gsuid_cli.providers.mys.challenge import MysChallengeMixin
-from gsuid_cli.providers.mys.constants import CARD_PATH, INDEX_PATH, PROVIDER, RECORD_BASE_CN
 from gsuid_cli.providers.mys.constants import (
+    CARD_PATH,
     CN_TIMEZONE as CN_TIMEZONE,
-)
-from gsuid_cli.providers.mys.constants import (
     ELEMENT_ID_BY_NAME as ELEMENT_ID_BY_NAME,
-)
-from gsuid_cli.providers.mys.constants import (
+    INDEX_PATH,
+    PROVIDER,
+    RECORD_BASE_CN,
     RECORD_SALT as RECORD_SALT,
 )
 from gsuid_cli.providers.mys.device import MysDeviceMixin

@@ -4,7 +4,7 @@ import argparse
 import shutil
 from pathlib import Path
 
-from gsuid_cli.commands._text import command_text_result
+from gsuid_cli.commands._text import command_text_result, helps_from
 from gsuid_cli.core.config import resolve_paths
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
 from gsuid_cli.core.models import CommandResult
@@ -20,7 +20,7 @@ CAPABILITIES = [
     },
 ]
 
-_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+_HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:

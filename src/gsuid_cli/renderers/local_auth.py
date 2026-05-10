@@ -1,7 +1,15 @@
 from __future__ import annotations
 
-import unicodedata
 from collections.abc import Mapping
+
+from gsuid_cli.renderers._text_helpers import (
+    _finish,
+    _mapping,
+    _mapping_list,
+    _nullable as _nullable_text,
+    _text,
+    _yes_no,
+)
 
 
 def render_profile_command_text(command: str, data: Mapping[str, object]) -> str:
@@ -282,36 +290,3 @@ def _region_label(value: object) -> str:
 
 def _saved_label(value: object) -> str:
     return "已保存" if bool(value) else "未保存"
-
-
-def _yes_no(value: object) -> str:
-    return "是" if bool(value) else "否"
-
-
-def _nullable_text(value: object) -> str:
-    text = _text(value)
-    return "未设置" if text == "-" else text
-
-
-def _text(value: object) -> str:
-    if value is None or value == "":
-        return "-"
-    text = "".join(
-        " " if unicodedata.category(char).startswith("C") else char for char in str(value)
-    )
-    text = " ".join(text.split())
-    return text or "-"
-
-
-def _mapping(value: object) -> Mapping[str, object]:
-    return value if isinstance(value, Mapping) else {}
-
-
-def _mapping_list(value: object) -> list[Mapping[str, object]]:
-    if not isinstance(value, list):
-        return []
-    return [item for item in value if isinstance(item, Mapping)]
-
-
-def _finish(lines: list[str]) -> str:
-    return "\n".join(lines).rstrip() + "\n"

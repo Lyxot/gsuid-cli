@@ -1,8 +1,17 @@
 from __future__ import annotations
 
 import shlex
-import unicodedata
 from collections.abc import Mapping, Sequence
+
+from gsuid_cli.renderers._text_helpers import (
+    _finish,
+    _join,
+    _mapping,
+    _mapping_list,
+    _nullable,
+    _text,
+    _yes_no,
+)
 
 
 def render_meta_command_text(command: str, data: Mapping[str, object]) -> str:
@@ -260,67 +269,10 @@ def _status_label(value: object) -> str:
     return {"ok": "正常", "warn": "警告", "error": "错误"}.get(str(value), _text(value))
 
 
-def _yes_no(value: object) -> str:
-    return "是" if bool(value) else "否"
-
-
-def _nullable(value: object) -> str:
-    text = _text(value)
-    return "未设置" if text == "-" else text
-
-
-def _join(value: object) -> str:
-    items = [_text(item) for item in _sequence(value)]
-    return "、".join(items) if items else "-"
-
-
-def _text(value: object) -> str:
-    if value is None or value == "":
-        return "-"
-    text = "".join(
-        " " if unicodedata.category(char).startswith("C") else char for char in str(value)
-    )
-    text = " ".join(text.split())
-    return text or "-"
-
-
-def _mapping(value: object) -> Mapping[str, object]:
-    return value if isinstance(value, Mapping) else {}
-
-
-def _mapping_list(value: object) -> list[Mapping[str, object]]:
-    if not isinstance(value, list):
-        return []
-    return [item for item in value if isinstance(item, Mapping)]
-
-
-def _first_mapping(value: object) -> Mapping[str, object]:
-    values = _mapping_list(value)
-    return values[0] if values else {}
-
-
 def _sequence(value: object) -> list[object]:
     if not isinstance(value, list):
         return []
     return list(value)
-
-
-def _number(value: object) -> float:
-    try:
-        return float(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return 0.0
-
-
-def _number_text(value: object) -> str:
-    number = _number(value)
-    if number.is_integer():
-        return str(int(number))
-    return f"{number:.2f}".rstrip("0").rstrip(".")
-
-
-def _finish(lines: list[str]) -> str:
-    return "\n".join(lines).rstrip() + "\n"
 
 
 _PATH_LABELS = (

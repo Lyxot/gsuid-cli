@@ -9,6 +9,7 @@ from urllib.parse import quote
 
 from PIL import Image, ImageDraw
 
+from gsuid_cli.renderers._text_helpers import _finish, _mapping_list
 from gsuid_cli.renderers.common import (
     asset_path,
     font,
@@ -674,11 +675,3 @@ def _source_label(value: object) -> str:
     if text == "environment":
         return "环境变量"
     return text or "-"
-
-
-def _mapping_list(value: object) -> list[Mapping[str, object]]:
-    return [item for item in value if isinstance(item, Mapping)] if isinstance(value, list) else []
-
-
-def _finish(lines: list[str]) -> str:
-    return "\n".join(lines).rstrip() + "\n"

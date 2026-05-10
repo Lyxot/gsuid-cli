@@ -4,7 +4,7 @@ import argparse
 import sqlite3
 
 from gsuid_cli.commands import profile
-from gsuid_cli.commands._text import command_text_result, safe_filename_part
+from gsuid_cli.commands._text import command_subject_text_result, helps_from
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.secrets import CREDENTIALS, SecretStore, credential_presence
@@ -50,7 +50,7 @@ CAPABILITIES = [
     },
 ]
 
-_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+_HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -236,17 +236,12 @@ def _account_text_result(
     args: argparse.Namespace,
     data: dict[str, object],
 ) -> CommandResult | dict[str, object]:
-    command = str(args.command_name)
-    action = command.rsplit(".", 1)[-1]
     account_data = data.get("account")
-    subject = "list"
-    if isinstance(account_data, dict):
-        subject = str(account_data.get("uid") or subject)
-    return command_text_result(
+    subject = str(account_data.get("uid") or "list") if isinstance(account_data, dict) else "list"
+    return command_subject_text_result(
         args,
         data,
-        name=f"account/{action}-text",
-        filename=f"account-{action}_{safe_filename_part(subject)}.txt",
-        content=render_account_command_text(command, data),
+        subject=subject,
+        render_fn=render_account_command_text,
         description="本地账号文本",
     )

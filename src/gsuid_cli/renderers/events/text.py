@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from gsuid_cli.renderers._text_helpers import _finish
 from gsuid_cli.renderers.common import sequence, text_value
-from gsuid_cli.renderers.utility_text import _finish
 
 FILTER_LABELS = {
     "active": "进行中",

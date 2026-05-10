@@ -1,0 +1,1 @@
+"""Rank renderers (image + text)."""

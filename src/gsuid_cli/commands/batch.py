@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from gsuid_cli.commands._text import command_text_result, safe_filename_part
+from gsuid_cli.commands._text import command_subject_text_result, helps_from
 from gsuid_cli.core.envelope import error_envelope
 from gsuid_cli.core.errors import EXIT_INTERNAL_BUG, EXIT_INVALID_INPUT, CliError
 from gsuid_cli.core.models import CommandResult
@@ -31,7 +31,7 @@ CAPABILITIES = [
     },
 ]
 
-_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+_HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -150,13 +150,11 @@ def plan_command(args: argparse.Namespace) -> CommandResult:
 
 
 def _batch_text_result(args: argparse.Namespace, result: CommandResult) -> CommandResult:
-    action = str(args.command_name).rsplit(".", 1)[-1]
-    return command_text_result(
+    return command_subject_text_result(  # type: ignore[return-value]
         args,
         result,
-        name=f"batch/{action}-text",
-        filename=f"batch-{action}_{safe_filename_part(Path(str(args.file)).stem)}.txt",
-        content=render_batch_command_text(str(args.command_name), result.data),
+        subject=Path(str(args.file)).stem,
+        render_fn=render_batch_command_text,
         description="适合命令行阅读的批处理文本",
     )
 

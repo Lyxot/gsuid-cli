@@ -11,43 +11,69 @@ src/gsuid_cli/
   __main__.py
   cli.py                # 命令行入口与全局参数解析
   commands/             # 命令层：解析参数、调用提供商并整合渲染
-    meta.py             # 元信息和诊断命令
-    profile.py          # 配置档案管理
     account.py          # 本地账号管理
     auth.py             # 凭据(登录/验证)管理
-    player.py           # 玩家核心数据 (汇总、背包、角色)
-    daily.py            # 日常状态 (便笺、签到、材料)
-    challenge.py        # 挑战玩法 (深渊、剧诗、深罪旋曜)
-    progress.py         # 进度玩法 (探索、成就、七圣)
-    gacha.py            # 祈愿记录管理
-    panel.py            # 角色展柜与面板管理
-    rank.py             # Akasha 排名
-    wiki.py             # 百科数据
-    guide.py            # 攻略建议与路线
-    events.py           # 活动、公告与兑换码
-    map.py              # 地图查询
     batch.py            # 自动化批量执行 JSONL
+    cache.py            # 缓存诊断与清理
+    challenge.py        # 挑战玩法 (深渊、剧诗、深罪旋曜)
+    gacha.py            # 祈愿记录管理
+    meta.py             # 元信息和诊断命令
+    monitor.py          # 自动化监控与轮询
+    player/             # 玩家核心数据命令 (汇总、背包、角色)
+      __init__.py       # 命令组门面：导出 CAPABILITIES/register
+      impl.py           # player 命令实现
+      assets.py         # 玩家渲染资源收集与 Enka/MYS 辅助
+    panel/              # 角色展柜与面板管理
+      __init__.py       # 命令组门面：导出 CAPABILITIES/register
+      capabilities.py   # panel 子命令能力声明
+      register.py       # argparse 子命令注册
+      impl.py           # panel 命令实现
+      cache.py          # 本地 panel_cache 读写与标准化
+      common.py         # panel 子模块共享的小工具
+      enrichment.py     # 公共数据补全 (如武器效果/角色名)
+      mys.py            # 米游社面板数据适配
+    profile.py          # 配置档案管理
+    progress.py         # 进度玩法 (探索、成就、七圣)
+    public_data/        # 公共数据命令组
+      daily.py          # 日常状态 (便笺、签到、材料)
+      events.py         # 活动、公告与兑换码
+      guide.py          # 攻略建议与路线
+      wiki.py           # 百科数据
+    rank.py             # Akasha 排名
   core/                 # 核心模块：通用系统与基础设施
+    artifacts.py        # 本地文件与产物管理
+    cache.py            # HTTP 和文件缓存
+    cache_policy.py     # HTTP 缓存 TTL/日重置/版本化策略
+    config.py           # 本地环境配置路径
     envelope.py         # JSON 契约包装
     errors.py           # 标准错误定义
+    http.py             # HTTP 客户端封装与来源捕获
     models.py           # 核心数据模型 (CommandResult等)
-    time.py             # 时间处理
-    artifacts.py        # 本地文件与产物管理
+    region.py           # UID/地区解析
+    render.py           # render 模式判定与数据合并
+    schemas.py          # JSON schema 辅助
     secrets.py          # 凭据存储 (Keyring)
-    config.py           # 本地环境配置路径
     state.py            # SQLite 本地状态管理
-    cache.py            # HTTP 和文件缓存
+    time.py             # 时间处理
   providers/            # 数据提供商：处理 HTTP 和第三方 API 逻辑
-    mys.py / hoyolab.py # 官方 API
-    enka.py             # Enka 面板
     akasha.py           # Akasha 排行
-    wiki.py / map.py    # 公共数据来源
-  services/             # (可选) 业务服务层：整合跨 Provider 的逻辑
+    assets.py           # 渲染资源下载
+    enka.py             # Enka 面板
+    resource_mirror.py  # GenshinUID/资源镜像解析
+    mys/                # 官方米游社 API 子模块
+    public/             # 公共数据提供商与各数据域解析
   renderers/            # 渲染层：将数据转化为图片或直观文本
-    daily_note.py
-    abyss.py
-    panel.py
-    ...
+    common.py           # 图像/文本渲染通用工具
+    _text_helpers.py    # 文本渲染基础格式化函数
+    challenge/          # 深渊、剧诗、深罪旋曜图片/文本渲染
+    daily/              # 便笺、材料、签到渲染
+    events/             # 活动/公告渲染 (image.py + text.py)
+    guide/              # 攻略卡片/文本渲染 (image.py + text.py)
+    panel/              # 角色面板图片、文本、指标
+    player/             # 玩家汇总、背包、日历、角色等渲染
+    progress/           # 探索、成就、七圣渲染
+    rank/               # Akasha 排名渲染 (image.py + text.py)
+    wiki/               # 百科图文渲染
 ```
 
 ## 2. 依赖决策

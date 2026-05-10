@@ -2,18 +2,23 @@ from __future__ import annotations
 
 import argparse
 
-from gsuid_cli.commands import player as player_commands
-from gsuid_cli.commands._shared import _cookie_context
-from gsuid_cli.commands._shared import _provider as _auth_provider
+from gsuid_cli.commands._shared import _cookie_context, _provider as _auth_provider
+from gsuid_cli.commands._text import (
+    helps_from,
+    record_primary_image,
+    record_text_artifact,
+    safe_filename_part,
+    write_image_artifact,
+    write_text_artifact,
+)
 from gsuid_cli.commands.auth import _credential, _uid_and_region
+from gsuid_cli.commands.player import impl as player_commands
 from gsuid_cli.commands.public_data._common import (
     _append_url,
     _optional_bool,
     _optional_text,
     _provider,
-    _safe_filename,
 )
-from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_UPSTREAM, CliError
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
@@ -63,11 +68,7 @@ CAPABILITIES = [
     },
 ]
 
-_HELPS = {
-    str(c.get("command", "")): str(c.get("description", ""))
-    for c in CAPABILITIES
-    if isinstance(c, dict)
-}
+_HELPS = helps_from(CAPABILITIES)
 
 
 def daily_materials_command(args: argparse.Namespace) -> CommandResult:
@@ -120,7 +121,7 @@ def daily_signin_command(args: argparse.Namespace) -> CommandResult:
         args,
         result=result,
         render_name="daily/signin-text",
-        filename=f"daily-signin_{_safe_filename(uid)}.txt",
+        filename=f"daily-signin_{safe_filename_part(uid)}.txt",
         content=render_daily_signin_text(result.data),
         description="每日签到状态文本",
         render_data={"uid": uid},
@@ -145,7 +146,7 @@ def daily_bbs_coin_command(args: argparse.Namespace) -> CommandResult:
         args,
         result=result,
         render_name="daily/bbs-coin-text",
-        filename=f"daily-bbs-coin_{_safe_filename(uid)}.txt",
+        filename=f"daily-bbs-coin_{safe_filename_part(uid)}.txt",
         content=render_daily_bbs_coin_text(result.data),
         description="米游社通行币状态文本",
         render_data={"uid": uid},
@@ -185,12 +186,12 @@ def _daily_text_render_result(
     description: str,
     render_data: dict[str, object],
 ) -> CommandResult:
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+    artifact = write_text_artifact(
+        args,
         name=render_name,
         filename=filename,
         content=content,
         description=description,
-        kind="text",
     )
     data = render_result_data(
         args,
@@ -243,45 +244,31 @@ def _daily_materials_render_result(
             domains=renderable_domains,
             icon_images=icon_images,
         )
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="daily/materials",
-            filename=f"daily-materials_{_safe_filename(day)}.png",
-            media_type="image/png",
+            filename=f"daily-materials_{safe_filename_part(day)}.png",
             content=png,
             description="日常材料卡片图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend(icon_warnings)
-        render_data.update(
-            {
-                "render": "daily/materials",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
         text = render_daily_materials_text(
             day=day,
             domains=renderable_domains,
             date=result.data.get("date"),
         )
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name="daily/materials-text",
-            filename=f"daily-materials_{_safe_filename(day)}.txt",
+            filename=f"daily-materials_{safe_filename_part(day)}.txt",
             content=text,
             description="日常材料文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": "daily/materials-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -358,22 +345,16 @@ def _daily_note_render_result(
             signed=signed,
             expedition_avatar_images=avatar_images,
         )
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="daily/note",
-            filename=f"daily-note_{_safe_filename(uid)}.png",
-            media_type="image/png",
+            filename=f"daily-note_{safe_filename_part(uid)}.png",
             content=png,
             description="实时便笺卡片图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend(avatar_warnings)
-        render_data.update(
-            {
-                "render": "daily/note",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
         text = render_daily_note_text(
             uid=uid,
@@ -382,23 +363,15 @@ def _daily_note_render_result(
             level=level,
             signed=signed,
         )
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name="daily/note-text",
-            filename=f"daily-note_{_safe_filename(uid)}.txt",
+            filename=f"daily-note_{safe_filename_part(uid)}.txt",
             content=text,
             description="实时便笺文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": "daily/note-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,

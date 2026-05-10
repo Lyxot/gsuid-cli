@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from gsuid_cli.renderers._text_helpers import _finish, _mapping, _mapping_list
 from gsuid_cli.renderers.common import int_value, text_value
-from gsuid_cli.renderers.utility_text import _finish, _mapping, _mapping_list
 
 OCULUS_LABELS = {
     "anemoculus_number": "风神瞳",

@@ -5,15 +5,21 @@ import re
 from collections.abc import Mapping
 from datetime import UTC, datetime
 
-from gsuid_cli.commands import player_assets
 from gsuid_cli.commands._shared import (
     _cookie_context,
     _mapping_data,
     _provider,
-    _safe_filename,
 )
-from gsuid_cli.commands.player_assets import PLAYER_SUMMARY_ICON_WORKERS
-from gsuid_cli.core.artifacts import ArtifactManager
+from gsuid_cli.commands._text import (
+    helps_from,
+    record_primary_image,
+    record_text_artifact,
+    safe_filename_part,
+    write_image_artifact,
+    write_text_artifact,
+)
+from gsuid_cli.commands.player import assets as player_assets
+from gsuid_cli.commands.player.assets import PLAYER_SUMMARY_ICON_WORKERS
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
@@ -96,7 +102,7 @@ CAPABILITIES = [
     },
 ]
 
-_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+_HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -313,40 +319,26 @@ def _characters_render_result(
     if render_image_enabled(args):
         asset_images, image_warnings = _player_character_asset_images(args, characters, region)
         png = render_player_characters_card(characters=characters, asset_images=asset_images)
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="player/characters",
-            filename=f"player-characters_{_safe_filename(uid)}.png",
-            media_type="image/png",
+            filename=f"player-characters_{safe_filename_part(uid)}.png",
             content=png,
             description="玩家角色列表卡片图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend(image_warnings)
-        render_data.update(
-            {
-                "render": "player/characters",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name="player/characters-text",
-            filename=f"player-characters_{_safe_filename(uid)}.txt",
+            filename=f"player-characters_{safe_filename_part(uid)}.txt",
             content=render_player_characters_text(result.data),
             description="玩家角色列表文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": "player/characters-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -427,13 +419,12 @@ def _summary_render_result(
             asset_images={**character_images, **summary_icons, **profile_images},
             title_avatar_url=title_avatar_url,
         )
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="player/summary",
-            filename=f"player-summary_{_safe_filename(uid)}.png",
-            media_type="image/png",
+            filename=f"player-summary_{safe_filename_part(uid)}.png",
             content=png,
             description="玩家角色信息卡片图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend(
@@ -444,34 +435,21 @@ def _summary_render_result(
                 *profile_image_warnings,
             ]
         )
-        render_data.update(
-            {
-                "render": "player/summary",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name="player/summary-text",
-            filename=f"player-summary_{_safe_filename(uid)}.txt",
+            filename=f"player-summary_{safe_filename_part(uid)}.txt",
             content=render_player_summary_text(
                 uid=uid,
                 summary=summary,
                 characters=characters,
             ),
             description="玩家资料汇总文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": "player/summary-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -524,22 +502,16 @@ def _inventory_render_result(
             asset_images={**title_images, **inventory_images},
             title_avatar_url=title_avatar_url,
         )
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="player/inventory",
-            filename=f"player-inventory_{_safe_filename(uid)}.png",
-            media_type="image/png",
+            filename=f"player-inventory_{safe_filename_part(uid)}.png",
             content=png,
             description="玩家背包材料卡片图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend([*title_warnings, *inventory_warnings])
-        render_data.update(
-            {
-                "render": "player/inventory",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     else:
         summary, title_warnings = _player_title_summary_context(
             provider=provider,
@@ -552,23 +524,15 @@ def _inventory_render_result(
         )
         warnings.extend(title_warnings)
     if render_text_enabled(args):
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name="player/inventory-text",
-            filename=f"player-inventory_{_safe_filename(uid)}.txt",
+            filename=f"player-inventory_{safe_filename_part(uid)}.txt",
             content=render_player_inventory_text(uid=uid, summary=summary, inventory=inventory),
             description="玩家背包材料文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": "player/inventory-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -625,22 +589,16 @@ def _calendar_render_result(
             asset_images={**title_images, **calendar_images},
             title_avatar_url=title_avatar_url,
         )
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="player/calendar",
-            filename=f"player-calendar_{_safe_filename(uid)}.png",
-            media_type="image/png",
+            filename=f"player-calendar_{safe_filename_part(uid)}.png",
             content=png,
             description="玩家活动日历卡片图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend([*title_warnings, *calendar_warnings])
-        render_data.update(
-            {
-                "render": "player/calendar",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     else:
         summary, title_warnings = _player_title_summary_context(
             provider=provider,
@@ -653,23 +611,15 @@ def _calendar_render_result(
         )
         warnings.extend(title_warnings)
     if render_text_enabled(args):
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name="player/calendar-text",
-            filename=f"player-calendar_{_safe_filename(uid)}.txt",
+            filename=f"player-calendar_{safe_filename_part(uid)}.txt",
             content=render_player_calendar_text(uid=uid, summary=summary, calendar=calendar),
             description="玩家活动日历文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": "player/calendar-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -716,22 +666,16 @@ def _diary_render_result(
             asset_images=title_images,
             title_avatar_url=title_avatar_url,
         )
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="player/diary",
-            filename=f"player-diary_{_safe_filename(uid)}.png",
-            media_type="image/png",
+            filename=f"player-diary_{safe_filename_part(uid)}.png",
             content=png,
             description="旅行者札记卡片图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend(title_warnings)
-        render_data.update(
-            {
-                "render": "player/diary",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     else:
         summary, title_warnings = _player_title_summary_context(
             provider=provider,
@@ -744,23 +688,15 @@ def _diary_render_result(
         )
         warnings.extend(title_warnings)
     if render_text_enabled(args):
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name="player/diary-text",
-            filename=f"player-diary_{_safe_filename(uid)}.txt",
+            filename=f"player-diary_{safe_filename_part(uid)}.txt",
             content=render_player_diary_text(uid=uid, summary=summary, diary=diary),
             description="旅行者札记文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": "player/diary-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -777,12 +713,12 @@ def _register_time_render_result(
     result: CommandResult,
     uid: str,
 ) -> CommandResult:
-    text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+    text_artifact = write_text_artifact(
+        args,
         name="player/register-time-text",
-        filename=f"player-register-time_{_safe_filename(uid)}.txt",
+        filename=f"player-register-time_{safe_filename_part(uid)}.txt",
         content=render_player_register_time_text(result.data),
         description="玩家注册时间文本",
-        kind="text",
     )
     data = render_result_data(
         args,

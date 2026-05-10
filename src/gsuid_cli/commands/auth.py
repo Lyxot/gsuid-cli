@@ -11,9 +11,16 @@ from pathlib import Path
 import qrcode
 from qrcode.constants import ERROR_CORRECT_L
 
-from gsuid_cli.commands._text import command_text_result, safe_filename_part
+from gsuid_cli.commands._text import (
+    command_text_result,
+    helps_from,
+    record_primary_image,
+    record_text_artifact,
+    safe_filename_part,
+    write_image_artifact,
+    write_text_artifact,
+)
 from gsuid_cli.commands.account import _validate_uid
-from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_AUTH, EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
@@ -140,7 +147,7 @@ CAPABILITIES = [
     },
 ]
 
-_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+_HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -819,33 +826,20 @@ def _qrcode_render_result(
             )
         if image_artifact not in artifacts:
             artifacts.append(image_artifact)
-        render_data.update(
-            {
-                "render": command.replace(".", "/"),
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     text_enabled = render_text_enabled(args) or (
         command == "auth.qrcode.start" and str(getattr(args, "format", "")) == "plain"
     )
     if text_enabled:
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name=f"{command.replace('.', '/')}-text",
             filename=f"{command.replace('.', '-')}_{safe_filename_part(subject)}.txt",
             content=_qrcode_text_content(command, result.data, url),
             description="本地认证文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if image_enabled:
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": f"{command.replace('.', '/')}-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=image_enabled)
     if not render_data:
         return result
     return CommandResult(
@@ -864,13 +858,12 @@ def _qrcode_image_artifact(
     url: str,
     subject: object,
 ) -> dict[str, object]:
-    return ArtifactManager(args.request_id, args.output_dir).write_bytes(
+    return write_image_artifact(
+        args,
         name=command.replace(".", "/"),
         filename=f"{command.replace('.', '-')}_{safe_filename_part(subject)}.png",
-        media_type="image/png",
         content=_qrcode_png(url),
         description="米哈游二维码登录图片",
-        kind="image",
     )
 
 

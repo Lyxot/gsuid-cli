@@ -9,14 +9,15 @@ from urllib.parse import parse_qsl
 
 import httpx
 import pytest
-from helpers import json_response as _json_response
-from helpers import mock_client as _mock_client
-from helpers import run_json as _run_json
+from helpers import (
+    json_response as _json_response,
+    mock_client as _mock_client,
+    run_json as _run_json,
+)
 from PIL import Image
 
 from gsuid_cli.cli import run
-from gsuid_cli.commands import challenge as challenge_commands
-from gsuid_cli.commands import progress as progress_commands
+from gsuid_cli.commands import challenge as challenge_commands, progress as progress_commands
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.secrets import SecretStore, redact_secret
@@ -308,7 +309,7 @@ def test_progress_render_images(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr(progress_commands, "fetch_render_images", fetcher)
-    monkeypatch.setattr("gsuid_cli.commands.player.fetch_render_images", fetcher)
+    monkeypatch.setattr("gsuid_cli.commands.player.impl.fetch_render_images", fetcher)
     monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
@@ -387,7 +388,7 @@ def test_progress_commands_render_text_write_artifacts(monkeypatch, tmp_path) ->
     monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", _fake_provider)
     monkeypatch.setattr(progress_commands, "_public_provider", lambda _args: FakeGuideProvider())
     monkeypatch.setattr(progress_commands, "fetch_render_images", _fail_image_fetcher)
-    monkeypatch.setattr("gsuid_cli.commands.player.fetch_render_images", _fail_image_fetcher)
+    monkeypatch.setattr("gsuid_cli.commands.player.impl.fetch_render_images", _fail_image_fetcher)
     monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 

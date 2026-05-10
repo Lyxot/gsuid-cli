@@ -4,6 +4,7 @@ from collections.abc import Mapping, Sequence
 
 from PIL import Image, ImageDraw
 
+from gsuid_cli.renderers._text_helpers import _mapping_list
 from gsuid_cli.renderers.common import (
     asset_path,
     font,
@@ -11,7 +12,6 @@ from gsuid_cli.renderers.common import (
     int_value,
     open_rgba,
     png_bytes,
-    sequence,
     text_value,
     v4_background,
 )
@@ -270,10 +270,6 @@ def _duration_text(seconds: int) -> str:
     hours = (max(seconds, 0) % (24 * 3600)) // 3600
     minutes = (max(seconds, 0) % 3600) // 60
     return f"{days}天{hours}时{minutes}分"
-
-
-def _mapping_list(value: object) -> list[Mapping[str, object]]:
-    return [item for item in sequence(value) if isinstance(item, Mapping)]
 
 
 def _append_url(urls: list[str], value: object) -> None:

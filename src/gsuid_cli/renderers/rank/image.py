@@ -16,6 +16,7 @@ from gsuid_cli.renderers.common import (
     int_value,
     open_rgba,
     png_bytes,
+    sequence as _sequence,
     text_value,
     v4_background,
 )
@@ -718,10 +719,6 @@ def _rank_number(value: object) -> int:
 
 def _dict(value: object) -> dict[str, object]:
     return value if isinstance(value, dict) else {}
-
-
-def _sequence(value: object) -> Sequence[object]:
-    return value if isinstance(value, list) else []
 
 
 @lru_cache(maxsize=8)

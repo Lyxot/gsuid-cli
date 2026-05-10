@@ -4,8 +4,8 @@ import json
 from collections.abc import Mapping
 from functools import lru_cache
 
+from gsuid_cli.renderers._text_helpers import _finish, _first_mapping, _mapping, _mapping_list
 from gsuid_cli.renderers.common import asset_path, int_value, sequence, text_value
-from gsuid_cli.renderers.utility_text import _finish, _first_mapping, _mapping, _mapping_list
 
 GCG_CARD_NAME_PATH = asset_path("progress", "gcg", "data", "card_names.json")
 

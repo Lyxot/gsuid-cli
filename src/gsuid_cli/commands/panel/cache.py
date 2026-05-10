@@ -11,7 +11,7 @@ from gsuid_cli.core.time import utc_now
 
 JsonDict = dict[str, object]
 PanelCache = dict[str, object]
-PANEL_DATA = Path(__file__).resolve().parents[1] / "assets" / "panel" / "data"
+PANEL_DATA = Path(__file__).resolve().parents[2] / "assets" / "panel" / "data"
 
 LEVEL_PROP_KEYS = ("4001", "level")
 FIGHT_PROP_LABELS = {

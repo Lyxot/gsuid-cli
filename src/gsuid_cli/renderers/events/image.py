@@ -8,6 +8,7 @@ from io import BytesIO
 
 from PIL import Image, ImageDraw, ImageFilter
 
+from gsuid_cli.renderers._text_helpers import _mapping_list
 from gsuid_cli.renderers.common import (
     asset_path,
     crop_center,
@@ -405,10 +406,6 @@ def _wrap_text(text: str, text_font, max_width: int) -> str:
     if current:
         lines.append(current)
     return "\n".join(lines)
-
-
-def _mapping_list(value: object) -> list[Mapping[str, object]]:
-    return [item for item in sequence(value) if isinstance(item, Mapping)]
 
 
 def _append_url(urls: list[str], value: object) -> None:

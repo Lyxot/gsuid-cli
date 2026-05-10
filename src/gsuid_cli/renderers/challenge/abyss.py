@@ -4,6 +4,10 @@ from collections.abc import Mapping
 
 from PIL import Image, ImageDraw
 
+from gsuid_cli.renderers._text_helpers import (
+    _first_mapping,
+    _mapping_list as _mapping_sequence,
+)
 from gsuid_cli.renderers.challenge.common import (
     append_url,
     avatar_with_ring,
@@ -20,7 +24,6 @@ from gsuid_cli.renderers.common import (
     int_value,
     open_rgba,
     png_bytes,
-    sequence,
 )
 
 TEXTURE = asset_path("challenge", "abyss", "textures")
@@ -264,12 +267,3 @@ def _skipped_floor(index: int) -> Mapping[str, object]:
         "settle_time": "0000-00-00 00:00:00",
         "icon": "",
     }
-
-
-def _first_mapping(value: object) -> Mapping[str, object]:
-    values = _mapping_sequence(value)
-    return values[0] if values else {}
-
-
-def _mapping_sequence(value: object) -> list[Mapping[str, object]]:
-    return [item for item in sequence(value) if isinstance(item, Mapping)]

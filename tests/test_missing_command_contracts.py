@@ -7,8 +7,7 @@ import pytest
 from helpers import run_json_with_stderr as _run_json
 
 from gsuid_cli.cli import run
-from gsuid_cli.commands import challenge as challenge_commands
-from gsuid_cli.commands import progress as progress_commands
+from gsuid_cli.commands import challenge as challenge_commands, progress as progress_commands
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.secrets import SecretStore

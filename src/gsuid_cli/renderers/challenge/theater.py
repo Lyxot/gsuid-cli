@@ -4,6 +4,10 @@ from collections.abc import Mapping
 
 from PIL import Image, ImageDraw
 
+from gsuid_cli.renderers._text_helpers import (
+    _mapping,
+    _mapping_list as _mapping_sequence,
+)
 from gsuid_cli.renderers.challenge.common import (
     append_url,
     avatar_with_ring,
@@ -15,7 +19,7 @@ from gsuid_cli.renderers.challenge.common import (
     remote_image,
     timestamp_text,
 )
-from gsuid_cli.renderers.common import asset_path, font, int_value, open_rgba, png_bytes, sequence
+from gsuid_cli.renderers.common import asset_path, font, int_value, open_rgba, png_bytes
 
 TEXTURE = asset_path("challenge", "theater", "textures")
 WIDTH = 1200
@@ -279,11 +283,3 @@ def _nickname(summary: Mapping[str, object]) -> str:
         if isinstance(nickname, str) and nickname:
             return nickname
     return "旅行者"
-
-
-def _mapping(value: object) -> Mapping[str, object]:
-    return value if isinstance(value, Mapping) else {}
-
-
-def _mapping_sequence(value: object) -> list[Mapping[str, object]]:
-    return [item for item in sequence(value) if isinstance(item, Mapping)]

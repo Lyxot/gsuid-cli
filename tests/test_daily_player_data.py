@@ -8,19 +8,20 @@ from pathlib import Path
 
 import httpx
 import pytest
-from helpers import json_response as _json_response
-from helpers import mock_client as _mock_client
-from helpers import run_json as _run_json
+from helpers import (
+    json_response as _json_response,
+    mock_client as _mock_client,
+    run_json as _run_json,
+)
 from PIL import Image
 
 from gsuid_cli.cli import run
-from gsuid_cli.commands import player as player_commands
+from gsuid_cli.commands.player import impl as player_commands
 from gsuid_cli.core.errors import EXIT_AUTH, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.secrets import SecretStore
-from gsuid_cli.providers.mys import RECORD_SALT, MysProvider
-from gsuid_cli.providers.mys import auth as mys_auth
+from gsuid_cli.providers.mys import RECORD_SALT, MysProvider, auth as mys_auth
 from gsuid_cli.providers.mys.constants import (
     BBS_LIKE_PATH,
     BBS_LIST_PATH,

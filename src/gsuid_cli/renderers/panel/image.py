@@ -15,6 +15,7 @@ from gsuid_cli.renderers.common import (
     int_value,
     open_rgba,
     png_bytes,
+    sequence as _sequence,
     text_value,
     v4_background,
 )
@@ -1920,10 +1921,6 @@ def _metric_scores(value: object) -> Mapping[str, float]:
     if not isinstance(value, Mapping):
         return {}
     return {str(key): _float_value(score) for key, score in value.items()}
-
-
-def _sequence(value: object) -> Sequence[object]:
-    return value if isinstance(value, list) else []
 
 
 def _dict(value: object) -> Mapping[str, object]:

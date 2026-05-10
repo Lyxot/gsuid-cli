@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from gsuid_cli.renderers._text_helpers import _finish, _first_mapping, _mapping, _mapping_list
 from gsuid_cli.renderers.challenge.common import timestamp_text
 from gsuid_cli.renderers.common import int_value, sequence, text_value
-from gsuid_cli.renderers.utility_text import _finish, _first_mapping, _mapping, _mapping_list
 
 DIFFICULTY_LABELS = {
     1: "简单模式",

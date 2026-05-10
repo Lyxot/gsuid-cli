@@ -2,27 +2,33 @@ from __future__ import annotations
 
 import argparse
 
+from gsuid_cli.commands._text import (
+    helps_from,
+    record_primary_image,
+    record_text_artifact,
+    safe_filename_part,
+    write_image_artifact,
+    write_text_artifact,
+)
 from gsuid_cli.commands.public_data._common import (
     _image_ext,
     _limit,
     _mapping_data,
     _optional_text,
     _provider,
-    _safe_filename,
 )
-from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
 from gsuid_cli.providers.assets import fetch_render_images
 from gsuid_cli.providers.public import PRIMOGEMS_PLAN_ASSET_DIR, PublicDataProvider
-from gsuid_cli.renderers.guide import (
+from gsuid_cli.renderers.guide.image import (
     guide_abyss_image_urls,
     guide_theater_image_urls,
     render_guide_abyss_card,
     render_guide_theater_card,
 )
-from gsuid_cli.renderers.guide_text import (
+from gsuid_cli.renderers.guide.text import (
     render_guide_abyss_text,
     render_guide_theater_text,
     render_recommend_build_text,
@@ -110,7 +116,7 @@ CAPABILITIES = [
     },
 ]
 
-_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+_HELPS = helps_from(CAPABILITIES)
 
 
 def guide_character_command(args: argparse.Namespace) -> CommandResult:
@@ -276,20 +282,17 @@ def _guide_image_result(
 ) -> CommandResult:
     response = provider.guide_image(kind=kind, character=character)
     render_name = "guide/character" if kind == "character" else "guide/reference-panel"
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+    artifact = write_image_artifact(
+        args,
         name=render_name,
-        filename=f"{render_name.replace('/', '-')}_{_safe_filename(character)}."
+        filename=f"{render_name.replace('/', '-')}_{safe_filename_part(character)}."
         f"{_image_ext(response.media_type)}",
         media_type=response.media_type,
         content=response.content,
         description=f"{render_name} 图片",
-        kind="image",
     )
-    render_data = {
-        "character": character,
-        "render": render_name,
-        "artifact_sha256": artifact["sha256"],
-    }
+    render_data: dict[str, object] = {"character": character}
+    record_primary_image(render_data, artifact)
     if kind == "reference-panel":
         render_data["available"] = True
         render_data["reference_panel"] = {
@@ -330,40 +333,26 @@ def _guide_abyss_render_result(args: argparse.Namespace, result: CommandResult) 
             max_workers=WIKI_IMAGE_WORKERS,
         )
         png = render_guide_abyss_card(render_abyss, asset_images=asset_images)
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="guide/abyss",
-            filename=f"guide-abyss_{_safe_filename(str(name))}.png",
-            media_type="image/png",
+            filename=f"guide-abyss_{safe_filename_part(str(name))}.png",
             content=png,
             description="深境螺旋怪物排布图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend(asset_warnings)
-        render_data.update(
-            {
-                "render": "guide/abyss",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name="guide/abyss-text",
-            filename=f"guide-abyss_{_safe_filename(str(name))}.txt",
+            filename=f"guide-abyss_{safe_filename_part(str(name))}.txt",
             content=render_guide_abyss_text(result.data),
             description="深境螺旋攻略文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": "guide/abyss-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -394,40 +383,26 @@ def _guide_theater_render_result(args: argparse.Namespace, result: CommandResult
             max_workers=WIKI_IMAGE_WORKERS,
         )
         png = render_guide_theater_card(theater, asset_images=asset_images)
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="guide/theater",
-            filename=f"guide-theater_{_safe_filename(name)}.png",
-            media_type="image/png",
+            filename=f"guide-theater_{safe_filename_part(name)}.png",
             content=png,
             description="幻想真境剧诗怪物排布图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend(asset_warnings)
-        render_data.update(
-            {
-                "render": "guide/theater",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name="guide/theater-text",
-            filename=f"guide-theater_{_safe_filename(name)}.txt",
+            filename=f"guide-theater_{safe_filename_part(name)}.txt",
             content=render_guide_theater_text(result.data),
             description="幻想真境剧诗攻略文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": "guide/theater-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -472,40 +447,26 @@ def _recommend_render_result(
             if render_kind == "build"
             else render_recommend_holder_card(result.data)
         )
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name=render_name,
-            filename=f"{render_name.replace('/', '-')}_{_safe_filename(name)}.png",
-            media_type="image/png",
+            filename=f"{render_name.replace('/', '-')}_{safe_filename_part(name)}.png",
             content=png,
             description=description,
-            kind="image",
         )
         artifacts.append(image_artifact)
-        render_data.update(
-            {
-                "render": render_name,
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
         text_render_name = f"{render_name}-text"
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name=text_render_name,
-            filename=f"{render_name.replace('/', '-')}_{_safe_filename(name)}.txt",
+            filename=f"{render_name.replace('/', '-')}_{safe_filename_part(name)}.txt",
             content=text_content,
             description=text_description,
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": text_render_name,
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -534,40 +495,26 @@ def _rerun_render_result(args: argparse.Namespace, result: CommandResult) -> Com
             max_workers=WIKI_IMAGE_WORKERS,
         )
         png = render_rerun_list(result.data, asset_images=asset_images)
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="rerun/list",
-            filename=f"rerun-list_{_safe_filename(version)}.png",
-            media_type="image/png",
+            filename=f"rerun-list_{safe_filename_part(version)}.png",
             content=png,
             description="复刻列表卡片图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend(asset_warnings)
-        render_data.update(
-            {
-                "render": "rerun/list",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name="rerun/list-text",
-            filename=f"rerun-list_{_safe_filename(version)}.txt",
+            filename=f"rerun-list_{safe_filename_part(version)}.txt",
             content=render_rerun_list_text(result.data),
             description="复刻列表文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": "rerun/list-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -602,20 +549,18 @@ def _primogems_plan_render_result(args: argparse.Namespace, result: CommandResul
             {"version": selected_version, "path": str(image_path)},
             source=result.source,
         ) from exc
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+    artifact = write_image_artifact(
+        args,
         name="misc/primogems-plan",
-        filename=f"primogems-plan_{_safe_filename(selected_version)}.png",
-        media_type="image/png",
+        filename=f"primogems-plan_{safe_filename_part(selected_version)}.png",
         content=content,
         description="版本原石预估图片",
-        kind="image",
     )
-    render_data = {
+    render_data: dict[str, object] = {
         "version": result.data.get("version"),
         "selected_version": selected_version,
-        "render": "misc/primogems-plan",
-        "artifact_sha256": artifact["sha256"],
     }
+    record_primary_image(render_data, artifact)
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -640,16 +585,16 @@ def _map_artifact_command(
         category=command,
     )
     filename = (
-        f"{artifact_name}_{_safe_filename(map_name)}_"
-        f"{_safe_filename(item)}.{_image_ext(response.media_type)}"
+        f"{artifact_name}_{safe_filename_part(map_name)}_"
+        f"{safe_filename_part(item)}.{_image_ext(response.media_type)}"
     )
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+    artifact = write_image_artifact(
+        args,
         name=artifact_name,
         filename=filename,
         media_type=response.media_type,
         content=response.content,
         description=f"{command} 图片",
-        kind="image",
     )
     return CommandResult(
         data={

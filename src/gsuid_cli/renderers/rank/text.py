@@ -4,15 +4,9 @@ import json
 from collections.abc import Mapping
 from functools import lru_cache
 
+from gsuid_cli.renderers._text_helpers import _finish, _mapping, _number, _number_text, _text
 from gsuid_cli.renderers.common import asset_path
-from gsuid_cli.renderers.utility_text import (
-    _finish,
-    _mapping,
-    _number,
-    _number_text,
-    _sequence,
-    _text,
-)
+from gsuid_cli.renderers.utility_text import _sequence
 
 PANEL_DATA = asset_path("panel", "data")
 STAT_LABELS = {

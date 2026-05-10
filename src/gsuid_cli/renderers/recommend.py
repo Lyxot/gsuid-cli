@@ -1,10 +1,16 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 
 from PIL import Image, ImageDraw
 
-from gsuid_cli.renderers.common import font, png_bytes, text_value, v4_background
+from gsuid_cli.renderers.common import (
+    font,
+    png_bytes,
+    sequence as _sequence,
+    text_value,
+    v4_background,
+)
 
 WIDTH = 900
 PAD = 48
@@ -164,10 +170,6 @@ def _text_height(text: str, text_font, draw: ImageDraw.ImageDraw) -> int:
         return 0
     bbox = draw.multiline_textbbox((0, 0), text, font=text_font, spacing=8)
     return bbox[3] - bbox[1]
-
-
-def _sequence(value: object) -> Sequence[object]:
-    return value if isinstance(value, list) else []
 
 
 def _text_list(value: object) -> list[str]:

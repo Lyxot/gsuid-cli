@@ -4,6 +4,7 @@ from collections.abc import Mapping, Sequence
 
 from PIL import Image, ImageDraw
 
+from gsuid_cli.renderers._text_helpers import _mapping_list
 from gsuid_cli.renderers.common import (
     asset_path,
     crop_center,
@@ -12,7 +13,6 @@ from gsuid_cli.renderers.common import (
     int_value,
     open_rgba,
     png_bytes,
-    sequence,
     text_value,
 )
 
@@ -316,10 +316,6 @@ def _placeholder_icon(size: tuple[int, int], label: str) -> Image.Image:
     )
     draw.text((size[0] // 2, size[1] // 2), label[:2], "white", font(max(size[0] // 4, 18)), "mm")
     return image
-
-
-def _mapping_list(value: object) -> list[Mapping[str, object]]:
-    return [item for item in sequence(value) if isinstance(item, Mapping)]
 
 
 def _append_url(urls: list[str], value: object) -> None:

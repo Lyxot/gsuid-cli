@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import sqlite3
 
-from gsuid_cli.commands._text import command_text_result, safe_filename_part
+from gsuid_cli.commands._text import command_subject_text_result, helps_from
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.state import get_setting, set_setting, state_db
@@ -48,7 +48,7 @@ CAPABILITIES = [
     },
 ]
 
-_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+_HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -202,17 +202,12 @@ def _profile_text_result(
     args: argparse.Namespace,
     data: dict[str, object],
 ) -> CommandResult | dict[str, object]:
-    command = str(args.command_name)
-    action = command.rsplit(".", 1)[-1]
     profile_data = data.get("profile")
-    subject = "list"
-    if isinstance(profile_data, dict):
-        subject = str(profile_data.get("name") or subject)
-    return command_text_result(
+    subject = str(profile_data.get("name") or "list") if isinstance(profile_data, dict) else "list"
+    return command_subject_text_result(
         args,
         data,
-        name=f"profile/{action}-text",
-        filename=f"profile-{action}_{safe_filename_part(subject)}.txt",
-        content=render_profile_command_text(command, data),
+        subject=subject,
+        render_fn=render_profile_command_text,
         description="本地配置文件文本",
     )

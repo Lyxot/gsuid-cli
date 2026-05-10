@@ -7,16 +7,18 @@ from pathlib import Path
 
 import httpx
 import pytest
-from helpers import json_response as _json_response
-from helpers import run_json as _run_json
+from helpers import json_response as _json_response, run_json as _run_json
 from PIL import Image
 
 from gsuid_cli.cli import run
 from gsuid_cli.core.errors import CliError
 from gsuid_cli.core.http import HttpClient, ProviderBytesResponse
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.providers import public as public_provider
-from gsuid_cli.providers.public import PublicDataProvider, _parse_active_codes
+from gsuid_cli.providers.public import (
+    PublicDataProvider,
+    _parse_active_codes,
+    provider as public_provider_impl,
+)
 from gsuid_cli.renderers import recommend as recommend_renderer
 
 
@@ -237,7 +239,7 @@ def test_daily_materials_plain_prints_image_path_when_render_image(monkeypatch, 
     text = stdout.getvalue()
     assert text.startswith("每日材料 - 周一\n")
     assert "\n\n图片已保存至: " in text
-    assert "daily-materials_monday_" in text
+    assert "daily-materials_monday" in text
     assert ".png" in text
     assert requested_urls
 
@@ -277,7 +279,7 @@ def test_daily_materials_plain_prints_image_only_path_with_blank_line(
     assert code == 0
     assert stderr.getvalue() == ""
     assert stdout.getvalue().startswith("\n图片已保存至: ")
-    assert "daily-materials_monday_" in stdout.getvalue()
+    assert "daily-materials_monday" in stdout.getvalue()
     assert requested_urls
 
 
@@ -439,7 +441,7 @@ def test_wiki_plain_text_image_prints_image_path(monkeypatch, tmp_path) -> None:
     assert text.startswith("食物资料 - Sweet Madame\n")
     assert "Flower x2" in text
     assert "\n\n图片已保存至: " in text
-    assert "wiki-food_Sweet_Madame_" in text
+    assert "wiki-food_Sweet_Madame" in text
     assert ".png" in text
     assert requested_urls
 
@@ -1030,7 +1032,7 @@ def test_daily_materials_default_day_uses_four_oclock_reset(monkeypatch) -> None
         def now(cls, tz=None):
             return datetime(2026, 4, 29, 3, 30, tzinfo=tz)
 
-    monkeypatch.setattr(public_provider, "datetime", FixedDatetime)
+    monkeypatch.setattr(public_provider_impl, "datetime", FixedDatetime)
     provider = PublicDataProvider(
         _sequence_client(
             [
@@ -1296,8 +1298,8 @@ var _SpiralAbyssFloorConfig = {
 
     def handler(request: httpx.Request) -> httpx.Response:
         requested_urls.append(str(request.url))
-        if str(request.url).startswith(public_provider.GENSHINUID_ABYSS_JS_COMMITS_URL):
-            assert request.url.params["path"] == public_provider.GENSHINUID_ABYSS_JS_PATH
+        if str(request.url).startswith(public_provider_impl.GENSHINUID_ABYSS_JS_COMMITS_URL):
+            assert request.url.params["path"] == public_provider_impl.GENSHINUID_ABYSS_JS_PATH
             assert request.url.params["per_page"] == "1"
             return httpx.Response(200, json=[{"sha": revision}])
         return httpx.Response(
@@ -1318,10 +1320,10 @@ var _SpiralAbyssFloorConfig = {
 
     assert requested_urls == [
         (
-            f"{public_provider.GENSHINUID_ABYSS_JS_COMMITS_URL}"
+            f"{public_provider_impl.GENSHINUID_ABYSS_JS_COMMITS_URL}"
             "?path=GenshinUID%2Fgenshinuid_guide%2Fabyss.js&per_page=1"
         ),
-        public_provider._genshinuid_abyss_js_url(revision),
+        public_provider_impl._genshinuid_abyss_js_url(revision),
     ]
     assert result.data["available"] is True
     assert result.source["provider"] == "genshinuid"
@@ -1516,7 +1518,7 @@ def test_primogems_plan_reports_bundled_versions(monkeypatch, tmp_path) -> None:
     image_dir.mkdir()
     (image_dir / "5.0.png").write_bytes(b"png")
     (image_dir / "4.8.png").write_bytes(b"png")
-    monkeypatch.setattr(public_provider, "PRIMOGEMS_PLAN_ASSET_DIR", image_dir)
+    monkeypatch.setattr(public_provider_impl, "PRIMOGEMS_PLAN_ASSET_DIR", image_dir)
     provider = PublicDataProvider(_sequence_client([]))
 
     result = provider.primogems_plan(version=None)

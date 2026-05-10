@@ -3,26 +3,32 @@ from __future__ import annotations
 import argparse
 from datetime import datetime
 
+from gsuid_cli.commands._text import (
+    helps_from,
+    record_primary_image,
+    record_text_artifact,
+    safe_filename_part,
+    write_image_artifact,
+    write_text_artifact,
+)
 from gsuid_cli.commands.public_data._common import (
     _limit,
     _mapping_data,
     _optional_text,
     _provider,
-    _safe_filename,
 )
-from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
 from gsuid_cli.providers.assets import fetch_render_images
-from gsuid_cli.renderers.events import (
+from gsuid_cli.renderers.events.image import (
     announcement_detail_image_urls,
     event_image_urls,
     render_announcement_detail_card,
     render_announcements_list_card,
     render_events_card,
 )
-from gsuid_cli.renderers.events_text import (
+from gsuid_cli.renderers.events.text import (
     render_announcement_detail_text,
     render_announcements_list_text,
     render_codes_text,
@@ -70,7 +76,7 @@ CAPABILITIES = [
     },
 ]
 
-_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+_HELPS = helps_from(CAPABILITIES)
 
 
 def events_list_command(args: argparse.Namespace) -> CommandResult:
@@ -198,41 +204,27 @@ def _events_render_result(
             max_workers=EVENT_IMAGE_WORKERS,
         )
         png = render_events_card(result.data, kind=render_kind, asset_images=asset_images)
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name=render_name,
             filename=f"{render_name.replace('/', '-')}.png",
-            media_type="image/png",
             content=png,
             description="活动列表卡片图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend(asset_warnings)
-        render_data.update(
-            {
-                "render": render_name,
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
         text_render_name = f"{render_name}-text"
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name=text_render_name,
             filename=f"{render_name.replace('/', '-')}.txt",
             content=render_events_text(result.data, kind=render_kind),
             description="活动列表文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": text_render_name,
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -252,12 +244,12 @@ def _text_render_result(
     content: str,
     description: str,
 ) -> CommandResult:
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+    artifact = write_text_artifact(
+        args,
         name=render_name,
         filename=filename,
         content=content,
         description=description,
-        kind="text",
     )
     data = render_result_data(
         args,
@@ -284,40 +276,26 @@ def _announcements_list_render_result(
     render_data: dict[str, object] = {}
     if render_image_enabled(args):
         png = render_announcements_list_card(result.data)
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="announcements/list",
             filename="announcements-list.png",
-            media_type="image/png",
             content=png,
             description="游戏公告列表卡片图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
-        render_data.update(
-            {
-                "render": "announcements/list",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
         text_render_name = "announcements/list-text"
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name=text_render_name,
             filename="announcements-list.txt",
             content=render_announcements_list_text(result.data),
             description="公告列表文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": text_render_name,
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -348,41 +326,27 @@ def _announcement_detail_render_result(
             max_workers=EVENT_IMAGE_WORKERS,
         )
         png = render_announcement_detail_card(announcement, asset_images=asset_images)
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="announcements/show",
-            filename=f"announcements-show_{_safe_filename(ann_id)}.png",
-            media_type="image/png",
+            filename=f"announcements-show_{safe_filename_part(ann_id)}.png",
             content=png,
             description="公告详情卡片图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend(asset_warnings)
-        render_data.update(
-            {
-                "render": "announcements/show",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
         text_render_name = "announcements/show-text"
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name=text_render_name,
-            filename=f"announcements-show_{_safe_filename(ann_id)}.txt",
+            filename=f"announcements-show_{safe_filename_part(ann_id)}.txt",
             content=render_announcement_detail_text(announcement),
             description="公告详情文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": text_render_name,
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,

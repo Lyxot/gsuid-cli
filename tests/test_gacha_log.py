@@ -9,8 +9,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import httpx
 import pytest
-from helpers import mock_client as _mock_client
-from helpers import run_json as _run_json
+from helpers import mock_client as _mock_client, run_json as _run_json
 from PIL import Image
 
 from gsuid_cli.cli import run
@@ -202,11 +201,11 @@ def test_gacha_summary_image_uses_profile_avatar(monkeypatch, tmp_path) -> None:
 
     monkeypatch.setattr(gacha, "provider_for_region", lambda _region, _http_client: Provider())
     monkeypatch.setattr(
-        "gsuid_cli.commands.player._player_profile_title_avatar_url",
+        "gsuid_cli.commands.player.impl._player_profile_title_avatar_url",
         lambda _args, _uid, _region: (profile_url, []),
     )
     monkeypatch.setattr(
-        "gsuid_cli.commands.player._player_profile_image_assets",
+        "gsuid_cli.commands.player.impl._player_profile_image_assets",
         lambda _args, url, _region: ({url: _png_bytes((255, 0, 0, 255))}, []),
     )
     role_url = "https://upload.example.test/role.png"

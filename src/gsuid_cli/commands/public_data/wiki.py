@@ -3,13 +3,19 @@ from __future__ import annotations
 import argparse
 from collections.abc import Mapping
 
+from gsuid_cli.commands._text import (
+    helps_from,
+    record_primary_image,
+    record_text_artifact,
+    safe_filename_part,
+    write_image_artifact,
+    write_text_artifact,
+)
 from gsuid_cli.commands.public_data._common import (
     _optional_text,
     _positive,
     _provider,
-    _safe_filename,
 )
-from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
@@ -99,11 +105,7 @@ CAPABILITIES = [
     },
 ]
 
-_HELPS = {
-    str(c.get("command", "")): str(c.get("description", ""))
-    for c in CAPABILITIES
-    if isinstance(c, dict)
-}
+_HELPS = helps_from(CAPABILITIES)
 
 
 def wiki_command(args: argparse.Namespace) -> CommandResult:
@@ -170,7 +172,7 @@ def talent_command(args: argparse.Namespace) -> CommandResult:
         args,
         result=result,
         render_name="wiki/talent-text",
-        filename=f"wiki-talent_{_safe_filename(args.character)}_{args.talent}.txt",
+        filename=f"wiki-talent_{safe_filename_part(args.character)}_{args.talent}.txt",
         content=render_wiki_talent_text(result.data),
         description=" wiki 天赋文本",
         render_data={"character": args.character, "talent": args.talent},
@@ -391,41 +393,27 @@ def _wiki_render_result(
             max_workers=WIKI_IMAGE_WORKERS,
         )
         png = _render_wiki_png(render_kind, image_item, asset_images, constellation=constellation)
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name=f"wiki/{output_render}",
-            filename=f"wiki-{output_render}_{_safe_filename(item_name)}{suffix}.png",
-            media_type="image/png",
+            filename=f"wiki-{output_render}_{safe_filename_part(item_name)}{suffix}.png",
             content=png,
             description=f"wiki {output_render} 卡片图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend(asset_warnings)
-        render_data.update(
-            {
-                "render": f"wiki/{output_render}",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     if text_enabled:
         text_render_name = f"wiki/{output_render}-text"
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name=text_render_name,
-            filename=f"wiki-{output_render}_{_safe_filename(item_name)}{suffix}.txt",
+            filename=f"wiki-{output_render}_{safe_filename_part(item_name)}{suffix}.txt",
             content=_render_wiki_text_content(output_render, result, item),
             description=f" wiki {output_render} 文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if image_enabled:
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": text_render_name,
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=image_enabled)
     data = render_result_data(args, result.data, render_data)
     if item_result is not None:
         warnings.extend(item_result.warnings)
@@ -448,12 +436,12 @@ def _wiki_text_render_result(
     description: str,
     render_data: dict[str, object],
 ) -> CommandResult:
-    artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+    artifact = write_text_artifact(
+        args,
         name=render_name,
         filename=filename,
         content=content,
         description=description,
-        kind="text",
     )
     data = render_result_data(
         args,

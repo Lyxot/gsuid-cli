@@ -1,0 +1,1 @@
+"""Guide renderers (image + text)."""

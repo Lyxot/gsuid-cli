@@ -8,12 +8,17 @@ from gsuid_cli.commands._shared import (
     _cookie_context,
     _mapping_data,
     _provider,
-    _safe_filename,
-    _write_image_artifact,
 )
-from gsuid_cli.commands.player import _player_title_render_context
+from gsuid_cli.commands._text import (
+    helps_from,
+    record_primary_image as _record_primary_image,
+    record_text_artifact as _record_text_artifact,
+    safe_filename_part,
+    write_image_artifact as _write_image_artifact,
+    write_text_artifact as _write_text_artifact,
+)
+from gsuid_cli.commands.player.impl import _player_title_render_context
 from gsuid_cli.commands.public_data._common import _provider as _public_provider
-from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
@@ -106,7 +111,7 @@ CAPABILITIES = [
     },
 ]
 
-_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+_HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -354,23 +359,18 @@ def _completion_render_result(
         image_artifact = _write_image_artifact(
             args,
             name="progress/completion",
-            filename=f"progress-completion_{_safe_filename(uid)}.png",
+            filename=f"progress-completion_{safe_filename_part(uid)}.png",
             description="探索完成度卡片图片",
             content=png,
         )
         artifacts.append(image_artifact)
         warnings.extend(image_warnings)
-        render_data.update(
-            {
-                "render": "progress/completion",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        _record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
         text_artifact = _write_text_artifact(
             args,
             name="progress/completion-text",
-            filename=f"progress-completion_{_safe_filename(uid)}.txt",
+            filename=f"progress-completion_{safe_filename_part(uid)}.txt",
             content=render_progress_completion_text(uid=uid, completion=completion),
             description="探索完成度文本",
         )
@@ -430,23 +430,18 @@ def _exploration_render_result(
         image_artifact = _write_image_artifact(
             args,
             name="progress/exploration",
-            filename=f"progress-exploration_{_safe_filename(uid)}.png",
+            filename=f"progress-exploration_{safe_filename_part(uid)}.png",
             description="世界探索进度卡片图片",
             content=png,
         )
         artifacts.append(image_artifact)
         warnings.extend([*completion_result.warnings, *title_warnings])
-        render_data.update(
-            {
-                "render": "progress/exploration",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        _record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
         text_artifact = _write_text_artifact(
             args,
             name="progress/exploration-text",
-            filename=f"progress-exploration_{_safe_filename(uid)}.txt",
+            filename=f"progress-exploration_{safe_filename_part(uid)}.txt",
             content=render_progress_exploration_text(uid=uid, exploration=exploration),
             description="世界探索进度文本",
         )
@@ -498,23 +493,18 @@ def _collection_render_result(
         image_artifact = _write_image_artifact(
             args,
             name="progress/collection",
-            filename=f"progress-collection_{_safe_filename(uid)}.png",
+            filename=f"progress-collection_{safe_filename_part(uid)}.png",
             description="收集进度卡片图片",
             content=png,
         )
         artifacts.append(image_artifact)
         warnings.extend(title_warnings)
-        render_data.update(
-            {
-                "render": "progress/collection",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        _record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
         text_artifact = _write_text_artifact(
             args,
             name="progress/collection-text",
-            filename=f"progress-collection_{_safe_filename(uid)}.txt",
+            filename=f"progress-collection_{safe_filename_part(uid)}.txt",
             content=render_progress_collection_text(uid=uid, collection=collection),
             description="收集进度文本",
         )
@@ -575,23 +565,18 @@ def _achievements_render_result(
         image_artifact = _write_image_artifact(
             args,
             name="progress/achievements",
-            filename=f"progress-achievements_{_safe_filename(uid)}.png",
+            filename=f"progress-achievements_{safe_filename_part(uid)}.png",
             description="成就分类进度卡片图片",
             content=png,
         )
         artifacts.append(image_artifact)
         warnings.extend([*title_warnings, *achievement_warnings])
-        render_data.update(
-            {
-                "render": "progress/achievements",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        _record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
         text_artifact = _write_text_artifact(
             args,
             name="progress/achievements-text",
-            filename=f"progress-achievements_{_safe_filename(uid)}.txt",
+            filename=f"progress-achievements_{safe_filename_part(uid)}.txt",
             content=render_progress_achievements_text(
                 uid=uid,
                 achievements=achievements,
@@ -644,23 +629,18 @@ def _gcg_render_result(
         image_artifact = _write_image_artifact(
             args,
             name="progress/gcg",
-            filename=f"progress-gcg_{_safe_filename(uid)}.png",
+            filename=f"progress-gcg_{safe_filename_part(uid)}.png",
             description="七圣召唤概览卡片图片",
             content=png,
         )
         artifacts.append(image_artifact)
         warnings.extend(image_warnings)
-        render_data.update(
-            {
-                "render": "progress/gcg",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        _record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
         text_artifact = _write_text_artifact(
             args,
             name="progress/gcg-text",
-            filename=f"progress-gcg_{_safe_filename(uid)}.txt",
+            filename=f"progress-gcg_{safe_filename_part(uid)}.txt",
             content=render_progress_gcg_text(uid=uid, gcg=gcg),
             description="七圣召唤进度文本",
         )
@@ -733,23 +713,18 @@ def _gcg_deck_render_result(
         image_artifact = _write_image_artifact(
             args,
             name="progress/gcg-deck",
-            filename=f"progress-gcg-deck_{_safe_filename(uid)}.png",
+            filename=f"progress-gcg-deck_{safe_filename_part(uid)}.png",
             description="七圣召唤卡组卡片图片",
             content=png,
         )
         artifacts.append(image_artifact)
         warnings.extend([*title_warnings, *card_warnings])
-        render_data.update(
-            {
-                "render": "progress/gcg-deck",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        _record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
         text_artifact = _write_text_artifact(
             args,
             name="progress/gcg-deck-text",
-            filename=f"progress-gcg-deck_{_safe_filename(uid)}.txt",
+            filename=f"progress-gcg-deck_{safe_filename_part(uid)}.txt",
             content=render_progress_gcg_deck_text(uid=uid, data=result.data),
             description="七圣召唤卡组进度文本",
         )
@@ -791,40 +766,6 @@ def _guide_render_result(
         source=result.source,
         warnings=result.warnings,
         pagination=result.pagination,
-    )
-
-
-def _write_text_artifact(
-    args: argparse.Namespace,
-    *,
-    name: str,
-    filename: str,
-    content: str,
-    description: str,
-) -> dict[str, object]:
-    return ArtifactManager(args.request_id, args.output_dir).write_text(
-        name=name,
-        filename=filename,
-        content=content,
-        description=description,
-        kind="text",
-    )
-
-
-def _record_text_artifact(
-    render_data: dict[str, object],
-    text_artifact: Mapping[str, object],
-    *,
-    image_enabled: bool,
-) -> None:
-    if image_enabled:
-        render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        return
-    render_data.update(
-        {
-            "render": text_artifact["name"],
-            "artifact_sha256": text_artifact["sha256"],
-        }
     )
 
 

@@ -8,6 +8,13 @@ import time
 from pathlib import Path
 
 from gsuid_cli import __version__
+from gsuid_cli.commands._text import (
+    helps_from,
+    record_primary_image,
+    record_text_artifact as _record_text_artifact,
+    write_image_artifact,
+    write_text_artifact,
+)
 from gsuid_cli.commands.auth import _credential, _uid_and_region
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_UPSTREAM, CliError
@@ -75,7 +82,7 @@ CAPABILITIES = [
     },
 ]
 
-_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+_HELPS = helps_from(CAPABILITIES)
 
 GACHA_TYPES = ("100", "200", "301", "302", "400", "500")
 GACHA_REFRESH_REQUEST_DELAY_SECONDS = 0.9
@@ -816,23 +823,18 @@ def _summary_render_result(
             summary=title_summary,
             title_avatar_url=title_avatar_url,
         )
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="gacha/summary",
             filename=f"gacha-summary_{uid}_{banner}.png",
-            media_type="image/png",
             content=png,
             description="祈愿记录汇总卡片图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
-        render_data.update(
-            {
-                "render": "gacha/summary",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     if render_text_enabled(args):
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name="gacha/summary-text",
             filename=f"gacha-summary_{uid}_{banner}.txt",
             content=render_gacha_summary_text(
@@ -842,7 +844,6 @@ def _summary_render_result(
                 summary=_summary_mapping(data),
             ),
             description="祈愿记录汇总文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
         _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -875,7 +876,7 @@ def _gacha_title_context(
     if previous_kind is not None:
         args.credential_kind = previous_kind
     try:
-        from gsuid_cli.commands.player import (
+        from gsuid_cli.commands.player.impl import (
             _player_profile_image_assets,
             _player_profile_title_avatar_url,
             _player_title_mys_icon_urls,
@@ -1004,12 +1005,12 @@ def _text_render_result(
     description: str,
     render_data: dict[str, object],
 ) -> CommandResult:
-    text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+    text_artifact = write_text_artifact(
+        args,
         name=render_name,
         filename=filename,
         content=content,
         description=description,
-        kind="text",
     )
     data = render_result_data(
         args,
@@ -1026,23 +1027,6 @@ def _text_render_result(
         source=result.source,
         warnings=result.warnings,
         pagination=result.pagination,
-    )
-
-
-def _record_text_artifact(
-    render_data: dict[str, object],
-    text_artifact: dict[str, object],
-    *,
-    image_enabled: bool,
-) -> None:
-    if image_enabled:
-        render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        return
-    render_data.update(
-        {
-            "render": text_artifact["name"],
-            "artifact_sha256": text_artifact["sha256"],
-        }
     )
 
 

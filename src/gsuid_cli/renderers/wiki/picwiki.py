@@ -6,6 +6,7 @@ from urllib.parse import quote
 
 from PIL import Image, ImageDraw, ImageFilter
 
+from gsuid_cli.renderers._text_helpers import _mapping
 from gsuid_cli.renderers.common import (
     asset_path,
     crop_center,
@@ -14,6 +15,7 @@ from gsuid_cli.renderers.common import (
     int_value,
     open_rgba,
     png_bytes,
+    sequence as _sequence,
     text_value,
 )
 
@@ -768,14 +770,6 @@ def _draw_text(
     anchor: str,
 ) -> None:
     draw.text(position, text, fill=fill, font=text_font, anchor=anchor)
-
-
-def _mapping(value: object) -> Mapping[str, object]:
-    return value if isinstance(value, Mapping) else {}
-
-
-def _sequence(value: object) -> Sequence[object]:
-    return value if isinstance(value, list) else []
 
 
 def _name(item: Mapping[str, object]) -> str:

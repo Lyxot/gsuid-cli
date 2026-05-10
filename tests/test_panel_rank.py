@@ -12,10 +12,10 @@ from helpers import run_json as _run_json
 from PIL import Image
 
 from gsuid_cli.cli import run
-from gsuid_cli.commands import panel as panel_commands
 from gsuid_cli.commands import rank as rank_commands
-from gsuid_cli.commands.panel import _refresh_cache_policy
-from gsuid_cli.commands.panel_cache import find_avatar, normalized_avatar
+from gsuid_cli.commands.panel import impl as panel_impl
+from gsuid_cli.commands.panel.cache import find_avatar, normalized_avatar
+from gsuid_cli.commands.panel.common import _refresh_cache_policy
 from gsuid_cli.core.errors import EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
@@ -29,12 +29,14 @@ from gsuid_cli.renderers.panel.metrics import (
     _base_area,
     panel_reference_metrics,
 )
-from gsuid_cli.renderers.rank_text import render_rank_artifact_text
+from gsuid_cli.renderers.rank.text import render_rank_artifact_text
+
+_PANEL_FETCH_IMAGES = "gsuid_cli.commands.panel.impl.fetch_render_images"
 
 
 def test_panel_refresh_list_show_compare_and_save(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr("gsuid_cli.commands.panel.impl.EnkaProvider", FakeEnkaProvider)
 
     code, payload = _run_json(["panel", "refresh", "--uid", "100000001"])
 
@@ -133,8 +135,11 @@ def test_panel_refresh_list_show_compare_and_save(monkeypatch, tmp_path) -> None
 def test_panel_show_render_image_writes_card(monkeypatch, tmp_path) -> None:
     captured_urls: list[str] = []
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
-    monkeypatch.setattr(panel_commands, "fetch_render_images", _fake_image_fetcher(captured_urls))
+    monkeypatch.setattr("gsuid_cli.commands.panel.impl.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr(
+        _PANEL_FETCH_IMAGES,
+        _fake_image_fetcher(captured_urls),
+    )
     monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
 
     code, _payload = _run_json(["panel", "refresh", "--uid", "100000001"])
@@ -185,8 +190,8 @@ def test_panel_show_render_image_writes_card(monkeypatch, tmp_path) -> None:
 
 def test_panel_show_render_data_image_preserves_structured_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
-    monkeypatch.setattr(panel_commands, "fetch_render_images", _fake_image_fetcher([]))
+    monkeypatch.setattr("gsuid_cli.commands.panel.impl.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr(_PANEL_FETCH_IMAGES, _fake_image_fetcher([]))
 
     code, _payload = _run_json(["panel", "refresh", "--uid", "100000001"])
     assert code == 0
@@ -203,7 +208,7 @@ def test_panel_show_render_data_image_preserves_structured_data(monkeypatch, tmp
 
 def test_panel_text_renders_for_group(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr("gsuid_cli.commands.panel.impl.EnkaProvider", FakeEnkaProvider)
 
     code, payload = _run_json(["panel", "refresh", "--uid", "100000001", "--render", "text"])
 
@@ -281,7 +286,7 @@ def test_panel_text_renders_for_group(monkeypatch, tmp_path) -> None:
 
 def test_panel_show_render_text_plain_prints_text(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr("gsuid_cli.commands.panel.impl.EnkaProvider", FakeEnkaProvider)
 
     code, _payload = _run_json(["panel", "refresh", "--uid", "100000001"])
     assert code == 0
@@ -341,8 +346,8 @@ def test_panel_compare_text_includes_elemental_deltas() -> None:
 
 def test_panel_show_render_text_image_keeps_image_primary(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
-    monkeypatch.setattr(panel_commands, "fetch_render_images", _fake_image_fetcher([]))
+    monkeypatch.setattr("gsuid_cli.commands.panel.impl.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr(_PANEL_FETCH_IMAGES, _fake_image_fetcher([]))
 
     code, _payload = _run_json(["panel", "refresh", "--uid", "100000001"])
     assert code == 0
@@ -375,8 +380,8 @@ def test_panel_show_render_text_image_keeps_image_primary(monkeypatch, tmp_path)
 
 def test_panel_compare_artifacts_showcase_render_images(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
-    monkeypatch.setattr(panel_commands, "fetch_render_images", _fake_image_fetcher([]))
+    monkeypatch.setattr("gsuid_cli.commands.panel.impl.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr(_PANEL_FETCH_IMAGES, _fake_image_fetcher([]))
 
     code, _payload = _run_json(["panel", "refresh", "--uid", "100000001"])
     assert code == 0
@@ -433,8 +438,8 @@ def test_panel_compare_artifacts_showcase_render_images(monkeypatch, tmp_path) -
 
 def test_panel_showcase_render_data_image_preserves_structured_data(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
-    monkeypatch.setattr(panel_commands, "fetch_render_images", _fake_image_fetcher([]))
+    monkeypatch.setattr("gsuid_cli.commands.panel.impl.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr(_PANEL_FETCH_IMAGES, _fake_image_fetcher([]))
 
     code, _payload = _run_json(["panel", "refresh", "--uid", "100000001"])
     assert code == 0
@@ -496,12 +501,12 @@ def test_panel_graduation_title_player_uses_mys_challenge_stats(monkeypatch, tmp
             )
 
     monkeypatch.setattr(
-        panel_commands,
-        "_credential",
+        "gsuid_cli.commands.panel.impl._credential",
         lambda _args, _uid: ("cookie", "environment", None),
     )
     monkeypatch.setattr(
-        panel_commands, "provider_for_region", lambda _region, _http: FakeMysProvider()
+        "gsuid_cli.commands.panel.impl.provider_for_region",
+        lambda _region, _http: FakeMysProvider(),
     )
     args = Namespace(timeout=1, cache="off", output_dir=str(tmp_path), debug=False)
     cache = {
@@ -514,7 +519,7 @@ def test_panel_graduation_title_player_uses_mys_challenge_stats(monkeypatch, tmp
         "avatars": [],
     }
 
-    player, warnings = panel_commands._graduation_title_player(
+    player, warnings = panel_impl._graduation_title_player(
         args,
         uid="100000001",
         region="cn",
@@ -531,8 +536,8 @@ def test_panel_graduation_title_player_uses_mys_challenge_stats(monkeypatch, tmp
 
 def test_panel_artifacts_render_data_image_uses_image_order(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
-    monkeypatch.setattr(panel_commands, "fetch_render_images", _fake_image_fetcher([]))
+    monkeypatch.setattr("gsuid_cli.commands.panel.impl.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr(_PANEL_FETCH_IMAGES, _fake_image_fetcher([]))
 
     code, _payload = _run_json(["panel", "refresh", "--uid", "100000001"])
     assert code == 0
@@ -685,8 +690,11 @@ def test_panel_refresh_mys_source_requires_cookie(monkeypatch, tmp_path) -> None
 def test_panel_refresh_auto_fetches_mys_but_keeps_current_enka(monkeypatch, tmp_path) -> None:
     mys_provider = FakeMysPanelProvider()
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
-    monkeypatch.setattr(panel_commands, "provider_for_region", lambda _region, _http: mys_provider)
+    monkeypatch.setattr("gsuid_cli.commands.panel.impl.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr(
+        "gsuid_cli.commands.panel.mys.provider_for_region",
+        lambda _region, _http: mys_provider,
+    )
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
     code, payload = _run_json(["panel", "refresh", "--uid", "100000001"])
@@ -702,8 +710,11 @@ def test_panel_refresh_auto_fetches_mys_but_keeps_current_enka(monkeypatch, tmp_
 def test_panel_refresh_auto_uses_mys_when_enka_is_outdated(monkeypatch, tmp_path) -> None:
     mys_provider = FakeMysPanelProvider()
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", StaleFakeEnkaProvider)
-    monkeypatch.setattr(panel_commands, "provider_for_region", lambda _region, _http: mys_provider)
+    monkeypatch.setattr("gsuid_cli.commands.panel.impl.EnkaProvider", StaleFakeEnkaProvider)
+    monkeypatch.setattr(
+        "gsuid_cli.commands.panel.mys.provider_for_region",
+        lambda _region, _http: mys_provider,
+    )
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
     code, payload = _run_json(["panel", "refresh", "--uid", "100000001"])
@@ -719,8 +730,11 @@ def test_panel_refresh_auto_uses_mys_when_enka_is_outdated(monkeypatch, tmp_path
 def test_panel_refresh_auto_adds_mys_only_characters(monkeypatch, tmp_path) -> None:
     mys_provider = FakeMysPanelProvider(extra_avatar=_xiangling_avatar())
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
-    monkeypatch.setattr(panel_commands, "provider_for_region", lambda _region, _http: mys_provider)
+    monkeypatch.setattr("gsuid_cli.commands.panel.impl.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr(
+        "gsuid_cli.commands.panel.mys.provider_for_region",
+        lambda _region, _http: mys_provider,
+    )
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
 
     code, payload = _run_json(["panel", "refresh", "--uid", "100000001"])
@@ -740,8 +754,11 @@ def test_panel_refresh_auto_adds_mys_only_characters(monkeypatch, tmp_path) -> N
 def test_panel_refresh_mys_keeps_matching_enka_cache(monkeypatch, tmp_path) -> None:
     mys_provider = FakeMysPanelProvider()
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
-    monkeypatch.setattr(panel_commands, "provider_for_region", lambda _region, _http: mys_provider)
+    monkeypatch.setattr("gsuid_cli.commands.panel.impl.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr(
+        "gsuid_cli.commands.panel.mys.provider_for_region",
+        lambda _region, _http: mys_provider,
+    )
 
     code, payload = _run_json(["panel", "refresh", "--uid", "100000001", "--source", "enka"])
     assert code == 0
@@ -760,8 +777,11 @@ def test_panel_refresh_mys_keeps_matching_enka_cache(monkeypatch, tmp_path) -> N
 def test_panel_refresh_mys_supplements_existing_enka_cache(monkeypatch, tmp_path) -> None:
     mys_provider = FakeMysPanelProvider(extra_avatar=_xiangling_avatar())
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.panel.EnkaProvider", FakeEnkaProvider)
-    monkeypatch.setattr(panel_commands, "provider_for_region", lambda _region, _http: mys_provider)
+    monkeypatch.setattr("gsuid_cli.commands.panel.impl.EnkaProvider", FakeEnkaProvider)
+    monkeypatch.setattr(
+        "gsuid_cli.commands.panel.mys.provider_for_region",
+        lambda _region, _http: mys_provider,
+    )
 
     code, payload = _run_json(["panel", "refresh", "--uid", "100000001", "--source", "enka"])
     assert code == 0

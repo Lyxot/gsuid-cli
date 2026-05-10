@@ -4,6 +4,10 @@ from collections.abc import Mapping
 
 from PIL import Image, ImageDraw
 
+from gsuid_cli.renderers._text_helpers import (
+    _mapping,
+    _mapping_list as _sequence,
+)
 from gsuid_cli.renderers.common import (
     asset_path,
     font,
@@ -192,11 +196,3 @@ def _card_urls(cards: list[Mapping[str, object]]) -> list[str]:
         if isinstance(url, str) and url and url not in urls:
             urls.append(url)
     return urls
-
-
-def _mapping(value: object) -> Mapping[str, object]:
-    return value if isinstance(value, Mapping) else {}
-
-
-def _sequence(value: object) -> list[Mapping[str, object]]:
-    return [item for item in value if isinstance(item, Mapping)] if isinstance(value, list) else []

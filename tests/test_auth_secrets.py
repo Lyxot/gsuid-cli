@@ -4,8 +4,7 @@ import io
 import json
 from pathlib import Path
 
-from helpers import run_json as _run_json
-from helpers import run_json_with_stderr as _run_json_with_stderr
+from helpers import run_json as _run_json, run_json_with_stderr as _run_json_with_stderr
 
 from gsuid_cli.cli import run
 from gsuid_cli.core.models import CommandResult

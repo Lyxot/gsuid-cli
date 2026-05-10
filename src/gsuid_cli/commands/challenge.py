@@ -8,15 +8,21 @@ from gsuid_cli.commands._shared import (
     _cookie_context,
     _mapping_data,
     _provider,
-    _safe_filename,
 )
-from gsuid_cli.commands.player import (
+from gsuid_cli.commands._text import (
+    helps_from,
+    record_primary_image,
+    record_text_artifact,
+    safe_filename_part,
+    write_image_artifact,
+    write_text_artifact,
+)
+from gsuid_cli.commands.player.impl import (
     ENKA_UI_BASE,
     _player_profile_image_assets,
     _player_profile_title_avatar_url,
     _summary_role_avatar_url,
 )
-from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
@@ -76,7 +82,7 @@ CAPABILITIES = [
     },
 ]
 
-_HELPS = {str(c["command"]): str(c["description"]) for c in CAPABILITIES}
+_HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -284,22 +290,16 @@ def _abyss_render_result(
             asset_images={**images, **title_images},
             avatar_url=avatar_url,
         )
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="challenge/abyss",
-            filename=f"challenge-abyss_{_safe_filename(uid)}.png",
-            media_type="image/png",
+            filename=f"challenge-abyss_{safe_filename_part(uid)}.png",
             content=png,
             description="深境螺旋卡片图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend([*rank_warnings, *title_warnings, *image_warnings])
-        render_data.update(
-            {
-                "render": "challenge/abyss",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     else:
         summary, title_warnings = _challenge_title_summary_context(
             provider,
@@ -311,23 +311,15 @@ def _abyss_render_result(
         )
         warnings.extend(title_warnings)
     if render_text_enabled(args):
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name="challenge/abyss-text",
-            filename=f"challenge-abyss_{_safe_filename(uid)}.txt",
+            filename=f"challenge-abyss_{safe_filename_part(uid)}.txt",
             content=render_challenge_abyss_text(uid=uid, abyss=abyss, summary=summary),
             description="深境螺旋挑战文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": "challenge/abyss-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -379,22 +371,16 @@ def _theater_render_result(
             asset_images={**images, **title_images},
             avatar_url=avatar_url,
         )
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="challenge/theater",
-            filename=f"challenge-theater_{_safe_filename(uid)}.png",
-            media_type="image/png",
+            filename=f"challenge-theater_{safe_filename_part(uid)}.png",
             content=png,
             description="幻想真境剧诗卡片图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend([*title_warnings, *image_warnings])
-        render_data.update(
-            {
-                "render": "challenge/theater",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     else:
         summary, title_warnings = _challenge_title_summary_context(
             provider,
@@ -406,23 +392,15 @@ def _theater_render_result(
         )
         warnings.extend(title_warnings)
     if render_text_enabled(args):
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name="challenge/theater-text",
-            filename=f"challenge-theater_{_safe_filename(uid)}.txt",
+            filename=f"challenge-theater_{safe_filename_part(uid)}.txt",
             content=render_challenge_theater_text(uid=uid, theater=theater, summary=summary),
             description="幻想真境剧诗挑战文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": "challenge/theater-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -474,22 +452,16 @@ def _hard_render_result(
             asset_images={**images, **title_images},
             avatar_url=avatar_url,
         )
-        image_artifact = ArtifactManager(args.request_id, args.output_dir).write_bytes(
+        image_artifact = write_image_artifact(
+            args,
             name="challenge/hard",
-            filename=f"challenge-hard_{_safe_filename(uid)}.png",
-            media_type="image/png",
+            filename=f"challenge-hard_{safe_filename_part(uid)}.png",
             content=png,
             description="深罪旋曜挑战卡片图片",
-            kind="image",
         )
         artifacts.append(image_artifact)
         warnings.extend([*title_warnings, *image_warnings])
-        render_data.update(
-            {
-                "render": "challenge/hard",
-                "artifact_sha256": image_artifact["sha256"],
-            }
-        )
+        record_primary_image(render_data, image_artifact)
     else:
         summary, title_warnings = _challenge_title_summary_context(
             provider,
@@ -501,23 +473,15 @@ def _hard_render_result(
         )
         warnings.extend(title_warnings)
     if render_text_enabled(args):
-        text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+        text_artifact = write_text_artifact(
+            args,
             name="challenge/hard-text",
-            filename=f"challenge-hard_{_safe_filename(uid)}.txt",
+            filename=f"challenge-hard_{safe_filename_part(uid)}.txt",
             content=render_challenge_hard_text(uid=uid, hard=hard, summary=summary),
             description="深罪旋曜挑战文本",
-            kind="text",
         )
         artifacts.append(text_artifact)
-        if render_image_enabled(args):
-            render_data["text_artifact_sha256"] = text_artifact["sha256"]
-        else:
-            render_data.update(
-                {
-                    "render": "challenge/hard-text",
-                    "artifact_sha256": text_artifact["sha256"],
-                }
-            )
+        record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
     data = render_result_data(args, result.data, render_data)
     return CommandResult(
         data=data,
@@ -529,12 +493,12 @@ def _hard_render_result(
 
 
 def _hard_rank_render_result(args: argparse.Namespace, result: CommandResult) -> CommandResult:
-    text_artifact = ArtifactManager(args.request_id, args.output_dir).write_text(
+    text_artifact = write_text_artifact(
+        args,
         name="challenge/hard-rank-text",
         filename="challenge-hard-rank.txt",
         content=render_challenge_hard_rank_text(result.data),
         description="深罪旋曜排名支持状态文本",
-        kind="text",
     )
     data = render_result_data(
         args,
