@@ -49,7 +49,7 @@ def test_capabilities_have_matching_help_paths() -> None:
     missing = []
     mismatched = []
 
-    for command in capabilities_command(argparse.Namespace())["commands"]:
+    for command in capabilities_command(argparse.Namespace(render="data"))["commands"]:
         command_name = str(command["command"])
         path = tuple(command_name.split("."))
         parser = parsers_by_path.get(path)

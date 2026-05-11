@@ -249,7 +249,7 @@ def _global_options() -> list[dict[str, object]]:
         {
             "name": "--render",
             "value": "data|image|text|all",
-            "default": "data",
+            "default": "data,text",
             "placement": "anywhere",
             "description": "逗号分隔的渲染模式。可重复使用。",
         },

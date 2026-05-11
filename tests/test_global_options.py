@@ -127,7 +127,7 @@ def test_debug_restores_data_sources_and_writes_debug_artifact(tmp_path) -> None
     payload = json.loads(stdout.getvalue())
     assert payload["data"]["package"] == "gsuid-cli"
     assert payload["sources"][0]["provider"] == "local"
-    debug_artifact = payload["artifacts"][0]
+    debug_artifact = next(a for a in payload["artifacts"] if a["kind"] == "debug")
     assert debug_artifact["kind"] == "debug"
     debug_payload = json.loads(Path(debug_artifact["path"]).read_text(encoding="utf-8"))
     assert debug_payload["data"]["package"] == "gsuid-cli"
@@ -138,7 +138,7 @@ def test_plain_format_prints_direct_result_data() -> None:
     stdout = io.StringIO()
     stderr = io.StringIO()
 
-    code = run(["meta", "version", "--format=plain"], stdout=stdout, stderr=stderr)
+    code = run(["meta", "version", "--format=plain", "--render=data"], stdout=stdout, stderr=stderr)
 
     assert code == 0
     assert stderr.getvalue() == ""
@@ -185,6 +185,7 @@ def test_debug_plain_format_still_writes_debug_artifact(tmp_path) -> None:
         [
             "--debug",
             "--format=plain",
+            "--render=data",
             "--output-dir",
             str(tmp_path),
             "--request-id=req-debug-plain",
@@ -322,7 +323,7 @@ def test_profile_and_uid_work_after_command_tokens(monkeypatch, tmp_path) -> Non
     )
     assert code == 0
 
-    code, payload, stderr = _run_json(["player", "inventory", "--profile", "alt"])
+    code, payload, stderr = _run_json(["player", "inventory", "--render=data", "--profile", "alt"])
 
     assert code == 0
     assert stderr == ""

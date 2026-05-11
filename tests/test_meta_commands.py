@@ -29,7 +29,7 @@ def test_meta_paths_respects_home_and_output_dir(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(home))
 
     code, payload, _stderr = _run_json(
-        ["--request-id", "req-paths", "--output-dir", str(output), "meta", "paths"]
+        ["--request-id", "req-paths", "--render=data", "--output-dir", str(output), "meta", "paths"]
     )
 
     assert code == 0

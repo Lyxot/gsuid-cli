@@ -6,7 +6,7 @@
 
 该工具的标准输出契约为标准输出（stdout）中的 JSON 数据。所有的警告、进度和人类可读提示都会输出到标准错误（stderr）中。渲染的图片、地图及导出的文件等会被保存到本地磁盘中，并在 JSON 中返回其绝对路径。你可以运行 `meta capabilities` 命令查看哪些命令目前支持返回图片产物。
 
-默认的渲染模式为 `data`，因此 JSON 输出会包含结构化的 `data` 和 `sources`。如果你只想要紧凑的产物包（不包含大量 JSON 数据），你可以选择非数据渲染模式，比如 `--render image` 或 `--render text`。加上 `--debug` 选项将会在本地生成包含完整细节的 `debug-envelope.json` 文件用于诊断。
+默认的渲染模式为 `data,text`，因此 JSON 输出会包含结构化的 `data` 和 `sources`。如果你只想要紧凑的产物包（不包含大量 JSON 数据），你可以选择非数据渲染模式，比如 `--render image` 或 `--render text`。加上 `--debug` 选项将会在本地生成包含完整细节的 `debug-envelope.json` 文件用于诊断。
 如果添加了 `--format plain` 选项，文本渲染模式将直接在终端打印人类可读的文本，而图片渲染模式会打印生成的图片路径。
 
 ## 安装指南 (Installation Guide)
@@ -156,10 +156,10 @@ gsuid --render image player summary
 
 如果图片生成成功，JSON 返回结果的 `artifacts` 数组中将会包含一条记录，告诉你生成图片在本地的绝对路径。
 
-如果你希望直接在终端中查看人类可读的文本结果（而不是 JSON 数据），请使用 `--render text --format plain` 选项：
+如果你希望直接在终端中查看人类可读的文本结果（而不是 JSON 数据），请使用 `--format plain` 选项：
 
 ```sh
-gsuid --render text --format plain daily note
+gsuid --format plain daily note
 ```
 
 如果你想一次性获取全部渲染结果（包括文本产物和精美的图片），可以使用 `--render all`：

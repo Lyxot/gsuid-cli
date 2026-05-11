@@ -31,7 +31,7 @@ def normalize_render_modes(value: object) -> list[str]:
                 continue
             if mode not in modes:
                 modes.append(mode)
-    return modes or ["data"]
+    return modes or ["data", "text"]
 
 
 def render_data_enabled(args: object) -> bool:

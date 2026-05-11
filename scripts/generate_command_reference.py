@@ -17,7 +17,7 @@ OUTPUT = ROOT / "docs" / "commands.md"
 
 
 def render_command_reference() -> str:
-    capabilities = capabilities_command(argparse.Namespace())["commands"]
+    capabilities = capabilities_command(argparse.Namespace(render="data"))["commands"]
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for command in capabilities:
         group = str(command["command"]).split(".", 1)[0]
