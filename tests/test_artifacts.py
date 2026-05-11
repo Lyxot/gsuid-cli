@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+import os
+import time
+from datetime import datetime
 from pathlib import Path
 
 from helpers import UUIDV7_RE
 
-from gsuid_cli.core.artifacts import ArtifactManager, artifact_run_id
+from gsuid_cli.core.artifacts import ArtifactManager, artifact_date, artifact_run_id
 
 
 def test_artifact_manager_write_text(monkeypatch, tmp_path) -> None:
@@ -28,6 +31,29 @@ def test_artifact_manager_write_text(monkeypatch, tmp_path) -> None:
     assert artifact["kind"] == "text"
     assert artifact["media_type"] == "text/plain; charset=utf-8"
     assert artifact["sha256"] == hashlib.sha256(content).hexdigest()
+
+
+def test_artifact_date_uses_local_machine_day(monkeypatch) -> None:
+    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-05-07T18:30:00Z")
+
+    if not hasattr(time, "tzset"):
+        expected = (
+            datetime.fromisoformat("2026-05-07T18:30:00+00:00").astimezone().date().isoformat()
+        )
+        assert artifact_date() == expected
+        return
+
+    original_tz = os.environ.get("TZ")
+    monkeypatch.setenv("TZ", "Asia/Singapore")
+    time.tzset()
+    try:
+        assert artifact_date() == "2026-05-08"
+    finally:
+        if original_tz is None:
+            monkeypatch.delenv("TZ", raising=False)
+        else:
+            monkeypatch.setenv("TZ", original_tz)
+        time.tzset()
 
 
 def test_artifact_run_directory_is_uuidv7_and_time_sortable(monkeypatch, tmp_path) -> None:

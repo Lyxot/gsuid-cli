@@ -60,7 +60,7 @@ class ArtifactManager:
         )
 
     def _request_dir(self) -> Path:
-        today = utc_now()[:10]
+        today = artifact_date()
         run_id = self.artifact_id or artifact_run_id(self.request_id)
         path = resolve_paths(self.output_dir).artifacts / today / run_id
         path.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -71,6 +71,12 @@ class ArtifactManager:
 def artifact_run_id(request_id: str) -> str:
     """Return the sortable artifact directory id for a CLI request."""
     return uuidv7()
+
+
+def artifact_date() -> str:
+    """Return the local machine date bucket for the current request time."""
+    now = datetime.fromisoformat(utc_now().replace("Z", "+00:00"))
+    return now.astimezone().date().isoformat()
 
 
 def uuidv7() -> str:
