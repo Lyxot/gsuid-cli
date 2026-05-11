@@ -10,6 +10,7 @@ from urllib.parse import parse_qsl
 import httpx
 import pytest
 from helpers import (
+    assert_artifact_parent,
     json_response as _json_response,
     mock_client as _mock_client,
     run_json as _run_json,
@@ -124,7 +125,7 @@ def test_challenge_render_images(monkeypatch, tmp_path) -> None:
         assert payload["data"]["render"] == render
         artifact = payload["artifacts"][0]
         path = Path(artifact["path"])
-        assert path.parent == tmp_path / "artifacts" / "2026-04-29" / command
+        assert_artifact_parent(path, tmp_path / "artifacts")
         assert artifact["media_type"] == "image/png"
         assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
         with Image.open(path) as image:
@@ -218,7 +219,7 @@ def test_challenge_commands_render_text_write_artifacts(monkeypatch, tmp_path) -
         assert payload["data"]["render"] == render_name
         artifact = payload["artifacts"][0]
         path = Path(artifact["path"])
-        assert path.parent == tmp_path / "artifacts" / "2026-04-29" / f"challenge-text-{index}"
+        assert_artifact_parent(path, tmp_path / "artifacts")
         assert artifact["kind"] == "text"
         assert artifact["media_type"] == "text/plain; charset=utf-8"
         assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
@@ -371,7 +372,7 @@ def test_progress_render_images(monkeypatch, tmp_path) -> None:
             assert payload["data"]["deck_name"] == "Deck"
         artifact = payload["artifacts"][0]
         path = Path(artifact["path"])
-        assert path.parent == tmp_path / "artifacts" / "2026-04-29" / command
+        assert_artifact_parent(path, tmp_path / "artifacts")
         assert artifact["media_type"] == "image/png"
         assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
         with Image.open(path) as image:
@@ -469,7 +470,7 @@ def test_progress_commands_render_text_write_artifacts(monkeypatch, tmp_path) ->
         assert payload["data"]["render"] == render_name
         artifact = payload["artifacts"][0]
         path = Path(artifact["path"])
-        assert path.parent == tmp_path / "artifacts" / "2026-04-29" / f"progress-text-{index}"
+        assert_artifact_parent(path, tmp_path / "artifacts")
         assert artifact["kind"] == "text"
         assert artifact["media_type"] == "text/plain; charset=utf-8"
         assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()

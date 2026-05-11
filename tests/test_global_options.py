@@ -4,7 +4,7 @@ import io
 import json
 from pathlib import Path
 
-from helpers import run_json_with_stderr as _run_json
+from helpers import UUIDV7_RE, run_json_with_stderr as _run_json
 
 from gsuid_cli.cli import _write_payload, run
 from gsuid_cli.core.models import CommandResult
@@ -102,7 +102,7 @@ def test_repeated_render_values_can_include_data(tmp_path) -> None:
     payload = json.loads(stdout.getvalue())
     assert payload["data"]["package"] == "gsuid-cli"
     assert payload["sources"][0]["provider"] == "local"
-    assert list(tmp_path.glob("*/debug-envelope.json")) == []
+    assert list(tmp_path.glob("*/*/debug-envelope.json")) == []
 
 
 def test_debug_restores_data_sources_and_writes_debug_artifact(tmp_path) -> None:
@@ -200,8 +200,9 @@ def test_debug_plain_format_still_writes_debug_artifact(tmp_path) -> None:
     assert stderr.getvalue() == ""
     payload = json.loads(stdout.getvalue())
     assert payload["package"] == "gsuid-cli"
-    debug_artifacts = list(tmp_path.glob("*/req-debug-plain/debug-envelope.json"))
+    debug_artifacts = list(tmp_path.glob("*/*/debug-envelope.json"))
     assert len(debug_artifacts) == 1
+    assert UUIDV7_RE.fullmatch(debug_artifacts[0].parent.name)
 
 
 def test_text_format_name_is_rejected() -> None:

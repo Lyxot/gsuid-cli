@@ -9,6 +9,7 @@ from pathlib import Path
 import httpx
 import pytest
 from helpers import (
+    assert_artifact_parent,
     json_response as _json_response,
     mock_client as _mock_client,
     run_json as _run_json,
@@ -124,7 +125,7 @@ def test_daily_note_render_image_writes_daily_note_card(monkeypatch, tmp_path) -
     artifact = payload["artifacts"][0]
     path = Path(artifact["path"])
     content = path.read_bytes()
-    assert path.parent == tmp_path / "artifacts" / "2026-04-29" / "daily-img"
+    assert_artifact_parent(path, tmp_path / "artifacts")
     assert artifact["media_type"] == "image/png"
     assert artifact["sha256"] == hashlib.sha256(content).hexdigest()
     with Image.open(path) as image:
@@ -170,7 +171,7 @@ def test_daily_note_render_text_writes_artifact(monkeypatch, tmp_path) -> None:
     assert payload["data"]["render"] == "daily/note-text"
     artifact = payload["artifacts"][0]
     path = Path(artifact["path"])
-    assert path.parent == tmp_path / "artifacts" / "2026-04-29" / "daily-note-text"
+    assert_artifact_parent(path, tmp_path / "artifacts")
     assert artifact["kind"] == "text"
     assert artifact["media_type"] == "text/plain; charset=utf-8"
     assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
@@ -477,7 +478,7 @@ def test_player_characters_render_image_writes_character_card(monkeypatch, tmp_p
     artifact = payload["artifacts"][0]
     path = Path(artifact["path"])
     content = path.read_bytes()
-    assert path.parent == tmp_path / "artifacts" / "2026-04-29" / "player-characters-img"
+    assert_artifact_parent(path, tmp_path / "artifacts")
     assert artifact["media_type"] == "image/png"
     assert artifact["sha256"] == hashlib.sha256(content).hexdigest()
     with Image.open(path) as image:
@@ -561,7 +562,7 @@ def test_player_summary_render_image_writes_full_role_card(monkeypatch, tmp_path
     artifact = payload["artifacts"][0]
     path = Path(artifact["path"])
     content = path.read_bytes()
-    assert path.parent == tmp_path / "artifacts" / "2026-04-29" / "player-summary-img"
+    assert_artifact_parent(path, tmp_path / "artifacts")
     assert artifact["media_type"] == "image/png"
     assert artifact["sha256"] == hashlib.sha256(content).hexdigest()
     assert (
@@ -741,7 +742,7 @@ def test_player_commands_render_text_write_artifacts(monkeypatch, tmp_path) -> N
         assert payload["data"]["render"] == render_name
         artifact = payload["artifacts"][0]
         path = Path(artifact["path"])
-        assert path.parent == tmp_path / "artifacts" / "2026-04-29" / f"player-text-{index}"
+        assert_artifact_parent(path, tmp_path / "artifacts")
         assert artifact["kind"] == "text"
         assert artifact["media_type"] == "text/plain; charset=utf-8"
         assert artifact["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()

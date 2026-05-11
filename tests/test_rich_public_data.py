@@ -7,7 +7,7 @@ from pathlib import Path
 
 import httpx
 import pytest
-from helpers import debug_json_argv, strip_debug_artifacts
+from helpers import assert_artifact_parent, debug_json_argv, strip_debug_artifacts
 
 from gsuid_cli.cli import run
 from gsuid_cli.core.errors import CliError
@@ -38,7 +38,7 @@ def test_map_find_writes_image_artifact(monkeypatch, tmp_path) -> None:
     artifact = payload["artifacts"][0]
     path = Path(artifact["path"])
     content = path.read_bytes()
-    assert path.parent == tmp_path / "artifacts" / "2026-04-29" / "map-req"
+    assert_artifact_parent(path, tmp_path / "artifacts")
     assert artifact["media_type"] == "image/jpeg"
     assert artifact["sha256"] == hashlib.sha256(content).hexdigest()
     assert payload["data"]["marker_count"] is None

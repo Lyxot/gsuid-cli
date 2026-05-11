@@ -8,7 +8,7 @@ from argparse import Namespace
 from pathlib import Path
 
 import httpx
-from helpers import run_json as _run_json
+from helpers import assert_artifact_parent, run_json as _run_json
 from PIL import Image
 
 from gsuid_cli.cli import run
@@ -180,7 +180,7 @@ def test_panel_show_render_image_writes_card(monkeypatch, tmp_path) -> None:
     artifact = payload["artifacts"][0]
     path = Path(artifact["path"])
     content = path.read_bytes()
-    assert path.parent == tmp_path / "artifacts" / "2026-04-29" / "panel-img"
+    assert_artifact_parent(path, tmp_path / "artifacts")
     assert artifact["media_type"] == "image/png"
     assert artifact["sha256"] == hashlib.sha256(content).hexdigest()
     with Image.open(path) as image:

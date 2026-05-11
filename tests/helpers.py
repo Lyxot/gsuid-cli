@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import re
 import tempfile
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from gsuid_cli.core.http import HttpClient
 
 _TEST_HOME = Path(tempfile.mkdtemp(prefix="gsuid-cli-tests-"))
 os.environ.setdefault("GSUID_HOME", str(_TEST_HOME))
+UUIDV7_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 
 
 def run_json(argv: list[str]) -> tuple[int, dict[str, object]]:
@@ -70,3 +72,13 @@ def json_response(
     headers: dict[str, str] | None = None,
 ) -> httpx.Response:
     return httpx.Response(200, json=payload, headers=headers)
+
+
+def assert_artifact_parent(
+    path: Path,
+    base: Path,
+    *,
+    date: str = "2026-04-29",
+) -> None:
+    assert path.parent.parent == base / date
+    assert UUIDV7_RE.fullmatch(path.parent.name)

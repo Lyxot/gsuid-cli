@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import hashlib
+import secrets
+import uuid
 from dataclasses import dataclass
+from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 
 from gsuid_cli.core.config import resolve_paths
@@ -12,6 +16,7 @@ from gsuid_cli.core.time import utc_now
 class ArtifactManager:
     request_id: str
     output_dir: str | None = None
+    artifact_id: str | None = None
 
     def write_bytes(
         self,
@@ -56,6 +61,31 @@ class ArtifactManager:
 
     def _request_dir(self) -> Path:
         today = utc_now()[:10]
-        path = resolve_paths(self.output_dir).artifacts / today / self.request_id
+        run_id = self.artifact_id or artifact_run_id(self.request_id)
+        path = resolve_paths(self.output_dir).artifacts / today / run_id
         path.mkdir(mode=0o700, parents=True, exist_ok=True)
         return path
+
+
+@lru_cache(maxsize=4096)
+def artifact_run_id(request_id: str) -> str:
+    """Return the sortable artifact directory id for a CLI request."""
+    return uuidv7()
+
+
+def uuidv7() -> str:
+    """Generate an RFC 9562 UUIDv7 string without requiring Python 3.14."""
+    timestamp_ms = _current_unix_ms()
+    random_a = secrets.randbits(12)
+    random_b = secrets.randbits(62)
+    value = (timestamp_ms & ((1 << 48) - 1)) << 80
+    value |= 0x7 << 76
+    value |= random_a << 64
+    value |= 0b10 << 62
+    value |= random_b
+    return str(uuid.UUID(int=value))
+
+
+def _current_unix_ms() -> int:
+    now = datetime.fromisoformat(utc_now().replace("Z", "+00:00"))
+    return int(now.timestamp() * 1000)
