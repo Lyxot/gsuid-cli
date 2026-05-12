@@ -9,6 +9,11 @@ EXPANDED_ALL = ("data", "image", "text")
 
 
 def normalize_render_modes(value: object) -> list[str]:
+    modes = explicit_render_modes(value, expand_all=True)
+    return modes or ["data", "text"]
+
+
+def explicit_render_modes(value: object, *, expand_all: bool = False) -> list[str]:
     raw_values = _raw_values(value)
     modes: list[str] = []
     for raw in raw_values:
@@ -24,14 +29,14 @@ def normalize_render_modes(value: object) -> list[str]:
                     EXIT_INVALID_INPUT,
                     {"render": mode},
                 )
-            if mode == "all":
+            if mode == "all" and expand_all:
                 for expanded in EXPANDED_ALL:
                     if expanded not in modes:
                         modes.append(expanded)
                 continue
             if mode not in modes:
                 modes.append(mode)
-    return modes or ["data", "text"]
+    return modes
 
 
 def render_data_enabled(args: object) -> bool:

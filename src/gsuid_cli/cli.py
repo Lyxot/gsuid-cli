@@ -38,7 +38,7 @@ from gsuid_cli.core.errors import (
 )
 from gsuid_cli.core.http import begin_source_capture, end_source_capture
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.render import normalize_render_modes, render_data_enabled
+from gsuid_cli.core.render import explicit_render_modes, normalize_render_modes, render_data_enabled
 from gsuid_cli.core.secrets import redact_secret
 
 GLOBAL_VALUE_OPTIONS = {
@@ -234,13 +234,17 @@ def run(
             captured_sources = end_source_capture(source_capture)
         if not isinstance(result, CommandResult):
             result = CommandResult(data=result)
+        render_warnings = _unsupported_render_warnings(
+            command,
+            getattr(args, "explicit_render", []),
+        )
         payload = success_envelope(
             command=command,
             request_id=request_id,
             duration_ms=_duration_ms(started),
             data=result.data,
             region=args.region,
-            warnings=result.warnings,
+            warnings=[*result.warnings, *render_warnings],
             artifacts=result.artifacts,
             sources=_result_sources(result, captured_sources),
             pagination=result.pagination,
@@ -394,6 +398,7 @@ def _validate_runtime_defaults(args: argparse.Namespace) -> None:
             EXIT_INVALID_INPUT,
             {"format": args.format},
         )
+    args.explicit_render = explicit_render_modes(args.render)
     args.render = normalize_render_modes(args.render)
     if args.timeout <= 0:
         raise CliError(
@@ -464,6 +469,32 @@ def _write_payload(
     error = payload["error"]
     if isinstance(error, dict):
         stderr.write(f"{error['code']}: {error['message']}\n")
+
+
+def _unsupported_render_warnings(command: str, requested: object) -> list[str]:
+    requested_modes = requested if isinstance(requested, list) else explicit_render_modes(requested)
+    if not requested_modes:
+        return []
+    supported = _command_supported_renders(command)
+    if not supported:
+        return []
+    unsupported = [
+        str(mode) for mode in requested_modes if mode != "all" and str(mode) not in supported
+    ]
+    if not unsupported:
+        return []
+    return [f"{command} 不支持渲染模式: {', '.join(unsupported)}，已忽略。"]
+
+
+def _command_supported_renders(command: str) -> set[str]:
+    for capability in meta._capabilities():
+        if capability.get("command") != command:
+            continue
+        renders = capability.get("render")
+        if isinstance(renders, list):
+            return {str(render) for render in renders}
+        return set()
+    return set()
 
 
 def _json_payload_for_output(

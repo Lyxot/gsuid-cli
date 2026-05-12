@@ -65,6 +65,35 @@ def test_non_data_render_hides_data_and_sources() -> None:
         assert "sources" not in payload
 
 
+def test_unsupported_explicit_render_is_reported_in_json() -> None:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(["meta", "version", "--render=image"], stdout=stdout, stderr=stderr)
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    payload = json.loads(stdout.getvalue())
+    assert payload["warnings"] == ["meta.version 不支持渲染模式: image，已忽略。"]
+
+
+def test_unsupported_explicit_render_plain_writes_yellow_warning() -> None:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(
+        ["meta", "version", "--render=image", "--format=plain"],
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert code == 0
+    assert "\033[33m警告: meta.version 不支持渲染模式: image，已忽略。\033[0m\n" == (
+        stderr.getvalue()
+    )
+    assert json.loads(stdout.getvalue())["package"] == "gsuid-cli"
+
+
 def test_render_all_shows_data_and_sources() -> None:
     stdout = io.StringIO()
     stderr = io.StringIO()
