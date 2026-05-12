@@ -448,7 +448,6 @@ def _write_payload(
             )
             return
         if image_paths:
-            leading_blank = True
             if include_details and "data" in payload:
                 stdout.write(json.dumps(payload["data"], ensure_ascii=False, indent=2))
                 stdout.write("\n")
@@ -456,7 +455,6 @@ def _write_payload(
                 stdout,
                 image_paths,
                 label="图片已保存至",
-                leading_blank=leading_blank,
             )
             return
         stdout.write(json.dumps(payload["data"], ensure_ascii=False, indent=2))

@@ -177,6 +177,34 @@ def test_plain_format_ignores_non_render_text_artifacts(tmp_path) -> None:
     assert "debug details" not in stdout.getvalue()
 
 
+def test_plain_format_image_without_text_has_no_blank_line(tmp_path) -> None:
+    image_path = tmp_path / "result.png"
+    image_path.write_bytes(b"png")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    _write_payload(
+        {
+            "ok": True,
+            "warnings": [],
+            "data": {"package": "gsuid-cli"},
+            "artifacts": [
+                {
+                    "kind": "image",
+                    "name": "result-image",
+                    "path": str(image_path),
+                }
+            ],
+        },
+        "plain",
+        stdout,
+        stderr,
+    )
+
+    assert stderr.getvalue() == ""
+    assert stdout.getvalue() == f"图片已保存至: {image_path}\n"
+
+
 def test_debug_plain_format_still_writes_debug_artifact(tmp_path) -> None:
     stdout = io.StringIO()
     stderr = io.StringIO()

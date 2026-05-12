@@ -248,9 +248,7 @@ def test_daily_materials_plain_prints_image_path_when_render_image(monkeypatch, 
     assert requested_urls
 
 
-def test_daily_materials_plain_prints_image_only_path_with_blank_line(
-    monkeypatch, tmp_path
-) -> None:
+def test_daily_materials_plain_prints_image_only_path(monkeypatch, tmp_path) -> None:
     requested_urls: list[str] = []
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr(
@@ -282,7 +280,7 @@ def test_daily_materials_plain_prints_image_only_path_with_blank_line(
 
     assert code == 0
     assert stderr.getvalue() == ""
-    assert stdout.getvalue().startswith("\n图片已保存至: ")
+    assert stdout.getvalue().startswith("图片已保存至: ")
     assert "daily-materials_monday" in stdout.getvalue()
     assert requested_urls
 
