@@ -18,6 +18,7 @@ from gsuid_cli.commands.auth import _credential, _uid_and_region
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.http import HttpClient, raise_for_retcode
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.region import normalize_region
 from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
 from gsuid_cli.providers import provider_for_region
 from gsuid_cli.providers.akasha import AkashaProvider
@@ -107,7 +108,7 @@ def list_command(args: argparse.Namespace) -> CommandResult:
 
 def character_command(args: argparse.Namespace) -> CommandResult:
     character_id = _character_id(args.character)
-    region = args.region
+    region = normalize_region(args.region)
     selected_uid: str | None = None
     tag = "前20"
     calculation_id: str | None = None
@@ -148,10 +149,11 @@ def character_command(args: argparse.Namespace) -> CommandResult:
 
 
 def artifact_command(args: argparse.Namespace) -> CommandResult:
-    result = _provider(args).artifact_leaderboard(sort_by=args.sort, region=args.region)
+    region = normalize_region(args.region)
+    result = _provider(args).artifact_leaderboard(sort_by=args.sort, region=region)
     if not (render_image_enabled(args) or render_text_enabled(args)):
         return result
-    return _artifact_render_result(args, result=result, region=args.region)
+    return _artifact_render_result(args, result=result, region=region)
 
 
 def _list_render_result(

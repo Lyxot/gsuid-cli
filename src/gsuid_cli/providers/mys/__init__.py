@@ -6,7 +6,6 @@ from gsuid_cli.core.errors import (
 )
 from gsuid_cli.core.http import HttpClient, raise_for_retcode
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.region import ensure_supported_region
 from gsuid_cli.core.secrets import redact_secret
 from gsuid_cli.providers.mys.auth import (
     _account_cookie,
@@ -14,6 +13,9 @@ from gsuid_cli.providers.mys.auth import (
     _linked_role,
     _query_string,
     _record_headers,
+    is_os_uid,
+    record_base_for_uid,
+    record_path_for_uid,
     server_for_uid,
 )
 from gsuid_cli.providers.mys.bbs import MysBbsMixin
@@ -24,7 +26,6 @@ from gsuid_cli.providers.mys.constants import (
     ELEMENT_ID_BY_NAME as ELEMENT_ID_BY_NAME,
     INDEX_PATH,
     PROVIDER,
-    RECORD_BASE_CN,
     RECORD_SALT as RECORD_SALT,
 )
 from gsuid_cli.providers.mys.device import MysDeviceMixin
@@ -61,7 +62,6 @@ class MysProvider(
         credential_source: str,
         storage_backend: str | None,
     ) -> CommandResult:
-        ensure_supported_region(region)
         account_id = _account_id_from_cookie(cookie)
         if account_id:
             return self._validate_account_cookie(
@@ -93,14 +93,19 @@ class MysProvider(
     ) -> CommandResult:
         server = server_for_uid(uid)
         params = {"role_id": uid, "server": server}
+        path = record_path_for_uid(uid, INDEX_PATH)
         response = self.http.request_json(
             "GET",
-            f"{RECORD_BASE_CN}{INDEX_PATH}",
+            f"{record_base_for_uid(uid)}{path}",
             provider=PROVIDER,
             region=region,
             category="auth.cookie.test",
             params=params,
-            headers=_record_headers(cookie, _query_string(params)),
+            headers=_record_headers(
+                cookie,
+                _query_string(params),
+                os_region=is_os_uid(uid),
+            ),
         )
         raise_for_retcode(
             response.payload,
@@ -150,12 +155,16 @@ class MysProvider(
         params = {"uid": account_id}
         response = self.http.request_json(
             "GET",
-            f"{RECORD_BASE_CN}{CARD_PATH}",
+            f"{record_base_for_uid(uid)}{CARD_PATH}",
             provider=PROVIDER,
             region=region,
             category="auth.cookie.test",
             params=params,
-            headers=_record_headers(cookie, _query_string(params)),
+            headers=_record_headers(
+                cookie,
+                _query_string(params),
+                os_region=is_os_uid(uid),
+            ),
         )
         raise_for_retcode(
             response.payload,
@@ -225,13 +234,13 @@ class MysProvider(
         category: str,
         params: dict[str, object] | None = None,
     ) -> tuple[dict[str, object], dict[str, object]]:
-        ensure_supported_region(region)
         server = server_for_uid(uid)
         if params is None:
             params = {"role_id": uid, "server": server}
+        path = record_path_for_uid(uid, path)
         response = self.http.request_json(
             "GET",
-            f"{RECORD_BASE_CN}{path}",
+            f"{record_base_for_uid(uid)}{path}",
             provider=PROVIDER,
             region=region,
             category=category,
@@ -261,12 +270,16 @@ class MysProvider(
         params = {"uid": account_id}
         response = self.http.request_json(
             "GET",
-            f"{RECORD_BASE_CN}{CARD_PATH}",
+            f"{record_base_for_uid(uid)}{CARD_PATH}",
             provider=PROVIDER,
             region=region,
             category="player.summary.role",
             params=params,
-            headers=_record_headers(_account_cookie(cookie, account_id), _query_string(params)),
+            headers=_record_headers(
+                _account_cookie(cookie, account_id),
+                _query_string(params),
+                os_region=is_os_uid(uid),
+            ),
         )
         raise_for_retcode(
             response.payload,
@@ -296,6 +309,6 @@ class MysProvider(
         body: dict[str, object] | None = None,
     ) -> dict[str, str]:
         return {
-            **_record_headers(cookie, query, body),
+            **_record_headers(cookie, query, body, os_region=is_os_uid(uid)),
             **self._device_headers(uid),
         }

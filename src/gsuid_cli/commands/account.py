@@ -7,6 +7,7 @@ from gsuid_cli.commands import profile
 from gsuid_cli.commands._text import command_subject_text_result, helps_from
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.region import REGION_CHOICES, infer_region
 from gsuid_cli.core.secrets import CREDENTIALS, SecretStore, credential_presence
 from gsuid_cli.core.state import state_db
 from gsuid_cli.core.time import utc_now
@@ -59,7 +60,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 
     add = commands.add_parser("add", help=_HELPS["account.add"])
     add.add_argument("--uid", dest="account_uid")
-    add.add_argument("--region", choices=("cn", "os"), dest="account_region")
+    add.add_argument("--region", choices=tuple(sorted(REGION_CHOICES)), dest="account_region")
     add.add_argument("--label")
     add.add_argument("--default", action="store_true")
     add.set_defaults(handler=add_command, command_name="account.add")
@@ -82,7 +83,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 
 def add_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
     uid = _required_uid(args)
-    region = args.account_region or args.region
+    region = infer_region(uid, args.account_region or args.region)
     with state_db(args.output_dir) as conn:
         created = _upsert_account(conn, uid, region, args.label)
         if args.default:

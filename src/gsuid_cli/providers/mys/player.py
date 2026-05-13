@@ -12,22 +12,28 @@ from gsuid_cli.providers.mys.auth import (
     _hk4e_login_headers,
     _query_string,
     _record_headers,
+    _record_os_headers,
     _web_ds,
+    gs_base_for_uid,
+    is_os_uid,
+    record_base_for_uid,
+    record_path_for_uid,
     server_for_uid,
 )
 from gsuid_cli.providers.mys.constants import (
+    ACT_BASE_OS,
     ACT_CALENDAR_PATH,
     CALCULATOR_BATCH_COMPUTE_PATH,
     CHARACTER_DETAIL_PATH,
     CHARACTER_LIST_PATH,
     DAILY_NOTE_PATH,
-    GS_BASE_CN,
     HK4_API_BASE_CN,
+    HK4_API_BASE_OS,
     HK4E_LOGIN_PATH,
     INDEX_PATH,
     MONTHLY_AWARD_PATH,
+    MONTHLY_AWARD_PATH_OS,
     PROVIDER,
-    RECORD_BASE_CN,
     REGISTER_TIME_PATH,
 )
 from gsuid_cli.providers.mys.normalizers import (
@@ -156,9 +162,10 @@ class MysPlayerMixin:
 
         server = server_for_uid(uid)
         body = {"character_ids": character_ids, "role_id": uid, "server": server}
+        path = record_path_for_uid(uid, CHARACTER_LIST_PATH)
         response = self.http.request_json(
             "POST",
-            f"{RECORD_BASE_CN}{CHARACTER_LIST_PATH}",
+            f"{record_base_for_uid(uid)}{path}",
             provider=PROVIDER,
             region=region,
             category="player.characters",
@@ -202,9 +209,10 @@ class MysPlayerMixin:
     ) -> CommandResult:
         server = server_for_uid(uid)
         body = {"character_ids": character_ids, "role_id": uid, "server": server}
+        path = record_path_for_uid(uid, CHARACTER_DETAIL_PATH)
         response = self.http.request_json(
             "POST",
-            f"{RECORD_BASE_CN}{CHARACTER_DETAIL_PATH}",
+            f"{record_base_for_uid(uid)}{path}",
             provider=PROVIDER,
             region=region,
             category=category,
@@ -336,7 +344,7 @@ class MysPlayerMixin:
         body = {"role_id": uid, "server": server}
         response = self.http.request_json(
             "POST",
-            f"{RECORD_BASE_CN}{ACT_CALENDAR_PATH}",
+            f"{record_base_for_uid(uid)}{ACT_CALENDAR_PATH}",
             provider=PROVIDER,
             region=region,
             category="player.calendar",
@@ -374,24 +382,31 @@ class MysPlayerMixin:
     ) -> CommandResult:
         server = server_for_uid(uid)
         params = {
-            "act_id": "e202009291139501",
-            "bind_region": server,
-            "bind_uid": uid,
             "month": _diary_month(month),
-            "bbs_presentation_style": "fullscreen",
-            "bbs_auth_required": "true",
-            "utm_source": "bbs",
-            "utm_medium": "mys",
-            "utm_campaign": "icon",
         }
+        if is_os_uid(uid):
+            params.update({"act_id": "e202009291139501", "region": server, "uid": uid})
+        else:
+            params.update(
+                {
+                    "act_id": "e202009291139501",
+                    "bind_region": server,
+                    "bind_uid": uid,
+                    "bbs_presentation_style": "fullscreen",
+                    "bbs_auth_required": "true",
+                    "utm_source": "bbs",
+                    "utm_medium": "mys",
+                    "utm_campaign": "icon",
+                }
+            )
         response = self.http.request_json(
             "GET",
-            f"{HK4_API_BASE_CN}{MONTHLY_AWARD_PATH}",
+            _diary_url(uid),
             provider=PROVIDER,
             region=region,
             category="player.diary",
             params=params,
-            headers={**_headers(cookie), "DS": _web_ds(), "x-rpc-device_id": uuid.uuid4().hex},
+            headers=_diary_headers(uid, cookie),
         )
         raise_for_retcode(
             response.payload,
@@ -424,14 +439,14 @@ class MysPlayerMixin:
     ) -> CommandResult:
         hk4e_token, _login_source = self._hk4e_token(uid=uid, cookie=cookie, region=region)
         params = {
-            "game_biz": "hk4e_cn",
+            "game_biz": "hk4e_global" if is_os_uid(uid) else "hk4e_cn",
             "lang": "zh-cn",
             "badge_uid": uid,
             "badge_region": server_for_uid(uid),
         }
         response = self.http.request_json(
             "GET",
-            f"{HK4_API_BASE_CN}{REGISTER_TIME_PATH}",
+            f"{ACT_BASE_OS if is_os_uid(uid) else HK4_API_BASE_CN}{REGISTER_TIME_PATH}",
             provider=PROVIDER,
             region=region,
             category="player.register-time",
@@ -465,14 +480,14 @@ class MysPlayerMixin:
         region: str,
     ) -> tuple[str, dict[str, object]]:
         body = {
-            "game_biz": "hk4e_cn",
+            "game_biz": "hk4e_global" if is_os_uid(uid) else "hk4e_cn",
             "lang": "zh-cn",
             "uid": uid,
             "region": server_for_uid(uid),
         }
         response = self.http.request_json(
             "POST",
-            f"{GS_BASE_CN}{HK4E_LOGIN_PATH}",
+            f"{gs_base_for_uid(uid)}{HK4E_LOGIN_PATH}",
             provider=PROVIDER,
             region=region,
             category="player.register-time.hk4e-token",
@@ -507,7 +522,7 @@ class MysPlayerMixin:
     ) -> ProviderResponse:
         return self.http.request_json(
             "POST",
-            f"{GS_BASE_CN}{CALCULATOR_BATCH_COMPUTE_PATH}",
+            f"{gs_base_for_uid(str(body.get('uid') or ''))}{CALCULATOR_BATCH_COMPUTE_PATH}",
             provider=PROVIDER,
             region=region,
             category="player.inventory",
@@ -612,3 +627,18 @@ def _diary_month(month: str | None) -> str:
             {"month": month},
         )
     return str(month_number)
+
+
+def _diary_url(uid: str) -> str:
+    if is_os_uid(uid):
+        return f"{HK4_API_BASE_OS}{MONTHLY_AWARD_PATH_OS}"
+    return f"{HK4_API_BASE_CN}{MONTHLY_AWARD_PATH}"
+
+
+def _diary_headers(uid: str, cookie: str) -> dict[str, str]:
+    if is_os_uid(uid):
+        return {
+            **_record_os_headers(cookie),
+            "x-rpc-device_id": uuid.uuid4().hex,
+        }
+    return {**_headers(cookie), "DS": _web_ds(), "x-rpc-device_id": uuid.uuid4().hex}

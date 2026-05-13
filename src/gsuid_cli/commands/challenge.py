@@ -26,7 +26,7 @@ from gsuid_cli.commands.player.impl import (
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.region import ensure_supported_region
+from gsuid_cli.core.region import ensure_supported_region, normalize_region
 from gsuid_cli.core.render import render_image_enabled, render_result_data, render_text_enabled
 from gsuid_cli.providers.akasha import AkashaProvider
 from gsuid_cli.providers.assets import fetch_render_images
@@ -192,7 +192,7 @@ def hard_command(args: argparse.Namespace) -> CommandResult:
 
 
 def hard_rank_command(args: argparse.Namespace) -> CommandResult:
-    region = args.region or "cn"
+    region = normalize_region(args.region or "cn")
     ensure_supported_region(region)
     result = AkashaProvider(
         HttpClient(

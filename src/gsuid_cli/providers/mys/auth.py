@@ -12,16 +12,47 @@ from gsuid_cli.providers.mys.constants import (
     APP_VERSION,
     BBS_SALT,
     BBS_SIGN_SALT,
+    GS_BASE_CN,
+    GS_BASE_OS,
     PASSPORT_SALT,
+    RECORD_BASE_CN,
+    RECORD_BASE_OS,
     RECORD_SALT,
     SERVER_BY_UID_PREFIX,
     USER_AGENT,
     WEB_SALT,
 )
 
+OS_DS_SALT = "6cqshh5dhw73bzxn20oexa9k516chk7s"
+
 
 def server_for_uid(uid: str) -> str:
     return SERVER_BY_UID_PREFIX.get(uid[0], "cn_gf01")
+
+
+def is_os_uid(uid: str) -> bool:
+    return server_for_uid(uid).startswith("os_")
+
+
+def record_base_for_uid(uid: str) -> str:
+    return RECORD_BASE_OS if is_os_uid(uid) else RECORD_BASE_CN
+
+
+def gs_base_for_uid(uid: str) -> str:
+    return GS_BASE_OS if is_os_uid(uid) else GS_BASE_CN
+
+
+def record_path_for_uid(uid: str, path: str) -> str:
+    if not is_os_uid(uid):
+        return path
+    return {
+        "/game_record/app/genshin/api/index": "/game_record/genshin/api/index",
+        "/game_record/app/genshin/api/dailyNote": "/game_record/genshin/api/dailyNote",
+        "/game_record/app/genshin/api/spiralAbyss": "/game_record/genshin/api/spiralAbyss",
+        "/game_record/app/genshin/api/character/list": "/game_record/genshin/api/character",
+        "/game_record/app/genshin/api/character/detail": "/game_record/genshin/api/character",
+        "/game_record/app/genshin/api/gcg/basicInfo": "/game_record/genshin/api/gcg/basicInfo",
+    }.get(path, path)
 
 
 def _account_id_from_cookie(cookie: str) -> str | None:
@@ -72,10 +103,24 @@ def _record_headers(
     cookie: str,
     query: str = "",
     body: dict[str, object] | None = None,
+    *,
+    os_region: bool = False,
 ) -> dict[str, str]:
+    if os_region:
+        return _record_os_headers(cookie)
     return {
         **_headers(cookie),
         "DS": _record_ds(query, body),
+    }
+
+
+def _record_os_headers(cookie: str) -> dict[str, str]:
+    return {
+        "Cookie": cookie,
+        "DS": _os_ds(),
+        "x-rpc-app_version": "1.5.0",
+        "x-rpc-client_type": "4",
+        "x-rpc-language": "zh-cn",
     }
 
 
@@ -101,6 +146,16 @@ def _sign_headers(cookie: str) -> dict[str, str]:
         "x-rpc-signgame": "hk4e",
         "x-rpc-device_id": uuid.uuid4().hex,
         "x-rpc-client_type": "5",
+    }
+
+
+def _sign_os_headers(cookie: str) -> dict[str, str]:
+    return {
+        "Cookie": cookie,
+        "DS": _os_ds(),
+        "x-rpc-app_version": "1.5.0",
+        "x-rpc-client_type": "4",
+        "x-rpc-language": "zh-cn",
     }
 
 
@@ -169,6 +224,13 @@ def _bbs_sign_ds(body: dict[str, object] | None) -> str:
         f"salt={BBS_SIGN_SALT}&t={timestamp}&r={random_number}&b={body_text}&q=".encode()
     ).hexdigest()
     return f"{timestamp},{random_number},{digest}"
+
+
+def _os_ds() -> str:
+    timestamp = str(int(time.time()))
+    random_text = "".join(random.sample(string.ascii_letters, 6))
+    digest = hashlib.md5(f"salt={OS_DS_SALT}&t={timestamp}&r={random_text}".encode()).hexdigest()
+    return f"{timestamp},{random_text},{digest}"
 
 
 def _already_signed(payload: dict[str, object]) -> bool:

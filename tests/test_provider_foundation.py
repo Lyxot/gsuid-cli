@@ -196,6 +196,40 @@ def test_mys_cookie_validation_falls_back_without_account_id() -> None:
     )
 
 
+def test_mys_cookie_validation_uses_hoyolab_record_endpoint_for_os_uid() -> None:
+    captured: dict[str, httpx.Request] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["request"] = request
+        return _json_response({"retcode": 0, "message": "OK", "data": {}})
+
+    provider = MysProvider(
+        HttpClient(
+            timeout=1,
+            cache_policy="off",
+            transport=httpx.MockTransport(handler),
+        )
+    )
+
+    result = provider.validate_cookie(
+        uid="800000001",
+        cookie="ltoken=secret-token",
+        region="os",
+        credential_source="environment",
+        storage_backend=None,
+    )
+
+    request = captured["request"]
+    assert result.data["validity_status"] == "valid"
+    assert request.url.host == "bbs-api-os.hoyolab.com"
+    assert str(request.url).endswith(
+        "/game_record/genshin/api/index?role_id=800000001&server=os_asia"
+    )
+    assert request.headers["x-rpc-app_version"] == "1.5.0"
+    assert request.headers["x-rpc-client_type"] == "4"
+    assert request.headers["ds"].count(",") == 2
+
+
 def test_mys_cookie_auth_failure_is_sanitized() -> None:
     provider = MysProvider(
         _client(_json_response({"retcode": -100, "message": "尚未登录", "data": None}))

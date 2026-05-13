@@ -1202,6 +1202,42 @@ def test_mys_daily_signin_status_is_read_only() -> None:
     assert requests[0].url.path == "/event/luna/info"
 
 
+def test_mys_daily_signin_status_uses_hoyolab_endpoint_for_os_uid() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {"is_sign": False, "total_sign_day": 3},
+            }
+        )
+
+    provider = MysProvider(_mock_client(handler))
+
+    result = provider.daily_signin_status(
+        uid="800000001",
+        cookie="ltoken=secret-token",
+        region="os",
+        credential_source="keyring",
+        storage_backend="tests.MemoryKeyring",
+    )
+
+    request = requests[0]
+    assert result.data["already_signed"] is False
+    assert request.method == "GET"
+    assert request.url.host == "sg-hk4e-api.hoyolab.com"
+    assert request.url.path == "/event/sol/info"
+    assert request.url.params["act_id"] == "e202102251931481"
+    assert request.url.params["region"] == "os_asia"
+    assert request.url.params["uid"] == "800000001"
+    assert request.headers["x-rpc-app_version"] == "1.5.0"
+    assert request.headers["x-rpc-client_type"] == "4"
+    assert request.headers["ds"].count(",") == 2
+
+
 def test_mys_player_summary_uses_account_card_identity_when_index_omits_it() -> None:
     requests: list[httpx.Request] = []
 

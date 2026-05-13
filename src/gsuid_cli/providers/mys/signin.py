@@ -2,14 +2,24 @@ from __future__ import annotations
 
 from gsuid_cli.core.http import raise_for_retcode
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.region import ensure_supported_region
-from gsuid_cli.providers.mys.auth import _already_signed, _headers, _sign_headers, server_for_uid
+from gsuid_cli.providers.mys.auth import (
+    _already_signed,
+    _headers,
+    _sign_headers,
+    _sign_os_headers,
+    is_os_uid,
+    server_for_uid,
+)
 from gsuid_cli.providers.mys.constants import (
     GS_BASE_CN,
     PROVIDER,
     SIGN_ACT_ID,
+    SIGN_ACT_ID_OS,
+    SIGN_BASE_OS,
     SIGN_INFO_PATH,
+    SIGN_INFO_PATH_OS,
     SIGN_PATH,
+    SIGN_PATH_OS,
 )
 from gsuid_cli.providers.mys.normalizers import _payload_data
 
@@ -43,18 +53,18 @@ class MysSigninMixin:
 
         server = server_for_uid(uid)
         body = {
-            "act_id": SIGN_ACT_ID,
+            "act_id": _sign_act_id(uid),
             "lang": "zh-cn",
             "uid": uid,
             "region": server,
         }
         response = self.http.request_json(
             "POST",
-            f"{GS_BASE_CN}{SIGN_PATH}",
+            _sign_url(uid),
             provider=PROVIDER,
             region=region,
             category="daily.signin",
-            headers=_sign_headers(cookie),
+            headers=_sign_headers_for_uid(uid, cookie),
             json_body=body,
         )
         if _already_signed(response.payload):
@@ -137,22 +147,21 @@ class MysSigninMixin:
         cookie: str,
         region: str,
     ) -> tuple[dict[str, object], dict[str, object], str]:
-        ensure_supported_region(region)
         server = server_for_uid(uid)
         params = {
-            "act_id": SIGN_ACT_ID,
+            "act_id": _sign_act_id(uid),
             "lang": "zh-cn",
             "region": server,
             "uid": uid,
         }
         response = self.http.request_json(
             "GET",
-            f"{GS_BASE_CN}{SIGN_INFO_PATH}",
+            _sign_info_url(uid),
             provider=PROVIDER,
             region=region,
             category="daily.signin.info",
             params=params,
-            headers={**_headers(cookie), "x-rpc-signgame": "hk4e"},
+            headers=_sign_info_headers(uid, cookie),
         )
         raise_for_retcode(
             response.payload,
@@ -226,3 +235,27 @@ def _signin_award(award: dict[str, object]) -> dict[str, object]:
         "count": award.get("cnt"),
         "icon": award.get("icon"),
     }
+
+
+def _sign_act_id(uid: str) -> str:
+    return SIGN_ACT_ID_OS if is_os_uid(uid) else SIGN_ACT_ID
+
+
+def _sign_url(uid: str) -> str:
+    return f"{SIGN_BASE_OS}{SIGN_PATH_OS}" if is_os_uid(uid) else f"{GS_BASE_CN}{SIGN_PATH}"
+
+
+def _sign_info_url(uid: str) -> str:
+    if is_os_uid(uid):
+        return f"{SIGN_BASE_OS}{SIGN_INFO_PATH_OS}"
+    return f"{GS_BASE_CN}{SIGN_INFO_PATH}"
+
+
+def _sign_headers_for_uid(uid: str, cookie: str) -> dict[str, str]:
+    return _sign_os_headers(cookie) if is_os_uid(uid) else _sign_headers(cookie)
+
+
+def _sign_info_headers(uid: str, cookie: str) -> dict[str, str]:
+    if is_os_uid(uid):
+        return _sign_os_headers(cookie)
+    return {**_headers(cookie), "x-rpc-signgame": "hk4e"}

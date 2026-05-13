@@ -38,6 +38,7 @@ from gsuid_cli.core.errors import (
 )
 from gsuid_cli.core.http import begin_source_capture, end_source_capture
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.region import REGION_CHOICES
 from gsuid_cli.core.render import explicit_render_modes, normalize_render_modes, render_data_enabled
 from gsuid_cli.core.secrets import redact_secret
 
@@ -160,8 +161,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--uid")
     parser.add_argument(
         "--region",
-        choices=("cn", "os"),
-        default=os.environ.get("GSUID_REGION", "cn"),
+        choices=tuple(sorted(REGION_CHOICES)),
+        default=os.environ.get("GSUID_REGION", "auto"),
     )
     parser.add_argument(
         "--format",
@@ -670,8 +671,8 @@ def _error_context(argv: Sequence[str]) -> dict[str, object]:
         if output_format in OUTPUT_FORMATS
         else _valid_env("GSUID_FORMAT", OUTPUT_FORMATS, "json"),
         "region": region
-        if region in {"cn", "os"}
-        else _valid_env("GSUID_REGION", {"cn", "os"}, "cn"),
+        if region in REGION_CHOICES
+        else _valid_env("GSUID_REGION", REGION_CHOICES, "auto"),
         "debug": "--debug" in argv,
         "output_dir": _global_option_value(argv, "--output-dir")
         or os.environ.get("GSUID_OUTPUT_DIR"),
@@ -941,7 +942,7 @@ def _global_value_for_validation(
 
 def _validate_global_value(option: str, value: str) -> None:
     choices = {
-        "--region": {"cn", "os"},
+        "--region": REGION_CHOICES,
         "--format": OUTPUT_FORMATS,
         "--cache": {"use", "refresh", "only", "off"},
     }.get(option)

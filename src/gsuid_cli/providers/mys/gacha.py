@@ -6,10 +6,15 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import raise_for_retcode
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.region import ensure_supported_region
-from gsuid_cli.providers.mys.auth import _account_id_from_cookie, _authkey_headers, server_for_uid
+from gsuid_cli.providers.mys.auth import (
+    _account_id_from_cookie,
+    _authkey_headers,
+    is_os_uid,
+    server_for_uid,
+)
 from gsuid_cli.providers.mys.constants import (
     GACHA_LOG_URL,
+    GACHA_LOG_URL_OS,
     GET_AUTHKEY_PATH,
     GS_BASE_CN,
     PROVIDER,
@@ -28,8 +33,7 @@ class MysGachaMixin:
         page: int,
         end_id: str,
     ) -> CommandResult:
-        ensure_supported_region(region)
-        base_url, params = _gacha_request(authkey_url)
+        base_url, params = _gacha_request(authkey_url, uid)
         server = server_for_uid(uid)
         params.update(
             {
@@ -41,7 +45,8 @@ class MysGachaMixin:
                 "timestamp": str(int(time.time())),
                 "lang": params.get("lang") or "zh-cn",
                 "region": params.get("region") or server,
-                "game_biz": params.get("game_biz") or "hk4e_cn",
+                "game_biz": params.get("game_biz")
+                or ("hk4e_global" if is_os_uid(uid) else "hk4e_cn"),
                 "auth_appid": params.get("auth_appid") or "webview_gacha",
                 "authkey_ver": params.get("authkey_ver") or "1",
                 "sign_type": params.get("sign_type") or "2",
@@ -74,11 +79,10 @@ class MysGachaMixin:
         stoken: str,
         region: str,
     ) -> CommandResult:
-        ensure_supported_region(region)
         server = server_for_uid(uid)
         body = {
             "auth_appid": "webview_gacha",
-            "game_biz": "hk4e_cn",
+            "game_biz": "hk4e_global" if is_os_uid(uid) else "hk4e_cn",
             "game_uid": uid,
             "region": server,
         }
@@ -113,17 +117,17 @@ class MysGachaMixin:
             data={
                 "uid": uid,
                 "server": server,
-                "game_biz": "hk4e_cn",
+                "game_biz": "hk4e_global" if is_os_uid(uid) else "hk4e_cn",
                 "auth_appid": "webview_gacha",
                 "account_id": _account_id_from_cookie(cookie) or _account_id_from_cookie(stoken),
-                "gacha_url": _gacha_authkey_url(authkey, server),
+                "gacha_url": _gacha_authkey_url(authkey, uid, server),
                 "redacted": "[REDACTED_URL]",
             },
             source=response.source,
         )
 
 
-def _gacha_request(authkey_url: str) -> tuple[str, dict[str, object]]:
+def _gacha_request(authkey_url: str, uid: str) -> tuple[str, dict[str, object]]:
     parsed = urlsplit(authkey_url)
     if not parsed.scheme or not parsed.netloc:
         raise CliError(
@@ -140,12 +144,12 @@ def _gacha_request(authkey_url: str) -> tuple[str, dict[str, object]]:
             EXIT_INVALID_INPUT,
             {"credential_type": "gacha_url"},
         )
-    api = urlsplit(GACHA_LOG_URL)
+    api = urlsplit(GACHA_LOG_URL_OS if is_os_uid(uid) else GACHA_LOG_URL)
     base_url = urlunsplit((api.scheme, api.netloc, api.path, "", ""))
     return base_url, params
 
 
-def _gacha_authkey_url(authkey: str, server: str) -> str:
+def _gacha_authkey_url(authkey: str, uid: str, server: str) -> str:
     params = {
         "authkey_ver": "1",
         "sign_type": "2",
@@ -158,10 +162,11 @@ def _gacha_authkey_url(authkey: str, server: str) -> str:
         "plat_type": "ios",
         "region": server,
         "authkey": authkey,
-        "game_biz": "hk4e_cn",
+        "game_biz": "hk4e_global" if is_os_uid(uid) else "hk4e_cn",
         "gacha_type": "301",
         "page": "1",
         "size": "5",
         "end_id": "0",
     }
-    return f"{GACHA_LOG_URL}?{urlencode(params)}"
+    base = GACHA_LOG_URL_OS if is_os_uid(uid) else GACHA_LOG_URL
+    return f"{base}?{urlencode(params)}"

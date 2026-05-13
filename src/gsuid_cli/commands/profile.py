@@ -6,6 +6,7 @@ import sqlite3
 from gsuid_cli.commands._text import command_subject_text_result, helps_from
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.region import REGION_CHOICES
 from gsuid_cli.core.state import get_setting, set_setting, state_db
 from gsuid_cli.core.time import utc_now
 from gsuid_cli.renderers.local_auth import render_profile_command_text
@@ -57,7 +58,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 
     init = commands.add_parser("init", help=_HELPS["profile.init"])
     init.add_argument("--name")
-    init.add_argument("--region", choices=("cn", "os"), dest="profile_region")
+    init.add_argument("--region", choices=tuple(sorted(REGION_CHOICES)), dest="profile_region")
     init.set_defaults(handler=init_command, command_name="profile.init")
 
     list_parser = commands.add_parser("list", help=_HELPS["profile.list"])

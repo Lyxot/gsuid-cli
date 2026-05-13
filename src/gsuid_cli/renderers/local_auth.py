@@ -285,7 +285,7 @@ def _source_label(value: object) -> str:
 
 
 def _region_label(value: object) -> str:
-    return {"cn": "国服", "os": "国际服"}.get(str(value), _text(value))
+    return {"auto": "自动", "cn": "国服", "os": "国际服"}.get(str(value), _text(value))
 
 
 def _saved_label(value: object) -> str:

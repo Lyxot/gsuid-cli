@@ -8,7 +8,6 @@ from gsuid_cli.commands._text import (
 )
 from gsuid_cli.commands.auth import _credential, _uid_and_region
 from gsuid_cli.core.http import HttpClient
-from gsuid_cli.core.region import ensure_supported_region
 from gsuid_cli.providers import provider_for_region
 
 __all__ = [
@@ -22,7 +21,6 @@ __all__ = [
 
 def _cookie_context(args: argparse.Namespace) -> tuple[str, str, str, str, str | None]:
     uid, region = _uid_and_region(args)
-    ensure_supported_region(region)
     args.credential_kind = "cookie"
     cookie, credential_source, storage_backend = _credential(args, uid)
     return uid, region, cookie, credential_source, storage_backend

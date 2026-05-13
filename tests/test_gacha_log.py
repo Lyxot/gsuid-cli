@@ -1062,6 +1062,40 @@ def test_mys_gacha_authkey_generation_uses_stoken_endpoint() -> None:
     assert query["auth_appid"] == ["webview_gacha"]
 
 
+def test_mys_gacha_authkey_generation_uses_os_server_for_os_uid() -> None:
+    captured: dict[str, httpx.Request] = {}
+    provider = MysProvider(
+        _mock_client(
+            lambda request: (
+                _capture_request(captured, request),
+                httpx.Response(
+                    200,
+                    json={
+                        "retcode": 0,
+                        "message": "OK",
+                        "data": {"authkey": "secret-authkey"},
+                    },
+                ),
+            )[1]
+        )
+    )
+
+    result = provider.generate_gacha_authkey_url(
+        uid="800000001",
+        cookie="account_id=1;cookie_token=cookie-secret",
+        stoken="stuid=1;stoken=stoken-secret",
+        region="os",
+    )
+
+    body = json.loads(captured["request"].content)
+    query = parse_qs(urlsplit(str(result.data["gacha_url"])).query)
+    assert body["game_biz"] == "hk4e_global"
+    assert body["region"] == "os_asia"
+    assert urlsplit(str(result.data["gacha_url"])).netloc == "hk4e-api-os.hoyoverse.com"
+    assert query["region"] == ["os_asia"]
+    assert query["game_biz"] == ["hk4e_global"]
+
+
 def _capture_request(captured: dict[str, httpx.Request], request: httpx.Request) -> None:
     captured["request"] = request
 

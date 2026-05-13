@@ -3,15 +3,13 @@ from __future__ import annotations
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.http import raise_for_retcode
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.core.region import ensure_supported_region
-from gsuid_cli.providers.mys.auth import server_for_uid
+from gsuid_cli.providers.mys.auth import record_base_for_uid, server_for_uid
 from gsuid_cli.providers.mys.constants import (
     ACHIEVEMENT_PATH,
     GCG_BASIC_PATH,
     GCG_DECK_PATH,
     INDEX_PATH,
     PROVIDER,
-    RECORD_BASE_CN,
 )
 from gsuid_cli.providers.mys.normalizers import (
     _collection,
@@ -111,12 +109,11 @@ class MysProgressMixin:
         credential_source: str,
         storage_backend: str | None,
     ) -> CommandResult:
-        ensure_supported_region(region)
         server = server_for_uid(uid)
         body = {"role_id": uid, "server": server}
         response = self.http.request_json(
             "POST",
-            f"{RECORD_BASE_CN}{ACHIEVEMENT_PATH}",
+            f"{record_base_for_uid(uid)}{ACHIEVEMENT_PATH}",
             provider=PROVIDER,
             region=region,
             category="progress.achievements",

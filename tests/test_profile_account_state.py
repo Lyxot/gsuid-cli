@@ -27,7 +27,7 @@ def test_profile_init_show_and_default(monkeypatch, tmp_path) -> None:
     code, payload = _run_json(["profile", "show", "--name", "main"])
 
     assert code == 0
-    assert payload["data"]["profile"]["default_region"] == "cn"
+    assert payload["data"]["profile"]["default_region"] == "auto"
 
     code, payload = _run_json(["profile", "default", "--name", "main"])
 
@@ -78,6 +78,15 @@ def test_account_crud_and_profile_default(monkeypatch, tmp_path) -> None:
     assert payload["data"]["deleted"] is True
 
 
+def test_account_add_auto_region_infers_from_uid(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+
+    code, payload = _run_json(["account", "add", "--uid", "800000001"])
+
+    assert code == 0
+    assert payload["data"]["account"]["region"] == "os"
+
+
 def test_profile_and_account_render_text_plain(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
 
@@ -89,7 +98,7 @@ def test_profile_and_account_render_text_plain(monkeypatch, tmp_path) -> None:
     assert stderr == ""
     assert "本地档案 - main" in stdout
     assert "状态: 已创建" in stdout
-    assert "默认地区: 国服" in stdout
+    assert "默认地区: 自动" in stdout
 
     code, stdout, stderr = _run_plain(
         [

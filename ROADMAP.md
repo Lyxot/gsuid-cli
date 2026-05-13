@@ -51,6 +51,7 @@
 ### Stage 18k: Panel Text Render Artifacts — completed.
 ### Stage 18l: Rank Text Render Artifacts — completed.
 ### Stage 18m: Remaining Utility Text Render Artifacts — completed.
+### Stage 19: HoYoLAB OS Region Support — completed.
 
 ## MVP 完成标准 (MVP Cut Line)
 
@@ -83,7 +84,7 @@ gsuid player characters
 
 ## 待确定的后续决策和规划
 
-- MVP 仅限国服 (CN)，海外 HoYoLAB 数据源支持将在日后推进。
+- OS 支持已覆盖可按 UID 判定的 HoYoLAB/MYS 路由；Public data、BBS coin、QR login、device login 仍保持 CN-only，直到确认对应 OS 上游接口。
 - Keyring 强制要求使用，坚决不引入明文保存密钥的回退方案。
 - 图像渲染方面不断优化对齐 GenshinUID。
 - 对于自动化和Agent的支持是最优先级的考虑；目前无需搭建 MCP 服务器（直接把此 CLI 作为 MCP 工具调用即可）。

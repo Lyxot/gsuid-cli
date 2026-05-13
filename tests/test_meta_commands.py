@@ -111,10 +111,12 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert capability_by_command["player.register-time"]["availability"] == "upstream-limited"
     assert "cache" not in capability_by_command["map.find"]
     assert "data" in capability_by_command["map.find"]["render"]
-    assert payload["data"]["regions"] == ["cn"]
+    assert payload["data"]["regions"] == ["auto", "cn", "os"]
     assert payload["data"]["formats"] == ["json", "pretty-json", "plain"]
     global_options = {option["name"]: option for option in payload["data"]["global_options"]}
     assert global_options["--uid"]["placement"] == "anywhere"
+    assert global_options["--region"]["value"] == "auto|cn|os"
+    assert global_options["--region"]["default"] == "auto"
     assert global_options["--format"]["value"] == "json|pretty-json|plain"
 
 

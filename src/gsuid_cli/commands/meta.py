@@ -128,7 +128,7 @@ def capabilities_command(_args: argparse.Namespace) -> CommandResult | dict[str,
     commands = [dict(command, implemented=True) for command in _capabilities()]
     data = {
         "schema": SCHEMA,
-        "regions": ["cn"],
+        "regions": ["auto", "cn", "os"],
         "formats": ["json", "pretty-json", "plain"],
         "default_format": "json",
         "global_options": _global_options(),
@@ -234,8 +234,8 @@ def _global_options() -> list[dict[str, object]]:
         },
         {
             "name": "--region",
-            "value": "cn|os",
-            "default": "cn",
+            "value": "auto|cn|os",
+            "default": "auto",
             "placement": "anywhere",
             "description": "目标 API 区服。",
         },
