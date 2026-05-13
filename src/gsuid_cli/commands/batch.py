@@ -13,18 +13,19 @@ from gsuid_cli.core.envelope import error_envelope
 from gsuid_cli.core.errors import EXIT_INTERNAL_BUG, EXIT_INVALID_INPUT, CliError
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.renderers.utility_text import render_batch_command_text
+from gsuid_cli.text import t as _t
 
 CAPABILITIES = [
     {
         "command": "batch.run",
-        "description": "执行 JSONL 批处理命令。",
+        "description": _t("gsuid.commands.batch.20_23.83c5615c"),
         "auth": "mixed",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "batch.plan",
-        "description": "验证 JSONL 批处理命令。",
+        "description": _t("gsuid.commands.batch.27_23.8f30823f"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
@@ -35,7 +36,7 @@ _HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    batch = groups.add_parser("batch", help="执行或验证批处理命令。")
+    batch = groups.add_parser("batch", help=_t("gsuid.commands.batch.38_44.2c8fa088"))
     commands = batch.add_subparsers(dest="batch_command", required=True, metavar="<command>")
 
     run_parser = commands.add_parser("run", help=_HELPS["batch.run"])
@@ -155,7 +156,7 @@ def _batch_text_result(args: argparse.Namespace, result: CommandResult) -> Comma
         result,
         subject=Path(str(args.file)).stem,
         render_fn=render_batch_command_text,
-        description="适合命令行阅读的批处理文本",
+        description=_t("gsuid.commands.batch.158_20.18e537e9"),
     )
 
 

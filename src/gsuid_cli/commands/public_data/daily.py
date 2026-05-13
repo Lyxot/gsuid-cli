@@ -33,6 +33,7 @@ from gsuid_cli.renderers.daily.text import (
     render_daily_note_text,
     render_daily_signin_text,
 )
+from gsuid_cli.text import t as _t
 
 DAILY_MATERIAL_ICON_WORKERS = 8
 DAILY_NOTE_AVATAR_WORKERS = 5
@@ -40,28 +41,28 @@ DAILY_NOTE_AVATAR_WORKERS = 5
 CAPABILITIES = [
     {
         "command": "daily.materials",
-        "description": "列出今日天赋和武器突破材料秘境。",
+        "description": _t("gsuid.commands.public_data.daily.43_23.2b749455"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "daily.note",
-        "description": "显示当前账号日常状态。",
+        "description": _t("gsuid.commands.public_data.daily.50_23.68bf7f04"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "daily.signin",
-        "description": "领取或报告米游社每日签到状态。",
+        "description": _t("gsuid.commands.public_data.daily.57_23.43cef5d8"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "daily.bbs-coin",
-        "description": "运行并报告米游社通行币任务状态。",
+        "description": _t("gsuid.commands.public_data.daily.64_23.ae42dbb2"),
         "auth": "stoken",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
@@ -123,7 +124,7 @@ def daily_signin_command(args: argparse.Namespace) -> CommandResult:
         render_name="daily/signin-text",
         filename=f"daily-signin_{safe_filename_part(uid)}.txt",
         content=render_daily_signin_text(result.data),
-        description="每日签到状态文本",
+        description=_t("gsuid.commands.public_data.daily.126_20.44d07fbe"),
         render_data={"uid": uid},
     )
 
@@ -148,13 +149,13 @@ def daily_bbs_coin_command(args: argparse.Namespace) -> CommandResult:
         render_name="daily/bbs-coin-text",
         filename=f"daily-bbs-coin_{safe_filename_part(uid)}.txt",
         content=render_daily_bbs_coin_text(result.data),
-        description="米游社通行币状态文本",
+        description=_t("gsuid.commands.public_data.daily.151_20.e72b2494"),
         render_data={"uid": uid},
     )
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    daily = groups.add_parser("daily", help="显示日常数据。")
+    daily = groups.add_parser("daily", help=_t("gsuid.commands.public_data.daily.157_44.15060e38"))
     commands = daily.add_subparsers(dest="daily_command", required=True, metavar="<command>")
 
     note = commands.add_parser("note", help=_HELPS["daily.note"])
@@ -169,7 +170,9 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     bbs_coin.add_argument("--uid", dest="command_uid")
     bbs_coin.set_defaults(handler=daily_bbs_coin_command, command_name="daily.bbs-coin")
 
-    materials = commands.add_parser("materials", help="列出日常材料秘境。")
+    materials = commands.add_parser(
+        "materials", help=_t("gsuid.commands.public_data.daily.172_54.62618466")
+    )
     selectors = materials.add_mutually_exclusive_group()
     selectors.add_argument("--date")
     selectors.add_argument("--day", choices=sorted(DAY_NAMES))
@@ -219,7 +222,7 @@ def _daily_materials_render_result(
     if not isinstance(domains, list):
         raise CliError(
             "UPSTREAM_INVALID_RESPONSE",
-            "数据源返回的日常材料数据中不包含可渲染的秘境。",
+            _t("gsuid.commands.public_data.daily.222_12.8be73c5f"),
             EXIT_UPSTREAM,
             {"command": "daily.materials"},
             source=result.source,
@@ -236,7 +239,7 @@ def _daily_materials_render_result(
             provider="ambr",
             region="cn",
             category="daily.materials.icon",
-            unavailable_warning="{count} 个日常材料图标不可用，已使用占位图",
+            unavailable_warning=_t("gsuid.commands.public_data.daily.239_32.01b68624"),
             max_workers=DAILY_MATERIAL_ICON_WORKERS,
         )
         png = render_daily_materials_card(
@@ -249,7 +252,7 @@ def _daily_materials_render_result(
             name="daily/materials",
             filename=f"daily-materials_{safe_filename_part(day)}.png",
             content=png,
-            description="日常材料卡片图片",
+            description=_t("gsuid.commands.public_data.daily.252_24.c322472c"),
         )
         artifacts.append(image_artifact)
         warnings.extend(icon_warnings)
@@ -265,7 +268,7 @@ def _daily_materials_render_result(
             name="daily/materials-text",
             filename=f"daily-materials_{safe_filename_part(day)}.txt",
             content=text,
-            description="日常材料文本",
+            description=_t("gsuid.commands.public_data.daily.268_24.bfe99b60"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -309,7 +312,7 @@ def _daily_note_render_result(
     if not isinstance(note, dict):
         raise CliError(
             "UPSTREAM_INVALID_RESPONSE",
-            "数据源返回的实时便笺数据中不包含可渲染的便笺对象。",
+            _t("gsuid.commands.public_data.daily.312_12.bd465755"),
             EXIT_UPSTREAM,
             {"command": "daily.note"},
             source=result.source,
@@ -334,7 +337,7 @@ def _daily_note_render_result(
             provider="mys",
             region=region,
             category="daily.note.avatar",
-            unavailable_warning="实时便笺探索派遣角色头像不可用，已使用占位图",
+            unavailable_warning=_t("gsuid.commands.public_data.daily.337_32.9af5dbdc"),
             max_workers=DAILY_NOTE_AVATAR_WORKERS,
         )
         png = render_daily_note_card(
@@ -350,7 +353,7 @@ def _daily_note_render_result(
             name="daily/note",
             filename=f"daily-note_{safe_filename_part(uid)}.png",
             content=png,
-            description="实时便笺卡片图片",
+            description=_t("gsuid.commands.public_data.daily.353_24.25170cb5"),
         )
         artifacts.append(image_artifact)
         warnings.extend(avatar_warnings)
@@ -368,7 +371,7 @@ def _daily_note_render_result(
             name="daily/note-text",
             filename=f"daily-note_{safe_filename_part(uid)}.txt",
             content=text,
-            description="实时便笺文本",
+            description=_t("gsuid.commands.public_data.daily.371_24.6468fdb9"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -391,19 +394,19 @@ def _daily_note_header(
     try:
         result = player_commands.summary_command(summary_args)
     except CliError:
-        return None, None, ["实时便笺玩家头部数据不可用，已使用后备标题"]
+        return None, None, [_t("gsuid.commands.public_data.daily.406_24.5b8de923")]
 
     summary = result.data.get("summary")
     if not isinstance(summary, dict):
-        return None, None, ["实时便笺玩家头部数据不可用，已使用后备标题"]
+        return None, None, [_t("gsuid.commands.public_data.daily.406_24.5b8de923")]
     role = summary.get("role")
     if not isinstance(role, dict):
-        return None, None, ["实时便笺玩家头部数据不可用，已使用后备标题"]
+        return None, None, [_t("gsuid.commands.public_data.daily.406_24.5b8de923")]
     nickname = _optional_text(role.get("nickname"))
     level = role.get("level")
     warnings = list(result.warnings)
     if nickname is None or level in (None, ""):
-        warnings.append("实时便笺玩家头部数据不可用，已使用后备标题")
+        warnings.append(_t("gsuid.commands.public_data.daily.406_24.5b8de923"))
     return nickname, level, warnings
 
 
@@ -417,7 +420,7 @@ def _daily_note_sign_status(
     storage_backend: str | None,
 ) -> tuple[bool | None, list[str]]:
     if not hasattr(provider, "daily_signin_status"):
-        return None, ["实时便笺签到状态不可用，已使用后备签到状态"]
+        return None, [_t("gsuid.commands.public_data.daily.420_22.3ad6664a")]
     try:
         result = provider.daily_signin_status(
             uid=uid,
@@ -427,10 +430,10 @@ def _daily_note_sign_status(
             storage_backend=storage_backend,
         )
     except CliError:
-        return None, ["实时便笺签到状态不可用，已使用后备签到状态"]
+        return None, [_t("gsuid.commands.public_data.daily.420_22.3ad6664a")]
     signed = _signed_from_signin_result(result.data)
     if signed is None:
-        return None, ["实时便笺签到状态不可用，已使用后备签到状态"]
+        return None, [_t("gsuid.commands.public_data.daily.420_22.3ad6664a")]
     return signed, result.warnings
 
 

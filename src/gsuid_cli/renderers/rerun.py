@@ -15,6 +15,7 @@ from gsuid_cli.renderers.common import (
     text_value,
     v4_background,
 )
+from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("rerun", "textures")
 COLOR_MAP = {
@@ -57,7 +58,7 @@ def render_rerun_list(
     title_draw = ImageDraw.Draw(title)
     title_draw.text(
         (643, 356),
-        text_value(data.get("version")) or "当前版本",
+        text_value(data.get("version")) or _t("gsuid.renderers.guide.text.110_49.46e66f63"),
         (255, 255, 255),
         font(30),
         "mm",
@@ -88,7 +89,7 @@ def render_rerun_list(
     draw = ImageDraw.Draw(image)
     draw.text(
         (700, height - 38),
-        "Created by GenshinUID & Power by GsCore & Design by Wuyi无疑 & Data by Teyvat",
+        _t("gsuid.renderers.rerun.91_8.93702543"),
         (220, 220, 220),
         font(20),
         "mm",
@@ -126,7 +127,11 @@ def _item_card(
         (55, 30, 155, 60), fill=_version_color(version_text, current_version), radius=20
     )
     draw.text(
-        (105, 228), f"{int_value(item.get('days_since_last_banner'))}天", "white", font(38), "mm"
+        (105, 228),
+        _t("gsuid.renderers.rerun.129_20.eac00d0a", int_value(item.get("days_since_last_banner"))),
+        "white",
+        font(38),
+        "mm",
     )
     draw.text((105, 45), version_text[:-1] if version_text else "", "white", font(24), "mm")
     return card

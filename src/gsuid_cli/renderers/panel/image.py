@@ -20,6 +20,7 @@ from gsuid_cli.renderers.common import (
     v4_background,
 )
 from gsuid_cli.renderers.panel.metrics import panel_reference_metrics
+from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("panel", "textures")
 DATA = asset_path("panel", "data")
@@ -85,28 +86,28 @@ PERCENT_PROPS = {
     "FIGHT_PROP_PHYSICAL_ADD_HURT",
 }
 PROP_LABEL_FALLBACKS = {
-    "FIGHT_PROP_ATTACK": "攻击力",
-    "FIGHT_PROP_ATTACK_PERCENT": "百分比攻击力",
-    "FIGHT_PROP_BASE_ATTACK": "基础攻击力",
-    "FIGHT_PROP_DEFENSE": "防御力",
-    "FIGHT_PROP_DEFENSE_PERCENT": "百分比防御力",
-    "FIGHT_PROP_BASE_DEFENSE": "基础防御力",
-    "FIGHT_PROP_HP": "血量",
-    "FIGHT_PROP_HP_PERCENT": "百分比血量",
-    "FIGHT_PROP_BASE_HP": "基础血量",
-    "FIGHT_PROP_ELEMENT_MASTERY": "元素精通",
-    "FIGHT_PROP_CRITICAL": "暴击率",
-    "FIGHT_PROP_CRITICAL_HURT": "暴击伤害",
-    "FIGHT_PROP_CHARGE_EFFICIENCY": "元素充能效率",
-    "FIGHT_PROP_HEAL_ADD": "治疗加成",
-    "FIGHT_PROP_FIRE_ADD_HURT": "火元素伤害加成",
-    "FIGHT_PROP_ELEC_ADD_HURT": "雷元素伤害加成",
-    "FIGHT_PROP_WATER_ADD_HURT": "水元素伤害加成",
-    "FIGHT_PROP_GRASS_ADD_HURT": "草元素伤害加成",
-    "FIGHT_PROP_WIND_ADD_HURT": "风元素伤害加成",
-    "FIGHT_PROP_ROCK_ADD_HURT": "岩元素伤害加成",
-    "FIGHT_PROP_ICE_ADD_HURT": "冰元素伤害加成",
-    "FIGHT_PROP_PHYSICAL_ADD_HURT": "物理伤害加成",
+    "FIGHT_PROP_ATTACK": _t("gsuid.renderers.panel.image.88_25.ef28aed2"),
+    "FIGHT_PROP_ATTACK_PERCENT": _t("gsuid.providers.akasha.51_4.f60501c6"),
+    "FIGHT_PROP_BASE_ATTACK": _t("gsuid.renderers.panel.image.90_30.1ad8495e"),
+    "FIGHT_PROP_DEFENSE": _t("gsuid.renderers.panel.image.91_26.2557c107"),
+    "FIGHT_PROP_DEFENSE_PERCENT": _t("gsuid.renderers.panel.image.92_34.7ecee44b"),
+    "FIGHT_PROP_BASE_DEFENSE": _t("gsuid.renderers.panel.image.93_31.7da6b094"),
+    "FIGHT_PROP_HP": _t("gsuid.renderers.panel.image.94_21.c269f206"),
+    "FIGHT_PROP_HP_PERCENT": _t("gsuid.providers.akasha.54_4.9a1c9ca9"),
+    "FIGHT_PROP_BASE_HP": _t("gsuid.renderers.panel.image.96_26.c85b9802"),
+    "FIGHT_PROP_ELEMENT_MASTERY": _t("gsuid.providers.akasha.66_4.af09dad1"),
+    "FIGHT_PROP_CRITICAL": _t("gsuid.providers.akasha.70_4.33e0f20a"),
+    "FIGHT_PROP_CRITICAL_HURT": _t("gsuid.providers.akasha.72_4.7c0dd18b"),
+    "FIGHT_PROP_CHARGE_EFFICIENCY": _t("gsuid.providers.akasha.68_4.a7a24305"),
+    "FIGHT_PROP_HEAL_ADD": _t("gsuid.renderers.panel.image.101_27.f1fcdb6f"),
+    "FIGHT_PROP_FIRE_ADD_HURT": _t("gsuid.renderers.panel.image.102_32.a7d92d8b"),
+    "FIGHT_PROP_ELEC_ADD_HURT": _t("gsuid.renderers.panel.image.103_32.b05986fe"),
+    "FIGHT_PROP_WATER_ADD_HURT": _t("gsuid.renderers.panel.image.104_33.0205a287"),
+    "FIGHT_PROP_GRASS_ADD_HURT": _t("gsuid.renderers.panel.image.105_33.cfb22d08"),
+    "FIGHT_PROP_WIND_ADD_HURT": _t("gsuid.renderers.panel.image.106_32.53069124"),
+    "FIGHT_PROP_ROCK_ADD_HURT": _t("gsuid.renderers.panel.image.107_32.78be5ad7"),
+    "FIGHT_PROP_ICE_ADD_HURT": _t("gsuid.renderers.panel.image.108_31.81e609f2"),
+    "FIGHT_PROP_PHYSICAL_ADD_HURT": _t("gsuid.renderers.panel.image.109_36.be65271f"),
 }
 FOOTER_TEXT = "Created by gsuid-cli & Render style/assets by GenshinUID & Data by Enka.network"
 
@@ -257,7 +258,7 @@ def render_panel_graduation(
     image.paste(div, (0, height - 61), div)
     draw.text(
         (900 if mode == 3 else 700, height - 30),
-        "Created by GenshinUID & Power by GsCore & Design by Wuyi无疑 & Data by Enka.network",
+        _t("gsuid.renderers.panel.image.260_8.3bde6444"),
         (200, 200, 200),
         font(18),
         "mm",
@@ -346,12 +347,12 @@ def render_panel_artifacts_library(
     )
 
     if total_pages and page < total_pages:
-        notice = f"可用 panel artifacts --page {page + 1} 查看第{page + 1}页"
+        notice = _t("gsuid.renderers.panel.image.349_17.71f7a620", page + 1, page + 1)
     else:
-        notice = "暂无更多页数"
+        notice = _t("gsuid.renderers.panel.image.351_17.0dbbbea3")
     draw.text(
         (650, 2420),
-        f"当前 {page} / {total_pages} 页, {notice}",
+        _t("gsuid.renderers.panel.image.354_8.b3b92770", page, total_pages, notice),
         (210, 210, 210),
         font(25),
         "mm",
@@ -384,7 +385,9 @@ def render_panel_showcase(
         image.paste(card, (25 + (index % 4) * WIDTH, 25 + (index // 4) * 1280), card)
 
     draw = ImageDraw.Draw(image)
-    nickname = text_value(player.get("nickname")) or "旅行者"
+    nickname = text_value(player.get("nickname")) or _t(
+        "gsuid.renderers.challenge.text.275_47.b2457913"
+    )
     draw.text((40, image.size[1] - 30), f"{nickname} | UID: {uid}", (255, 255, 255), font(28), "lm")
     return png_bytes(image, rgb=True)
 
@@ -587,7 +590,9 @@ def _graduation_title(
     title_bg.paste(title_fg, (0, 0), title_fg)
 
     draw = ImageDraw.Draw(title_bg)
-    nickname = text_value(player.get("nickname")) or "旅行者"
+    nickname = text_value(player.get("nickname")) or _t(
+        "gsuid.renderers.challenge.text.275_47.b2457913"
+    )
     draw.text((360, 428) if mode == 3 else (331, 428), nickname, "white", font(40), "lm")
     draw.text(
         (456, 478) if mode == 3 else (427, 478),
@@ -663,16 +668,22 @@ def _graduation_hard_icon(player: Mapping[str, object]) -> Image.Image:
 def _graduation_abyss_label(player: Mapping[str, object]) -> str:
     floor = int_value(player.get("abyss_floor"))
     chamber = int_value(player.get("abyss_chamber"))
-    return f"深渊{floor}-{chamber}" if floor and chamber else "深渊--"
+    return (
+        _t("gsuid.renderers.panel.image.666_11.fbcedb25", floor, chamber)
+        if floor and chamber
+        else _t("gsuid.renderers.panel.image.666_64.dc68d748")
+    )
 
 
 def _graduation_hard_label(player: Mapping[str, object]) -> str:
-    return text_value(player.get("hard_name")) or "断玉之役"
+    return text_value(player.get("hard_name")) or _t("gsuid.renderers.panel.image.670_50.e2a5f58e")
 
 
 def _graduation_theater_label(player: Mapping[str, object]) -> str:
     theater = _dict(player.get("theater"))
-    return f"第{int_value(theater.get('max_round_id'))}幕"
+    return _t(
+        "gsuid.renderers.challenge.text.117_17.9f1f6bf4", int_value(theater.get("max_round_id"))
+    )
 
 
 def _graduation_title_stats(
@@ -762,7 +773,13 @@ def _graduation_card(row: Mapping[str, object], asset_images: Mapping[str, bytes
 
     draw = ImageDraw.Draw(card)
     draw.text(
-        (98, 31), _truncate(text_value(row.get("name")) or "未知", 4), "white", font(28), "lm"
+        (98, 31),
+        _truncate(
+            text_value(row.get("name")) or _t("gsuid.renderers.daily.text.211_11.d9c32a4c"), 4
+        ),
+        "white",
+        font(28),
+        "lm",
     )
     skills = [int_value(value) for value in _sequence(row.get("skills"))][:3]
     while len(skills) < 3:
@@ -779,7 +796,13 @@ def _graduation_card(row: Mapping[str, object], asset_images: Mapping[str, bytes
     value_mask = open_rgba(GRADUATION_TEXTURE / "value_mask.png")
     value_img = Image.new("RGBA", (77, 33), _graduation_level_color("equip", value))
     card.paste(value_img, (225, 28), value_mask)
-    draw.text((263, 45), f"{_number_text(value, 2)[:4]}条", (245, 245, 245), font(24), "mm")
+    draw.text(
+        (263, 45),
+        _t("gsuid.renderers.panel.image.782_25.fed43e48", _number_text(value, 2)[:4]),
+        (245, 245, 245),
+        font(24),
+        "mm",
+    )
 
     fetter_pic = _graduation_fetter_icon(int_value(row.get("fetter"))).resize(
         (77, 33), Image.Resampling.LANCZOS
@@ -799,7 +822,11 @@ def _graduation_card(row: Mapping[str, object], asset_images: Mapping[str, bytes
     draw.text((635, 61), f"Lv.{int_value(row.get('weapon_level'))}", "white", font(26), "lm")
     draw.text(
         (559, 27),
-        _truncate(text_value(row.get("weapon_name")) or "未知武器", 7),
+        _truncate(
+            text_value(row.get("weapon_name"))
+            or _t("gsuid.renderers.panel.image.1086_49.6eb8409d"),
+            7,
+        ),
         "white",
         font(26),
         "lm",
@@ -961,7 +988,11 @@ def _showcase_card(
 
     metrics = panel_reference_metrics(avatar, panel)
     percent = _float_value(metrics.get("graduation_percent"))
-    percent_text = "暂无匹配" if percent == 0 else f"{_number_text(percent, 2)}%"
+    percent_text = (
+        _t("gsuid.renderers.panel.image.964_19.b5da4ade")
+        if percent == 0
+        else f"{_number_text(percent, 2)}%"
+    )
     effective_count = _float_value(metrics.get("effective_stat_count"))
     draw = ImageDraw.Draw(image)
     draw.rectangle((324, 256, 423, 293), (0, 105, 255))
@@ -1036,8 +1067,20 @@ def _compact_artifact_card(
     cv_score = _artifact_cv_score(normalized, _artifact_substats(raw_artifact, normalized))
     draw.rounded_rectangle((269, 22, 340, 42), 8, _score_color(effective_score, (8.4, 6.5, 5.2)))
     draw.rounded_rectangle((349, 22, 420, 42), 8, _score_color(cv_score, (50, 45, 39)))
-    draw.text((304, 32), f"{effective_score:.2f}条", (255, 255, 255), font(18), "mm")
-    draw.text((384, 32), f"{cv_score:.1f}分", (255, 255, 255), font(18), "mm")
+    draw.text(
+        (304, 32),
+        _t("gsuid.renderers.panel.image.1039_25.f0d069f0", effective_score),
+        (255, 255, 255),
+        font(18),
+        "mm",
+    )
+    draw.text(
+        (384, 32),
+        _t("gsuid.renderers.panel.image.1040_25.b01c1f4f", cv_score),
+        (255, 255, 255),
+        font(18),
+        "mm",
+    )
     return card
 
 
@@ -1083,7 +1126,7 @@ def _showcase_weapon_layer(
     layer.paste(Image.new("RGBA", mask.size, (0, 0, 0, 90)), (70, 16), mask)
 
     weapon = _weapon_equip(avatar)
-    weapon_name = _weapon_name(weapon, panel) or "未知武器"
+    weapon_name = _weapon_name(weapon, panel) or _t("gsuid.renderers.panel.image.1086_49.6eb8409d")
     icon = _first_remote_image(
         [_weapon_resource_url(weapon_name), _enka_icon_url(_flat_icon(weapon))],
         asset_images,
@@ -1098,7 +1141,13 @@ def _showcase_weapon_layer(
     draw = ImageDraw.Draw(layer)
     draw.text((212, 222), _truncate(weapon_name, 10), (255, 255, 255), font(20), "mm")
     draw.text((394, 71), f"Lv.{_weapon_level(weapon, panel)} / 90", (255, 255, 255), font(20), "mm")
-    draw.text((530, 71), f"精{_weapon_affix(weapon)}", (255, 235, 0), font(24), "mm")
+    draw.text(
+        (530, 71),
+        _t("gsuid.renderers.panel.image.1101_25.071fef7c", _weapon_affix(weapon)),
+        (255, 235, 0),
+        font(24),
+        "mm",
+    )
     draw.text(
         (386, 117),
         _weapon_base_attack(_weapon_stats(weapon, panel)),
@@ -1114,7 +1163,13 @@ def _showcase_weapon_layer(
             layer.paste(sub_icon, (443, 97), sub_icon)
         draw.text((562, 117), _stat_value_text(stats[1]), (255, 255, 255), font(24), "rm")
     else:
-        draw.text((504, 117), "无副词条", (255, 255, 255), font(24), "mm")
+        draw.text(
+            (504, 117),
+            _t("gsuid.renderers.panel.image.1117_30.127e7bfd"),
+            (255, 255, 255),
+            font(24),
+            "mm",
+        )
     return layer
 
 
@@ -1161,7 +1216,13 @@ def _showcase_character_layer(
         color = (255, 223, 0) if level >= 9 else (255, 255, 255)
         draw.text((530, 558 + 100 * index), str(level), color, font(22), "mm")
 
-    draw.text((350, 885), _avatar_name(avatar, panel) or "未知角色", (255, 233, 0), font(44), "mm")
+    draw.text(
+        (350, 885),
+        _avatar_name(avatar, panel) or _t("gsuid.renderers.challenge.text.293_68.876cfbce"),
+        (255, 233, 0),
+        font(44),
+        "mm",
+    )
     draw.text(
         (350, 929),
         f"Lv: {_avatar_level(avatar, panel)} / 90",
@@ -1249,7 +1310,7 @@ def _draw_weapon(
     asset_images: Mapping[str, bytes],
 ) -> None:
     weapon = _weapon_equip(avatar)
-    weapon_name = _weapon_name(weapon, panel) or "未知武器"
+    weapon_name = _weapon_name(weapon, panel) or _t("gsuid.renderers.panel.image.1086_49.6eb8409d")
     weapon_level = _weapon_level(weapon, panel)
     affix = _weapon_affix(weapon)
     rank = _weapon_rank(weapon, panel)
@@ -1270,16 +1331,28 @@ def _draw_weapon(
 
     draw.text((412, 670), _truncate(weapon_name, 9), (255, 255, 255), font(50), "lm")
     draw.text((420, 710), _weapon_type(weapon), (255, 255, 255), font(20), "lm")
-    draw.text((420, 750), "基础攻击力", (255, 255, 255), font(32), "lm")
+    draw.text(
+        (420, 750),
+        _t("gsuid.renderers.panel.image.90_30.1ad8495e"),
+        (255, 255, 255),
+        font(32),
+        "lm",
+    )
     draw.text((755, 750), _weapon_base_attack(stats), (255, 255, 255), font(32), "rm")
     if len(stats) >= 2:
         name = _prop_name(text_value(stats[1].get("appendPropId")) or "")
         draw.text((420, 801), _short_prop_name(name), (255, 255, 255), font(32), "lm")
         draw.text((755, 801), _stat_value_text(stats[1]), (255, 255, 255), font(32), "rm")
     else:
-        draw.text((420, 801), "该武器无副词条", (255, 255, 255), font(32), "lm")
+        draw.text(
+            (420, 801),
+            _t("gsuid.renderers.panel.image.1280_30.f8c0e0bd"),
+            (255, 255, 255),
+            font(32),
+            "lm",
+        )
     draw.text((460, 893), f"Lv.{weapon_level}", (255, 255, 255), font(28), "mm")
-    effect = _weapon_effect(weapon, panel) or "无特效。"
+    effect = _weapon_effect(weapon, panel) or _t("gsuid.renderers.panel.image.1282_46.cfe6b15e")
     draw.multiline_text((412, 925), effect, (255, 255, 255), font(25), spacing=4)
 
 
@@ -1331,12 +1404,28 @@ def _draw_base_labels(
     panel: Mapping[str, object],
     cached_at: str,
 ) -> None:
-    draw.text((411, 72), _avatar_name(avatar, panel) or "未知角色", (255, 255, 255), font(55), "lm")
-    draw.text((411, 122), f"等级{_avatar_level(avatar, panel)}", (255, 255, 255), font(40), "lm")
+    draw.text(
+        (411, 72),
+        _avatar_name(avatar, panel) or _t("gsuid.renderers.challenge.text.293_68.876cfbce"),
+        (255, 255, 255),
+        font(55),
+        "lm",
+    )
+    draw.text(
+        (411, 122),
+        _t("gsuid.renderers.panel.image.1335_26.09b20c23", _avatar_level(avatar, panel)),
+        (255, 255, 255),
+        font(40),
+        "lm",
+    )
     draw.text((747, 126), str(_friendship(avatar, panel)), (255, 255, 255), font(28), "lm")
     draw.text((350, 1035), f"UID{uid}", (255, 255, 255), font(24), "rm")
     draw.text(
-        (780, 600), f"数据最后更新于{_short_time(cached_at)}", (255, 255, 255), font(22), "rm"
+        (780, 600),
+        _t("gsuid.renderers.panel.image.1339_20.2cb79406", _short_time(cached_at)),
+        (255, 255, 255),
+        font(22),
+        "rm",
     )
 
 
@@ -1367,10 +1456,13 @@ def _artifact_card(
     main_name = _prop_name(text_value(main_stat.get("mainPropId")) or "")
     main_value = _stat_value_text(main_stat)
     main_name_short = (
-        main_name.replace("百分比", "")
-        .replace("伤害加成", "伤加成")
-        .replace("元素", "")
-        .replace("理", "")
+        main_name.replace(_t("gsuid.renderers.panel.image.1902_24.4ce634c4"), "")
+        .replace(
+            _t("gsuid.renderers.panel.image.1371_17.bf42cc55"),
+            _t("gsuid.renderers.panel.image.1371_33.1b2e7524"),
+        )
+        .replace(_t("gsuid.renderers.panel.image.1902_49.74f529b6"), "")
+        .replace(_t("gsuid.renderers.panel.image.1373_17.1162f253"), "")
     )
     draw.text((38, 150), main_name_short, (255, 255, 255), font(28), "lm")
     draw.text((271, 150), main_value, (255, 255, 255), font(28), "rm")
@@ -1394,8 +1486,20 @@ def _artifact_card(
     cv_score = _artifact_cv_score(normalized, substats)
     draw.rounded_rectangle((121, 99, 193, 119), 8, _score_color(effective_score, (8.4, 6.5, 5.2)))
     draw.rounded_rectangle((200, 99, 272, 119), 8, _score_color(cv_score, (50, 45, 39)))
-    draw.text((156, 109), f"{effective_score:.2f}条", (255, 255, 255), font(18), "mm")
-    draw.text((235, 109), f"{cv_score:.1f}分", (255, 255, 255), font(18), "mm")
+    draw.text(
+        (156, 109),
+        _t("gsuid.renderers.panel.image.1039_25.f0d069f0", effective_score),
+        (255, 255, 255),
+        font(18),
+        "mm",
+    )
+    draw.text(
+        (235, 109),
+        _t("gsuid.renderers.panel.image.1040_25.b01c1f4f", cv_score),
+        (255, 255, 255),
+        font(18),
+        "mm",
+    )
 
     bg.paste(card, (0, 0), card)
     return bg
@@ -1405,12 +1509,15 @@ def _draw_reference_scores(draw: ImageDraw.ImageDraw, metrics: Mapping[str, obje
     effective_count = _float_value(metrics.get("effective_stat_count"))
     percent = metrics.get("graduation_percent")
     percent_text = (
-        "暂无匹配" if percent in (None, 0, 0.0) else f"{_number_text(_float_value(percent), 2)}%"
+        _t("gsuid.renderers.panel.image.964_19.b5da4ade")
+        if percent in (None, 0, 0.0)
+        else f"{_number_text(_float_value(percent), 2)}%"
     )
     draw.text((783, 1570), _number_text(effective_count, 1), (255, 255, 255), font(50), "mm")
     draw.text(
         (783, 1676),
-        text_value(metrics.get("sequence_label")) or "无匹配",
+        text_value(metrics.get("sequence_label"))
+        or _t("gsuid.renderers.panel.image.1413_53.cd8c79d5"),
         (255, 255, 255),
         font(18),
         "mm",
@@ -1427,10 +1534,18 @@ def _damage_table(rows: Sequence[Mapping[str, object]]) -> Image.Image:
         image.paste(bar, (0, index * 40), bar)
     draw = ImageDraw.Draw(image)
     title_color = (255, 255, 100)
-    draw.text((45, 22), "角色动作", title_color, font(28), "lm")
-    draw.text((450, 22), "暴击值", title_color, font(28), "lm")
-    draw.text((615, 22), "期望值", title_color, font(28), "lm")
-    draw.text((780, 22), "普通值", title_color, font(28), "lm")
+    draw.text(
+        (45, 22), _t("gsuid.renderers.panel.image.1430_24.98e4b0ca"), title_color, font(28), "lm"
+    )
+    draw.text(
+        (450, 22), _t("gsuid.renderers.panel.image.1431_25.1721cd64"), title_color, font(28), "lm"
+    )
+    draw.text(
+        (615, 22), _t("gsuid.renderers.panel.image.1432_25.6de9c830"), title_color, font(28), "lm"
+    )
+    draw.text(
+        (780, 22), _t("gsuid.renderers.panel.image.1433_25.8ce9f6e5"), title_color, font(28), "lm"
+    )
     for index, row in enumerate(rows):
         y = 22 + (index + 1) * 40
         draw.text((45, y), text_value(row.get("action")) or "", (255, 255, 255), font(28), "lm")
@@ -1899,7 +2014,9 @@ def _prop_name(prop: str) -> str:
 
 
 def _short_prop_name(name: str) -> str:
-    return name.replace("百分比", "").replace("元素", "")
+    return name.replace(_t("gsuid.renderers.panel.image.1902_24.4ce634c4"), "").replace(
+        _t("gsuid.renderers.panel.image.1902_49.74f529b6"), ""
+    )
 
 
 def _number_text(value: float, digits: int = 0) -> str:

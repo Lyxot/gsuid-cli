@@ -21,6 +21,7 @@ from gsuid_cli.renderers.common import (
 )
 from gsuid_cli.renderers.player.summary import player_title_avatar_image
 from gsuid_cli.renderers.progress.collection import _color_background
+from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("gacha", "textures")
 DATA = asset_path("panel", "data")
@@ -37,33 +38,39 @@ SINGLE_Y = 150
 GROUP_SPACING = 300
 
 GROUPS = (
-    ("新手祈愿", ("100",)),
-    ("常驻祈愿", ("200",)),
-    ("角色祈愿", ("301",)),
-    ("武器祈愿", ("302",)),
-    ("集录祈愿", ("500",)),
+    (_t("gsuid.renderers.gacha.53_14.8cbeebe7"), ("100",)),
+    (_t("gsuid.renderers.gacha.51_16.3da2c5c8"), ("200",)),
+    (_t("gsuid.renderers.gacha.58_27.abe86e08"), ("301",)),
+    (_t("gsuid.renderers.gacha.50_14.59d0c22d"), ("302",)),
+    (_t("gsuid.renderers.gacha.52_18.d1a59dd3"), ("500",)),
 )
 SUMMARY_GACHA_TYPE_BY_GACHA_TYPE = {"400": "301"}
 BANNER_LABELS = {
-    "all": "全部祈愿",
-    "character": "角色祈愿",
-    "weapon": "武器祈愿",
-    "standard": "常驻祈愿",
-    "chronicled": "集录祈愿",
-    "novice": "新手祈愿",
+    "all": _t("gsuid.renderers.gacha.48_11.4ff74d72"),
+    "character": _t("gsuid.renderers.gacha.58_27.abe86e08"),
+    "weapon": _t("gsuid.renderers.gacha.50_14.59d0c22d"),
+    "standard": _t("gsuid.renderers.gacha.51_16.3da2c5c8"),
+    "chronicled": _t("gsuid.renderers.gacha.52_18.d1a59dd3"),
+    "novice": _t("gsuid.renderers.gacha.53_14.8cbeebe7"),
 }
 GACHA_TYPE_LABELS = {
     gacha_type: label for label, gacha_types in GROUPS for gacha_type in gacha_types
 }
-GACHA_TYPE_LABELS["400"] = "角色祈愿"
+GACHA_TYPE_LABELS["400"] = _t("gsuid.renderers.gacha.58_27.abe86e08")
 CHANGE_MAP = {
-    "新手祈愿": "new",
-    "常驻祈愿": "normal",
-    "角色祈愿": "char",
-    "武器祈愿": "weapon",
-    "集录祈愿": "mix",
+    _t("gsuid.renderers.gacha.53_14.8cbeebe7"): "new",
+    _t("gsuid.renderers.gacha.51_16.3da2c5c8"): "normal",
+    _t("gsuid.renderers.gacha.58_27.abe86e08"): "char",
+    _t("gsuid.renderers.gacha.50_14.59d0c22d"): "weapon",
+    _t("gsuid.renderers.gacha.52_18.d1a59dd3"): "mix",
 }
-HOMO_TAG = ["非到极致", "运气不好", "平稳保底", "小欧一把", "欧狗在此"]
+HOMO_TAG = [
+    _t("gsuid.renderers.gacha.66_12.d05c6e47"),
+    _t("gsuid.renderers.gacha.66_28.1fddfc30"),
+    _t("gsuid.renderers.gacha.66_44.c261ca9e"),
+    _t("gsuid.renderers.gacha.66_60.74efbd8a"),
+    _t("gsuid.renderers.gacha.66_76.212d89df"),
+]
 STANDARD_FIVE = {
     "莫娜",
     "迪卢克",
@@ -99,61 +106,74 @@ def render_gacha_summary_text(
     items: Sequence[Mapping[str, object]],
     summary: Mapping[str, object],
 ) -> str:
-    lines = [f"祈愿统计 - {_banner_label(banner)}", f"UID: {uid}"]
-    lines.append(f"总抽数: {int_value(summary.get('total'), len(items))}")
-    _append_counter_section(lines, "按星级", _rank_counts(summary))
-    _append_counter_section(lines, "按类型", _item_type_counts(summary))
+    lines = [_t("gsuid.renderers.gacha.102_13.15819363", _banner_label(banner)), f"UID: {uid}"]
+    lines.append(
+        _t("gsuid.renderers.gacha.103_17.dd5d446e", int_value(summary.get("total"), len(items)))
+    )
+    _append_counter_section(
+        lines, _t("gsuid.renderers.gacha.104_35.657bf466"), _rank_counts(summary)
+    )
+    _append_counter_section(
+        lines, _t("gsuid.renderers.gacha.105_35.c0a9a356"), _item_type_counts(summary)
+    )
 
     groups = _gacha_groups(items)
     if not groups:
-        lines.extend(["", "暂无祈愿数据"])
+        lines.extend(["", _t("gsuid.renderers.gacha.279_30.e6d8f951")])
         return _finish(lines)
 
-    lines.extend(["", "祈愿池:"])
+    lines.extend(["", _t("gsuid.renderers.gacha.112_22.ab116054")])
     for group in groups:
-        label = text_value(group.get("label")) or "未知祈愿"
+        label = text_value(group.get("label")) or _t("gsuid.renderers.gacha.649_51.e9731505")
         lines.append(
-            f"  - {label}: {int_value(group.get('total_draws'))}抽，"
-            f"距离五星 {int_value(group.get('remain'))}抽"
+            _t(
+                "gsuid.renderers.gacha.116_12.a436b58e",
+                label,
+                int_value(group.get("total_draws")),
+                int_value(group.get("remain")),
+            )
         )
         time_range = text_value(group.get("time_range"))
-        if time_range and time_range != "暂未抽过卡!":
-            lines.append(f"    时间: {time_range}")
+        if time_range and time_range != _t("gsuid.renderers.gacha.526_15.d3e8dac3"):
+            lines.append(_t("gsuid.renderers.events.text.112_29.acab63aa", time_range))
         detail = _gacha_group_detail(group)
         if detail:
             lines.append(f"    {'，'.join(detail)}")
         five_stars = _mapping_list(group.get("five_stars"))
         if five_stars:
-            lines.append("    五星记录:")
+            lines.append(_t("gsuid.renderers.gacha.127_25.274421fe"))
             for item in five_stars:
                 lines.append(f"      - {_five_star_text(label, item)}")
     return _finish(lines)
 
 
 def render_gacha_refresh_text(data: Mapping[str, object]) -> str:
-    lines = ["祈愿记录刷新", f"UID: {data.get('uid', '-')}"]
+    lines = [_t("gsuid.renderers.gacha.134_13.fe3ee11b"), f"UID: {data.get('uid', '-')}"]
     credential_source = text_value(data.get("credential_source"))
     if credential_source:
-        lines.append(f"凭据来源: {_source_label(credential_source)}")
+        lines.append(_t("gsuid.renderers.gacha.137_21.03d4aea9", _source_label(credential_source)))
     storage_backend = text_value(data.get("storage_backend"))
     if storage_backend:
-        lines.append(f"存储后端: {storage_backend}")
+        lines.append(_t("gsuid.renderers.gacha.140_21.5a046e87", storage_backend))
     lines.extend(
         [
-            f"获取: {int_value(data.get('fetched'))}",
-            f"新增: {int_value(data.get('inserted'))}",
-            f"重复: {int_value(data.get('duplicates'))}",
+            _t("gsuid.renderers.gacha.143_12.45b2a93f", int_value(data.get("fetched"))),
+            _t("gsuid.renderers.gacha.144_12.ee12340d", int_value(data.get("inserted"))),
+            _t("gsuid.renderers.gacha.145_12.7cffc60f", int_value(data.get("duplicates"))),
         ]
     )
     rows = _mapping_list(data.get("types"))
     if rows:
-        lines.extend(["", "分类型:"])
+        lines.extend(["", _t("gsuid.renderers.gacha.150_26.2ce4de9c")])
         for row in rows:
             lines.append(
-                f"  - {_gacha_type_label(row.get('gacha_type'))}: "
-                f"获取 {int_value(row.get('fetched'))}，"
-                f"新增 {int_value(row.get('inserted'))}，"
-                f"重复 {int_value(row.get('duplicates'))}"
+                _t(
+                    "gsuid.renderers.gacha.153_16.20b70766",
+                    _gacha_type_label(row.get("gacha_type")),
+                    int_value(row.get("fetched")),
+                    int_value(row.get("inserted")),
+                    int_value(row.get("duplicates")),
+                )
             )
     return _finish(lines)
 
@@ -161,12 +181,12 @@ def render_gacha_refresh_text(data: Mapping[str, object]) -> str:
 def render_gacha_import_text(data: Mapping[str, object]) -> str:
     return _finish(
         [
-            "祈愿记录导入",
+            _t("gsuid.renderers.gacha.164_12.3f5f2e07"),
             f"UID: {data.get('uid', '-')}",
-            f"格式: {text_value(data.get('format')) or '-'}",
-            f"总数: {int_value(data.get('total'))}",
-            f"新增: {int_value(data.get('inserted'))}",
-            f"重复: {int_value(data.get('duplicates'))}",
+            _t("gsuid.renderers.gacha.182_8.3d8ab093", text_value(data.get("format")) or "-"),
+            _t("gsuid.renderers.events.text.88_21.d282f3df", int_value(data.get("total"))),
+            _t("gsuid.renderers.gacha.144_12.ee12340d", int_value(data.get("inserted"))),
+            _t("gsuid.renderers.gacha.145_12.7cffc60f", int_value(data.get("duplicates"))),
         ]
     )
 
@@ -177,15 +197,20 @@ def render_gacha_export_text(
     artifact_path: object = None,
 ) -> str:
     lines = [
-        "祈愿记录导出",
+        _t("gsuid.commands.gacha.1161_23.3ba080fb"),
         f"UID: {data.get('uid', '-')}",
-        f"格式: {text_value(data.get('format')) or '-'}",
-        f"数量: {int_value(data.get('count'))}",
-        f"状态: {'已导出' if data.get('exported') else '未导出'}",
+        _t("gsuid.renderers.gacha.182_8.3d8ab093", text_value(data.get("format")) or "-"),
+        _t("gsuid.renderers.challenge.text.186_8.a63927f2", int_value(data.get("count"))),
+        _t(
+            "gsuid.renderers.gacha.184_8.82609e71",
+            _t("gsuid.common.exported")
+            if data.get("exported")
+            else _t("gsuid.common.not_exported"),
+        ),
     ]
     path = text_value(artifact_path)
     if path:
-        lines.append(f"文件: {path}")
+        lines.append(_t("gsuid.renderers.gacha.188_21.1133624e", path))
     return _finish(lines)
 
 
@@ -194,29 +219,47 @@ def render_gacha_authkey_text(
     *,
     refreshed: bool = False,
 ) -> str:
-    lines = ["祈愿链接凭据" if not refreshed else "祈愿链接凭据刷新"]
+    lines = [
+        _t("gsuid.renderers.gacha.197_13.c039e0ea")
+        if not refreshed
+        else _t("gsuid.renderers.gacha.197_56.94c980b5")
+    ]
     if data.get("uid") not in (None, ""):
         lines.append(f"UID: {data['uid']}")
-    lines.append(f"状态: {'可用' if data.get('available') else '不可用'}")
+    lines.append(
+        _t(
+            "gsuid.renderers.gacha.184_8.82609e71",
+            _t("gsuid.common.available")
+            if data.get("available")
+            else _t("gsuid.common.not_available"),
+        )
+    )
     if refreshed:
-        lines.append(f"保存: {'已保存' if data.get('stored') else '未保存'}")
+        lines.append(
+            _t(
+                "gsuid.renderers.gacha.202_21.cf53b8f1",
+                _t("gsuid.common.saved") if data.get("stored") else _t("gsuid.common.not_saved"),
+            )
+        )
     credential_source = text_value(data.get("source"))
     if credential_source:
-        lines.append(f"凭据来源: {_source_label(credential_source)}")
+        lines.append(_t("gsuid.renderers.gacha.137_21.03d4aea9", _source_label(credential_source)))
     storage_backend = text_value(data.get("storage_backend"))
     if storage_backend:
-        lines.append(f"存储后端: {storage_backend}")
+        lines.append(_t("gsuid.renderers.gacha.140_21.5a046e87", storage_backend))
     sources = data.get("credential_sources")
     if isinstance(sources, Mapping):
         cookie = text_value(sources.get("cookie"))
         stoken = text_value(sources.get("stoken"))
         if cookie or stoken:
             lines.append(
-                "生成凭据: "
-                f"Cookie {_source_label(cookie) if cookie else '-'}，"
-                f"Stoken {_source_label(stoken) if stoken else '-'}"
+                _t(
+                    "gsuid.renderers.gacha.215_16.f7a58d47",
+                    _source_label(cookie) if cookie else "-",
+                    _source_label(stoken) if stoken else "-",
+                )
             )
-    lines.append("内容: 已隐藏")
+    lines.append(_t("gsuid.renderers.gacha.219_17.9cfef6ee"))
     return _finish(lines)
 
 
@@ -276,7 +319,9 @@ def render_gacha_summary_card(
     draw.text((475, 454), f"UID {uid}", FIRST_COLOR, font(36), "mm")
 
     if not groups:
-        draw.text((475, 610), "暂无祈愿数据", FIRST_COLOR, font(42), "mm")
+        draw.text(
+            (475, 610), _t("gsuid.renderers.gacha.279_30.e6d8f951"), FIRST_COLOR, font(42), "mm"
+        )
         return png_bytes(image, rgb=True)
 
     y = 540
@@ -409,7 +454,13 @@ def _item_card(
         text_color = GREEN_COLOR
     else:
         text_color = BROWN_COLOR
-    draw.text((55, 124), f"{gacha_num}抽", text_color, font(24), "mm")
+    draw.text(
+        (55, 124),
+        _t("gsuid.renderers.gacha.412_25.b3cd15c5", gacha_num),
+        text_color,
+        font(24),
+        "mm",
+    )
     if item.get("is_up"):
         up = open_rgba(TEXTURE / "up.png")
         card.paste(up, (47, -2), up)
@@ -425,7 +476,7 @@ def _icon_candidate_urls(item: Mapping[str, object]) -> list[str]:
 
 def _item_icon_urls(item: Mapping[str, object]) -> list[str]:
     item_type = str(item.get("item_type") or "")
-    if item_type in {"角色", "Character"}:
+    if item_type in {_t("gsuid.renderers.gacha.663_15.6b26695e"), "Character"}:
         item_ids = _character_ids(item)
         if not item_ids:
             return [FALLBACK_CHARACTER_ICON_URL]
@@ -480,10 +531,12 @@ def _emotion_image(uid: str, label: str, level: int) -> Image.Image:
 
 def _luck_level(group: Mapping[str, object]) -> int:
     label = str(group["label"])
-    value = float(group["avg_up"] if label != "常驻祈愿" else group["avg"])
-    if label == "常驻祈愿":
+    value = float(
+        group["avg_up"] if label != _t("gsuid.renderers.gacha.51_16.3da2c5c8") else group["avg"]
+    )
+    if label == _t("gsuid.renderers.gacha.51_16.3da2c5c8"):
         thresholds = [54, 61, 67, 73, 80]
-    elif label == "武器祈愿":
+    elif label == _t("gsuid.renderers.gacha.50_14.59d0c22d"):
         thresholds = [62, 75, 88, 99, 111]
     else:
         thresholds = [74, 87, 99, 105, 120]
@@ -509,24 +562,28 @@ def _number_text(value: object) -> str:
 
 def _gacha_style(total: int, short_count: int, long_count: int, total_gap_seconds: float) -> str:
     if total <= 40:
-        return "佛系型"
+        return _t("gsuid.renderers.gacha.512_15.75698459")
     if long_count / total >= 0.7:
-        return "随缘型"
+        return _t("gsuid.renderers.gacha.514_15.769530ea")
     if short_count / total >= 0.7:
-        return "规划型"
+        return _t("gsuid.renderers.gacha.516_15.1454a819")
     if total_gap_seconds / 30000 <= total:
-        return "规划型" if long_count >= short_count else "氪金型"
+        return (
+            _t("gsuid.renderers.gacha.516_15.1454a819")
+            if long_count >= short_count
+            else _t("gsuid.renderers.gacha.518_61.9be7913b")
+        )
     if total_gap_seconds / 32000 >= total * 2:
-        return "仓鼠型"
-    return "一般型"
+        return _t("gsuid.renderers.gacha.520_15.f22fdf07")
+    return _t("gsuid.renderers.gacha.521_11.73da0e4f")
 
 
 def _time_range(items: Sequence[Mapping[str, object]]) -> str:
     if not items:
-        return "暂未抽过卡!"
+        return _t("gsuid.renderers.gacha.526_15.d3e8dac3")
     first = text_value(items[0].get("time")) or ""
     last = text_value(items[-1].get("time")) or ""
-    return f"{first}~{last}" if first and last else "暂未抽过卡!"
+    return f"{first}~{last}" if first and last else _t("gsuid.renderers.gacha.526_15.d3e8dac3")
 
 
 def _time_key(item: Mapping[str, object]) -> str:
@@ -596,8 +653,12 @@ def _rank_counts(summary: Mapping[str, object]) -> list[tuple[str, int]]:
     for rank, count in value.items():
         rank_text = text_value(rank)
         if rank_text:
-            rows.append((f"{rank_text}星", int_value(count)))
-    return sorted(rows, key=lambda row: int_value(row[0].removesuffix("星")), reverse=True)
+            rows.append((_t("gsuid.renderers.gacha.599_25.931af952", rank_text), int_value(count)))
+    return sorted(
+        rows,
+        key=lambda row: int_value(row[0].removesuffix(_t("gsuid.renderers.gacha.600_70.92ae747c"))),
+        reverse=True,
+    )
 
 
 def _item_type_counts(summary: Mapping[str, object]) -> list[tuple[str, int]]:
@@ -616,37 +677,45 @@ def _gacha_group_detail(group: Mapping[str, object]) -> list[str]:
     detail = []
     avg = group.get("avg")
     if avg not in (None, "", 0):
-        detail.append(f"五星平均 {_number_text(avg)}抽")
+        detail.append(_t("gsuid.renderers.gacha.619_22.14349c5c", _number_text(avg)))
     avg_up = group.get("avg_up")
-    if group.get("label") != "常驻祈愿" and avg_up not in (None, "", 0):
-        detail.append(f"限定平均 {_number_text(avg_up)}抽")
+    if group.get("label") != _t("gsuid.renderers.gacha.51_16.3da2c5c8") and avg_up not in (
+        None,
+        "",
+        0,
+    ):
+        detail.append(_t("gsuid.renderers.gacha.622_22.a370ca55", _number_text(avg_up)))
     style = text_value(group.get("type"))
     if style:
-        detail.append(f"类型 {style}")
+        detail.append(_t("gsuid.renderers.gacha.625_22.9a18408b", style))
     return detail
 
 
 def _five_star_text(group_label: str, item: Mapping[str, object]) -> str:
-    name = text_value(item.get("name")) or "未知物品"
+    name = text_value(item.get("name")) or _t("gsuid.renderers.gacha.630_43.988a9ca3")
     parts = [
         name,
-        f"{int_value(item.get('gacha_num'))}抽",
+        _t("gsuid.renderers.gacha.412_25.b3cd15c5", int_value(item.get("gacha_num"))),
         _item_type_label(item.get("item_type")),
     ]
     time_text = text_value(item.get("time"))
     if time_text:
         parts.append(time_text)
-    if group_label != "常驻祈愿":
-        parts.append("限定" if item.get("is_up") else "常驻")
+    if group_label != _t("gsuid.renderers.gacha.51_16.3da2c5c8"):
+        parts.append(
+            _t("gsuid.renderers.gacha.640_21.70c31580")
+            if item.get("is_up")
+            else _t("gsuid.renderers.gacha.640_56.08a4dc38")
+        )
     return "，".join(part for part in parts if part)
 
 
 def _banner_label(value: object) -> str:
-    return BANNER_LABELS.get(str(value or ""), "全部祈愿")
+    return BANNER_LABELS.get(str(value or ""), _t("gsuid.renderers.gacha.48_11.4ff74d72"))
 
 
 def _gacha_type_label(value: object) -> str:
-    return GACHA_TYPE_LABELS.get(str(value or ""), "未知祈愿")
+    return GACHA_TYPE_LABELS.get(str(value or ""), _t("gsuid.renderers.gacha.649_51.e9731505"))
 
 
 def _summary_gacha_type(item: Mapping[str, object]) -> str:
@@ -659,19 +728,19 @@ def _summary_gacha_type(item: Mapping[str, object]) -> str:
 
 def _item_type_label(value: object) -> str:
     text = text_value(value)
-    if text in {"Character", "角色"}:
-        return "角色"
-    if text in {"Weapon", "武器"}:
-        return "武器"
+    if text in {"Character", _t("gsuid.renderers.gacha.663_15.6b26695e")}:
+        return _t("gsuid.renderers.gacha.663_15.6b26695e")
+    if text in {"Weapon", _t("gsuid.commands.panel.impl.988_24.6f0f16e0")}:
+        return _t("gsuid.commands.panel.impl.988_24.6f0f16e0")
     return text or ""
 
 
 def _source_label(value: object) -> str:
     text = text_value(value)
     if text == "keyring":
-        return "钥匙串"
+        return _t("gsuid.renderers.gacha.672_15.8209f138")
     if text == "profile":
-        return "配置"
+        return _t("gsuid.renderers.gacha.674_15.d7d7ce79")
     if text == "environment":
-        return "环境变量"
+        return _t("gsuid.renderers.gacha.676_15.8da07705")
     return text or "-"

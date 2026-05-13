@@ -49,62 +49,63 @@ from gsuid_cli.renderers.progress.text import (
     render_progress_gcg_text,
     render_progress_guide_status_text,
 )
+from gsuid_cli.text import t as _t
 
 PROGRESS_IMAGE_WORKERS = 12
 
 CAPABILITIES = [
     {
         "command": "progress.completion",
-        "description": "显示账号完成度汇总。",
+        "description": _t("gsuid.commands.progress.58_23.e158e482"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "progress.exploration",
-        "description": "显示世界探索数据。",
+        "description": _t("gsuid.commands.progress.65_23.ac50520d"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "progress.collection",
-        "description": "显示收集进度数据。",
+        "description": _t("gsuid.commands.progress.72_23.7840412d"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "progress.achievements",
-        "description": "显示成就分类数据。",
+        "description": _t("gsuid.commands.progress.79_23.d62d5140"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "progress.achievement-guide",
-        "description": "查找成就攻略数据。",
+        "description": _t("gsuid.commands.progress.86_23.67218358"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "progress.commission-guide",
-        "description": "查找委托攻略数据。",
+        "description": _t("gsuid.commands.progress.93_23.e11c6a50"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "progress.gcg",
-        "description": "显示七圣召唤数据。",
+        "description": _t("gsuid.commands.progress.100_23.4167325d"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "progress.gcg-deck",
-        "description": "显示七圣召唤卡组数据。",
+        "description": _t("gsuid.commands.progress.107_23.2d7a6dff"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
@@ -115,7 +116,7 @@ _HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    progress = groups.add_parser("progress", help="显示进度数据。")
+    progress = groups.add_parser("progress", help=_t("gsuid.commands.progress.118_50.5b4871a0"))
     commands = progress.add_subparsers(dest="progress_command", required=True, metavar="<command>")
 
     completion = commands.add_parser("completion", help=_HELPS["progress.completion"])
@@ -352,7 +353,7 @@ def _completion_render_result(
             provider="mys",
             region=region,
             category="progress.completion.icon",
-            unavailable_warning=("{count} 个探索完成度图标不可用，已使用占位图"),
+            unavailable_warning=(_t("gsuid.commands.progress.355_33.c95f1b58")),
             max_workers=PROGRESS_IMAGE_WORKERS,
         )
         png = render_progress_completion_card(completion=completion, asset_images=images)
@@ -360,7 +361,7 @@ def _completion_render_result(
             args,
             name="progress/completion",
             filename=f"progress-completion_{safe_filename_part(uid)}.png",
-            description="探索完成度卡片图片",
+            description=_t("gsuid.commands.progress.363_24.659db93a"),
             content=png,
         )
         artifacts.append(image_artifact)
@@ -372,7 +373,7 @@ def _completion_render_result(
             name="progress/completion-text",
             filename=f"progress-completion_{safe_filename_part(uid)}.txt",
             content=render_progress_completion_text(uid=uid, completion=completion),
-            description="探索完成度文本",
+            description=_t("gsuid.commands.progress.375_24.c4213138"),
         )
         artifacts.append(text_artifact)
         _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -431,7 +432,7 @@ def _exploration_render_result(
             args,
             name="progress/exploration",
             filename=f"progress-exploration_{safe_filename_part(uid)}.png",
-            description="世界探索进度卡片图片",
+            description=_t("gsuid.commands.progress.434_24.c48940cc"),
             content=png,
         )
         artifacts.append(image_artifact)
@@ -443,7 +444,7 @@ def _exploration_render_result(
             name="progress/exploration-text",
             filename=f"progress-exploration_{safe_filename_part(uid)}.txt",
             content=render_progress_exploration_text(uid=uid, exploration=exploration),
-            description="世界探索进度文本",
+            description=_t("gsuid.commands.progress.446_24.7eb61f4b"),
         )
         artifacts.append(text_artifact)
         _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -494,7 +495,7 @@ def _collection_render_result(
             args,
             name="progress/collection",
             filename=f"progress-collection_{safe_filename_part(uid)}.png",
-            description="收集进度卡片图片",
+            description=_t("gsuid.commands.progress.497_24.062daa42"),
             content=png,
         )
         artifacts.append(image_artifact)
@@ -506,7 +507,7 @@ def _collection_render_result(
             name="progress/collection-text",
             filename=f"progress-collection_{safe_filename_part(uid)}.txt",
             content=render_progress_collection_text(uid=uid, collection=collection),
-            description="收集进度文本",
+            description=_t("gsuid.commands.progress.509_24.66afa14f"),
         )
         artifacts.append(text_artifact)
         _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -552,7 +553,7 @@ def _achievements_render_result(
             provider="mys",
             region=region,
             category="progress.achievements.icon",
-            unavailable_warning="{count} 个成就图标不可用，已使用占位图",
+            unavailable_warning=_t("gsuid.commands.progress.555_32.e13ae5ee"),
             max_workers=PROGRESS_IMAGE_WORKERS,
         )
         png = render_progress_achievements_card(
@@ -566,7 +567,7 @@ def _achievements_render_result(
             args,
             name="progress/achievements",
             filename=f"progress-achievements_{safe_filename_part(uid)}.png",
-            description="成就分类进度卡片图片",
+            description=_t("gsuid.commands.progress.569_24.c134ae29"),
             content=png,
         )
         artifacts.append(image_artifact)
@@ -582,7 +583,7 @@ def _achievements_render_result(
                 achievements=achievements,
                 query=result.data.get("query"),
             ),
-            description="成就分类进度文本",
+            description=_t("gsuid.commands.progress.585_24.bc09f1bf"),
         )
         artifacts.append(text_artifact)
         _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -611,7 +612,7 @@ def _gcg_render_result(
         if not has_gcg_covers(gcg):
             raise CliError(
                 "NO_RESULT",
-                "七圣召唤图片渲染需要已启用的卡组封面。",
+                _t("gsuid.commands.progress.614_16.e2d310d1"),
                 EXIT_NO_RESULT,
                 {"uid": uid},
                 source=result.source,
@@ -622,7 +623,7 @@ def _gcg_render_result(
             provider="mys",
             region=region,
             category="progress.gcg.card",
-            unavailable_warning="{count} 个七圣召唤卡片图片不可用，已使用占位图",
+            unavailable_warning=_t("gsuid.commands.progress.625_32.d7ad4a9e"),
             max_workers=PROGRESS_IMAGE_WORKERS,
         )
         png = render_progress_gcg_card(uid=uid, gcg=gcg, asset_images=images)
@@ -630,7 +631,7 @@ def _gcg_render_result(
             args,
             name="progress/gcg",
             filename=f"progress-gcg_{safe_filename_part(uid)}.png",
-            description="七圣召唤概览卡片图片",
+            description=_t("gsuid.commands.progress.633_24.f38f41c0"),
             content=png,
         )
         artifacts.append(image_artifact)
@@ -642,7 +643,7 @@ def _gcg_render_result(
             name="progress/gcg-text",
             filename=f"progress-gcg_{safe_filename_part(uid)}.txt",
             content=render_progress_gcg_text(uid=uid, gcg=gcg),
-            description="七圣召唤进度文本",
+            description=_t("gsuid.commands.progress.645_24.7b6cd8f1"),
         )
         artifacts.append(text_artifact)
         _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -679,7 +680,7 @@ def _gcg_deck_render_result(
         if not deck:
             raise CliError(
                 "NO_RESULT",
-                "没有匹配请求的七圣召唤卡组。",
+                _t("gsuid.commands.progress.682_16.20f9770c"),
                 EXIT_NO_RESULT,
                 {"uid": uid, "deck_id": result.data.get("deck_id")},
                 source=result.source,
@@ -700,7 +701,7 @@ def _gcg_deck_render_result(
             provider="mys",
             region=region,
             category="progress.gcg-deck.card",
-            unavailable_warning="{count} 个七圣召唤卡组图片不可用，已使用占位图",
+            unavailable_warning=_t("gsuid.commands.progress.703_32.0d498cfb"),
             max_workers=PROGRESS_IMAGE_WORKERS,
         )
         png = render_progress_gcg_deck_card(
@@ -714,7 +715,7 @@ def _gcg_deck_render_result(
             args,
             name="progress/gcg-deck",
             filename=f"progress-gcg-deck_{safe_filename_part(uid)}.png",
-            description="七圣召唤卡组卡片图片",
+            description=_t("gsuid.commands.progress.717_24.eba304d9"),
             content=png,
         )
         artifacts.append(image_artifact)
@@ -726,7 +727,7 @@ def _gcg_deck_render_result(
             name="progress/gcg-deck-text",
             filename=f"progress-gcg-deck_{safe_filename_part(uid)}.txt",
             content=render_progress_gcg_deck_text(uid=uid, data=result.data),
-            description="七圣召唤卡组进度文本",
+            description=_t("gsuid.commands.progress.729_24.facf0e9d"),
         )
         artifacts.append(text_artifact)
         _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -750,7 +751,7 @@ def _guide_render_result(
         name=f"progress/{kind}-guide-text",
         filename=f"progress-{kind}-guide.txt",
         content=render_progress_guide_status_text(result.data),
-        description=f" {kind} 攻略支持状态文本",
+        description=_t("gsuid.commands.progress.753_20.4f3f8fee", kind),
     )
     data = render_result_data(
         args,

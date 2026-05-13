@@ -14,24 +14,25 @@ from gsuid_cli.providers.mys.constants import (
     BBS_TASKS_LIST_PATH,
     PROVIDER,
 )
+from gsuid_cli.text import t as _t
 
 BBS_GAMES = [
-    {"id": "1", "forum_id": "1", "name": "崩坏3"},
-    {"id": "2", "forum_id": "26", "name": "原神"},
-    {"id": "3", "forum_id": "30", "name": "崩坏2"},
-    {"id": "4", "forum_id": "37", "name": "未定事件簿"},
-    {"id": "5", "forum_id": "34", "name": "大别野"},
-    {"id": "6", "forum_id": "52", "name": "崩坏：星穹铁道"},
-    {"id": "8", "forum_id": "57", "name": "绝区零"},
-    {"id": "9", "forum_id": "948", "name": "崩坏：因缘精灵"},
-    {"id": "10", "forum_id": "950", "name": "星布谷地"},
+    {"id": "1", "forum_id": "1", "name": _t("gsuid.providers.mys.bbs.19_41.27206b52")},
+    {"id": "2", "forum_id": "26", "name": _t("gsuid.providers.mys.bbs.20_42.df8fb420")},
+    {"id": "3", "forum_id": "30", "name": _t("gsuid.providers.mys.bbs.21_42.1a196e74")},
+    {"id": "4", "forum_id": "37", "name": _t("gsuid.providers.mys.bbs.22_42.1708175c")},
+    {"id": "5", "forum_id": "34", "name": _t("gsuid.providers.mys.bbs.23_42.e5380868")},
+    {"id": "6", "forum_id": "52", "name": _t("gsuid.providers.mys.bbs.24_42.023e444c")},
+    {"id": "8", "forum_id": "57", "name": _t("gsuid.providers.mys.bbs.25_42.c2ef8d3f")},
+    {"id": "9", "forum_id": "948", "name": _t("gsuid.providers.mys.bbs.26_43.59ff6a92")},
+    {"id": "10", "forum_id": "950", "name": _t("gsuid.providers.mys.bbs.27_44.51148762")},
 ]
 
 MISSION_LABELS = {
-    "bbs_sign": "讨论区签到",
-    "read_posts": "浏览帖子",
-    "like_posts": "点赞帖子",
-    "share_post": "分享帖子",
+    "bbs_sign": _t("gsuid.providers.mys.bbs.31_16.7cc3219a"),
+    "read_posts": _t("gsuid.providers.mys.bbs.32_18.2fd33e01"),
+    "like_posts": _t("gsuid.providers.mys.bbs.33_18.037fc53a"),
+    "share_post": _t("gsuid.providers.mys.bbs.34_18.d849a608"),
 }
 MISSION_IDS = {
     58: "bbs_sign",
@@ -160,7 +161,9 @@ class MysBbsMixin:
             headers=_bbs_headers(stoken),
         )
         if not _ok(response.payload):
-            failures.append(_failure("获取帖子列表失败", response.payload))
+            failures.append(
+                _failure(_t("gsuid.providers.mys.bbs.163_37.3d8de5bd"), response.payload)
+            )
             return []
         data = _data(response.payload)
         raw_posts = data.get("list")
@@ -176,7 +179,7 @@ class MysBbsMixin:
                 if post_id:
                     posts.append({"id": post_id, "subject": str(post.get("subject") or "")})
         if not posts:
-            failures.append("未能获取可用于浏览、点赞或分享的米游社帖子")
+            failures.append(_t("gsuid.providers.mys.bbs.179_28.b4c1cd4f"))
         return posts[:10]
 
     def _read_posts(
@@ -203,7 +206,11 @@ class MysBbsMixin:
             if _ok(response.payload):
                 ok += 1
             else:
-                failures.append(_failure("浏览帖子失败", response.payload, post["id"]))
+                failures.append(
+                    _failure(
+                        _t("gsuid.providers.mys.bbs.206_41.566c42fe"), response.payload, post["id"]
+                    )
+                )
         actions.append({"task": "read_posts", "label": MISSION_LABELS["read_posts"], "count": ok})
 
     def _share_post(
@@ -216,7 +223,7 @@ class MysBbsMixin:
         failures: list[str],
     ) -> None:
         if not posts:
-            failures.append("分享帖子失败: 没有可用帖子")
+            failures.append(_t("gsuid.providers.mys.bbs.219_28.68036480"))
             return
         post = posts[0]
         response = self.http.request_json(
@@ -231,7 +238,11 @@ class MysBbsMixin:
         if _ok(response.payload):
             actions.append({"task": "share_post", "label": MISSION_LABELS["share_post"]})
         else:
-            failures.append(_failure("分享帖子失败", response.payload, post["id"]))
+            failures.append(
+                _failure(
+                    _t("gsuid.providers.mys.bbs.234_37.d9c1d3bf"), response.payload, post["id"]
+                )
+            )
 
     def _like_posts(
         self,
@@ -259,7 +270,11 @@ class MysBbsMixin:
             if _ok(response.payload):
                 ok += 1
             else:
-                failures.append(_failure("点赞帖子失败", response.payload, post["id"]))
+                failures.append(
+                    _failure(
+                        _t("gsuid.providers.mys.bbs.262_41.6b964fa5"), response.payload, post["id"]
+                    )
+                )
                 continue
             cancel_body = {"post_id": post["id"], "is_cancel": True}
             cancel = self.http.request_json(
@@ -305,7 +320,12 @@ class MysBbsMixin:
             if _ok(response.payload):
                 signed.append(game["name"])
             else:
-                failures.append(_failure(f"{game['name']}签到失败", response.payload))
+                failures.append(
+                    _failure(
+                        _t("gsuid.providers.mys.bbs.308_41.e76c1c22", game["name"]),
+                        response.payload,
+                    )
+                )
         actions.append(
             {
                 "task": "bbs_sign",

@@ -15,6 +15,7 @@ from gsuid_cli.renderers.common import (
     png_bytes,
     text_value,
 )
+from gsuid_cli.text import t as _t
 
 ABYSS_TEXTURE = asset_path("guide", "abyss", "textures")
 THEATER_TEXTURE = asset_path("guide", "theater", "textures")
@@ -38,7 +39,7 @@ def render_guide_abyss_card(
     draw.rounded_rectangle((570, 292, 772, 330), 10, (27, 82, 155))
     draw.text(
         (425, 175),
-        f"深境螺旋 {int_value(abyss.get('floor'), 12)}层",
+        _t("gsuid.renderers.guide.image.41_8.f9cdca96", int_value(abyss.get("floor"), 12)),
         "white",
         font(84),
         "lm",
@@ -52,8 +53,14 @@ def render_guide_abyss_card(
         spacing=4,
     )
     version = text_value(abyss.get("version")) or text_value(abyss.get("schedule_name")) or "-"
-    draw.text((485, 311), f"版本{version}", "white", font(28), "mm")
-    draw.text((670, 311), "数据 妮可少年", "white", font(28), "mm")
+    draw.text(
+        (485, 311),
+        _t("gsuid.renderers.guide.image.55_26.9c3638ab", version),
+        "white",
+        font(28),
+        "mm",
+    )
+    draw.text((670, 311), _t("gsuid.renderers.guide.image.56_26.b4be8b7b"), "white", font(28), "mm")
     icon = open_rgba(ABYSS_TEXTURE / "icon.png").resize((260, 260), Image.Resampling.LANCZOS)
     image.paste(icon, (45, 80), icon)
 
@@ -121,7 +128,11 @@ def _abyss_chamber(
     draw.rounded_rectangle((320, 20, 780, 72), 10, (16, 13, 13, 120))
     draw.text(
         (550, 46),
-        f"{chamber.get('name') or ''} · 怪物等级 Lv{int_value(chamber.get('level'))}",
+        _t(
+            "gsuid.renderers.guide.image.124_8.901d983e",
+            chamber.get("name") or "",
+            int_value(chamber.get("level")),
+        ),
         "white",
         font(36),
         "mm",
@@ -145,7 +156,13 @@ def _abyss_half(
         block_height = (((len(monsters) - 1) // 3) + 1) * 125 + 40
         tag = open_rgba(ABYSS_TEXTURE / "wave_tag.png")
         tag_draw = ImageDraw.Draw(tag)
-        tag_draw.text((36, 20), f"第{index}波", (210, 210, 210), font(24), "lm")
+        tag_draw.text(
+            (36, 20),
+            _t("gsuid.renderers.guide.image.148_32.d6dd3acb", index),
+            (210, 210, 210),
+            font(24),
+            "lm",
+        )
         extra = text_value(wave.get("extra_desc"))
         if extra:
             draw.text((150, 65 + y), f" > {extra}", (210, 210, 210), font(24), "lm")
@@ -184,7 +201,7 @@ def _abyss_monster(
     draw = ImageDraw.Draw(image)
     draw.text(
         (160, 85),
-        (text_value(monster.get("name")) or "未知怪物")[:7],
+        (text_value(monster.get("name")) or _t("gsuid.providers.public.guide.274_83.9f6cb1a9"))[:7],
         "white",
         font(28),
         "lm",
@@ -202,7 +219,7 @@ def _paste_theater_title(
     draw = ImageDraw.Draw(title)
     draw.text(
         (500, 473),
-        f"剧诗ID：{theater.get('event_id') or '-'} 详细信息",
+        _t("gsuid.renderers.guide.image.205_8.ad92ee2f", theater.get("event_id") or "-"),
         (255, 255, 255),
         font=font(38),
         anchor="mm",
@@ -250,7 +267,13 @@ def _theater_room(
         THEATER_TEXTURE / ("long_monster_bg.png" if has_title else "short_monster_bg.png")
     )
     draw = ImageDraw.Draw(image)
-    draw.text((131, 69), f"第{room.get('id') or '-'}幕", "black", font(30), "lm")
+    draw.text(
+        (131, 69),
+        _t("gsuid.renderers.challenge.text.117_17.9f1f6bf4", room.get("id") or "-"),
+        "black",
+        font(30),
+        "lm",
+    )
     if has_title:
         draw.text((245, 69), str(room.get("title") or ""), "black", font(30), "lm")
         desc = (text_value(room.get("description")) or "")[:26]
@@ -261,7 +284,7 @@ def _theater_room(
     else:
         draw.text(
             (131, 114),
-            f"怪物等级 Lv{int_value(room.get('monster_level'))}",
+            _t("gsuid.renderers.guide.image.264_12.9e1d70d1", int_value(room.get("monster_level"))),
             (99, 99, 99),
             font(28),
             "lm",
@@ -288,7 +311,11 @@ def _theater_monster(
     image.paste(icon, (0, 0), icon)
     draw = ImageDraw.Draw(image)
     draw.text(
-        (100, 30), (text_value(monster.get("name")) or "未知怪物")[:6], (36, 36, 36), font(22), "lm"
+        (100, 30),
+        (text_value(monster.get("name")) or _t("gsuid.providers.public.guide.274_83.9f6cb1a9"))[:6],
+        (36, 36, 36),
+        font(22),
+        "lm",
     )
     draw.text((100, 57), f"HP {int_value(monster.get('hp'))}", (90, 90, 90), font(22), "lm")
     return image

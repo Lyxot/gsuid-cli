@@ -12,39 +12,40 @@ from gsuid_cli.core.secrets import CREDENTIALS, SecretStore, credential_presence
 from gsuid_cli.core.state import state_db
 from gsuid_cli.core.time import utc_now
 from gsuid_cli.renderers.local_auth import render_account_command_text
+from gsuid_cli.text import t as _t
 
 CAPABILITIES = [
     {
         "command": "account.add",
-        "description": "添加或更新账号。",
+        "description": _t("gsuid.commands.account.19_23.d52dfaa1"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "account.list",
-        "description": "列出账号。",
+        "description": _t("gsuid.commands.account.26_23.de61fc2a"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "account.show",
-        "description": "显示账号。",
+        "description": _t("gsuid.commands.account.33_23.5acecf00"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "account.default",
-        "description": "设置默认账号。",
+        "description": _t("gsuid.commands.account.40_23.8faddb9e"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "account.remove",
-        "description": "移除账号。",
+        "description": _t("gsuid.commands.account.47_23.9a22d2a6"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
@@ -55,7 +56,7 @@ _HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    account = groups.add_parser("account", help="管理本地原神账号。")
+    account = groups.add_parser("account", help=_t("gsuid.commands.account.58_48.fa5f633d"))
     commands = account.add_subparsers(dest="account_command", required=True, metavar="<command>")
 
     add = commands.add_parser("add", help=_HELPS["account.add"])
@@ -210,7 +211,7 @@ def _get_account(conn: sqlite3.Connection, uid: str) -> sqlite3.Row:
     if row is None:
         raise CliError(
             "NO_RESULT",
-            f"未找到账号: {uid}",
+            _t("gsuid.commands.account.213_12.ed40a8f5", uid),
             EXIT_NO_RESULT,
             {"uid": uid},
         )
@@ -244,5 +245,5 @@ def _account_text_result(
         data,
         subject=subject,
         render_fn=render_account_command_text,
-        description="本地账号文本",
+        description=_t("gsuid.commands.account.247_20.f723a7a4"),
     )

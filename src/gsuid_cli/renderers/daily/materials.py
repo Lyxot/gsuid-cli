@@ -13,6 +13,7 @@ from gsuid_cli.renderers.common import (
     png_bytes,
     text_value,
 )
+from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("daily", "materials", "textures")
 PUBLIC_TEXTURE = asset_path("public", "textures")
@@ -46,12 +47,18 @@ def render_daily_materials_card(
     title_draw = ImageDraw.Draw(title)
     title_draw.text(
         (475, 474),
-        f"今天是{_weekday_label(day)}哦!",
+        _t("gsuid.renderers.daily.materials.49_8.f3bcce45", _weekday_label(day)),
         fill="black",
         font=font(36),
         anchor="mm",
     )
-    title_draw.text((475, 531), "每日材料", fill="black", font=font(36), anchor="mm")
+    title_draw.text(
+        (475, 531),
+        _t("gsuid.renderers.daily.materials.54_32.9021d82d"),
+        fill="black",
+        font=font(36),
+        anchor="mm",
+    )
     img.paste(title, (0, 0), title)
 
     y = TITLE_HEIGHT
@@ -143,13 +150,13 @@ def _domain_parts(name: str) -> tuple[str, str]:
 
 def _weekday_label(day: str) -> str:
     return {
-        "monday": "周一",
-        "tuesday": "周二",
-        "wednesday": "周三",
-        "thursday": "周四",
-        "friday": "周五",
-        "saturday": "周六",
-        "sunday": "周日",
+        "monday": _t("gsuid.renderers.daily.materials.146_18.792c34e7"),
+        "tuesday": _t("gsuid.renderers.daily.materials.147_19.8f03441d"),
+        "wednesday": _t("gsuid.renderers.daily.materials.148_21.25455673"),
+        "thursday": _t("gsuid.renderers.daily.materials.149_20.18f1fd9e"),
+        "friday": _t("gsuid.renderers.daily.materials.150_18.4344fc13"),
+        "saturday": _t("gsuid.renderers.daily.materials.151_20.f0c6199a"),
+        "sunday": _t("gsuid.renderers.daily.materials.152_18.c3405710"),
     }.get(day, day)
 
 

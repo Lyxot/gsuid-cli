@@ -20,15 +20,16 @@ from gsuid_cli.renderers.challenge.common import (
     timestamp_text,
 )
 from gsuid_cli.renderers.common import asset_path, font, int_value, open_rgba, png_bytes
+from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("challenge", "theater", "textures")
 WIDTH = 1200
 DIFFICULTY_MAP = {
-    1: "简单模式",
-    2: "普通模式",
-    3: "困难模式",
-    4: "卓越模式",
-    5: "月喻模式",
+    1: _t("gsuid.renderers.challenge.text.10_7.b96a5429"),
+    2: _t("gsuid.renderers.challenge.text.11_7.e8a4554e"),
+    3: _t("gsuid.renderers.challenge.text.12_7.49b6a116"),
+    4: _t("gsuid.renderers.challenge.text.13_7.c528888a"),
+    5: _t("gsuid.renderers.challenge.text.14_7.93eacb2e"),
 }
 
 
@@ -58,7 +59,13 @@ def render_challenge_theater_card(
         _paste_rounds(image, rounds, asset_images)
     else:
         draw = ImageDraw.Draw(image)
-        draw.text((WIDTH // 2, 835), "暂无幻想真境剧诗挑战记录", "white", font(36), "mm")
+        draw.text(
+            (WIDTH // 2, 835),
+            _t("gsuid.renderers.challenge.text.109_26.780f83be"),
+            "white",
+            font(36),
+            "mm",
+        )
 
     paste_footer(image, font_size=24)
     return png_bytes(image, rgb=True)
@@ -123,7 +130,13 @@ def _paste_title(
     draw = ImageDraw.Draw(title)
     draw.text((362, 428), _nickname(summary), "white", font(40), "lm")
     draw.text((458, 478), f"UID {uid}", (207, 207, 207), font(30), "mm")
-    draw.text((875, 430), DIFFICULTY_MAP.get(difficulty_id, "困难模式"), "white", font(30), "mm")
+    draw.text(
+        (875, 430),
+        DIFFICULTY_MAP.get(difficulty_id, _t("gsuid.renderers.challenge.text.12_7.49b6a116")),
+        "white",
+        font(30),
+        "mm",
+    )
     draw.text((1072, 430), f"{medal}/{max_round}", "white", font(30), "mm")
     start = timestamp_text(schedule.get("start_time"))
     end = timestamp_text(schedule.get("end_time"))
@@ -137,7 +150,13 @@ def _paste_title(
             best_hit.paste(side, (27, 7), side)
         best_draw = ImageDraw.Draw(best_hit)
         best_draw.text((189, 58), str(max_damage.get("value") or "-"), "white", font(26), "mm")
-        best_draw.text((68, 91), "最高伤害", "white", font(20), "mm")
+        best_draw.text(
+            (68, 91),
+            _t("gsuid.renderers.challenge.theater.140_33.28915553"),
+            "white",
+            font(20),
+            "mm",
+        )
         title.paste(best_hit, (860, 222), best_hit)
 
     image.paste(title, (0, 0), title)
@@ -151,10 +170,24 @@ def _paste_status(
     status = open_rgba(TEXTURE / "bar.png")
     draw = ImageDraw.Draw(status)
     total_time = int_value(fight.get("total_use_time"))
-    total_time_text = f"{total_time // 60}分{total_time % 60}秒"
+    total_time_text = _t(
+        "gsuid.renderers.challenge.theater.154_22.163ee8ea", total_time // 60, total_time % 60
+    )
     values = (
-        (145, f"第{int_value(stat.get('max_round_id'))}幕"),
-        (327, f"圣牌{int_value(stat.get('tarot_finished_cnt'))}"),
+        (
+            145,
+            _t(
+                "gsuid.renderers.challenge.text.117_17.9f1f6bf4",
+                int_value(stat.get("max_round_id")),
+            ),
+        ),
+        (
+            327,
+            _t(
+                "gsuid.renderers.challenge.text.115_12.1b02ae01",
+                int_value(stat.get("tarot_finished_cnt")),
+            ),
+        ),
         (508, str(int_value(stat.get("coin_num")))),
         (690, str(int_value(stat.get("avatar_bonus_num")))),
         (871, str(int_value(stat.get("rent_cnt")))),
@@ -178,9 +211,15 @@ def _paste_rounds(
         stage = open_rgba(TEXTURE / stage_name)
         draw = ImageDraw.Draw(stage)
         round_name = (
-            f"圣牌{int_value(round_data.get('tarot_serial_no'))}"
+            _t(
+                "gsuid.renderers.challenge.text.115_12.1b02ae01",
+                int_value(round_data.get("tarot_serial_no")),
+            )
             if round_data.get("is_tarot")
-            else f"第{int_value(round_data.get('round_id'))}幕"
+            else _t(
+                "gsuid.renderers.challenge.text.117_17.9f1f6bf4",
+                int_value(round_data.get("round_id")),
+            )
         )
         medal = flower_yes if round_data.get("is_get_medal") else flower_no
         draw.text((172, 63), round_name, "white", font(28), "mm")
@@ -282,4 +321,4 @@ def _nickname(summary: Mapping[str, object]) -> str:
         nickname = role.get("nickname")
         if isinstance(nickname, str) and nickname:
             return nickname
-    return "旅行者"
+    return _t("gsuid.renderers.challenge.text.275_47.b2457913")

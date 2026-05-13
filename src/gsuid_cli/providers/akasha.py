@@ -12,6 +12,7 @@ from gsuid_cli.core.http import HttpClient, ProviderResponse
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
 from gsuid_cli.core.time import utc_now
+from gsuid_cli.text import t as _t
 
 PROVIDER = "akasha"
 BASE_URL = "https://akasha.cv/api"
@@ -45,44 +46,44 @@ STAT_MAP = {
 ARTIFACT_SORT_MAP = {
     "crit": "critValue",
     "cv": "critValue",
-    "双爆": "critValue",
+    _t("gsuid.commands.rank.95_16.d6a90bcf"): "critValue",
     "atk": "substats.ATK%",
     "atk-percent": "substats.ATK%",
-    "百分比攻击力": "substats.ATK%",
+    _t("gsuid.providers.akasha.51_4.f60501c6"): "substats.ATK%",
     "hp": "substats.HP%",
     "hp-percent": "substats.HP%",
-    "百分比血量": "substats.HP%",
+    _t("gsuid.providers.akasha.54_4.9a1c9ca9"): "substats.HP%",
     "def": "substats.DEF%",
     "def-percent": "substats.DEF%",
-    "百分比防御": "substats.DEF%",
+    _t("gsuid.providers.akasha.57_4.6d9f8226"): "substats.DEF%",
     "flat-atk": "substats.Flat ATK",
-    "固定攻击力": "substats.Flat ATK",
+    _t("gsuid.providers.akasha.59_4.4c96e113"): "substats.Flat ATK",
     "flat-hp": "substats.Flat HP",
-    "固定血量": "substats.Flat HP",
-    "固定生命": "substats.Flat HP",
+    _t("gsuid.providers.akasha.61_4.6ff58225"): "substats.Flat HP",
+    _t("gsuid.providers.akasha.62_4.0aaf0915"): "substats.Flat HP",
     "flat-def": "substats.Flat DEF",
-    "固定防御力": "substats.Flat DEF",
+    _t("gsuid.providers.akasha.64_4.6dadbed7"): "substats.Flat DEF",
     "em": "substats.Elemental Mastery",
-    "元素精通": "substats.Elemental Mastery",
+    _t("gsuid.providers.akasha.66_4.af09dad1"): "substats.Elemental Mastery",
     "recharge": "substats.Energy Recharge",
-    "元素充能效率": "substats.Energy Recharge",
+    _t("gsuid.providers.akasha.68_4.a7a24305"): "substats.Energy Recharge",
     "crit-rate": "substats.Crit RATE",
-    "暴击率": "substats.Crit RATE",
+    _t("gsuid.providers.akasha.70_4.33e0f20a"): "substats.Crit RATE",
     "crit-damage": "substats.Crit DMG",
-    "暴击伤害": "substats.Crit DMG",
+    _t("gsuid.providers.akasha.72_4.7c0dd18b"): "substats.Crit DMG",
 }
 ARTIFACT_SORT_LABELS = {
-    "critValue": "双爆",
-    "substats.ATK%": "百分比攻击力",
-    "substats.HP%": "百分比血量",
-    "substats.DEF%": "百分比防御",
-    "substats.Flat ATK": "固定攻击力",
-    "substats.Flat HP": "固定血量",
-    "substats.Flat DEF": "固定防御力",
-    "substats.Elemental Mastery": "元素精通",
-    "substats.Energy Recharge": "元素充能效率",
-    "substats.Crit RATE": "暴击率",
-    "substats.Crit DMG": "暴击伤害",
+    "critValue": _t("gsuid.commands.rank.95_16.d6a90bcf"),
+    "substats.ATK%": _t("gsuid.providers.akasha.51_4.f60501c6"),
+    "substats.HP%": _t("gsuid.providers.akasha.54_4.9a1c9ca9"),
+    "substats.DEF%": _t("gsuid.providers.akasha.57_4.6d9f8226"),
+    "substats.Flat ATK": _t("gsuid.providers.akasha.59_4.4c96e113"),
+    "substats.Flat HP": _t("gsuid.providers.akasha.61_4.6ff58225"),
+    "substats.Flat DEF": _t("gsuid.providers.akasha.64_4.6dadbed7"),
+    "substats.Elemental Mastery": _t("gsuid.providers.akasha.66_4.af09dad1"),
+    "substats.Energy Recharge": _t("gsuid.providers.akasha.68_4.a7a24305"),
+    "substats.Crit RATE": _t("gsuid.providers.akasha.70_4.33e0f20a"),
+    "substats.Crit DMG": _t("gsuid.providers.akasha.72_4.7c0dd18b"),
 }
 
 
@@ -334,7 +335,7 @@ class AkashaProvider:
 
 
 def artifact_sort_key(sort_by: str | None) -> str:
-    key = (sort_by or "双爆").strip()
+    key = (sort_by or _t("gsuid.commands.rank.95_16.d6a90bcf")).strip()
     if key.startswith(("critValue", "substats.")):
         return key
     mapped = ARTIFACT_SORT_MAP.get(key)

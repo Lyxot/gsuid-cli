@@ -36,46 +36,47 @@ from gsuid_cli.renderers.gacha import (
     render_gacha_summary_card,
     render_gacha_summary_text,
 )
+from gsuid_cli.text import t as _t
 
 CAPABILITIES = [
     {
         "command": "gacha.refresh",
-        "description": "刷新本地祈愿记录。",
+        "description": _t("gsuid.commands.gacha.43_23.e2fd5476"),
         "auth": "gacha_url",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "gacha.summary",
-        "description": "显示本地祈愿记录。",
+        "description": _t("gsuid.commands.gacha.50_23.169a51a3"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "gacha.export",
-        "description": "导出本地祈愿记录。",
+        "description": _t("gsuid.commands.gacha.57_23.6d7b0815"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "gacha.import",
-        "description": "导入 UIGF 祈愿记录。",
+        "description": _t("gsuid.commands.gacha.64_23.b24efe9e"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "gacha.authkey",
-        "description": "显示已存储的祈愿 URL 状态。",
+        "description": _t("gsuid.commands.gacha.71_23.40b8acda"),
         "auth": "gacha_url",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "gacha.authkey.refresh",
-        "description": "使用 Cookie 和 Stoken 生成并存储祈愿 URL。",
+        "description": _t("gsuid.commands.gacha.78_23.77a24415"),
         "auth": "cookie+stoken",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
@@ -116,7 +117,7 @@ REQUIRED_ITEM_FIELDS = {
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    gacha = groups.add_parser("gacha", help="管理本地祈愿记录。")
+    gacha = groups.add_parser("gacha", help=_t("gsuid.commands.gacha.119_44.b4b09768"))
     commands = gacha.add_subparsers(dest="gacha_command", required=True, metavar="<command>")
 
     refresh = commands.add_parser("refresh", help=_HELPS["gacha.refresh"])
@@ -154,8 +155,8 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 
     authkey = commands.add_parser(
         "authkey",
-        help="显示或刷新已存储的祈愿 URL 状态。",
-        description="显示已存储的祈愿 URL 状态。如果不指定操作，将返回状态。",
+        help=_t("gsuid.commands.gacha.157_13.a9d1c5f8"),
+        description=_t("gsuid.commands.gacha.158_20.4610e7ba"),
     )
     authkey.add_argument("--uid", dest="command_uid")
     authkey.set_defaults(handler=authkey_command, command_name="gacha.authkey")
@@ -168,7 +169,7 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     authkey_status.set_defaults(handler=authkey_command, command_name="gacha.authkey")
     authkey_refresh = authkey_actions.add_parser(
         "refresh",
-        help="生成并存储祈愿 URL。",
+        help=_t("gsuid.commands.gacha.171_13.860bbead"),
     )
     authkey_refresh.add_argument("--uid", dest="command_uid")
     authkey_refresh.set_defaults(
@@ -210,7 +211,7 @@ def refresh_command(args: argparse.Namespace) -> CommandResult:
             data=result.data,
             source=result.source,
             warnings=[
-                "祈愿记录 authkey 已过期，已自动刷新",
+                _t("gsuid.commands.gacha.213_16.24dd15ae"),
                 *refreshed.warnings,
                 *result.warnings,
             ],
@@ -355,7 +356,7 @@ def import_command(args: argparse.Namespace) -> CommandResult | dict[str, object
         render_name="gacha/import-text",
         filename=f"gacha-import_{uid}.txt",
         content=render_gacha_import_text(data),
-        description="祈愿记录导入状态文本",
+        description=_t("gsuid.commands.gacha.358_20.a6723e4a"),
         render_data={"uid": uid},
     )
 
@@ -381,7 +382,7 @@ def authkey_command(args: argparse.Namespace) -> CommandResult | dict[str, objec
         render_name="gacha/authkey-text",
         filename=f"gacha-authkey_{uid}.txt",
         content=render_gacha_authkey_text(data),
-        description="祈愿状态文本",
+        description=_t("gsuid.commands.gacha.384_20.b08a3658"),
         render_data={"uid": uid},
     )
 
@@ -397,7 +398,7 @@ def authkey_refresh_command(args: argparse.Namespace) -> CommandResult:
         render_name="gacha/authkey-refresh-text",
         filename=f"gacha-authkey-refresh_{uid}.txt",
         content=render_gacha_authkey_text(result.data, refreshed=True),
-        description="祈愿刷新状态文本",
+        description=_t("gsuid.commands.gacha.400_20.ab71fb95"),
         render_data={"uid": uid},
     )
 
@@ -814,7 +815,7 @@ def _summary_render_result(
             max_workers=8,
         )
         missing = gacha_summary_missing_icon_count(items, asset_images)
-        warnings.extend([f"{missing} 个祈愿物品图标不可用，已使用占位图"] if missing else [])
+        warnings.extend([_t("gsuid.commands.gacha.817_25.12381129", missing)] if missing else [])
         warnings.extend(title_warnings)
         png = render_gacha_summary_card(
             uid=uid,
@@ -828,7 +829,7 @@ def _summary_render_result(
             name="gacha/summary",
             filename=f"gacha-summary_{uid}_{banner}.png",
             content=png,
-            description="祈愿记录汇总卡片图片",
+            description=_t("gsuid.commands.gacha.831_24.d5b131e4"),
         )
         artifacts.append(image_artifact)
         record_primary_image(render_data, image_artifact)
@@ -843,7 +844,7 @@ def _summary_render_result(
                 items=items,
                 summary=_summary_mapping(data),
             ),
-            description="祈愿记录汇总文本",
+            description=_t("gsuid.commands.gacha.846_24.95d7e8ee"),
         )
         artifacts.append(text_artifact)
         _record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -869,7 +870,7 @@ def _gacha_title_context(
             args.credential_kind = previous_kind
         if exc.code == "AUTH_REQUIRED":
             return {}, {}, None, []
-        return {}, {}, None, ["玩家资料凭据读取失败，已使用默认头像"]
+        return {}, {}, None, [_t("gsuid.commands.gacha.872_30.4b04be0a")]
     finally:
         if previous_kind is None and hasattr(args, "credential_kind"):
             delattr(args, "credential_kind")
@@ -903,7 +904,7 @@ def _gacha_title_context(
             provider="genshinuid",
             region=region,
             category="gacha.summary.title.resource",
-            unavailable_warning="玩家标题资源不可用，已使用默认头像",
+            unavailable_warning=_t("gsuid.commands.gacha.906_32.655b94c0"),
             max_workers=8,
         )
         icon_images, icon_warnings = fetch_render_images(
@@ -912,7 +913,7 @@ def _gacha_title_context(
             provider="mys",
             region=region,
             category="gacha.summary.title.icon",
-            unavailable_warning="玩家标题图标不可用，已使用默认头像",
+            unavailable_warning=_t("gsuid.commands.gacha.915_32.a8377551"),
             max_workers=8,
         )
         profile_images, profile_image_warnings = _player_profile_image_assets(
@@ -921,7 +922,7 @@ def _gacha_title_context(
             region,
         )
     except CliError:
-        return {}, {}, None, ["玩家资料不可用，已使用默认头像"]
+        return {}, {}, None, [_t("gsuid.commands.gacha.924_30.4f88231f")]
     return (
         dict(summary),
         {**resource_images, **icon_images, **profile_images},
@@ -948,15 +949,15 @@ def _gacha_title_warnings(warnings: list[str]) -> list[str]:
     translated = []
     for warning in warnings:
         if "profile picture map" in warning:
-            translated.append("玩家头像配置不可用，已使用默认头像")
+            translated.append(_t("gsuid.commands.gacha.951_30.dcef2210"))
         elif "profile picture" in warning:
-            translated.append("玩家头像不可用，已使用默认头像")
+            translated.append(_t("gsuid.commands.gacha.953_30.3ca5dea8"))
         elif "profile unavailable" in warning:
-            translated.append("玩家资料不可用，已使用默认头像")
+            translated.append(_t("gsuid.commands.gacha.924_30.4f88231f"))
         elif "title resources" in warning:
-            translated.append("玩家标题资源不可用，已使用默认头像")
+            translated.append(_t("gsuid.commands.gacha.906_32.655b94c0"))
         elif "title icons" in warning:
-            translated.append("玩家标题图标不可用，已使用默认头像")
+            translated.append(_t("gsuid.commands.gacha.915_32.a8377551"))
         else:
             translated.append(warning)
     return translated
@@ -970,7 +971,7 @@ def _refresh_render_result(args: argparse.Namespace, result: CommandResult) -> C
         render_name="gacha/refresh-text",
         filename=f"gacha-refresh_{uid}.txt",
         content=render_gacha_refresh_text(result.data),
-        description="祈愿记录刷新状态文本",
+        description=_t("gsuid.commands.gacha.973_20.eca50d54"),
         render_data={"uid": uid},
     )
 
@@ -990,7 +991,7 @@ def _export_render_result(
             result.data,
             artifact_path=export_artifact.get("path"),
         ),
-        description="祈愿记录导出状态文本",
+        description=_t("gsuid.commands.gacha.993_20.7b7f0fb5"),
         render_data={"uid": uid},
     )
 
@@ -1145,7 +1146,7 @@ def _write_export(
         filename=filename,
         media_type="application/json",
         content=content,
-        description=f"祈愿记录导出 ({export_format})",
+        description=_t("gsuid.commands.gacha.1148_20.c3ccde64", export_format),
         kind="json",
     )
 
@@ -1158,5 +1159,5 @@ def _artifact_for_path(path: Path, content: bytes) -> dict[str, object]:
         "media_type": "application/json",
         "bytes": len(content),
         "sha256": hashlib.sha256(content).hexdigest(),
-        "description": "祈愿记录导出",
+        "description": _t("gsuid.commands.gacha.1161_23.3ba080fb"),
     }

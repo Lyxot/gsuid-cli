@@ -21,81 +21,82 @@ from gsuid_cli.renderers.player.characters import (
     character_portrait_url,
     render_player_characters_section,
 )
+from gsuid_cli.text import t as _t
 
 SUMMARY_TEXTURE = asset_path("player", "summary", "textures")
 PUBLIC_TEXTURE = asset_path("public", "textures")
 ENKA_UI_BASE = "https://enka.network/ui"
 
 CMAP = {
-    "枫丹": [10, 8, 6, 4, 2],
-    "须弥": [10, 8, 6, 4, 2],
-    "地下矿区": [10, 8, 6, 4, 2],
-    "层岩巨渊": [10, 8, 6, 4, 2],
-    "渊下宫": [0, 0, 0, 0, 0],
-    "稻妻": [10, 8, 6, 4, 2],
-    "龙脊雪山": [12, 10, 8, 5, 2],
-    "璃月": [8, 7, 6, 4, 2],
-    "蒙德": [8, 7, 6, 4, 2],
-    "露景泉": [20, 16, 12, 8, 4],
-    "梦之树": [50, 40, 30, 20, 10],
-    "流明石触媒": [10, 8, 6, 4, 2],
-    "神樱眷顾": [50, 40, 30, 20, 10],
-    "忍冬之树": [12, 10, 8, 5, 2],
-    "风神瞳": [66, 50, 35, 25, 10],
-    "岩神瞳": [131, 100, 70, 40, 10],
-    "雷神瞳": [181, 141, 100, 60, 15],
-    "草神瞳": [271, 211, 150, 90, 20],
-    "水神瞳": [271, 211, 150, 90, 20],
-    "冰神瞳": [271, 211, 150, 90, 20],
-    "火神瞳": [271, 211, 150, 90, 20],
-    "月神瞳": [271, 211, 150, 90, 20],
-    "华丽的宝箱": [367, 293, 220, 146, 73],
-    "珍贵的宝箱": [960, 768, 576, 384, 192],
-    "精致的宝箱": [3043, 2434, 1825, 1217, 608],
-    "普通的宝箱": [3570, 2856, 2142, 1428, 714],
-    "奇馈宝箱": [366, 292, 219, 146, 73],
+    _t("gsuid.renderers.daily.text.22_9.71f4594b"): [10, 8, 6, 4, 2],
+    _t("gsuid.renderers.daily.text.21_9.d6e52915"): [10, 8, 6, 4, 2],
+    _t("gsuid.renderers.player.summary.32_4.080b44d7"): [10, 8, 6, 4, 2],
+    _t("gsuid.renderers.player.summary.33_4.5bfde491"): [10, 8, 6, 4, 2],
+    _t("gsuid.renderers.player.summary.34_4.3d931c3a"): [0, 0, 0, 0, 0],
+    _t("gsuid.renderers.daily.text.20_9.60582a7f"): [10, 8, 6, 4, 2],
+    _t("gsuid.renderers.player.summary.36_4.df0e3caf"): [12, 10, 8, 5, 2],
+    _t("gsuid.renderers.daily.text.19_9.cf9effa7"): [8, 7, 6, 4, 2],
+    _t("gsuid.renderers.daily.text.18_9.4e2f394b"): [8, 7, 6, 4, 2],
+    _t("gsuid.renderers.player.summary.39_4.92406835"): [20, 16, 12, 8, 4],
+    _t("gsuid.renderers.player.summary.40_4.ed2a2cc9"): [50, 40, 30, 20, 10],
+    _t("gsuid.renderers.player.summary.41_4.ab9bf2de"): [10, 8, 6, 4, 2],
+    _t("gsuid.renderers.player.summary.42_4.bb6a4532"): [50, 40, 30, 20, 10],
+    _t("gsuid.renderers.player.summary.43_4.9b782077"): [12, 10, 8, 5, 2],
+    _t("gsuid.renderers.player.summary.44_4.59d5cc2a"): [66, 50, 35, 25, 10],
+    _t("gsuid.renderers.player.summary.45_4.56e70957"): [131, 100, 70, 40, 10],
+    _t("gsuid.renderers.player.summary.46_4.6eeccf4e"): [181, 141, 100, 60, 15],
+    _t("gsuid.renderers.player.summary.47_4.d5bbd092"): [271, 211, 150, 90, 20],
+    _t("gsuid.renderers.player.summary.48_4.53cdf0ba"): [271, 211, 150, 90, 20],
+    _t("gsuid.renderers.player.summary.49_4.463844dd"): [271, 211, 150, 90, 20],
+    _t("gsuid.renderers.player.summary.50_4.600de4a5"): [271, 211, 150, 90, 20],
+    _t("gsuid.renderers.player.summary.51_4.68a591a2"): [271, 211, 150, 90, 20],
+    _t("gsuid.renderers.player.summary.52_4.2eef40ce"): [367, 293, 220, 146, 73],
+    _t("gsuid.renderers.player.summary.53_4.cad09647"): [960, 768, 576, 384, 192],
+    _t("gsuid.renderers.player.summary.54_4.8d1ca1ac"): [3043, 2434, 1825, 1217, 608],
+    _t("gsuid.renderers.player.summary.55_4.33e13053"): [3570, 2856, 2142, 1428, 714],
+    _t("gsuid.renderers.player.summary.56_4.0788ed91"): [366, 292, 219, 146, 73],
 }
 
 DMAP = {
-    "枫丹": 14,
-    "须弥": 250,
-    "地下矿区": 220,
-    "层岩巨渊": 220,
-    "渊下宫": 45,
-    "稻妻": 30,
-    "龙脊雪山": -60,
-    "璃月": 200,
-    "蒙德": 300,
+    _t("gsuid.renderers.daily.text.22_9.71f4594b"): 14,
+    _t("gsuid.renderers.daily.text.21_9.d6e52915"): 250,
+    _t("gsuid.renderers.player.summary.32_4.080b44d7"): 220,
+    _t("gsuid.renderers.player.summary.33_4.5bfde491"): 220,
+    _t("gsuid.renderers.player.summary.34_4.3d931c3a"): 45,
+    _t("gsuid.renderers.daily.text.20_9.60582a7f"): 30,
+    _t("gsuid.renderers.player.summary.36_4.df0e3caf"): -60,
+    _t("gsuid.renderers.daily.text.19_9.cf9effa7"): 200,
+    _t("gsuid.renderers.daily.text.18_9.4e2f394b"): 300,
 }
 
 STCMAP = {
-    "electro": "雷神瞳",
-    "geo": "岩神瞳",
-    "hydro": "水神瞳",
-    "anemo": "风神瞳",
-    "dendro": "草神瞳",
-    "cryo": "冰神瞳",
-    "pyro": "火神瞳",
-    "moono": "月神瞳",
+    "electro": _t("gsuid.renderers.player.summary.46_4.6eeccf4e"),
+    "geo": _t("gsuid.renderers.player.summary.45_4.56e70957"),
+    "hydro": _t("gsuid.renderers.player.summary.48_4.53cdf0ba"),
+    "anemo": _t("gsuid.renderers.player.summary.44_4.59d5cc2a"),
+    "dendro": _t("gsuid.renderers.player.summary.47_4.d5bbd092"),
+    "cryo": _t("gsuid.renderers.player.summary.49_4.463844dd"),
+    "pyro": _t("gsuid.renderers.player.summary.50_4.600de4a5"),
+    "moono": _t("gsuid.renderers.player.summary.51_4.68a591a2"),
 }
 
 EXPMAX_DATA = {
-    "风神瞳": 66,
-    "岩神瞳": 131,
-    "雷神瞳": 181,
-    "草神瞳": 271,
-    "水神瞳": 271,
-    "冰神瞳": 271,
-    "火神瞳": 271,
-    "月神瞳": 271,
+    _t("gsuid.renderers.player.summary.44_4.59d5cc2a"): 66,
+    _t("gsuid.renderers.player.summary.45_4.56e70957"): 131,
+    _t("gsuid.renderers.player.summary.46_4.6eeccf4e"): 181,
+    _t("gsuid.renderers.player.summary.47_4.d5bbd092"): 271,
+    _t("gsuid.renderers.player.summary.48_4.53cdf0ba"): 271,
+    _t("gsuid.renderers.player.summary.49_4.463844dd"): 271,
+    _t("gsuid.renderers.player.summary.50_4.600de4a5"): 271,
+    _t("gsuid.renderers.player.summary.51_4.68a591a2"): 271,
 }
 
 CHEST_MAX = {
-    "普通的宝箱": 3570,
-    "精致的宝箱": 3043,
-    "珍贵的宝箱": 960,
-    "华丽的宝箱": 367,
-    "奇馈宝箱": 366,
+    _t("gsuid.renderers.player.summary.55_4.33e13053"): 3570,
+    _t("gsuid.renderers.player.summary.54_4.8d1ca1ac"): 3043,
+    _t("gsuid.renderers.player.summary.53_4.cad09647"): 960,
+    _t("gsuid.renderers.player.summary.52_4.2eef40ce"): 367,
+    _t("gsuid.renderers.player.summary.56_4.0788ed91"): 366,
 }
 
 COLOR_MAP = {
@@ -109,7 +110,7 @@ COLOR_MAP = {
 HALF_WHITE = (255, 255, 255, 120)
 WHITE = (255, 255, 255)
 BLACK = (2, 2, 2)
-FOOTER_TEXT = "Created by gsuid-cli & Render style/assets by GenshinUID & Data by 米游社"
+FOOTER_TEXT = _t("gsuid.renderers.challenge.common.21_14.f6d11959")
 
 
 def render_player_summary_card(
@@ -279,7 +280,13 @@ def _title_avatar(
 
     avatar = Image.new("RGBA", (size, size), (55, 58, 73, 255))
     draw = ImageDraw.Draw(avatar)
-    draw.text((size // 2, size // 2), "旅行者", fill=WHITE, font=font(54), anchor="mm")
+    draw.text(
+        (size // 2, size // 2),
+        _t("gsuid.renderers.challenge.text.275_47.b2457913"),
+        fill=WHITE,
+        font=font(54),
+        anchor="mm",
+    )
     return _masked_avatar(avatar, size, with_ring=with_ring)
 
 
@@ -334,11 +341,13 @@ def _exploration_section(
             icon=icon,
             icon_pos=(73, 50),
             percent=number / total * 100,
-            sub_text=f"进度：{number} / {total}",
-            completion_text="收集完成度",
+            sub_text=_t("gsuid.renderers.player.summary.337_21.b6570ea6", number, total),
+            completion_text=_t("gsuid.renderers.player.summary.338_28.917258eb"),
             name=culi_label,
             level=number,
-            level_name="已集齐" if number >= CMAP[culi_label][0] else "未集齐",
+            level_name=_t("gsuid.renderers.player.summary.341_23.d3771680")
+            if number >= CMAP[culi_label][0]
+            else _t("gsuid.renderers.player.summary.341_73.7141d432"),
             offerings=[],
             asset_images=asset_images,
             offer=15,
@@ -354,11 +363,13 @@ def _exploration_section(
             icon=icon,
             icon_pos=(75, 55),
             percent=number / maximum * 100,
-            sub_text=f"进度：{number} / {maximum}",
-            completion_text="收集完成度",
+            sub_text=_t("gsuid.renderers.player.summary.337_21.b6570ea6", number, maximum),
+            completion_text=_t("gsuid.renderers.player.summary.338_28.917258eb"),
             name=name,
             level=number,
-            level_name="已集齐" if number >= maximum else "未集齐",
+            level_name=_t("gsuid.renderers.player.summary.341_23.d3771680")
+            if number >= maximum
+            else _t("gsuid.renderers.player.summary.341_73.7141d432"),
             offerings=[],
             asset_images=asset_images,
             offer=8,
@@ -379,10 +390,10 @@ def _exploration_section(
             icon_pos=(75, 36),
             percent=int_value(world.get("exploration_percentage")) / 10,
             sub_text="",
-            completion_text="探索完成度",
+            completion_text=_t("gsuid.renderers.player.summary.382_28.361b8437"),
             name=name,
             level=level,
-            level_name=f"等阶{level}",
+            level_name=_t("gsuid.renderers.player.summary.457_34.5dd3824b", level),
             offerings=_offerings(world),
             asset_images=asset_images,
         )
@@ -454,7 +465,13 @@ def _paste_offering(
     area_bg.paste(icon, (63, 343 + offer), icon)
     draw.text((107, 352 + offer), name, fill=BLACK, font=font(20), anchor="lm")
     draw.rounded_rectangle((107, 364 + offer, 173, 384 + offer), 20, color)
-    draw.text((140, 374 + offer), f"等阶{level}", fill=WHITE, font=font(15), anchor="mm")
+    draw.text(
+        (140, 374 + offer),
+        _t("gsuid.renderers.player.summary.457_34.5dd3824b", level),
+        fill=WHITE,
+        font=font(15),
+        anchor="mm",
+    )
 
 
 def _paste_grid_card(
@@ -576,11 +593,26 @@ def _culus_numbers(stats: Mapping[str, object]) -> list[tuple[str, int]]:
 
 def _chest_numbers(stats: Mapping[str, object]) -> list[tuple[str, int]]:
     return [
-        ("普通的宝箱", int_value(stats.get("common_chest_number"))),
-        ("精致的宝箱", int_value(stats.get("exquisite_chest_number"))),
-        ("珍贵的宝箱", int_value(stats.get("precious_chest_number"))),
-        ("华丽的宝箱", int_value(stats.get("luxurious_chest_number"))),
-        ("奇馈宝箱", int_value(stats.get("magic_chest_number"))),
+        (
+            _t("gsuid.renderers.player.summary.55_4.33e13053"),
+            int_value(stats.get("common_chest_number")),
+        ),
+        (
+            _t("gsuid.renderers.player.summary.54_4.8d1ca1ac"),
+            int_value(stats.get("exquisite_chest_number")),
+        ),
+        (
+            _t("gsuid.renderers.player.summary.53_4.cad09647"),
+            int_value(stats.get("precious_chest_number")),
+        ),
+        (
+            _t("gsuid.renderers.player.summary.52_4.2eef40ce"),
+            int_value(stats.get("luxurious_chest_number")),
+        ),
+        (
+            _t("gsuid.renderers.player.summary.56_4.0788ed91"),
+            int_value(stats.get("magic_chest_number")),
+        ),
     ]
 
 
@@ -593,9 +625,9 @@ def _world_name(world: Mapping[str, object]) -> str:
 
 def _world_icon_url(world: Mapping[str, object]) -> str | None:
     name = text_value(world.get("name"))
-    if name == "远古圣山":
+    if name == _t("gsuid.renderers.player.summary.596_15.788f1f1b"):
         return "https://webstatic.mihoyo.com/app/community-game-records/images/world-logo-16.1c751ac9.png"
-    if name == "挪德卡莱":
+    if name == _t("gsuid.renderers.daily.text.24_9.b6b55ca3"):
         return "https://webstatic.mihoyo.com/app/community-game-records/images/world-logo-17.dadac5bf.png"
     return text_value(world.get("icon"))
 

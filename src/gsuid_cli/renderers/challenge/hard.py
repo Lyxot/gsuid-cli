@@ -23,6 +23,7 @@ from gsuid_cli.renderers.common import (
     png_bytes,
     sequence,
 )
+from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("challenge", "hard", "textures")
 WIDTH = 900
@@ -47,7 +48,13 @@ def render_challenge_hard_card(
     best = single.get("best")
     if not isinstance(best, Mapping) or not challenge:
         draw = ImageDraw.Draw(image)
-        draw.text((WIDTH // 2, 620), "暂无肃靖险乱挑战记录", "white", font(40), "mm")
+        draw.text(
+            (WIDTH // 2, 620),
+            _t("gsuid.renderers.challenge.hard.50_37.8c816b97"),
+            "white",
+            font(40),
+            "mm",
+        )
         paste_footer(image, font_size=22)
         return png_bytes(image, rgb=True)
 
@@ -116,7 +123,13 @@ def _paste_banner(image: Image.Image, best: Mapping[str, object]) -> None:
         medal = open_rgba(medal_path).resize((84, 84), Image.Resampling.LANCZOS)
         banner.paste(medal, (636, 9), medal)
     draw = ImageDraw.Draw(banner)
-    draw.text((820, 51), f"{int_value(best.get('second'))}秒", "white", font(32), "rm")
+    draw.text(
+        (820, 51),
+        _t("gsuid.renderers.challenge.hard.119_25.05854e94", int_value(best.get("second"))),
+        "white",
+        font(32),
+        "rm",
+    )
     image.paste(banner, (0, 470), banner)
 
 
@@ -127,8 +140,16 @@ def _challenge_card(
     card = open_rgba(TEXTURE / "card.png")
     draw = ImageDraw.Draw(card)
     draw.text((59, 63), str(floor.get("name") or ""), "white", font(36), "lm")
-    draw.text((79, 123), "战斗用时", "white", font(26), "lm")
-    draw.text((456, 123), f"{int_value(floor.get('second'))}秒", "white", font(26), "rm")
+    draw.text(
+        (79, 123), _t("gsuid.renderers.challenge.hard.130_25.3a6e2bfb"), "white", font(26), "lm"
+    )
+    draw.text(
+        (456, 123),
+        _t("gsuid.renderers.challenge.hard.119_25.05854e94", int_value(floor.get("second"))),
+        "white",
+        font(26),
+        "rm",
+    )
 
     monster = floor.get("monster")
     if isinstance(monster, Mapping):
@@ -153,7 +174,7 @@ def _challenge_card(
             best_avatars[0],
             asset_images,
             (54, 291),
-            "最强一击",
+            _t("gsuid.renderers.challenge.hard.156_12.45aecde0"),
             (141, 354),
             (426, 354),
         )
@@ -162,7 +183,7 @@ def _challenge_card(
             best_avatars[1],
             asset_images,
             (435, 291),
-            "最高总伤",
+            _t("gsuid.renderers.challenge.hard.165_12.61b3193b"),
             (521, 354),
             (806, 354),
         )

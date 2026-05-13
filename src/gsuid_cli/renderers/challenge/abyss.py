@@ -25,6 +25,7 @@ from gsuid_cli.renderers.common import (
     open_rgba,
     png_bytes,
 )
+from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("challenge", "abyss", "textures")
 WIDTH = 950
@@ -66,7 +67,10 @@ def render_challenge_abyss_card(
     draw.text((475, 469), f"UID {uid}", FIRST_COLOR, font(36), "mm")
     draw.text(
         (475, 413),
-        f"挑战次数 - {int_value(abyss.get('total_battle_times'))}",
+        _t(
+            "gsuid.renderers.challenge.abyss.69_8.1c20b4a7",
+            int_value(abyss.get("total_battle_times")),
+        ),
         FIRST_COLOR,
         font(26),
         "mm",
@@ -77,7 +81,13 @@ def render_challenge_abyss_card(
     if not full_floor:
         hint = open_rgba(TEXTURE / "hint.png")
         image.paste(hint, (0, 830), hint)
-        draw.text((475, 865), "暂无可渲染的本层战斗记录", FIRST_COLOR, font(28), "mm")
+        draw.text(
+            (475, 865),
+            _t("gsuid.renderers.challenge.abyss.80_30.ddceff88"),
+            FIRST_COLOR,
+            font(28),
+            "mm",
+        )
     else:
         _paste_floor_detail(image, selected_floor, asset_images)
 
@@ -122,10 +132,22 @@ def _paste_rankings(
     if not isinstance(rankings, Mapping):
         rankings = {}
     title_data = (
-        ("最强一击!", _first_mapping(rankings.get("damage_rank"))),
-        ("最多击破!", _first_mapping(rankings.get("defeat_rank"))),
-        ("承受伤害", _first_mapping(rankings.get("take_damage_rank"))),
-        ("元素爆发", _first_mapping(rankings.get("energy_skill_rank"))),
+        (
+            _t("gsuid.renderers.challenge.abyss.125_9.76e7eb26"),
+            _first_mapping(rankings.get("damage_rank")),
+        ),
+        (
+            _t("gsuid.renderers.challenge.abyss.126_9.9248fa71"),
+            _first_mapping(rankings.get("defeat_rank")),
+        ),
+        (
+            _t("gsuid.renderers.challenge.abyss.127_9.5a3fae76"),
+            _first_mapping(rankings.get("take_damage_rank")),
+        ),
+        (
+            _t("gsuid.renderers.challenge.abyss.128_9.4e5b3902"),
+            _first_mapping(rankings.get("energy_skill_rank")),
+        ),
     )
     draw = ImageDraw.Draw(image)
     for index, (label, character) in enumerate(title_data):
@@ -159,24 +181,44 @@ def _paste_floor_overview(
         number = int_value(floor.get("index"), index + 9)
         card = open_rgba(TEXTURE / "abyss_omit.png")
         card_draw = ImageDraw.Draw(card)
-        card_draw.text((56, 34), f"第{number}层", FIRST_COLOR, font(32), "lm")
+        card_draw.text(
+            (56, 34),
+            _t("gsuid.renderers.challenge.abyss.162_33.5f63ce42", number),
+            FIRST_COLOR,
+            font(32),
+            "lm",
+        )
         if not floor:
-            color, text, time_text = GRAY, "未解锁", "请挑战后查看时间数据!"
+            color, text, time_text = (
+                GRAY,
+                _t("gsuid.renderers.challenge.abyss.164_43.b25a509d"),
+                _t("gsuid.renderers.challenge.abyss.212_15.51af68b0"),
+            )
         elif str(floor.get("settle_time")) == "0000-00-00 00:00:00":
-            color, text, time_text = RED, "已跳过", "跳过楼层不存在时间顺序!"
+            color, text, time_text = (
+                RED,
+                _t("gsuid.renderers.challenge.abyss.166_42.9f38afd4"),
+                _t("gsuid.renderers.challenge.abyss.166_55.6786625f"),
+            )
         elif int_value(floor.get("star")) >= int_value(floor.get("max_star"), 9):
-            color, text = RED, "全满星"
+            color, text = RED, _t("gsuid.renderers.challenge.abyss.168_31.3455aa77")
             time_text = _floor_time_text(floor, full_floor)
         else:
             gap = int_value(floor.get("max_star"), 9) - int_value(floor.get("star"))
-            color, text = BLUE, f"差{max(gap, 0)}颗"
+            color, text = BLUE, _t("gsuid.renderers.challenge.abyss.172_32.6d4a54cf", max(gap, 0))
             time_text = _floor_time_text(floor, full_floor)
         card_draw.rounded_rectangle((165, 19, 255, 49), 20, color)
         card_draw.text((210, 34), text, WHITE, font(26), "mm")
         card_draw.text((54, 65), time_text, SECOND_COLOR, font(22), "lm")
         image.paste(card, (20 + 459 * (index % 2), 613 + 106 * (index // 2)), card)
     if not floors:
-        draw.text((475, 590), "本期深渊暂无楼层详情", FIRST_COLOR, font(28), "mm")
+        draw.text(
+            (475, 590),
+            _t("gsuid.renderers.challenge.abyss.179_30.c64e0f0a"),
+            FIRST_COLOR,
+            font(28),
+            "mm",
+        )
 
 
 def _paste_floor_detail(
@@ -191,7 +233,13 @@ def _paste_floor_detail(
         card.paste(star_image, (690, 170), star_image)
         card_draw = ImageDraw.Draw(card)
         floor_num = int_value(floor.get("index"))
-        card_draw.text((652, 71), f"第{floor_num}层第{index + 1}间", FIRST_COLOR, font(32), "lm")
+        card_draw.text(
+            (652, 71),
+            _t("gsuid.renderers.challenge.abyss.194_34.a44801a9", floor_num, index + 1),
+            FIRST_COLOR,
+            font(32),
+            "lm",
+        )
         time_text = _level_time_text(level)
         for line_index, line in enumerate(time_text.split(" ")):
             card_draw.text((655, 102 + line_index * 22), line, FIRST_COLOR, font(22), "lm")
@@ -209,19 +257,23 @@ def _paste_floor_detail(
 
 def _floor_time_text(floor: Mapping[str, object], full_floor: bool) -> str:
     if not full_floor:
-        return "请挑战后查看时间数据!"
+        return _t("gsuid.renderers.challenge.abyss.212_15.51af68b0")
     levels = _mapping_sequence(floor.get("levels"))
     if not levels:
-        return "请挑战后查看时间数据!"
+        return _t("gsuid.renderers.challenge.abyss.212_15.51af68b0")
     return _level_time_text(levels[-1])
 
 
 def _level_time_text(level: Mapping[str, object]) -> str:
     battles = _mapping_sequence(level.get("battles"))
     if not battles:
-        return "请挑战后查看时间数据!"
+        return _t("gsuid.renderers.challenge.abyss.212_15.51af68b0")
     time_text = timestamp_text(battles[0].get("timestamp"))
-    return time_text.replace(".", "-") if time_text else "请挑战后查看时间数据!"
+    return (
+        time_text.replace(".", "-")
+        if time_text
+        else _t("gsuid.renderers.challenge.abyss.212_15.51af68b0")
+    )
 
 
 def _has_battles(floor: Mapping[str, object]) -> bool:

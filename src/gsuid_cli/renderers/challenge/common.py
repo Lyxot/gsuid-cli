@@ -14,11 +14,12 @@ from gsuid_cli.renderers.common import (
     open_rgba,
     text_value,
 )
+from gsuid_cli.text import t as _t
 
 PUBLIC_TEXTURE = asset_path("public", "textures")
 CHAR_CARD_TEXTURE = PUBLIC_TEXTURE / "char_card"
 GENSHINUID_RESOURCE_BASE = "genshinuid://resource"
-FOOTER_TEXT = "Created by gsuid-cli & Render style/assets by GenshinUID & Data by 米游社"
+FOOTER_TEXT = _t("gsuid.renderers.challenge.common.21_14.f6d11959")
 
 
 def color_background(width: int, height: int, *, source: Image.Image | None = None) -> Image.Image:
@@ -116,7 +117,9 @@ def challenge_character_card(
         draw.rounded_rectangle((152, 260, 236, 300), radius=14, fill=fill)
         draw.text(
             (194, 281),
-            "满命" if rank_value >= 6 else f"{rank_value}命",
+            _t("gsuid.renderers.challenge.common.119_12.f2cccead")
+            if rank_value >= 6
+            else _t("gsuid.renderers.challenge.common.119_45.fd9e8859", rank_value),
             fill=text_fill,
             font=font(32),
             anchor="mm",

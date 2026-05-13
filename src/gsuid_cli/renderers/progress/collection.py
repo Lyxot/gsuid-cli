@@ -18,6 +18,7 @@ from gsuid_cli.renderers.player.summary import (
     player_title_avatar_image,
     render_player_exploration_section,
 )
+from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("progress", "collection", "textures")
 SUMMARY_TEXTURE = asset_path("player", "summary", "textures")
@@ -27,45 +28,45 @@ BROWN = (142, 91, 35)
 CHARACTER_MAX = 119
 
 COLLECTION_MAX = {
-    "成就": 1677,
-    "普通的宝箱": 3570,
-    "精致的宝箱": 3043,
-    "珍贵的宝箱": 960,
-    "华丽的宝箱": 367,
-    "奇馈宝箱": 366,
-    "解锁传送点": 691,
-    "解锁秘境": 69,
+    _t("gsuid.renderers.progress.collection.30_4.5dc7d7ba"): 1677,
+    _t("gsuid.renderers.player.summary.55_4.33e13053"): 3570,
+    _t("gsuid.renderers.player.summary.54_4.8d1ca1ac"): 3043,
+    _t("gsuid.renderers.player.summary.53_4.cad09647"): 960,
+    _t("gsuid.renderers.player.summary.52_4.2eef40ce"): 367,
+    _t("gsuid.renderers.player.summary.56_4.0788ed91"): 366,
+    _t("gsuid.renderers.progress.collection.36_4.8f1e37e8"): 691,
+    _t("gsuid.renderers.progress.collection.37_4.2dcc7eb2"): 69,
 }
 COLLECTION_AWARD = {
-    "成就": 5,
-    "普通的宝箱": 1,
-    "精致的宝箱": 3,
-    "珍贵的宝箱": 8,
-    "华丽的宝箱": 10,
-    "奇馈宝箱": 2,
-    "解锁传送点": 0,
-    "解锁秘境": 0,
+    _t("gsuid.renderers.progress.collection.30_4.5dc7d7ba"): 5,
+    _t("gsuid.renderers.player.summary.55_4.33e13053"): 1,
+    _t("gsuid.renderers.player.summary.54_4.8d1ca1ac"): 3,
+    _t("gsuid.renderers.player.summary.53_4.cad09647"): 8,
+    _t("gsuid.renderers.player.summary.52_4.2eef40ce"): 10,
+    _t("gsuid.renderers.player.summary.56_4.0788ed91"): 2,
+    _t("gsuid.renderers.progress.collection.36_4.8f1e37e8"): 0,
+    _t("gsuid.renderers.progress.collection.37_4.2dcc7eb2"): 0,
 }
 EXPLORATION_MAX = {
-    "获得角色数": CHARACTER_MAX,
-    "风神瞳": 66,
-    "岩神瞳": 131,
-    "雷神瞳": 181,
-    "草神瞳": 271,
-    "水神瞳": 271,
-    "冰神瞳": 271,
-    "火神瞳": 271,
-    "月神瞳": 271,
+    _t("gsuid.renderers.progress.collection.50_4.1e543adb"): CHARACTER_MAX,
+    _t("gsuid.renderers.player.summary.44_4.59d5cc2a"): 66,
+    _t("gsuid.renderers.player.summary.45_4.56e70957"): 131,
+    _t("gsuid.renderers.player.summary.46_4.6eeccf4e"): 181,
+    _t("gsuid.renderers.player.summary.47_4.d5bbd092"): 271,
+    _t("gsuid.renderers.player.summary.48_4.53cdf0ba"): 271,
+    _t("gsuid.renderers.player.summary.49_4.463844dd"): 271,
+    _t("gsuid.renderers.player.summary.50_4.600de4a5"): 271,
+    _t("gsuid.renderers.player.summary.51_4.68a591a2"): 271,
 }
 STCMAP = {
-    "anemo": "风神瞳",
-    "geo": "岩神瞳",
-    "electro": "雷神瞳",
-    "dendro": "草神瞳",
-    "hydro": "水神瞳",
-    "cryo": "冰神瞳",
-    "pyro": "火神瞳",
-    "moono": "月神瞳",
+    "anemo": _t("gsuid.renderers.player.summary.44_4.59d5cc2a"),
+    "geo": _t("gsuid.renderers.player.summary.45_4.56e70957"),
+    "electro": _t("gsuid.renderers.player.summary.46_4.6eeccf4e"),
+    "dendro": _t("gsuid.renderers.player.summary.47_4.d5bbd092"),
+    "hydro": _t("gsuid.renderers.player.summary.48_4.53cdf0ba"),
+    "cryo": _t("gsuid.renderers.player.summary.49_4.463844dd"),
+    "pyro": _t("gsuid.renderers.player.summary.50_4.600de4a5"),
+    "moono": _t("gsuid.renderers.player.summary.51_4.68a591a2"),
 }
 ELEMENT_LABELS = set(STCMAP.values())
 
@@ -99,7 +100,9 @@ def render_progress_collection_card(
         title_name="collection_title.png",
         stat_left=_active_days(collection),
         stat_middle=_format_percent(_average_percent(bars)),
-        stat_right=f"约{_remaining_primogems(bars)}",
+        stat_right=_t(
+            "gsuid.renderers.progress.collection.102_19.777c9529", _remaining_primogems(bars)
+        ),
         bar_count=len(bars),
         asset_images=asset_images,
         title_avatar_url=title_avatar_url,
@@ -129,7 +132,15 @@ def render_progress_exploration_card(
             _average_percent([bar for bar in bars if bar[0] in ELEMENT_LABELS])
         ),
         stat_right=_format_percent(
-            _average_percent([bar for bar in bars if bar[0] not in ELEMENT_LABELS | {"获得角色数"}])
+            _average_percent(
+                [
+                    bar
+                    for bar in bars
+                    if bar[0]
+                    not in ELEMENT_LABELS
+                    | {_t("gsuid.renderers.progress.collection.50_4.1e543adb")}
+                ]
+            )
         ),
         bar_count=len(bars),
         asset_images=asset_images,
@@ -175,20 +186,32 @@ def _base_progress_image(
 def _collection_bars(collection: Mapping[str, object]) -> list[tuple[str, float, str]]:
     stats = _stats(collection)
     values = {
-        "成就": int_value(
+        _t("gsuid.renderers.progress.collection.30_4.5dc7d7ba"): int_value(
             stats.get("achievement_number"),
             int_value(collection.get("achievements")),
         ),
-        "普通的宝箱": int_value(stats.get("common_chest_number")),
-        "精致的宝箱": int_value(stats.get("exquisite_chest_number")),
-        "珍贵的宝箱": int_value(stats.get("precious_chest_number")),
-        "华丽的宝箱": int_value(stats.get("luxurious_chest_number")),
-        "奇馈宝箱": int_value(stats.get("magic_chest_number")),
-        "解锁传送点": int_value(
+        _t("gsuid.renderers.player.summary.55_4.33e13053"): int_value(
+            stats.get("common_chest_number")
+        ),
+        _t("gsuid.renderers.player.summary.54_4.8d1ca1ac"): int_value(
+            stats.get("exquisite_chest_number")
+        ),
+        _t("gsuid.renderers.player.summary.53_4.cad09647"): int_value(
+            stats.get("precious_chest_number")
+        ),
+        _t("gsuid.renderers.player.summary.52_4.2eef40ce"): int_value(
+            stats.get("luxurious_chest_number")
+        ),
+        _t("gsuid.renderers.player.summary.56_4.0788ed91"): int_value(
+            stats.get("magic_chest_number")
+        ),
+        _t("gsuid.renderers.progress.collection.36_4.8f1e37e8"): int_value(
             stats.get("way_point_number"),
             int_value(collection.get("waypoints")),
         ),
-        "解锁秘境": int_value(stats.get("domain_number"), int_value(collection.get("domains"))),
+        _t("gsuid.renderers.progress.collection.37_4.2dcc7eb2"): int_value(
+            stats.get("domain_number"), int_value(collection.get("domains"))
+        ),
     }
     bars: list[tuple[str, float, str]] = []
     for name, value in values.items():
@@ -203,7 +226,7 @@ def _exploration_bars(completion: Mapping[str, object]) -> list[tuple[str, float
     current = int_value(stats.get("avatar_number"))
     bars: list[tuple[str, float, str]] = [
         (
-            "获得角色数",
+            _t("gsuid.renderers.progress.collection.50_4.1e543adb"),
             current / CHARACTER_MAX if CHARACTER_MAX else 0,
             f"{current} / {CHARACTER_MAX} | {_format_percent(current / CHARACTER_MAX * 100)}",
         )

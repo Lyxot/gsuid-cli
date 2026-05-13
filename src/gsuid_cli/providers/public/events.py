@@ -4,6 +4,8 @@ from datetime import datetime
 
 from gsuid_cli.providers.public.common import CN_TZ
 
+BANNER_EVENT_MARKERS = ("祈愿", "神铸赋形", "wish")
+
 
 def event_list(
     payload: dict[str, object],
@@ -21,8 +23,7 @@ def event_list(
 
 def is_banner_event(event: dict[str, object]) -> bool:
     text = f"{event.get('name') or ''} {event.get('name_full') or ''}".casefold()
-    markers = ("祈愿", "神铸赋形", "wish")
-    return any(marker in text for marker in markers)
+    return any(marker in text for marker in BANNER_EVENT_MARKERS)
 
 
 def _event(value: dict[str, object]) -> dict[str, object]:

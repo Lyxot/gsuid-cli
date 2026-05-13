@@ -35,6 +35,7 @@ from gsuid_cli.renderers.wiki.text import (
     render_wiki_talent_text,
     render_wiki_weapon_materials_text,
 )
+from gsuid_cli.text import t as _t
 
 WIKI_IMAGE_WORKERS = 8
 WIKI_LOOKUP_IMAGE_KINDS = {"artifact", "food", "weapon"}
@@ -42,63 +43,63 @@ WIKI_LOOKUP_IMAGE_KINDS = {"artifact", "food", "weapon"}
 CAPABILITIES = [
     {
         "command": "wiki.character",
-        "description": "查询公开的角色数据。",
+        "description": _t("gsuid.commands.public_data.wiki.45_23.03195dfa"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "wiki.weapon",
-        "description": "查询公开的武器数据。",
+        "description": _t("gsuid.commands.public_data.wiki.52_23.bba3fa36"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "wiki.artifact",
-        "description": "查询公开的圣遗物套装数据。",
+        "description": _t("gsuid.commands.public_data.wiki.59_23.ef6d1bfa"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "wiki.enemy",
-        "description": "查询公开的怪物数据。",
+        "description": _t("gsuid.commands.public_data.wiki.66_23.1b54b0da"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "wiki.food",
-        "description": "查询公开的食物数据。",
+        "description": _t("gsuid.commands.public_data.wiki.73_23.45fc8acb"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "wiki.talent",
-        "description": "查询公开的角色天赋数据。",
+        "description": _t("gsuid.commands.public_data.wiki.80_23.c8aed1ac"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "wiki.constellation",
-        "description": "查询公开的角色命座数据。",
+        "description": _t("gsuid.commands.public_data.wiki.87_23.ce0ecb60"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "wiki.character-materials",
-        "description": "显示角色突破材料数据。",
+        "description": _t("gsuid.commands.public_data.wiki.94_23.42ab4a26"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "wiki.weapon-materials",
-        "description": "显示武器突破材料数据。",
+        "description": _t("gsuid.commands.public_data.wiki.101_23.6094f364"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
@@ -124,7 +125,7 @@ def _apply_level_request(result: CommandResult, level: int) -> None:
     item = result.data.get("item")
     if not isinstance(item, dict):
         result.data["requested_level"] = level
-        result.warnings.append("由于缺少 wiki 物品数据，无法应用等级数据")
+        result.warnings.append(_t("gsuid.commands.public_data.wiki.127_31.84590969"))
         return
     result.data["requested_level"] = level
     item["requested_level"] = level
@@ -132,9 +133,9 @@ def _apply_level_request(result: CommandResult, level: int) -> None:
     if level_info:
         item["level_info"] = level_info
         result.data["item"] = item
-        result.warnings.append("等级请求与公开的突破数据匹配；当前数据源不提供精确的成长曲线属性")
+        result.warnings.append(_t("gsuid.commands.public_data.wiki.135_31.f5881f9a"))
         return
-    result.warnings.append("当前公开数据源不提供特定等级的属性")
+    result.warnings.append(_t("gsuid.commands.public_data.wiki.137_27.350a78d7"))
 
 
 def _level_info(item: dict[str, object], level: int) -> dict[str, object] | None:
@@ -174,7 +175,7 @@ def talent_command(args: argparse.Namespace) -> CommandResult:
         render_name="wiki/talent-text",
         filename=f"wiki-talent_{safe_filename_part(args.character)}_{args.talent}.txt",
         content=render_wiki_talent_text(result.data),
-        description=" wiki 天赋文本",
+        description=_t("gsuid.commands.public_data.wiki.177_20.3acd9c43"),
         render_data={"character": args.character, "talent": args.talent},
     )
 
@@ -241,22 +242,28 @@ def weapon_materials_command(args: argparse.Namespace) -> CommandResult:
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    wiki = groups.add_parser("wiki", help="查询公开的 wiki 数据。")
+    wiki = groups.add_parser("wiki", help=_t("gsuid.commands.public_data.wiki.244_42.644973fc"))
     commands = wiki.add_subparsers(dest="wiki_command", required=True, metavar="<command>")
     for kind in ("character", "weapon", "artifact", "enemy", "food"):
-        command = commands.add_parser(kind, help=f"查询 {kind}。")
+        command = commands.add_parser(
+            kind, help=_t("gsuid.commands.public_data.wiki.247_49.ec790bd6", kind)
+        )
         command.add_argument("query", nargs="?")
         command.add_argument("--name")
         if kind in {"character", "weapon"}:
             command.add_argument("--level", type=int)
         command.set_defaults(handler=wiki_command, command_name=f"wiki.{kind}", wiki_kind=kind)
 
-    talent = commands.add_parser("talent", help="查询角色天赋。")
+    talent = commands.add_parser(
+        "talent", help=_t("gsuid.commands.public_data.wiki.254_48.65b64214")
+    )
     talent.add_argument("--character", required=True)
     talent.add_argument("--talent", type=int, required=True)
     talent.set_defaults(handler=talent_command, command_name="wiki.talent")
 
-    constellation = commands.add_parser("constellation", help="查询角色命座。")
+    constellation = commands.add_parser(
+        "constellation", help=_t("gsuid.commands.public_data.wiki.259_62.5bb40eae")
+    )
     constellation.add_argument("--character", required=True)
     constellation.add_argument("--constellation", type=int)
     constellation.set_defaults(handler=constellation_command, command_name="wiki.constellation")
@@ -306,7 +313,7 @@ def _material_names_by_id(provider, result: CommandResult) -> dict[str, str]:
     try:
         return provider.material_names_by_id()
     except CliError:
-        result.warnings.append("wiki 材料名称不可用；文本使用后备标签")
+        result.warnings.append(_t("gsuid.commands.public_data.wiki.309_31.2e1e24b1"))
         return {}
 
 
@@ -389,7 +396,7 @@ def _wiki_render_result(
             provider="wiki-assets",
             region="cn",
             category=f"wiki.{render_kind}.asset",
-            unavailable_warning="{count} 张 wiki 图片资源不可用，已使用占位图",
+            unavailable_warning=_t("gsuid.commands.public_data.wiki.392_32.e1fd14e8"),
             max_workers=WIKI_IMAGE_WORKERS,
         )
         png = _render_wiki_png(render_kind, image_item, asset_images, constellation=constellation)
@@ -398,7 +405,7 @@ def _wiki_render_result(
             name=f"wiki/{output_render}",
             filename=f"wiki-{output_render}_{safe_filename_part(item_name)}{suffix}.png",
             content=png,
-            description=f"wiki {output_render} 卡片图片",
+            description=_t("gsuid.commands.public_data.wiki.401_24.07d1dada", output_render),
         )
         artifacts.append(image_artifact)
         warnings.extend(asset_warnings)
@@ -410,7 +417,7 @@ def _wiki_render_result(
             name=text_render_name,
             filename=f"wiki-{output_render}_{safe_filename_part(item_name)}{suffix}.txt",
             content=_render_wiki_text_content(output_render, result, item),
-            description=f" wiki {output_render} 文本",
+            description=_t("gsuid.commands.public_data.wiki.413_24.cebb9cd1", output_render),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=image_enabled)
@@ -467,7 +474,7 @@ def _wiki_item(result: CommandResult, render_kind: str) -> dict[str, object]:
         return item
     raise CliError(
         "UPSTREAM_INVALID_RESPONSE",
-        "数据源返回的 wiki 数据缺少可渲染的物品对象。",
+        _t("gsuid.commands.public_data.wiki.470_8.747dca33"),
         EXIT_INVALID_INPUT,
         {"command": f"wiki.{render_kind}"},
         source=result.source,
@@ -520,7 +527,7 @@ def _render_wiki_text_content(
         return render_wiki_weapon_materials_text(result.data)
     raise CliError(
         "INVALID_ARGUMENT",
-        "此命令未实现 wiki 文本渲染器。",
+        _t("gsuid.commands.public_data.wiki.523_8.0dd9a1cb"),
         EXIT_INVALID_INPUT,
         {"render": output_render},
     )
@@ -553,7 +560,7 @@ def _render_wiki_png(
         )
     raise CliError(
         "INVALID_ARGUMENT",
-        "此命令未实现 wiki 渲染器。",
+        _t("gsuid.commands.public_data.wiki.556_8.19f6ba47"),
         EXIT_INVALID_INPUT,
         {"render": render_kind},
     )
@@ -564,7 +571,7 @@ def _wiki_query(args: argparse.Namespace) -> str:
     if not query:
         raise CliError(
             "INVALID_ARGUMENT",
-            "需要提供 name 参数",
+            _t("gsuid.commands.public_data.wiki.567_12.937df153"),
             EXIT_INVALID_INPUT,
             {"command": args.command_name},
         )

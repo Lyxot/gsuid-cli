@@ -26,6 +26,7 @@ from gsuid_cli.core.errors import (
     CliError,
 )
 from gsuid_cli.core.time import utc_now
+from gsuid_cli.text import t as _t
 
 AUTH_RETCODES = {-100, 10001, 10102}
 VERIFICATION_RETCODES = {10035, 5003, 10041, 1034}
@@ -172,7 +173,7 @@ class HttpClient:
         except httpx.TimeoutException as exc:
             raise _network_error(
                 code="NETWORK_TIMEOUT",
-                message="数据源请求超时。",
+                message=_t("gsuid.core.errors.90_23.d92b735e"),
                 provider=provider,
                 region=region,
                 category=category,
@@ -184,7 +185,7 @@ class HttpClient:
         except httpx.RequestError as exc:
             raise _network_error(
                 code="NETWORK_ERROR",
-                message="数据源请求失败。",
+                message=_t("gsuid.core.http.187_24.2cddcb79"),
                 provider=provider,
                 region=region,
                 category=category,
@@ -198,7 +199,7 @@ class HttpClient:
         if response.status_code >= 400:
             raise _upstream_error(
                 code="UPSTREAM_HTTP_ERROR",
-                message="数据源返回了 HTTP 错误。",
+                message=_t("gsuid.core.http.201_24.33e9cda3"),
                 provider=provider,
                 region=region,
                 category=category,
@@ -217,7 +218,7 @@ class HttpClient:
         except ValueError as exc:
             raise _upstream_error(
                 code="UPSTREAM_INVALID_RESPONSE",
-                message="数据源返回了非 JSON 响应。",
+                message=_t("gsuid.core.http.220_24.7f944a0f"),
                 provider=provider,
                 region=region,
                 category=category,
@@ -234,7 +235,7 @@ class HttpClient:
         if not isinstance(payload, dict):
             raise _upstream_error(
                 code="UPSTREAM_INVALID_RESPONSE",
-                message="数据源返回了非预期的 JSON 数据格式。",
+                message=_t("gsuid.core.http.237_24.13cfa915"),
                 provider=provider,
                 region=region,
                 category=category,
@@ -426,12 +427,12 @@ class HttpClient:
                     url=asset_url,
                     params=params,
                     error_code="NETWORK_TIMEOUT",
-                    message="数据源请求超时。",
+                    message=_t("gsuid.core.errors.90_23.d92b735e"),
                     attempted_at=attempted_at,
                 )
             raise _network_error(
                 code="NETWORK_TIMEOUT",
-                message="数据源请求超时。",
+                message=_t("gsuid.core.errors.90_23.d92b735e"),
                 provider=provider,
                 region=region,
                 category=category,
@@ -448,12 +449,12 @@ class HttpClient:
                     url=asset_url,
                     params=params,
                     error_code="NETWORK_ERROR",
-                    message="数据源请求失败。",
+                    message=_t("gsuid.core.http.187_24.2cddcb79"),
                     attempted_at=attempted_at,
                 )
             raise _network_error(
                 code="NETWORK_ERROR",
-                message="数据源请求失败。",
+                message=_t("gsuid.core.http.187_24.2cddcb79"),
                 provider=provider,
                 region=region,
                 category=category,
@@ -471,13 +472,13 @@ class HttpClient:
                     url=asset_url,
                     params=params,
                     error_code="UPSTREAM_HTTP_ERROR",
-                    message="数据源返回了 HTTP 错误。",
+                    message=_t("gsuid.core.http.201_24.33e9cda3"),
                     attempted_at=fetched_at,
                     status_code=response.status_code,
                 )
             raise _upstream_error(
                 code="UPSTREAM_HTTP_ERROR",
-                message="数据源返回了 HTTP 错误。",
+                message=_t("gsuid.core.http.201_24.33e9cda3"),
                 provider=provider,
                 region=region,
                 category=category,
@@ -504,7 +505,7 @@ class HttpClient:
                     url=asset_url,
                     params=params,
                     error_code="UPSTREAM_INVALID_RESPONSE",
-                    message="数据源返回了非预期的媒体类型。",
+                    message=_t("gsuid.core.http.516_16.2a44b313"),
                     attempted_at=fetched_at,
                     status_code=response.status_code,
                 )
@@ -513,7 +514,7 @@ class HttpClient:
             details["expected_media_types"] = list(expected_media_types)
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "数据源返回了非预期的媒体类型。",
+                _t("gsuid.core.http.516_16.2a44b313"),
                 EXIT_UPSTREAM,
                 details,
                 retryable=False,
@@ -681,7 +682,7 @@ class HttpClient:
         if tag is None:
             raise _game_version_error(
                 "UPSTREAM_INVALID_RESPONSE",
-                "数据源响应中未包含游戏版本标识。",
+                _t("gsuid.core.http.684_16.e40df306"),
                 EXIT_UPSTREAM,
                 method=method,
                 status_code=response.status_code,
@@ -718,7 +719,7 @@ def raise_for_retcode(
     if retcode in (0, "0", None):
         return
 
-    message = str(payload.get("message") or "数据源拒绝了请求。")
+    message = str(payload.get("message") or _t("gsuid.core.http.754_8.a2481e63"))
     details: dict[str, object] = {
         "provider": provider,
         "region": region,
@@ -732,7 +733,7 @@ def raise_for_retcode(
     if _is_auth_retcode(retcode):
         raise CliError(
             "AUTH_EXPIRED",
-            "Cookie 已过期或被数据源拒绝。",
+            _t("gsuid.core.http.735_12.225a1004"),
             EXIT_AUTH,
             details,
             retryable=False,
@@ -742,7 +743,7 @@ def raise_for_retcode(
     if _is_verification_retcode(retcode):
         raise CliError(
             "UPSTREAM_VERIFICATION_REQUIRED",
-            "数据源在返回此数据前需要进行设备或验证码挑战验证。",
+            _t("gsuid.core.http.745_12.32333219"),
             EXIT_UPSTREAM,
             details,
             retryable=False,
@@ -751,7 +752,7 @@ def raise_for_retcode(
 
     raise CliError(
         "UPSTREAM_REJECTED",
-        "数据源拒绝了请求。",
+        _t("gsuid.core.http.754_8.a2481e63"),
         EXIT_UPSTREAM,
         details,
         retryable=False,
@@ -999,7 +1000,7 @@ def _cache_miss(
 ) -> CliError:
     return CliError(
         "CACHE_MISS",
-        "此请求没有可用的最新缓存数据源响应。",
+        _t("gsuid.core.http.1002_8.f043782c"),
         EXIT_CACHE,
         details or _request_details(provider, region, category, method, url, params),
     )

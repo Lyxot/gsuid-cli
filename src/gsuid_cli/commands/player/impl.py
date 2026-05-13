@@ -50,6 +50,7 @@ from gsuid_cli.renderers.player.text import (
     render_player_register_time_text,
     render_player_summary_text,
 )
+from gsuid_cli.text import t as _t
 
 PLAYER_INVENTORY_ICON_WORKERS = 12
 PLAYER_CALENDAR_ICON_WORKERS = 12
@@ -57,21 +58,21 @@ PLAYER_CALENDAR_ICON_WORKERS = 12
 CAPABILITIES = [
     {
         "command": "player.summary",
-        "description": "显示玩家资料汇总数据。",
+        "description": _t("gsuid.commands.player.impl.60_23.9d971bf8"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "player.characters",
-        "description": "显示玩家角色详情。",
+        "description": _t("gsuid.commands.player.impl.67_23.39101516"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "player.inventory",
-        "description": "显示已拥有角色和已装备武器的材料数量。",
+        "description": _t("gsuid.commands.player.impl.74_23.226033dc"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
@@ -79,26 +80,26 @@ CAPABILITIES = [
     },
     {
         "command": "player.calendar",
-        "description": "显示玩家活动日历数据。",
+        "description": _t("gsuid.commands.player.impl.82_23.a7d8495b"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "player.diary",
-        "description": "显示旅行者札记数据。",
+        "description": _t("gsuid.commands.player.impl.89_23.eafd4190"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "player.register-time",
-        "description": "尝试显示原神账号注册时间。",
+        "description": _t("gsuid.commands.player.impl.96_23.8ef33cb5"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
         "availability": "upstream-limited",
-        "limitations": ["使用旧版米游社周年庆接口，可能返回数据源错误码 -502。"],
+        "limitations": [_t("gsuid.commands.player.impl.101_24.2a70c3d2")],
     },
 ]
 
@@ -106,7 +107,7 @@ _HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    player = groups.add_parser("player", help="显示玩家数据。")
+    player = groups.add_parser("player", help=_t("gsuid.commands.player.impl.109_46.1a329f56"))
     commands = player.add_subparsers(dest="player_command", required=True, metavar="<command>")
 
     summary = commands.add_parser("summary", help=_HELPS["player.summary"])
@@ -307,7 +308,7 @@ def _characters_render_result(
     if not isinstance(characters_value, list):
         raise CliError(
             "UPSTREAM_INVALID_RESPONSE",
-            "数据源返回的玩家角色数据中不包含可渲染的角色。",
+            _t("gsuid.commands.player.impl.310_12.ca2e8d06"),
             EXIT_UPSTREAM,
             {"command": "player.characters"},
             source=result.source,
@@ -324,7 +325,7 @@ def _characters_render_result(
             name="player/characters",
             filename=f"player-characters_{safe_filename_part(uid)}.png",
             content=png,
-            description="玩家角色列表卡片图片",
+            description=_t("gsuid.commands.player.impl.327_24.b420a5fd"),
         )
         artifacts.append(image_artifact)
         warnings.extend(image_warnings)
@@ -335,7 +336,7 @@ def _characters_render_result(
             name="player/characters-text",
             filename=f"player-characters_{safe_filename_part(uid)}.txt",
             content=render_player_characters_text(result.data),
-            description="玩家角色列表文本",
+            description=_t("gsuid.commands.player.impl.338_24.e72d0917"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -364,7 +365,7 @@ def _summary_render_result(
     if not isinstance(summary, Mapping):
         raise CliError(
             "UPSTREAM_INVALID_RESPONSE",
-            "数据源返回的玩家汇总数据中不包含可渲染的汇总。",
+            _t("gsuid.commands.player.impl.367_12.27f00965"),
             EXIT_UPSTREAM,
             {"command": "player.summary"},
             source=result.source,
@@ -406,7 +407,7 @@ def _summary_render_result(
             provider="mys",
             region=region,
             category="player.summary.icon",
-            unavailable_warning="{count} 个玩家资料汇总图标不可用，已使用占位图",
+            unavailable_warning=_t("gsuid.commands.player.impl.409_32.efd2300e"),
             max_workers=PLAYER_SUMMARY_ICON_WORKERS,
         )
         profile_images, profile_image_warnings = _player_profile_image_assets(
@@ -424,7 +425,7 @@ def _summary_render_result(
             name="player/summary",
             filename=f"player-summary_{safe_filename_part(uid)}.png",
             content=png,
-            description="玩家角色信息卡片图片",
+            description=_t("gsuid.commands.player.impl.427_24.8c9255e5"),
         )
         artifacts.append(image_artifact)
         warnings.extend(
@@ -446,7 +447,7 @@ def _summary_render_result(
                 summary=summary,
                 characters=characters,
             ),
-            description="玩家资料汇总文本",
+            description=_t("gsuid.commands.player.impl.449_24.95dfd421"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -492,7 +493,7 @@ def _inventory_render_result(
             provider="mys",
             region=region,
             category="player.inventory.icon",
-            unavailable_warning="{count} 个玩家背包材料图标不可用，已使用占位图",
+            unavailable_warning=_t("gsuid.commands.player.impl.495_32.1333bdc3"),
             max_workers=PLAYER_INVENTORY_ICON_WORKERS,
         )
         png = render_player_inventory_card(
@@ -507,7 +508,7 @@ def _inventory_render_result(
             name="player/inventory",
             filename=f"player-inventory_{safe_filename_part(uid)}.png",
             content=png,
-            description="玩家背包材料卡片图片",
+            description=_t("gsuid.commands.player.impl.510_24.759cad91"),
         )
         artifacts.append(image_artifact)
         warnings.extend([*title_warnings, *inventory_warnings])
@@ -529,7 +530,7 @@ def _inventory_render_result(
             name="player/inventory-text",
             filename=f"player-inventory_{safe_filename_part(uid)}.txt",
             content=render_player_inventory_text(uid=uid, summary=summary, inventory=inventory),
-            description="玩家背包材料文本",
+            description=_t("gsuid.commands.player.impl.532_24.4a367244"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -579,7 +580,7 @@ def _calendar_render_result(
             provider="mys",
             region=region,
             category="player.calendar.icon",
-            unavailable_warning="{count} 个玩家活动日历图标不可用，已使用占位图",
+            unavailable_warning=_t("gsuid.commands.player.impl.582_32.ed5033d3"),
             max_workers=PLAYER_CALENDAR_ICON_WORKERS,
         )
         png = render_player_calendar_card(
@@ -594,7 +595,7 @@ def _calendar_render_result(
             name="player/calendar",
             filename=f"player-calendar_{safe_filename_part(uid)}.png",
             content=png,
-            description="玩家活动日历卡片图片",
+            description=_t("gsuid.commands.player.impl.597_24.da726ebb"),
         )
         artifacts.append(image_artifact)
         warnings.extend([*title_warnings, *calendar_warnings])
@@ -616,7 +617,7 @@ def _calendar_render_result(
             name="player/calendar-text",
             filename=f"player-calendar_{safe_filename_part(uid)}.txt",
             content=render_player_calendar_text(uid=uid, summary=summary, calendar=calendar),
-            description="玩家活动日历文本",
+            description=_t("gsuid.commands.player.impl.619_24.85318d91"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -671,7 +672,7 @@ def _diary_render_result(
             name="player/diary",
             filename=f"player-diary_{safe_filename_part(uid)}.png",
             content=png,
-            description="旅行者札记卡片图片",
+            description=_t("gsuid.commands.player.impl.674_24.524e081a"),
         )
         artifacts.append(image_artifact)
         warnings.extend(title_warnings)
@@ -693,7 +694,7 @@ def _diary_render_result(
             name="player/diary-text",
             filename=f"player-diary_{safe_filename_part(uid)}.txt",
             content=render_player_diary_text(uid=uid, summary=summary, diary=diary),
-            description="旅行者札记文本",
+            description=_t("gsuid.commands.player.impl.696_24.cfa5d880"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -718,7 +719,7 @@ def _register_time_render_result(
         name="player/register-time-text",
         filename=f"player-register-time_{safe_filename_part(uid)}.txt",
         content=render_player_register_time_text(result.data),
-        description="玩家注册时间文本",
+        description=_t("gsuid.commands.player.impl.721_20.0e1f69b1"),
     )
     data = render_result_data(
         args,

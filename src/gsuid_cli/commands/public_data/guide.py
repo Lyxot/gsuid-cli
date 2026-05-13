@@ -40,76 +40,77 @@ from gsuid_cli.renderers.recommend import (
     render_recommend_holder_card,
 )
 from gsuid_cli.renderers.rerun import render_rerun_list, rerun_asset_urls
+from gsuid_cli.text import t as _t
 
 WIKI_IMAGE_WORKERS = 8
 
 CAPABILITIES = [
     {
         "command": "guide.character",
-        "description": "显示角色攻略内容。",
+        "description": _t("gsuid.commands.public_data.guide.49_23.04633824"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "all"],
     },
     {
         "command": "guide.reference-panel",
-        "description": "显示角色的参考面板。",
+        "description": _t("gsuid.commands.public_data.guide.56_23.ea246a71"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "all"],
     },
     {
         "command": "guide.route",
-        "description": "获取材料讨伐路线图。",
+        "description": _t("gsuid.commands.public_data.guide.63_23.2defc29d"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "all"],
     },
     {
         "command": "guide.abyss",
-        "description": "显示深境螺旋攻略数据。",
+        "description": _t("gsuid.commands.public_data.guide.70_23.b2d0ca14"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "guide.theater",
-        "description": "显示幻想真境剧诗攻略数据。",
+        "description": _t("gsuid.commands.public_data.guide.77_23.d240b5d8"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "recommend.build",
-        "description": "显示角色养成建议。",
+        "description": _t("gsuid.commands.public_data.guide.84_23.3410daf0"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "recommend.holder",
-        "description": "显示武器或圣遗物的建议使用者。",
+        "description": _t("gsuid.commands.public_data.guide.91_23.32bf1541"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "map.find",
-        "description": "获取资源分布图。",
+        "description": _t("gsuid.commands.public_data.guide.98_23.2708cd03"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "all"],
     },
     {
         "command": "rerun.list",
-        "description": "列出祈愿池复刻信息。",
+        "description": _t("gsuid.commands.public_data.guide.105_23.90adada0"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "misc.primogems-plan",
-        "description": "显示原石获取预估图。",
+        "description": _t("gsuid.commands.public_data.guide.112_23.88addaea"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "all"],
@@ -204,7 +205,7 @@ def primogems_plan_command(args: argparse.Namespace) -> CommandResult:
 
 
 def register_guides(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    guide = groups.add_parser("guide", help="显示公开的攻略数据。")
+    guide = groups.add_parser("guide", help=_t("gsuid.commands.public_data.guide.207_44.81b59406"))
     commands = guide.add_subparsers(dest="guide_command", required=True, metavar="<command>")
 
     character = commands.add_parser("character", help=_HELPS["guide.character"])
@@ -231,7 +232,9 @@ def register_guides(groups: argparse._SubParsersAction[argparse.ArgumentParser])
 
 
 def register_recommend(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    recommend = groups.add_parser("recommend", help="显示建议数据。")
+    recommend = groups.add_parser(
+        "recommend", help=_t("gsuid.commands.public_data.guide.234_52.2a94c1d7")
+    )
     commands = recommend.add_subparsers(
         dest="recommend_command",
         required=True,
@@ -248,7 +251,9 @@ def register_recommend(groups: argparse._SubParsersAction[argparse.ArgumentParse
 
 
 def register_map(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    map_group = groups.add_parser("map", help="获取公开的地图图片。")
+    map_group = groups.add_parser(
+        "map", help=_t("gsuid.commands.public_data.guide.251_46.0bdd019e")
+    )
     commands = map_group.add_subparsers(dest="map_command", required=True, metavar="<command>")
     find = commands.add_parser("find", help=_HELPS["map.find"])
     find.add_argument("--item", required=True)
@@ -257,7 +262,7 @@ def register_map(groups: argparse._SubParsersAction[argparse.ArgumentParser]) ->
 
 
 def register_rerun(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    rerun = groups.add_parser("rerun", help="显示公开的复刻数据。")
+    rerun = groups.add_parser("rerun", help=_t("gsuid.commands.public_data.guide.260_44.20e56405"))
     commands = rerun.add_subparsers(dest="rerun_command", required=True, metavar="<command>")
     list_parser = commands.add_parser("list", help=_HELPS["rerun.list"])
     list_parser.add_argument("--limit", type=int, default=20)
@@ -265,7 +270,7 @@ def register_rerun(groups: argparse._SubParsersAction[argparse.ArgumentParser]) 
 
 
 def register_misc(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    misc = groups.add_parser("misc", help="显示其他的公开数据。")
+    misc = groups.add_parser("misc", help=_t("gsuid.commands.public_data.guide.268_42.aa7062a4"))
     commands = misc.add_subparsers(dest="misc_command", required=True, metavar="<command>")
     primogems = commands.add_parser("primogems-plan", help=_HELPS["misc.primogems-plan"])
     primogems.add_argument("--version")
@@ -289,7 +294,7 @@ def _guide_image_result(
         f"{_image_ext(response.media_type)}",
         media_type=response.media_type,
         content=response.content,
-        description=f"{render_name} 图片",
+        description=_t("gsuid.commands.public_data.guide.292_20.238a6744", render_name),
     )
     render_data: dict[str, object] = {"character": character}
     record_primary_image(render_data, artifact)
@@ -329,7 +334,7 @@ def _guide_abyss_render_result(args: argparse.Namespace, result: CommandResult) 
             provider="guide-assets",
             region="cn",
             category="guide.abyss.asset",
-            unavailable_warning=("{count} 个深境螺旋怪物图片不可用，已使用占位图"),
+            unavailable_warning=(_t("gsuid.commands.public_data.guide.332_33.7547eac6")),
             max_workers=WIKI_IMAGE_WORKERS,
         )
         png = render_guide_abyss_card(render_abyss, asset_images=asset_images)
@@ -338,7 +343,7 @@ def _guide_abyss_render_result(args: argparse.Namespace, result: CommandResult) 
             name="guide/abyss",
             filename=f"guide-abyss_{safe_filename_part(str(name))}.png",
             content=png,
-            description="深境螺旋怪物排布图片",
+            description=_t("gsuid.commands.public_data.guide.341_24.2dcf3754"),
         )
         artifacts.append(image_artifact)
         warnings.extend(asset_warnings)
@@ -349,7 +354,7 @@ def _guide_abyss_render_result(args: argparse.Namespace, result: CommandResult) 
             name="guide/abyss-text",
             filename=f"guide-abyss_{safe_filename_part(str(name))}.txt",
             content=render_guide_abyss_text(result.data),
-            description="深境螺旋攻略文本",
+            description=_t("gsuid.commands.public_data.guide.352_24.e170151c"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -379,7 +384,7 @@ def _guide_theater_render_result(args: argparse.Namespace, result: CommandResult
             provider="guide-assets",
             region="cn",
             category="guide.theater.asset",
-            unavailable_warning="{count} 个幻想真境剧诗图片不可用，已使用占位图",
+            unavailable_warning=_t("gsuid.commands.challenge.364_33.67d18b00"),
             max_workers=WIKI_IMAGE_WORKERS,
         )
         png = render_guide_theater_card(theater, asset_images=asset_images)
@@ -388,7 +393,7 @@ def _guide_theater_render_result(args: argparse.Namespace, result: CommandResult
             name="guide/theater",
             filename=f"guide-theater_{safe_filename_part(name)}.png",
             content=png,
-            description="幻想真境剧诗怪物排布图片",
+            description=_t("gsuid.commands.public_data.guide.391_24.b3665b27"),
         )
         artifacts.append(image_artifact)
         warnings.extend(asset_warnings)
@@ -399,7 +404,7 @@ def _guide_theater_render_result(args: argparse.Namespace, result: CommandResult
             name="guide/theater-text",
             filename=f"guide-theater_{safe_filename_part(name)}.txt",
             content=render_guide_theater_text(result.data),
-            description="幻想真境剧诗攻略文本",
+            description=_t("gsuid.commands.public_data.guide.402_24.69666d4f"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -421,19 +426,19 @@ def _recommend_render_result(
     if render_kind == "build":
         name = _optional_text(result.data.get("character")) or "build"
         render_name = "recommend/build"
-        description = "养成建议卡片图片"
+        description = _t("gsuid.commands.public_data.guide.424_22.5c7dcac6")
         text_content = render_recommend_build_text(result.data)
-        text_description = "养成建议文本"
+        text_description = _t("gsuid.commands.public_data.guide.426_27.4d28f3c5")
     elif render_kind == "holder":
         name = _optional_text(result.data.get("item")) or "holder"
         render_name = "recommend/holder"
-        description = "建议使用者卡片图片"
+        description = _t("gsuid.commands.public_data.guide.430_22.7c7ce9e3")
         text_content = render_recommend_holder_text(result.data)
-        text_description = "建议使用者文本"
+        text_description = _t("gsuid.commands.public_data.guide.432_27.54751650")
     else:
         raise CliError(
             "INVALID_ARGUMENT",
-            "此命令未实现推荐渲染器。",
+            _t("gsuid.commands.public_data.guide.436_12.69f3d275"),
             EXIT_INVALID_INPUT,
             {"render": render_kind},
         )
@@ -491,7 +496,7 @@ def _rerun_render_result(args: argparse.Namespace, result: CommandResult) -> Com
             provider="rerun-assets",
             region="cn",
             category="rerun.list.asset",
-            unavailable_warning="{count} 张复刻图片不可用，已使用占位图",
+            unavailable_warning=_t("gsuid.commands.public_data.guide.494_32.26739b58"),
             max_workers=WIKI_IMAGE_WORKERS,
         )
         png = render_rerun_list(result.data, asset_images=asset_images)
@@ -500,7 +505,7 @@ def _rerun_render_result(args: argparse.Namespace, result: CommandResult) -> Com
             name="rerun/list",
             filename=f"rerun-list_{safe_filename_part(version)}.png",
             content=png,
-            description="复刻列表卡片图片",
+            description=_t("gsuid.commands.public_data.guide.503_24.d911a09f"),
         )
         artifacts.append(image_artifact)
         warnings.extend(asset_warnings)
@@ -511,7 +516,7 @@ def _rerun_render_result(args: argparse.Namespace, result: CommandResult) -> Com
             name="rerun/list-text",
             filename=f"rerun-list_{safe_filename_part(version)}.txt",
             content=render_rerun_list_text(result.data),
-            description="复刻列表文本",
+            description=_t("gsuid.commands.public_data.guide.514_24.f041c912"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -530,7 +535,7 @@ def _primogems_plan_render_result(args: argparse.Namespace, result: CommandResul
     if selected_version is None:
         raise CliError(
             "NO_RESULT",
-            "未找到匹配指定版本的预估原石获取图。",
+            _t("gsuid.commands.public_data.guide.533_12.b441b1f0"),
             EXIT_NO_RESULT,
             {
                 "version": result.data.get("version"),
@@ -544,7 +549,7 @@ def _primogems_plan_render_result(args: argparse.Namespace, result: CommandResul
     except OSError as exc:
         raise CliError(
             "NO_RESULT",
-            "内置的原石预估图丢失。",
+            _t("gsuid.commands.public_data.guide.547_12.14eaebbb"),
             EXIT_NO_RESULT,
             {"version": selected_version, "path": str(image_path)},
             source=result.source,
@@ -554,7 +559,7 @@ def _primogems_plan_render_result(args: argparse.Namespace, result: CommandResul
         name="misc/primogems-plan",
         filename=f"primogems-plan_{safe_filename_part(selected_version)}.png",
         content=content,
-        description="版本原石预估图片",
+        description=_t("gsuid.commands.public_data.guide.557_20.8e915985"),
     )
     render_data: dict[str, object] = {
         "version": result.data.get("version"),
@@ -594,7 +599,7 @@ def _map_artifact_command(
         filename=filename,
         media_type=response.media_type,
         content=response.content,
-        description=f"{command} 图片",
+        description=_t("gsuid.commands.public_data.guide.292_20.238a6744", command),
     )
     return CommandResult(
         data={
@@ -604,7 +609,7 @@ def _map_artifact_command(
             "marker_count": None,
             "bounds": None,
             "artifact_sha256": artifact["sha256"],
-            "source_limitations": ["MiniGG 地图输出仅包含图片；不可获取标记坐标信息"],
+            "source_limitations": [_t("gsuid.commands.public_data.guide.607_35.ab9ac577")],
         },
         artifacts=[artifact],
         source=response.source,

@@ -5,31 +5,36 @@ from collections.abc import Mapping, Sequence
 from functools import lru_cache
 
 from gsuid_cli.renderers.common import asset_path, int_value, text_value
+from gsuid_cli.text import t as _t
 
 DATA = asset_path("panel", "data")
 
 SCORE_MAP = {
-    "暴击率": 2.0,
-    "暴击伤害": 1.0,
-    "元素精通": 0.25,
-    "元素充能效率": 0.65,
-    "百分比血量": 0.86,
-    "百分比攻击力": 1.0,
-    "百分比防御力": 0.7,
-    "血量": 0.014,
-    "攻击力": 0.12,
-    "防御力": 0.18,
+    _t("gsuid.providers.akasha.70_4.33e0f20a"): 2.0,
+    _t("gsuid.providers.akasha.72_4.7c0dd18b"): 1.0,
+    _t("gsuid.providers.akasha.66_4.af09dad1"): 0.25,
+    _t("gsuid.providers.akasha.68_4.a7a24305"): 0.65,
+    _t("gsuid.providers.akasha.54_4.9a1c9ca9"): 0.86,
+    _t("gsuid.providers.akasha.51_4.f60501c6"): 1.0,
+    _t("gsuid.renderers.panel.image.92_34.7ecee44b"): 0.7,
+    _t("gsuid.renderers.panel.image.94_21.c269f206"): 0.014,
+    _t("gsuid.renderers.panel.image.88_25.ef28aed2"): 0.12,
+    _t("gsuid.renderers.panel.image.91_26.2557c107"): 0.18,
 }
 VALUE_MAP = {
-    "攻击力": 4.975,
-    "血量": 4.975,
-    "防御力": 6.2,
-    "元素精通": 19.75,
-    "元素充能效率": 5.5,
-    "暴击率": 3.3,
-    "暴击伤害": 6.6,
+    _t("gsuid.renderers.panel.image.88_25.ef28aed2"): 4.975,
+    _t("gsuid.renderers.panel.image.94_21.c269f206"): 4.975,
+    _t("gsuid.renderers.panel.image.91_26.2557c107"): 6.2,
+    _t("gsuid.providers.akasha.66_4.af09dad1"): 19.75,
+    _t("gsuid.providers.akasha.68_4.a7a24305"): 5.5,
+    _t("gsuid.providers.akasha.70_4.33e0f20a"): 3.3,
+    _t("gsuid.providers.akasha.72_4.7c0dd18b"): 6.6,
 }
-DEFAULT_ATTRS = ["攻击力", "暴击率", "暴击伤害"]
+DEFAULT_ATTRS = [
+    _t("gsuid.renderers.panel.image.88_25.ef28aed2"),
+    _t("gsuid.providers.akasha.70_4.33e0f20a"),
+    _t("gsuid.providers.akasha.72_4.7c0dd18b"),
+]
 PERCENT_ATTRS = {"dmgBonus", "addAtk", "addDef", "addHp"}
 ELEMENT_DAMAGE_PROP = {
     "Anemo": "44",
@@ -41,16 +46,21 @@ ELEMENT_DAMAGE_PROP = {
     "Pyro": "40",
 }
 CHANGE_LIST = {
-    "荒泷一斗",
-    "刻晴",
-    "诺艾尔",
-    "胡桃",
-    "宵宫",
-    "魈",
-    "神里绫华",
-    "阿蕾奇诺",
+    _t("gsuid.renderers.panel.metrics.44_4.cea7bd0a"),
+    _t("gsuid.renderers.panel.metrics.45_4.c962e3f3"),
+    _t("gsuid.renderers.panel.metrics.46_4.367ecafc"),
+    _t("gsuid.renderers.panel.metrics.47_4.7303c1b0"),
+    _t("gsuid.renderers.panel.metrics.48_4.f6c02c43"),
+    _t("gsuid.renderers.panel.metrics.49_4.fb88c811"),
+    _t("gsuid.renderers.panel.metrics.50_4.c2546e54"),
+    _t("gsuid.renderers.panel.metrics.51_4.a6da15e1"),
 }
-FIXED_STAT_NAMES = {"攻击力", "血量", "防御力", "元素精通"}
+FIXED_STAT_NAMES = {
+    _t("gsuid.renderers.panel.image.88_25.ef28aed2"),
+    _t("gsuid.renderers.panel.image.94_21.c269f206"),
+    _t("gsuid.renderers.panel.image.91_26.2557c107"),
+    _t("gsuid.providers.akasha.66_4.af09dad1"),
+}
 MAIN_SEQUENCE_SLOTS = ("EQUIP_SHOES", "EQUIP_RING", "EQUIP_DRESS")
 ATTACK_TYPES = ("A", "B", "C", "E", "Q")
 INITIAL_EFFECT_ATTRS = (
@@ -218,13 +228,25 @@ def _substat_effective_value(
     base_def: float,
     attrs: Sequence[str],
 ) -> float:
-    if name in attrs and name in {"血量", "防御力", "攻击力"}:
-        base = {"血量": base_hp, "防御力": base_def, "攻击力": base_atk}[name]
+    if name in attrs and name in {
+        _t("gsuid.renderers.panel.image.94_21.c269f206"),
+        _t("gsuid.renderers.panel.image.91_26.2557c107"),
+        _t("gsuid.renderers.panel.image.88_25.ef28aed2"),
+    }:
+        base = {
+            _t("gsuid.renderers.panel.image.94_21.c269f206"): base_hp,
+            _t("gsuid.renderers.panel.image.91_26.2557c107"): base_def,
+            _t("gsuid.renderers.panel.image.88_25.ef28aed2"): base_atk,
+        }[name]
         if base <= 0:
             return 0.0
         return round(((value / base) * 100) / VALUE_MAP[name], 2)
-    if name in {"百分比血量", "百分比防御力", "百分比攻击力"}:
-        preferred = name.replace("百分比", "")
+    if name in {
+        _t("gsuid.providers.akasha.54_4.9a1c9ca9"),
+        _t("gsuid.renderers.panel.image.92_34.7ecee44b"),
+        _t("gsuid.providers.akasha.51_4.f60501c6"),
+    }:
+        preferred = name.replace(_t("gsuid.renderers.panel.image.1902_24.4ce634c4"), "")
         return round(value / VALUE_MAP[preferred], 2) if preferred in attrs else 0.0
     return round(value / VALUE_MAP[name], 2) if name in attrs and name in VALUE_MAP else 0.0
 
@@ -261,19 +283,22 @@ def _action_damage(
     sp = _sp_bonus(fight_prop, action_name)
     real_prop = _real_prop_for_action(fight_prop, action_name, attack_type)
     if (
-        "扩散伤害" in action_name
-        or "绽放)" in action_name
-        or "感电" in action_name
-        or "超载" in action_name
+        _t("gsuid.renderers.panel.metrics.331_7.b6adc0f5") in action_name
+        or _t("gsuid.renderers.panel.metrics.322_7.3ba2689a") in action_name
+        or _t("gsuid.renderers.panel.metrics.266_11.d91d1ab7") in action_name
+        or _t("gsuid.renderers.panel.metrics.267_11.2fc49f94") in action_name
     ):
         return _transform_damage(action_name, avatar, panel, attack_type, real_prop, enemy)
-    if "治疗" in action_name or "回复" in action_name:
+    if (
+        _t("gsuid.renderers.panel.metrics.270_7.7d81885c") in action_name
+        or _t("gsuid.renderers.panel.metrics.270_34.ffc78509") in action_name
+    ):
         normal = (
             _base_area(action_name, action, avatar, panel, attack_type, real_prop, sp)
             + _prefixed_prop(real_prop, attack_type, "addHeal")
         ) * (1 + _float_value(real_prop.get("healBonus")))
         return normal, normal, 0.0
-    if "护盾" in action_name:
+    if _t("gsuid.renderers.panel.metrics.276_7.50f66b03") in action_name:
         normal = _base_area(action_name, action, avatar, panel, attack_type, real_prop, sp) * (
             1 + _float_value(real_prop.get("shieldBonus"))
         )
@@ -319,8 +344,13 @@ def _transform_damage(
 ) -> tuple[float, float, float]:
     level = max(min(_avatar_level(avatar, panel), len(BASE_VALUE_LIST)), 1)
     em = _prefixed_prop(real_prop, attack_type, "elementalMastery")
-    if "绽放)" in action_name:
-        base_time = 6 if "烈绽放" in action_name or "超绽放" in action_name else 4
+    if _t("gsuid.renderers.panel.metrics.322_7.3ba2689a") in action_name:
+        base_time = (
+            6
+            if _t("gsuid.renderers.panel.metrics.323_25.e3b4d04b") in action_name
+            or _t("gsuid.renderers.panel.metrics.323_55.94068a27") in action_name
+            else 4
+        )
         normal = (
             BASE_VALUE_LIST[level - 1]
             * base_time
@@ -328,7 +358,7 @@ def _transform_damage(
             * _resist_proof(enemy, "Dendro")
         )
         return normal, normal * 1.2, normal * 2
-    if "扩散伤害" in action_name:
+    if _t("gsuid.renderers.panel.metrics.331_7.b6adc0f5") in action_name:
         normal = (
             BASE_VALUE_LIST[level - 1]
             * 1.2
@@ -354,9 +384,9 @@ def _base_area(
         return sp_base
     percent, fixed = _power_value(action, attack_type, real_prop)
     action_type = text_value(action.get("type")) or ""
-    if "生命值" in action_type:
+    if _t("gsuid.renderers.panel.metrics.357_7.575ca7a8") in action_type:
         prop = _prefixed_prop(real_prop, attack_type, "hp")
-    elif "防御" in action_type:
+    elif _t("gsuid.renderers.panel.metrics.359_9.2029e612") in action_type:
         prop = _prefixed_prop(real_prop, attack_type, "def")
     else:
         prop = _prefixed_prop(real_prop, attack_type, "atk")
@@ -374,8 +404,14 @@ def _sp_base_area(
 ) -> float | None:
     char_name = _avatar_name(avatar, panel)
     if not (
-        ("灭净三业" in action_name or "业障除" in action_name)
-        or (char_name == "艾尔海森" and action_name.startswith("E"))
+        (
+            _t("gsuid.renderers.panel.metrics.377_9.3b163307") in action_name
+            or _t("gsuid.renderers.panel.metrics.377_42.57d3e726") in action_name
+        )
+        or (
+            char_name == _t("gsuid.renderers.panel.metrics.378_25.8e5d5a05")
+            and action_name.startswith("E")
+        )
     ):
         return None
     values = action.get("value")
@@ -433,10 +469,13 @@ def _quicken_bonus(
     attack_type: str,
     real_prop: Mapping[str, object],
 ) -> float:
-    if "超激化" not in action_name and "蔓激化" not in action_name:
+    if (
+        _t("gsuid.renderers.panel.metrics.436_7.50c40fe7") not in action_name
+        and _t("gsuid.renderers.panel.metrics.436_42.c0605a74") not in action_name
+    ):
         return 0.0
     level = max(min(_avatar_level(avatar, panel), len(BASE_VALUE_LIST)), 1)
-    k = 2.3 if "超激化" in action_name else 2.5
+    k = 2.3 if _t("gsuid.renderers.panel.metrics.436_7.50c40fe7") in action_name else 2.5
     em = _prefixed_prop(real_prop, attack_type, "elementalMastery")
     times = 1.0
     if "*" in action_name:
@@ -454,10 +493,13 @@ def _reaction_multiplier(
     attack_type: str,
     real_prop: Mapping[str, object],
 ) -> float:
-    if "蒸发" not in action_name and "融化" not in action_name:
+    if (
+        _t("gsuid.renderers.panel.metrics.460_7.89fd5c6c") not in action_name
+        and _t("gsuid.renderers.panel.metrics.457_39.465f09cb") not in action_name
+    ):
         return 1.0
     element = _avatar_element(avatar, panel)
-    if "蒸发" in action_name:
+    if _t("gsuid.renderers.panel.metrics.460_7.89fd5c6c") in action_name:
         base = 1.5 if element == "Pyro" else 2.0
     else:
         base = 2.0 if element == "Pyro" else 1.5
@@ -543,21 +585,25 @@ def _main_stat_sequence(panel: Mapping[str, object]) -> str:
 def _first_main(name: str) -> str:
     if not name:
         return ""
-    if "伤害加成" in name:
+    if _t("gsuid.renderers.panel.image.1371_17.bf42cc55") in name:
         return name[0]
-    if "元素" in name and len(name) >= 3:
+    if _t("gsuid.renderers.panel.image.1902_49.74f529b6") in name and len(name) >= 3:
         return name[2]
-    if "百分比" in name:
-        return "生" if "血量" in name else name[3:4]
+    if _t("gsuid.renderers.panel.image.1902_24.4ce634c4") in name:
+        return (
+            _t("gsuid.renderers.panel.metrics.551_15.3eb31f88")
+            if _t("gsuid.renderers.panel.image.94_21.c269f206") in name
+            else name[3:4]
+        )
     return name[0]
 
 
 def _sequence_label(standard: Mapping[str, object] | None) -> str:
     if standard is None:
-        return "无匹配"
+        return _t("gsuid.renderers.panel.image.1413_53.cd8c79d5")
     seq = text_value(standard.get("seq")) or ""
     if not seq:
-        return "无匹配"
+        return _t("gsuid.renderers.panel.image.1413_53.cd8c79d5")
     return "|".join(part[:2] for part in seq.split("|")) + seq[-1]
 
 
@@ -586,9 +632,9 @@ def _graduation_percent(
             else _float_value(row.get("avg"))
         )
     char_name = text_value(panel.get("name")) or ""
-    if char_name == "夜兰":
+    if char_name == _t("gsuid.renderers.panel.metrics.589_20.b0d83f63"):
         std_value *= 3
-    elif char_name == "刻晴":
+    elif char_name == _t("gsuid.renderers.panel.metrics.45_4.c962e3f3"):
         std_value *= 2
     return round((value / std_value) * 100, 2)
 
@@ -723,9 +769,12 @@ def _set_attack_damage_bonuses(
     char_name = _avatar_name(avatar, panel)
     weapon_type = str(_map("avatarName2Weapon_mapping_6.5.0.json").get(char_name) or "")
     for prefix in ATTACK_TYPES:
-        if weapon_type == "法器" or char_name in CHANGE_LIST:
+        if (
+            weapon_type == _t("gsuid.renderers.panel.metrics.1053_22.4813ba67")
+            or char_name in CHANGE_LIST
+        ):
             prop[f"{prefix}_dmgBonus"] = prop["dmgBonus"]
-        elif weapon_type == "弓":
+        elif weapon_type == _t("gsuid.renderers.panel.metrics.1055_24.a0ec11cd"):
             prop[f"{prefix}_dmgBonus"] = (
                 prop["physicalDmgBonus"] if prefix in {"A", "C"} else prop["dmgBonus"]
             )
@@ -795,7 +844,10 @@ def _effect_base_value(
         return value if effect_attr in PERCENT_ATTRS else value / 100
     if effect_base == "elementalMastery":
         value = _float_value(prop.get(effect_base))
-        if _avatar_name(avatar, panel) == "纳西妲" and effect_attr == "dmgBonus":
+        if (
+            _avatar_name(avatar, panel) == _t("gsuid.renderers.panel.metrics.798_42.e4a3fbc3")
+            and effect_attr == "dmgBonus"
+        ):
             return (value - 200) / 100
         return value
     return _float_value(prop.get(effect_base))
@@ -808,7 +860,11 @@ def _apply_effect_value(
     value: float,
 ) -> None:
     if effect_limit:
-        if "\u4e00" <= effect_limit[-1] <= "\u9fff":
+        if (
+            _t("gsuid.renderers.panel.metrics.811_11.d274eee8")
+            <= effect_limit[-1]
+            <= _t("gsuid.renderers.panel.metrics.811_43.5e62e292")
+        ):
             sp = prop.get("sp")
             if isinstance(sp, list):
                 sp.append(
@@ -1025,17 +1081,32 @@ def _equip_list(avatar: Mapping[str, object]) -> list[Mapping[str, object]]:
 
 def _attack_type(action_name: str, char_name: str) -> str:
     attack_type = action_name[:1]
-    if char_name == "雷电将军":
+    if char_name == _t("gsuid.renderers.panel.metrics.1028_20.bb768ff8"):
         return attack_type
-    if "重击" in action_name or "瞄准射击" in action_name:
+    if (
+        _t("gsuid.renderers.panel.metrics.1030_7.23d356e2") in action_name
+        or _t("gsuid.renderers.panel.metrics.1030_34.d96b0d32") in action_name
+    ):
         return "B"
-    if any(token in action_name for token in ("破局矢", "霜华矢", "藏蕴花矢", "花筥箭", "刀风界")):
+    if any(
+        token in action_name
+        for token in (
+            _t("gsuid.renderers.panel.metrics.1032_46.29f46ceb"),
+            _t("gsuid.renderers.panel.metrics.1032_59.61ddee72"),
+            _t("gsuid.renderers.panel.metrics.1032_72.13915bf4"),
+            _t("gsuid.renderers.panel.metrics.1032_88.2a0a5f81"),
+            _t("gsuid.renderers.panel.metrics.1032_101.b415fa98"),
+        )
+    ):
         return "B"
-    if "高空下落" in action_name:
+    if _t("gsuid.renderers.panel.metrics.1034_7.4bb42b5a") in action_name:
         return "C"
-    if "段" in action_name and "伤害" in action_name:
+    if (
+        _t("gsuid.renderers.panel.metrics.1036_7.c865b5b0") in action_name
+        and _t("gsuid.renderers.panel.metrics.1036_32.69ace645") in action_name
+    ):
         return "A"
-    if "不生断" in action_name:
+    if _t("gsuid.renderers.panel.metrics.1038_7.990b4459") in action_name:
         return "A"
     return attack_type
 
@@ -1050,23 +1121,31 @@ def _damage_type(
     element = _avatar_element(avatar, panel)
     weapon_type = str(_map("avatarName2Weapon_mapping_6.5.0.json").get(char_name) or "")
     damage_type = "Physical"
-    if weapon_type == "法器" or char_name in CHANGE_LIST:
+    if (
+        weapon_type == _t("gsuid.renderers.panel.metrics.1053_22.4813ba67")
+        or char_name in CHANGE_LIST
+    ):
         damage_type = element
-    elif weapon_type == "弓":
+    elif weapon_type == _t("gsuid.renderers.panel.metrics.1055_24.a0ec11cd"):
         if attack_type in {"B", "E", "Q"}:
             damage_type = element
     elif attack_type in {"E", "Q"}:
         damage_type = element
     if action_name in {
-        "Q光降之剑基础伤害",
-        "Q光降之剑基础伤害(13层)",
-        "Q每层能量伤害",
-        "Q光降之剑基础伤害(24层)",
+        _t("gsuid.renderers.panel.metrics.1061_8.df6dc283"),
+        _t("gsuid.renderers.panel.metrics.1062_8.a42274ab"),
+        _t("gsuid.renderers.panel.metrics.1063_8.1c2a8b98"),
+        _t("gsuid.renderers.panel.metrics.1064_8.04686d9b"),
     }:
         damage_type = "Physical"
-    if "段" in action_name and "A" not in action_name:
+    if (
+        _t("gsuid.renderers.panel.metrics.1036_7.c865b5b0") in action_name
+        and "A" not in action_name
+    ):
         damage_type = element
-    if char_name == "辛焱" and action_name == "Q伤害":
+    if char_name == _t("gsuid.renderers.panel.metrics.1069_20.484baf23") and action_name == _t(
+        "gsuid.renderers.panel.metrics.1069_48.3e97c81e"
+    ):
         damage_type = "Physical"
     return damage_type
 

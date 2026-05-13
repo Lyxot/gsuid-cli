@@ -16,6 +16,10 @@ from gsuid_cli.providers.public.common import (
     optional_text,
     sort_key,
 )
+from gsuid_cli.text import t as _t
+
+ABYSS_MONSTER_MARK_LIGHT = "·光"
+ABYSS_MONSTER_MARK_DARK = "·芒"
 
 
 def parse_genshinuid_js(js_code: str) -> dict[str, object]:
@@ -51,7 +55,7 @@ def select_abyss_schedule(
                 return _abyss_schedule(row), []
         raise CliError(
             "NO_RESULT",
-            "没有与请求版本匹配的深境螺旋攻略。",
+            _t("gsuid.providers.public.guide.54_12.9caf48b4"),
             EXIT_NO_RESULT,
             {"version": version},
             source=source,
@@ -73,15 +77,14 @@ def select_abyss_schedule(
             if start <= now:
                 selected = _abyss_schedule(row)
                 return selected, [
-                    "当前日期没有匹配的深境螺旋攻略；"
-                    f"已使用最新已知的 GenshinUID 攻略 {selected['name']}"
+                    _t("gsuid.providers.public.guide.76_20.5bf29eb9", selected["name"])
                 ]
     if schedule_rows:
         selected = _abyss_schedule(schedule_rows[-1])
-        return selected, ["没有带日期的深境螺旋攻略可用；已使用最新 GenshinUID 攻略"]
+        return selected, [_t("gsuid.providers.public.guide.81_26.a415963d")]
     raise CliError(
         "NO_RESULT",
-        "没有可用的深境螺旋攻略。",
+        _t("gsuid.providers.public.guide.84_8.8e9812d0"),
         EXIT_NO_RESULT,
         source=source,
     )
@@ -99,7 +102,7 @@ def normalize_abyss_floor(
     if floor_index < 0 or floor_index >= len(floors):
         raise CliError(
             "NO_RESULT",
-            "没有与请求匹配的深境螺旋层数。",
+            _t("gsuid.providers.public.guide.102_12.667f7dac"),
             EXIT_NO_RESULT,
             {"version": schedule.get("name"), "floor": floor},
             source=source,
@@ -110,7 +113,7 @@ def normalize_abyss_floor(
     if not floor_config:
         raise CliError(
             "NO_RESULT",
-            "没有与排期匹配的深境螺旋楼层配置。",
+            _t("gsuid.providers.public.guide.113_12.bd5914cb"),
             EXIT_NO_RESULT,
             {"version": schedule.get("name"), "floor": floor, "floor_id": floor_id},
             source=source,
@@ -141,7 +144,7 @@ def select_theater_event(
             return version, []
         raise CliError(
             "NO_RESULT",
-            "没有与请求版本匹配的幻想真境剧诗攻略活动。",
+            _t("gsuid.providers.public.guide.144_12.4d22c894"),
             EXIT_NO_RESULT,
             {"version": version},
             source=source,
@@ -161,16 +164,13 @@ def select_theater_event(
         dated.sort(key=lambda item: item[0])
         for start, _end, event_id in reversed(dated):
             if start <= now:
-                return event_id, [
-                    "当前日期没有匹配的幻想真境剧诗攻略活动；"
-                    f"已使用最新已知的 Hakush rolecombat 活动 {event_id}"
-                ]
+                return event_id, [_t("gsuid.providers.public.guide.165_20.27e0f34c", event_id)]
     if events:
         event_id = sorted(events, key=lambda key: int(key) if key.isdigit() else 0)[-1]
-        return event_id, ["没有带日期的幻想真境剧诗攻略活动可用；已使用最新的活动 id"]
+        return event_id, [_t("gsuid.providers.public.guide.170_26.60792b97")]
     raise CliError(
         "NO_RESULT",
-        "没有可用的幻想真境剧诗攻略活动。",
+        _t("gsuid.providers.public.guide.173_8.87215c00"),
         EXIT_NO_RESULT,
         source=source,
     )
@@ -271,13 +271,17 @@ def _normalize_abyss_monster(
 ) -> dict[str, object]:
     monster_id = str(monster.get("ID") or "")
     config = dict_value(monsters.get(monster_id))
-    name = _localized(monster.get("Name")) or optional_text(config.get("Name")) or "未知怪物"
+    name = (
+        _localized(monster.get("Name"))
+        or optional_text(config.get("Name"))
+        or _t("gsuid.providers.public.guide.274_83.9f6cb1a9")
+    )
     icon = _first_text(config.get("Icon")) or optional_text(monster.get("Icon"))
     if monster.get("Mark"):
         name = f"*{name}"
     return {
         "id": monster_id,
-        "name": name.replace("-", "·").replace("·光", "·芒"),
+        "name": name.replace("-", "·").replace(ABYSS_MONSTER_MARK_LIGHT, ABYSS_MONSTER_MARK_DARK),
         "count": optional_int(monster.get("Num")) or 1,
         "icon": icon,
         "icon_url": monster_icon_url(icon),
@@ -323,7 +327,7 @@ def _theater_room(room_id: object, room: dict[str, object]) -> dict[str, object]
 
 def _theater_monster(monster: dict[str, object]) -> dict[str, object]:
     icon = optional_text(monster.get("Icon"))
-    name = optional_text(monster.get("Name")) or "未知怪物"
+    name = optional_text(monster.get("Name")) or _t("gsuid.providers.public.guide.274_83.9f6cb1a9")
     if "·" in name:
         name = name.split("·")[-1]
     return {

@@ -7,35 +7,36 @@ from functools import lru_cache
 from gsuid_cli.renderers._text_helpers import _finish, _mapping, _number, _number_text, _text
 from gsuid_cli.renderers.common import asset_path
 from gsuid_cli.renderers.utility_text import _sequence
+from gsuid_cli.text import t as _t
 
 PANEL_DATA = asset_path("panel", "data")
 STAT_LABELS = {
-    "Flat ATK": "攻击力",
-    "Flat HP": "生命值",
-    "Flat DEF": "防御力",
-    "ATK%": "攻击力",
-    "HP%": "生命值",
-    "DEF%": "防御力",
-    "Elemental Mastery": "元素精通",
-    "Energy Recharge": "元素充能效率",
-    "Crit RATE": "暴击率",
-    "Crit DMG": "暴击伤害",
-    "Cryo DMG Bonus": "冰元素伤害加成",
-    "Pyro DMG Bonus": "火元素伤害加成",
-    "Hydro DMG Bonus": "水元素伤害加成",
-    "Electro DMG Bonus": "雷元素伤害加成",
-    "Anemo DMG Bonus": "风元素伤害加成",
-    "Geo DMG Bonus": "岩元素伤害加成",
-    "Dendro DMG Bonus": "草元素伤害加成",
-    "Healing Bonus": "治疗加成",
-    "Physical DMG Bonus": "物理伤害加成",
+    "Flat ATK": _t("gsuid.renderers.panel.image.88_25.ef28aed2"),
+    "Flat HP": _t("gsuid.renderers.panel.metrics.357_7.575ca7a8"),
+    "Flat DEF": _t("gsuid.renderers.panel.image.91_26.2557c107"),
+    "ATK%": _t("gsuid.renderers.panel.image.88_25.ef28aed2"),
+    "HP%": _t("gsuid.renderers.panel.metrics.357_7.575ca7a8"),
+    "DEF%": _t("gsuid.renderers.panel.image.91_26.2557c107"),
+    "Elemental Mastery": _t("gsuid.providers.akasha.66_4.af09dad1"),
+    "Energy Recharge": _t("gsuid.providers.akasha.68_4.a7a24305"),
+    "Crit RATE": _t("gsuid.providers.akasha.70_4.33e0f20a"),
+    "Crit DMG": _t("gsuid.providers.akasha.72_4.7c0dd18b"),
+    "Cryo DMG Bonus": _t("gsuid.renderers.panel.image.108_31.81e609f2"),
+    "Pyro DMG Bonus": _t("gsuid.renderers.panel.image.102_32.a7d92d8b"),
+    "Hydro DMG Bonus": _t("gsuid.renderers.panel.image.104_33.0205a287"),
+    "Electro DMG Bonus": _t("gsuid.renderers.panel.image.103_32.b05986fe"),
+    "Anemo DMG Bonus": _t("gsuid.renderers.panel.image.106_32.53069124"),
+    "Geo DMG Bonus": _t("gsuid.renderers.panel.image.107_32.78be5ad7"),
+    "Dendro DMG Bonus": _t("gsuid.renderers.panel.image.105_33.cfb22d08"),
+    "Healing Bonus": _t("gsuid.renderers.panel.image.101_27.f1fcdb6f"),
+    "Physical DMG Bonus": _t("gsuid.renderers.panel.image.109_36.be65271f"),
 }
 EQUIP_LABELS = {
-    "EQUIP_BRACER": "生之花",
-    "EQUIP_NECKLACE": "死之羽",
-    "EQUIP_SHOES": "时之沙",
-    "EQUIP_RING": "空之杯",
-    "EQUIP_DRESS": "理之冠",
+    "EQUIP_BRACER": _t("gsuid.commands.panel.mys.317_8.5c8bb682"),
+    "EQUIP_NECKLACE": _t("gsuid.commands.panel.mys.318_8.9eaf35fa"),
+    "EQUIP_SHOES": _t("gsuid.commands.panel.mys.319_8.bc4a2cbb"),
+    "EQUIP_RING": _t("gsuid.commands.panel.mys.320_8.c4347056"),
+    "EQUIP_DRESS": _t("gsuid.commands.panel.mys.321_8.e5385dd2"),
 }
 PERCENT_STATS = {
     "ATK%",
@@ -61,35 +62,53 @@ def render_rank_list_text(data: Mapping[str, object]) -> str:
     player = _mapping(data.get("player"))
     characters = [_mapping(item) for item in _sequence(data.get("characters"))]
     nickname = _text(player.get("nickname"))
-    title = f"Akasha排行 - {nickname}" if nickname != "-" else "Akasha排行"
-    lines = [title, f"UID: {uid}", f"角色数量: {_text(data.get('count'))}"]
+    title = (
+        _t("gsuid.renderers.rank.text.64_12.d2868f38", nickname)
+        if nickname != "-"
+        else _t("gsuid.renderers.rank.text.64_65.4b81c79a")
+    )
+    lines = [
+        title,
+        f"UID: {uid}",
+        _t("gsuid.renderers.panel.text.202_17.2e0aa7dd", _text(data.get("count"))),
+    ]
     if not characters:
-        lines.extend(["", "暂无排行角色"])
+        lines.extend(["", _t("gsuid.renderers.rank.text.67_26.7c77d819")])
         return _finish(lines)
-    lines.extend(["", "角色:"])
+    lines.extend(["", _t("gsuid.renderers.panel.text.248_17.ebc2e4bd")])
     for character in characters:
         stats = _mapping(character.get("stats"))
         weapon = _mapping(character.get("weapon"))
         character_label = _character_label(character)
         lines.append(
-            f"  - {character_label}: "
-            f"{_number_text(character.get('result'))}，"
-            f"排名 {_rank_text(character.get('rank'), character.get('out_of'))}"
+            _t(
+                "gsuid.renderers.rank.text.75_12.ec0d3044",
+                character_label,
+                _number_text(character.get("result")),
+                _rank_text(character.get("rank"), character.get("out_of")),
+            )
         )
         lines.append(
-            "    "
-            f"命座 {_text(character.get('constellation'))}，"
-            f"武器 {_weapon_name(weapon)} 精{_text(weapon.get('refinement'))}，"
-            f"双暴 {_percent_number(stats.get('critRate'))}/"
-            f"{_percent_number(stats.get('critDMG'))}，"
-            f"CV {_number_text(stats.get('critValue'))}"
+            _t(
+                "gsuid.renderers.rank.text.80_12.c21e6f7f",
+                _text(character.get("constellation")),
+                _weapon_name(weapon),
+                _text(weapon.get("refinement")),
+                _percent_number(stats.get("critRate")),
+                _percent_number(stats.get("critDMG")),
+                _number_text(stats.get("critValue")),
+            )
         )
         lines.append(
-            f"    生命 {_number_text(stats.get('maxHP'))}，攻击 {_number_text(stats.get('maxATK'))}"
+            _t(
+                "gsuid.renderers.rank.text.88_12.fa451708",
+                _number_text(stats.get("maxHP")),
+                _number_text(stats.get("maxATK")),
+            )
         )
         set_text = _artifact_sets_text(_mapping(character.get("artifact_sets")))
         if set_text != "-":
-            lines.append(f"    套装: {set_text}")
+            lines.append(_t("gsuid.renderers.rank.text.92_25.4be54ef5", set_text))
     return _finish(lines)
 
 
@@ -97,13 +116,17 @@ def render_rank_character_text(data: Mapping[str, object]) -> str:
     entries = [_mapping(item) for item in _sequence(data.get("entries"))]
     selected_uid = _text(data.get("selected_uid"))
     lines = [
-        f"角色排行 - {_text(data.get('character'))}",
-        f"范围: {_text(data.get('tag'))} / 总数据 {_text(data.get('total_count'))}条",
+        _t("gsuid.renderers.rank.text.100_8.a16a8fdb", _text(data.get("character"))),
+        _t(
+            "gsuid.renderers.rank.text.101_8.3eff2429",
+            _text(data.get("tag")),
+            _text(data.get("total_count")),
+        ),
     ]
     if selected_uid != "-":
-        lines.append(f"目标UID: {selected_uid}")
+        lines.append(_t("gsuid.renderers.rank.text.104_21.b1e34f16", selected_uid))
     if not entries:
-        lines.extend(["", "暂无排行数据"])
+        lines.extend(["", _t("gsuid.renderers.rank.text.106_26.9fbf16c5")])
         return _finish(lines)
     lines.append("")
     rank = 0
@@ -116,40 +139,46 @@ def render_rank_character_text(data: Mapping[str, object]) -> str:
         weapon_info = _mapping(weapon.get("weaponInfo"))
         refinement = int(_number(_mapping(weapon_info.get("refinementLevel")).get("value"))) + 1
         mark = (
-            " ← 当前UID" if selected_uid != "-" and _text(entry.get("uid")) == selected_uid else ""
+            _t("gsuid.renderers.rank.text.119_12.84cbd9ff")
+            if selected_uid != "-" and _text(entry.get("uid")) == selected_uid
+            else ""
         )
         lines.append(
             f"#{rank} {_text(owner.get('nickname'))} "
             f"({_text(owner.get('region'))}) UID: {_text(entry.get('uid'))}{mark}"
         )
         lines.append(
-            "  "
-            f"命座 {_text(entry.get('constellation'))}，"
-            f"精{refinement}，"
-            f"双暴 {_percent_number(_stat(stats, 'critRate'))}/"
-            f"{_percent_number(_stat(stats, 'critDamage'))}，"
-            f"CV {_number_text(entry.get('critValue'))}"
+            _t(
+                "gsuid.renderers.rank.text.126_12.06ab3f56",
+                _text(entry.get("constellation")),
+                refinement,
+                _percent_number(_stat(stats, "critRate")),
+                _percent_number(_stat(stats, "critDamage")),
+                _number_text(entry.get("critValue")),
+            )
         )
         lines.append(
-            "  "
-            f"生命 {_number_text(_stat(stats, 'maxHp'))}，"
-            f"攻击 {_number_text(_stat(stats, 'atk'))}"
+            _t(
+                "gsuid.renderers.rank.text.134_12.8bd1406b",
+                _number_text(_stat(stats, "maxHp")),
+                _number_text(_stat(stats, "atk")),
+            )
         )
         set_text = _artifact_sets_text(_mapping(entry.get("artifactSets")))
         if set_text != "-":
-            lines.append(f"  套装: {set_text}")
+            lines.append(_t("gsuid.renderers.rank.text.140_25.80eae690", set_text))
     return _finish(lines)
 
 
 def render_rank_artifact_text(data: Mapping[str, object]) -> str:
     artifacts = [_mapping(item) for item in _sequence(data.get("artifacts"))]
     lines = [
-        f"圣遗物排行 - {_text(data.get('sort'))}",
-        f"排序字段: {_text(data.get('akasha_sort'))}",
-        f"数量: {_text(data.get('count'))}",
+        _t("gsuid.renderers.rank.text.147_8.8b739138", _text(data.get("sort"))),
+        _t("gsuid.renderers.rank.text.148_8.4f49205c", _text(data.get("akasha_sort"))),
+        _t("gsuid.renderers.challenge.text.186_8.a63927f2", _text(data.get("count"))),
     ]
     if not artifacts:
-        lines.extend(["", "暂无圣遗物排行数据"])
+        lines.extend(["", _t("gsuid.renderers.rank.text.152_26.1a56ce07")])
         return _finish(lines)
     lines.append("")
     for index, artifact in enumerate(artifacts[:20], start=1):
@@ -159,21 +188,25 @@ def render_rank_artifact_text(data: Mapping[str, object]) -> str:
             f"({_text(owner.get('region'))}) UID: {_text(artifact.get('uid'))}"
         )
         lines.append(
-            "  "
-            f"{_slot_label(artifact.get('equipType'))}: "
-            f"{_artifact_name(artifact)} "
-            f"+{_artifact_level(artifact)} "
-            f"{_stars(artifact.get('stars'))}，"
-            f"双爆分 {_number_text(artifact.get('critValue'))}"
+            _t(
+                "gsuid.renderers.rank.text.162_12.18aa0ce7",
+                _slot_label(artifact.get("equipType")),
+                _artifact_name(artifact),
+                _artifact_level(artifact),
+                _stars(artifact.get("stars")),
+                _number_text(artifact.get("critValue")),
+            )
         )
         lines.append(
-            "  "
-            f"主词条: {_stat_label(artifact.get('mainStatKey'))} "
-            f"{_stat_value_text(artifact.get('mainStatValue'), artifact.get('mainStatKey'))}"
+            _t(
+                "gsuid.renderers.rank.text.170_12.4a7cffc6",
+                _stat_label(artifact.get("mainStatKey")),
+                _stat_value_text(artifact.get("mainStatValue"), artifact.get("mainStatKey")),
+            )
         )
         substats = _mapping(artifact.get("substats"))
         if substats:
-            lines.append("  副词条:")
+            lines.append(_t("gsuid.renderers.rank.text.176_25.9dd064ca"))
             for name, value in substats.items():
                 lines.append(f"    - {_stat_label(name)}: {_stat_value_text(value, name)}")
     return _finish(lines)
@@ -214,7 +247,13 @@ def _rank_text(rank: object, out_of: object) -> str:
         return f"{_text(rank)}"
     percent = _number_text(rank_num / out_num * 100)
     rank_prefix = "~" if str(rank).startswith("~") else ""
-    return f"{rank_prefix}{rank_num}/{_number_text(out_num)}（前{percent}%）"
+    return _t(
+        "gsuid.renderers.rank.text.217_11.edc56e93",
+        rank_prefix,
+        rank_num,
+        _number_text(out_num),
+        percent,
+    )
 
 
 def _artifact_sets_text(sets: Mapping[str, object]) -> str:
@@ -225,7 +264,7 @@ def _artifact_sets_text(sets: Mapping[str, object]) -> str:
         if count <= 0:
             continue
         label = _artifact_set_label(name, item)
-        parts.append(f"{label}{count}件")
+        parts.append(_t("gsuid.renderers.guide.text.187_26.12201c09", label, count))
     return "，".join(parts) if parts else "-"
 
 

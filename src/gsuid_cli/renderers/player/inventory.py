@@ -19,6 +19,7 @@ from gsuid_cli.renderers.player.summary import (
     paste_player_footer,
     render_player_title_section,
 )
+from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("player", "inventory", "textures")
 WIDTH = 1680
@@ -121,4 +122,10 @@ def _paste_placeholder_icon(card: Image.Image, item: Mapping[str, object]) -> No
 
 def _draw_empty(image: Image.Image) -> None:
     draw = ImageDraw.Draw(image)
-    draw.text((WIDTH // 2, ITEM_TOP + 70), "暂无背包素材", fill="white", font=font(36), anchor="mm")
+    draw.text(
+        (WIDTH // 2, ITEM_TOP + 70),
+        _t("gsuid.renderers.player.inventory.124_43.52e8975b"),
+        fill="white",
+        font=font(36),
+        anchor="mm",
+    )

@@ -11,6 +11,7 @@ from gsuid_cli.renderers.common import (
     text_value,
     v4_background,
 )
+from gsuid_cli.text import t as _t
 
 WIDTH = 900
 PAD = 48
@@ -27,10 +28,12 @@ FOOTER_TEXT = "Created by gsuid-cli & Data by GenshinUID"
 
 
 def render_recommend_build_card(data: Mapping[str, object]) -> bytes:
-    character = text_value(data.get("character")) or "未知角色"
+    character = text_value(data.get("character")) or _t(
+        "gsuid.renderers.challenge.text.293_68.876cfbce"
+    )
     sections = _build_sections(data)
     return _render_text_card(
-        title="角色养成推荐",
+        title=_t("gsuid.renderers.recommend.33_14.185b009f"),
         subtitle=f"「{character}」",
         sections=sections,
         footer=FOOTER_TEXT,
@@ -38,10 +41,10 @@ def render_recommend_build_card(data: Mapping[str, object]) -> bytes:
 
 
 def render_recommend_holder_card(data: Mapping[str, object]) -> bytes:
-    item = text_value(data.get("item")) or "未知物品"
+    item = text_value(data.get("item")) or _t("gsuid.renderers.gacha.630_43.988a9ca3")
     sections = _holder_sections(data)
     return _render_text_card(
-        title="适用角色推荐",
+        title=_t("gsuid.renderers.recommend.44_14.a43135ca"),
         subtitle=f"「{item}」",
         sections=sections,
         footer=FOOTER_TEXT,
@@ -103,9 +106,11 @@ def _build_sections(data: Mapping[str, object]) -> list[tuple[str, list[str]]]:
         rarity = text_value(group.get("rarity")) or "?"
         items = _text_list(group.get("items"))
         if items:
-            weapon_lines.append(f"{rarity}星武器：{'、'.join(items)}")
+            weapon_lines.append(
+                _t("gsuid.renderers.recommend.106_32.36e87c90", rarity, "、".join(items))
+            )
     if weapon_lines:
-        sections.append(("推荐武器", weapon_lines))
+        sections.append((_t("gsuid.renderers.recommend.108_25.3166cfe3"), weapon_lines))
 
     artifact_lines: list[str] = []
     for group in _sequence(data.get("artifacts")):
@@ -118,15 +123,20 @@ def _build_sections(data: Mapping[str, object]) -> list[tuple[str, list[str]]]:
         labels = []
         for index, name in enumerate(sets):
             piece = text_value(pieces[index]) if index < len(pieces) else "2"
-            labels.append(f"{name}{piece or '2'}件")
+            labels.append(_t("gsuid.renderers.guide.text.187_26.12201c09", name, piece or "2"))
         artifact_lines.append(" + ".join(labels))
     if artifact_lines:
-        sections.append(("推荐圣遗物", artifact_lines))
+        sections.append((_t("gsuid.renderers.recommend.124_25.bd103bbd"), artifact_lines))
 
     remarks = _text_list(data.get("remarks"))
     if remarks:
-        sections.append(("备注", remarks))
-    return sections or [("推荐", ["没有可展示的推荐内容。"])]
+        sections.append((_t("gsuid.renderers.recommend.128_25.e0361480"), remarks))
+    return sections or [
+        (
+            _t("gsuid.renderers.recommend.129_25.62b46f24"),
+            [_t("gsuid.renderers.recommend.129_36.ca727dd4")],
+        )
+    ]
 
 
 def _holder_sections(data: Mapping[str, object]) -> list[tuple[str, list[str]]]:
@@ -134,12 +144,21 @@ def _holder_sections(data: Mapping[str, object]) -> list[tuple[str, list[str]]]:
     for match in _sequence(data.get("matches")):
         if not isinstance(match, Mapping):
             continue
-        kind = "武器" if match.get("kind") == "weapon" else "圣遗物"
+        kind = (
+            _t("gsuid.commands.panel.impl.988_24.6f0f16e0")
+            if match.get("kind") == "weapon"
+            else _t("gsuid.renderers.guide.text.100_62.619c6618")
+        )
         name = text_value(match.get("match")) or kind
         holders = _text_list(match.get("holders"))
         if holders:
             sections.append((f"{kind} · {name}", ["、".join(holders)]))
-    return sections or [("推荐", ["没有角色能使用该物品。"])]
+    return sections or [
+        (
+            _t("gsuid.renderers.recommend.129_25.62b46f24"),
+            [_t("gsuid.renderers.recommend.142_36.2ac7dbe4")],
+        )
+    ]
 
 
 def _section_height(lines: list[str], draw: ImageDraw.ImageDraw) -> int:

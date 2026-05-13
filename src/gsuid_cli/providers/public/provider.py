@@ -21,6 +21,7 @@ from gsuid_cli.core.http import (
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.providers.assets import AssetProvider
 from gsuid_cli.providers.public.codes import parse_active_codes as _parse_active_codes
+from gsuid_cli.text import t as _t
 
 _daily_domain = _public_daily.daily_domain
 _day_from_date = _public_daily.day_from_date
@@ -86,6 +87,8 @@ CN_TZ = _public_common.CN_TZ
 MAP_IDS = {"teyvat": "2", "chasm": "7", "enkanomiya": "9"}
 DAILY_RESET_OFFSET = _public_daily.DAILY_RESET_OFFSET
 ANNOUNCEMENT_BLACK_IDS = {762, 422, 423, 1263, 495, 1957, 2522, 2388, 2516, 2476}
+GUIDE_NAME_DROP_PREFIXES = ("每日委托", "世界任务")
+CHINESE_TEXT_PATTERN = r"[一-龥]"
 
 
 class PublicDataProvider:
@@ -203,7 +206,7 @@ class PublicDataProvider:
             if require_upgrade:
                 raise
             upgrades = {}
-            warnings.append("日常材料升级数据不可用；返回的秘境不包含物品匹配")
+            warnings.append(_t("gsuid.providers.public.provider.206_28.fafb0d14"))
         selected_day = _day_from_date(date) or day or _current_daily_day()
         if selected_day not in DAY_NAMES:
             raise CliError(
@@ -216,7 +219,7 @@ class PublicDataProvider:
         if not isinstance(day_data, dict):
             raise CliError(
                 "NO_RESULT",
-                "此日期没有可用的日常材料数据。",
+                _t("gsuid.providers.public.provider.219_16.1e2712c6"),
                 EXIT_NO_RESULT,
                 {"day": selected_day},
                 source=response.source,
@@ -263,7 +266,7 @@ class PublicDataProvider:
         if talent_item is None:
             raise CliError(
                 "NO_RESULT",
-                "没有匹配请求索引的天赋。",
+                _t("gsuid.providers.public.provider.266_16.907a4d19"),
                 EXIT_NO_RESULT,
                 {"character": character, "talent": talent},
                 source=base.source,
@@ -290,7 +293,7 @@ class PublicDataProvider:
             if constellation_item is None:
                 raise CliError(
                     "NO_RESULT",
-                    "没有匹配请求索引的命座。",
+                    _t("gsuid.providers.public.provider.293_20.e0944794"),
                     EXIT_NO_RESULT,
                     {"character": character, "constellation": constellation},
                     source=base.source,
@@ -367,7 +370,7 @@ class PublicDataProvider:
                     "talents": _talent_materials(item.get("talent")),
                 },
                 "recommendations": [],
-                "source_limitations": ["Project Amber 数据源不提供精选养成建议"],
+                "source_limitations": [_t("gsuid.providers.public.provider.370_39.21e07991")],
             },
             source=base.source,
         )
@@ -398,7 +401,7 @@ class PublicDataProvider:
         if info is None:
             raise CliError(
                 "NO_RESULT",
-                "没有与该角色匹配的养成建议。",
+                _t("gsuid.providers.public.provider.401_16.0a78440a"),
                 EXIT_NO_RESULT,
                 {"character": character, "resolved_character": name},
                 source=source,
@@ -431,7 +434,7 @@ class PublicDataProvider:
         if not matches:
             raise CliError(
                 "NO_RESULT",
-                "没有与查询匹配的武器或圣遗物。",
+                _t("gsuid.providers.public.provider.434_16.4589de81"),
                 EXIT_NO_RESULT,
                 {"item": item, "queries": sorted(query_names)},
             )
@@ -450,7 +453,7 @@ class PublicDataProvider:
         else:
             raise CliError(
                 "INVALID_ARGUMENT",
-                "不支持的攻略图片类型。",
+                _t("gsuid.providers.public.provider.453_16.12baca10"),
                 EXIT_INVALID_INPUT,
                 {"kind": kind},
             )
@@ -511,7 +514,7 @@ class PublicDataProvider:
                 return CommandResult(data={"announcement": announcement}, source=response.source)
         raise CliError(
             "NO_RESULT",
-            "没有匹配该 id 的公告。",
+            _t("gsuid.providers.public.provider.514_12.acc36dee"),
             EXIT_NO_RESULT,
             {"id": announcement_id},
             source=response.source,
@@ -539,10 +542,7 @@ class PublicDataProvider:
                 "available": True,
                 "schedule": selected,
                 "abyss": floor_data,
-                "source_limitations": [
-                    "深境螺旋攻略数据通过 jsDelivr 从 GenshinUID abyss.js 获取；"
-                    "图片渲染署名为 妮可少年"
-                ],
+                "source_limitations": [_t("gsuid.providers.public.provider.543_20.a188ab6d")],
             },
             warnings=selected_warnings,
             source=source,
@@ -571,7 +571,7 @@ class PublicDataProvider:
             avatar_names = self._avatar_names_by_id()
         except CliError:
             avatar_names = {}
-            warnings.append("幻想真境剧诗角色名称不可用；渲染了角色 id 作为替代")
+            warnings.append(_t("gsuid.providers.public.provider.574_28.21932b6b"))
         theater = _normalize_theater(detail.payload, event_id=event_id, avatar_names=avatar_names)
         return CommandResult(
             data={
@@ -579,7 +579,7 @@ class PublicDataProvider:
                 "requested_version": version,
                 "available": True,
                 "theater": theater,
-                "source_limitations": ["幻想真境剧诗攻略数据来源于 Hakush rolecombat 数据"],
+                "source_limitations": [_t("gsuid.providers.public.provider.582_39.9a2dc016")],
             },
             warnings=warnings,
             source=detail.source,
@@ -604,7 +604,9 @@ class PublicDataProvider:
                 "source": "GenshinUID all_achi.json",
             },
             source=response.source,
-            warnings=[] if match else [f"暂无匹配成就攻略: {query}"],
+            warnings=[]
+            if match
+            else [_t("gsuid.providers.public.provider.607_39.d47c761b", query)],
         )
 
     def commission_guide(self, *, query: str) -> CommandResult:
@@ -626,7 +628,9 @@ class PublicDataProvider:
                 "source": "GenshinUID daily_achi.json",
             },
             source=response.source,
-            warnings=[] if match else [f"暂无匹配委托攻略: {query}"],
+            warnings=[]
+            if match
+            else [_t("gsuid.providers.public.provider.629_39.3f855ab9", query)],
         )
 
     def rerun_list(self, *, limit: int) -> CommandResult:
@@ -641,7 +645,7 @@ class PublicDataProvider:
         if int(response.payload.get("code") or 0) != 200:
             raise CliError(
                 "UPSTREAM_REJECTED",
-                "提瓦特复刻列表数据源拒绝了请求。",
+                _t("gsuid.providers.public.provider.644_16.c7bb19a1"),
                 EXIT_UPSTREAM,
                 {"code": response.payload.get("code")},
                 source=response.source,
@@ -667,7 +671,7 @@ class PublicDataProvider:
         selected_version = _select_primogems_version(version, available_versions)
         warnings = []
         if selected_version is None:
-            warnings.append("所请求版本的原石获取预估图不可用")
+            warnings.append(_t("gsuid.providers.public.provider.670_28.5d98ef5b"))
         return CommandResult(
             data={
                 "version": version,
@@ -675,7 +679,7 @@ class PublicDataProvider:
                 "available_versions": available_versions,
                 "estimate_available": selected_version is not None,
                 "estimate": None,
-                "source_limitations": ["GenshinUID 提供了静态的版本原石预估图片"],
+                "source_limitations": [_t("gsuid.providers.public.provider.678_39.ef2c69b1")],
             },
             warnings=warnings,
             source=_local_primogems_plan_source(),
@@ -695,7 +699,7 @@ class PublicDataProvider:
         if not response.media_type.startswith("image/"):
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "MiniGG 返回了非图片的地图响应。",
+                _t("gsuid.providers.public.provider.698_16.8a32aba9"),
                 EXIT_UPSTREAM,
                 {"item": item, "map": map_name, "media_type": response.media_type},
                 source=response.source,
@@ -714,7 +718,7 @@ class PublicDataProvider:
         if status not in (200, "200", None):
             raise CliError(
                 "UPSTREAM_REJECTED",
-                "数据源拒绝了请求。",
+                _t("gsuid.core.http.754_8.a2481e63"),
                 EXIT_UPSTREAM,
                 {"provider": "ambr", "category": category, "response": status},
                 source=response.source,
@@ -784,7 +788,7 @@ class PublicDataProvider:
         except (UnicodeDecodeError, ValueError) as exc:
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "数据源返回了无效的建议数据。",
+                _t("gsuid.providers.public.provider.787_16.29e696bb"),
                 EXIT_UPSTREAM,
                 {"url": GENSHINUID_ADV_LIST_URL},
                 source=response.source,
@@ -792,7 +796,7 @@ class PublicDataProvider:
         if not isinstance(payload, dict):
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "数据源返回了非预期的建议数据格式。",
+                _t("gsuid.providers.public.provider.795_16.46aa850c"),
                 EXIT_UPSTREAM,
                 {"url": GENSHINUID_ADV_LIST_URL},
                 source=response.source,
@@ -815,7 +819,7 @@ class PublicDataProvider:
         except UnicodeDecodeError as exc:
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "数据源返回了无效的深境螺旋攻略数据编码。",
+                _t("gsuid.providers.public.provider.818_16.343b831b"),
                 EXIT_UPSTREAM,
                 {"url": url, "revision": revision},
                 source=response.source,
@@ -825,7 +829,7 @@ class PublicDataProvider:
         except ValueError as exc:
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "数据源返回了无效的深境螺旋攻略数据。",
+                _t("gsuid.providers.public.provider.828_16.a285e235"),
                 EXIT_UPSTREAM,
                 {"url": url, "revision": revision},
                 source=response.source,
@@ -856,7 +860,7 @@ class PublicDataProvider:
         except (UnicodeDecodeError, ValueError) as exc:
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "数据源返回了无效的 GenshinUID 修订版本数据。",
+                _t("gsuid.providers.public.provider.859_16.0aea80aa"),
                 EXIT_UPSTREAM,
                 {"url": GENSHINUID_ABYSS_JS_COMMITS_URL, "path": GENSHINUID_ABYSS_JS_PATH},
                 source=response.source,
@@ -864,7 +868,7 @@ class PublicDataProvider:
         if not isinstance(payload, list) or not payload:
             raise CliError(
                 "NO_RESULT",
-                "未找到 GenshinUID abyss.js 的修订版本。",
+                _t("gsuid.providers.public.provider.867_16.cf003eea"),
                 EXIT_NO_RESULT,
                 {"url": GENSHINUID_ABYSS_JS_COMMITS_URL, "path": GENSHINUID_ABYSS_JS_PATH},
                 source=response.source,
@@ -874,7 +878,7 @@ class PublicDataProvider:
         if not isinstance(sha, str) or re.fullmatch(r"[0-9a-f]{40}", sha) is None:
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "数据源返回了无效的 GenshinUID 修订版本。",
+                _t("gsuid.providers.public.provider.877_16.26815957"),
                 EXIT_UPSTREAM,
                 {"url": GENSHINUID_ABYSS_JS_COMMITS_URL, "path": GENSHINUID_ABYSS_JS_PATH},
                 source=response.source,
@@ -924,7 +928,7 @@ def _find_item(
             return item
     raise CliError(
         "NO_RESULT",
-        f"没有匹配查询的 {kind}。",
+        _t("gsuid.providers.public.provider.927_8.897db27e", kind),
         EXIT_NO_RESULT,
         {"kind": kind, "query": query},
         source=source,
@@ -1153,16 +1157,16 @@ def _teyvat_rerun_groups(
     if not isinstance(result, list) or len(result) < 4:
         raise CliError(
             "UPSTREAM_INVALID_RESPONSE",
-            "提瓦特复刻列表响应未包含四个复刻组。",
+            _t("gsuid.providers.public.provider.1156_12.8a8393e5"),
             EXIT_UPSTREAM,
             {"result_type": type(result).__name__},
             source=source,
         )
     specs = [
-        ("character", 5, "五星角色"),
-        ("character", 4, "四星角色"),
-        ("weapon", 5, "五星武器"),
-        ("weapon", 4, "四星武器"),
+        ("character", 5, _t("gsuid.providers.public.provider.1162_25.9d476b1b")),
+        ("character", 4, _t("gsuid.providers.public.provider.1163_25.a31c4cc9")),
+        ("weapon", 5, _t("gsuid.providers.public.provider.1164_22.98722a27")),
+        ("weapon", 4, _t("gsuid.providers.public.provider.1165_22.7daa08a6")),
     ]
     groups: list[dict[str, object]] = []
     for index, (kind, rarity, label) in enumerate(specs):
@@ -1215,10 +1219,10 @@ def _teyvat_rerun_item(
 
 def _teyvat_rerun_groups_from_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     specs = [
-        (0, "character", 5, "五星角色"),
-        (1, "character", 4, "四星角色"),
-        (2, "weapon", 5, "五星武器"),
-        (3, "weapon", 4, "四星武器"),
+        (0, "character", 5, _t("gsuid.providers.public.provider.1162_25.9d476b1b")),
+        (1, "character", 4, _t("gsuid.providers.public.provider.1163_25.a31c4cc9")),
+        (2, "weapon", 5, _t("gsuid.providers.public.provider.1164_22.98722a27")),
+        (3, "weapon", 4, _t("gsuid.providers.public.provider.1165_22.7daa08a6")),
     ]
     groups = []
     for group_index, kind, rarity, label in specs:
@@ -1314,7 +1318,8 @@ def _guide_match(
         if not isinstance(value, dict):
             continue
         normalized_name = _chinese_text(str(name))
-        normalized_name = normalized_name.replace("每日委托", "").replace("世界任务", "")
+        for prefix in GUIDE_NAME_DROP_PREFIXES:
+            normalized_name = normalized_name.replace(prefix, "")
         if not normalized_name:
             continue
         score = len(set(normalized_name) & query_chars)
@@ -1326,7 +1331,7 @@ def _guide_match(
 
 
 def _chinese_text(value: str) -> str:
-    return "".join(re.findall("[\u4e00-\u9fa5]", value))
+    return "".join(re.findall(CHINESE_TEXT_PATTERN, value))
 
 
 def _current_daily_day() -> str:
@@ -1336,7 +1341,7 @@ def _current_daily_day() -> str:
 def _invalid(category: str, source: dict[str, object]) -> CliError:
     return CliError(
         "UPSTREAM_INVALID_RESPONSE",
-        "数据源返回了非预期的响应数据格式。",
+        _t("gsuid.core.errors.78_23.187ec657"),
         EXIT_UPSTREAM,
         {"provider": "public", "category": category},
         source=source,

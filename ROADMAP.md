@@ -29,6 +29,7 @@
 ### Stage 12: Batch And Agent Hardening — completed.
 ### Stage 13: Documentation, CI, And Release — completed.
 ### Stage 13.1: Chinese Localization Of User-Facing Strings — completed.
+### Stage 13.2: Centralized UI Text Registry — completed.
 ### Stage 14: Missing Command Contract Completion — completed.
 ### Stage 14.1: Source-Limited Player Data Ports — completed.
 ### Stage 14.2: Source-Limited Command Completion — completed.

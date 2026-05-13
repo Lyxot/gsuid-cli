@@ -15,6 +15,8 @@ from __future__ import annotations
 import unicodedata
 from collections.abc import Mapping
 
+from gsuid_cli.text import t as _t
+
 
 def _text(value: object) -> str:
     if value is None or value == "":
@@ -46,12 +48,16 @@ def _finish(lines: list[str]) -> str:
 
 
 def _yes_no(value: object) -> str:
-    return "是" if bool(value) else "否"
+    return (
+        _t("gsuid.renderers.text_helpers.49_11.30160a21")
+        if bool(value)
+        else _t("gsuid.renderers.text_helpers.49_37.8bf5c10a")
+    )
 
 
 def _nullable(value: object) -> str:
     text = _text(value)
-    return "未设置" if text == "-" else text
+    return _t("gsuid.renderers.text_helpers.54_11.55a04b58") if text == "-" else text
 
 
 def _join(value: object) -> str:

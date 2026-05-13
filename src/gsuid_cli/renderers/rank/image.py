@@ -20,6 +20,7 @@ from gsuid_cli.renderers.common import (
     text_value,
     v4_background,
 )
+from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("rank", "textures")
 PANEL_TEXTURE = asset_path("panel", "textures")
@@ -36,32 +37,32 @@ REGION_COLORS = {
 }
 GREY = (170, 170, 170)
 STAT_LABELS = {
-    "Flat ATK": "攻击力",
-    "Flat HP": "生命值",
-    "Flat DEF": "防御力",
-    "ATK%": "攻击力",
-    "HP%": "生命值",
-    "DEF%": "防御力",
-    "Elemental Mastery": "元素精通",
-    "Energy Recharge": "元素充能效率",
-    "Crit RATE": "暴击率",
-    "Crit DMG": "暴击伤害",
-    "Cryo DMG Bonus": "冰元素伤害加成",
-    "Pyro DMG Bonus": "火元素伤害加成",
-    "Hydro DMG Bonus": "水元素伤害加成",
-    "Electro DMG Bonus": "雷元素伤害加成",
-    "Anemo DMG Bonus": "风元素伤害加成",
-    "Geo DMG Bonus": "岩元素伤害加成",
-    "Dendro DMG Bonus": "草元素伤害加成",
-    "Healing Bonus": "治疗加成",
-    "Physical DMG Bonus": "物理伤害加成",
+    "Flat ATK": _t("gsuid.renderers.panel.image.88_25.ef28aed2"),
+    "Flat HP": _t("gsuid.renderers.panel.metrics.357_7.575ca7a8"),
+    "Flat DEF": _t("gsuid.renderers.panel.image.91_26.2557c107"),
+    "ATK%": _t("gsuid.renderers.panel.image.88_25.ef28aed2"),
+    "HP%": _t("gsuid.renderers.panel.metrics.357_7.575ca7a8"),
+    "DEF%": _t("gsuid.renderers.panel.image.91_26.2557c107"),
+    "Elemental Mastery": _t("gsuid.providers.akasha.66_4.af09dad1"),
+    "Energy Recharge": _t("gsuid.providers.akasha.68_4.a7a24305"),
+    "Crit RATE": _t("gsuid.providers.akasha.70_4.33e0f20a"),
+    "Crit DMG": _t("gsuid.providers.akasha.72_4.7c0dd18b"),
+    "Cryo DMG Bonus": _t("gsuid.renderers.panel.image.108_31.81e609f2"),
+    "Pyro DMG Bonus": _t("gsuid.renderers.panel.image.102_32.a7d92d8b"),
+    "Hydro DMG Bonus": _t("gsuid.renderers.panel.image.104_33.0205a287"),
+    "Electro DMG Bonus": _t("gsuid.renderers.panel.image.103_32.b05986fe"),
+    "Anemo DMG Bonus": _t("gsuid.renderers.panel.image.106_32.53069124"),
+    "Geo DMG Bonus": _t("gsuid.renderers.panel.image.107_32.78be5ad7"),
+    "Dendro DMG Bonus": _t("gsuid.renderers.panel.image.105_33.cfb22d08"),
+    "Healing Bonus": _t("gsuid.renderers.panel.image.101_27.f1fcdb6f"),
+    "Physical DMG Bonus": _t("gsuid.renderers.panel.image.109_36.be65271f"),
 }
 EQUIP_LABELS = {
-    "EQUIP_BRACER": "生之花",
-    "EQUIP_NECKLACE": "死之羽",
-    "EQUIP_SHOES": "时之沙",
-    "EQUIP_RING": "空之杯",
-    "EQUIP_DRESS": "理之冠",
+    "EQUIP_BRACER": _t("gsuid.commands.panel.mys.317_8.5c8bb682"),
+    "EQUIP_NECKLACE": _t("gsuid.commands.panel.mys.318_8.9eaf35fa"),
+    "EQUIP_SHOES": _t("gsuid.commands.panel.mys.319_8.bc4a2cbb"),
+    "EQUIP_RING": _t("gsuid.commands.panel.mys.320_8.c4347056"),
+    "EQUIP_DRESS": _t("gsuid.commands.panel.mys.321_8.e5385dd2"),
 }
 
 
@@ -104,7 +105,7 @@ def render_user_rank_list(
         image.paste(row, (0, 700 + index * 90), row)
     draw.text(
         (800, height - 35),
-        "Created by GenshinUID & Power by GsCore & Design by Wuyi无疑 & Data by 米游社",
+        _t("gsuid.renderers.rank.image.107_8.dcf15783"),
         (200, 200, 200),
         font(20),
         anchor="mm",
@@ -127,7 +128,13 @@ def render_character_rank(
     title.paste(avatar, (318, 57), avatar)
     image.paste(title, (0, 0), title)
     draw = ImageDraw.Draw(image)
-    draw.text((475, 425), f"{tag} / 总数据 {total_count}条", "white", font(26), anchor="mm")
+    draw.text(
+        (475, 425),
+        _t("gsuid.renderers.rank.image.130_26.0f5d3498", tag, total_count),
+        "white",
+        font(26),
+        anchor="mm",
+    )
     rank = 0
     for index, entry in enumerate(entries[:20]):
         raw_rank = entry.get("index")
@@ -158,7 +165,16 @@ def render_artifact_rank(
     for index, artifact in enumerate(artifacts[:20]):
         card = _artifact_rank_card(artifact, asset_images)
         image.paste(card, (15 + 318 * (index % 4), 468 + 410 * (index // 4)), card)
-    draw.text((650, 425), f"前20 / 当前排序 {sort_label or '双爆'}", "white", font(26), anchor="mm")
+    draw.text(
+        (650, 425),
+        _t(
+            "gsuid.renderers.rank.image.161_26.3d304e05",
+            sort_label or _t("gsuid.commands.rank.95_16.d6a90bcf"),
+        ),
+        "white",
+        font(26),
+        anchor="mm",
+    )
     draw.text(
         (650, image.size[1] - 35),
         "Power by GenshinUID & Data by AKS & CV Created by GsCore & gsuid-cli",
@@ -183,7 +199,9 @@ def _draw_user_header(
     title_fg = open_rgba(TEXTURE / "title_fg_2.png")
     title.paste(title_fg, (0, 0), title_fg)
     draw = ImageDraw.Draw(title)
-    nickname = text_value(player.get("nickname")) or "旅行者"
+    nickname = text_value(player.get("nickname")) or _t(
+        "gsuid.renderers.challenge.text.275_47.b2457913"
+    )
     draw.text((331, 428), nickname, "white", font(40), anchor="lm")
     draw.text((427, 478), f"UID {uid}", (207, 207, 207), font(30), anchor="mm")
     _draw_title_badges(title, player)
@@ -297,7 +315,13 @@ def _character_rank_row(
 
     x1, x2 = 15, 64 + 15 * len(str(rank))
     draw.rounded_rectangle((x1, 0, x2, 25), 9, (96, 33, 109))
-    draw.text(((x1 + x2) / 2 + 1, 13), f"#{rank}名", "white", font(24), anchor="mm")
+    draw.text(
+        ((x1 + x2) / 2 + 1, 13),
+        _t("gsuid.renderers.rank.image.300_39.7b2adbf1", rank),
+        "white",
+        font(24),
+        anchor="mm",
+    )
     draw.rounded_rectangle((47, 35, 150, 75), 10, REGION_COLORS.get(region, (128, 128, 128)))
     draw.text((99, 55), region, "white", font(30), anchor="mm")
     draw.text((162, 41), nickname, "white", font(26), anchor="lm")
@@ -394,8 +418,20 @@ def _artifact_panel_card(
     cv = _number(artifact.get("critValue"))
     draw.rounded_rectangle((121, 99, 193, 119), 8, _grade_color(cv / 5, [9, 8, 7, 6]))
     draw.rounded_rectangle((200, 99, 272, 119), 8, _grade_color(cv, [50, 45, 39, 30]))
-    draw.text((156, 109), f"{cv / 10:.2f}条", (255, 255, 255), font(18), anchor="mm")
-    draw.text((235, 109), f"{cv:.1f}分", (255, 255, 255), font(18), anchor="mm")
+    draw.text(
+        (156, 109),
+        _t("gsuid.renderers.panel.image.1039_25.f0d069f0", cv / 10),
+        (255, 255, 255),
+        font(18),
+        anchor="mm",
+    )
+    draw.text(
+        (235, 109),
+        _t("gsuid.renderers.panel.image.1040_25.b01c1f4f", cv),
+        (255, 255, 255),
+        font(18),
+        anchor="mm",
+    )
     bg.paste(card, (0, 0), card)
     return bg
 
@@ -572,16 +608,22 @@ def _hard_icon(player: Mapping[str, object]) -> Image.Image:
 def _abyss_label(player: Mapping[str, object]) -> str:
     floor = int_value(player.get("abyss_floor"))
     chamber = int_value(player.get("abyss_chamber"))
-    return f"深渊{floor}-{chamber}" if floor and chamber else "深渊--"
+    return (
+        _t("gsuid.renderers.panel.image.666_11.fbcedb25", floor, chamber)
+        if floor and chamber
+        else _t("gsuid.renderers.panel.image.666_64.dc68d748")
+    )
 
 
 def _hard_label(player: Mapping[str, object]) -> str:
-    return text_value(player.get("hard_name")) or "断玉之役"
+    return text_value(player.get("hard_name")) or _t("gsuid.renderers.panel.image.670_50.e2a5f58e")
 
 
 def _theater_label(player: Mapping[str, object]) -> str:
     theater = _dict(player.get("theater"))
-    return f"第{int_value(theater.get('max_round_id'))}幕"
+    return _t(
+        "gsuid.renderers.challenge.text.117_17.9f1f6bf4", int_value(theater.get("max_round_id"))
+    )
 
 
 def _paste_small_icon(image: Image.Image, icon: Image.Image | None, pos: tuple[int, int]) -> None:
@@ -642,12 +684,12 @@ def _variant_label(character: Mapping[str, object]) -> str:
 def _percent_label(rank: int, out_of: int) -> tuple[str, tuple[int, int, int]]:
     percent = (rank / out_of) * 100 if out_of else 100
     if rank <= 100:
-        return f"全球前{rank}名", (255, 73, 29)
+        return _t("gsuid.renderers.rank.image.645_15.339e603f", rank), (255, 73, 29)
     if percent <= 10:
-        return f"全球前{percent:.1f}%", (255, 41, 169)
+        return _t("gsuid.renderers.rank.image.650_11.963d061b", percent), (255, 41, 169)
     if percent <= 40:
-        return f"全球前{percent:.1f}%", (75, 69, 255)
-    return f"全球前{percent:.1f}%", (255, 255, 255)
+        return _t("gsuid.renderers.rank.image.650_11.963d061b", percent), (75, 69, 255)
+    return _t("gsuid.renderers.rank.image.650_11.963d061b", percent), (255, 255, 255)
 
 
 def _grade_color(value: float, thresholds: list[int]) -> tuple[int, int, int]:
@@ -668,10 +710,13 @@ def _grade_color(value: float, thresholds: list[int]) -> tuple[int, int, int]:
 def _short_stat_label(name: str) -> str:
     label = STAT_LABELS.get(name, name)
     return (
-        label.replace("百分比", "")
-        .replace("伤害加成", "伤加成")
-        .replace("元素", "")
-        .replace("理", "")
+        label.replace(_t("gsuid.renderers.panel.image.1902_24.4ce634c4"), "")
+        .replace(
+            _t("gsuid.renderers.panel.image.1371_17.bf42cc55"),
+            _t("gsuid.renderers.panel.image.1371_33.1b2e7524"),
+        )
+        .replace(_t("gsuid.renderers.panel.image.1902_49.74f529b6"), "")
+        .replace(_t("gsuid.renderers.panel.image.1373_17.1162f253"), "")
     )
 
 

@@ -10,39 +10,40 @@ from gsuid_cli.core.region import REGION_CHOICES
 from gsuid_cli.core.state import get_setting, set_setting, state_db
 from gsuid_cli.core.time import utc_now
 from gsuid_cli.renderers.local_auth import render_profile_command_text
+from gsuid_cli.text import t as _t
 
 CAPABILITIES = [
     {
         "command": "profile.init",
-        "description": "创建或更新配置文件。",
+        "description": _t("gsuid.commands.profile.17_23.363597de"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "profile.list",
-        "description": "列出配置文件。",
+        "description": _t("gsuid.commands.profile.24_23.d0d1c3c1"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "profile.show",
-        "description": "显示一个配置文件。",
+        "description": _t("gsuid.commands.profile.31_23.0f421177"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "profile.default",
-        "description": "设置默认配置文件。",
+        "description": _t("gsuid.commands.profile.38_23.27195bec"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "profile.delete",
-        "description": "删除配置文件。",
+        "description": _t("gsuid.commands.profile.45_23.664fb86e"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
@@ -53,7 +54,7 @@ _HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    profile = groups.add_parser("profile", help="管理本地配置文件。")
+    profile = groups.add_parser("profile", help=_t("gsuid.commands.profile.56_48.d897383e"))
     commands = profile.add_subparsers(dest="profile_command", required=True, metavar="<command>")
 
     init = commands.add_parser("init", help=_HELPS["profile.init"])
@@ -146,7 +147,9 @@ def get_profile_default_uid(conn: sqlite3.Connection, name: str) -> str | None:
 def _profile_name(args: argparse.Namespace) -> str:
     name = getattr(args, "name", None) or args.profile
     if not name:
-        raise CliError("INVALID_ARGUMENT", "需要提供配置文件名称", EXIT_INVALID_INPUT)
+        raise CliError(
+            "INVALID_ARGUMENT", _t("gsuid.commands.profile.149_43.57758001"), EXIT_INVALID_INPUT
+        )
     return name
 
 
@@ -179,7 +182,7 @@ def _get_profile(conn: sqlite3.Connection, name: str) -> sqlite3.Row:
     if row is None:
         raise CliError(
             "NO_RESULT",
-            f"未找到配置文件: {name}",
+            _t("gsuid.commands.profile.182_12.adce1f5a", name),
             EXIT_NO_RESULT,
             {"profile": name},
         )
@@ -210,5 +213,5 @@ def _profile_text_result(
         data,
         subject=subject,
         render_fn=render_profile_command_text,
-        description="本地配置文件文本",
+        description=_t("gsuid.commands.profile.213_20.f682168c"),
     )

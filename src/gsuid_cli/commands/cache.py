@@ -9,6 +9,7 @@ from gsuid_cli.core.cache import AssetCache, HttpCache
 from gsuid_cli.core.config import resolve_paths
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.renderers.utility_text import render_cache_clear_text, render_cache_size_text
+from gsuid_cli.text import t as _t
 
 CACHE_SCOPES = ("http", "assets", "icons", "maps", "wiki", "artifacts", "all")
 ASSET_SCOPES = {"assets", "icons", "maps", "wiki"}
@@ -16,14 +17,14 @@ ASSET_SCOPES = {"assets", "icons", "maps", "wiki"}
 CAPABILITIES = [
     {
         "command": "cache.clear",
-        "description": "清理本地缓存文件。",
+        "description": _t("gsuid.commands.cache.19_23.a3b6b779"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "cache.size",
-        "description": "显示本地缓存和产物的磁盘使用情况。",
+        "description": _t("gsuid.commands.cache.26_23.4aea2095"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
@@ -34,7 +35,7 @@ _HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    cache = groups.add_parser("cache", help="管理本地缓存文件。")
+    cache = groups.add_parser("cache", help=_t("gsuid.commands.cache.37_44.81a2fa84"))
     commands = cache.add_subparsers(dest="cache_command", required=True, metavar="<command>")
 
     clear = commands.add_parser("clear", help=_HELPS["cache.clear"])
@@ -63,7 +64,7 @@ def clear_command(args: argparse.Namespace) -> CommandResult:
         name="cache/clear-text",
         filename=f"cache-clear_{safe_filename_part(args.scope)}.txt",
         content=render_cache_clear_text(result.data),
-        description="适合命令行阅读的缓存清理文本",
+        description=_t("gsuid.commands.cache.66_20.932cf91d"),
     )
 
 
@@ -87,7 +88,7 @@ def size_command(args: argparse.Namespace) -> CommandResult:
         name="cache/size-text",
         filename=f"cache-size_{safe_filename_part(args.scope)}.txt",
         content=render_cache_size_text(result.data),
-        description="适合命令行阅读的缓存大小文本",
+        description=_t("gsuid.commands.cache.90_20.d3105e77"),
     )
 
 

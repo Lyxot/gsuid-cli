@@ -31,116 +31,117 @@ from gsuid_cli.core.state import state_db
 from gsuid_cli.core.time import utc_now
 from gsuid_cli.providers import provider_for_region
 from gsuid_cli.renderers.local_auth import render_auth_command_text
+from gsuid_cli.text import t as _t
 
 CAPABILITIES = [
     {
         "command": "auth.cookie.set",
-        "description": "将 Cookie 存储在操作系统凭据管理器中。",
+        "description": _t("gsuid.commands.auth.38_23.55cd7e39"),
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.cookie.test",
-        "description": "在国服数据源处验证 Cookie 是否可用。",
+        "description": _t("gsuid.commands.auth.45_23.8a8ecdad"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.cookie.delete",
-        "description": "从操作系统凭据管理器中删除已存储的 Cookie。",
+        "description": _t("gsuid.commands.auth.52_23.35561591"),
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.stoken.set",
-        "description": "将 Stoken 存储在操作系统凭据管理器中。",
+        "description": _t("gsuid.commands.auth.59_23.2df82452"),
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.stoken.test",
-        "description": "检查本地 Stoken 的可用性，不进行数据源验证。",
+        "description": _t("gsuid.commands.auth.66_23.f3231fbd"),
         "auth": "stoken",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.stoken.delete",
-        "description": "从操作系统凭据管理器中删除已存储的 Stoken。",
+        "description": _t("gsuid.commands.auth.73_23.7215adf4"),
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.gacha-url.set",
-        "description": "将祈愿 URL 存储在操作系统凭据管理器中。",
+        "description": _t("gsuid.commands.auth.80_23.2191d576"),
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.gacha-url.test",
-        "description": "检查本地祈愿 URL 的可用性，不进行数据源验证。",
+        "description": _t("gsuid.commands.auth.87_23.2303c728"),
         "auth": "gacha_url",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.gacha-url.delete",
-        "description": "从操作系统凭据管理器中删除已存储的祈愿 URL。",
+        "description": _t("gsuid.commands.auth.94_23.2fff3463"),
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.qrcode.start",
-        "description": "创建二维码登录会话。",
+        "description": _t("gsuid.commands.auth.101_23.6315c002"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "auth.qrcode.poll",
-        "description": "轮询一次二维码登录会话。",
+        "description": _t("gsuid.commands.auth.108_23.84211128"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.qrcode.complete",
-        "description": "完成已确认的二维码登录。",
+        "description": _t("gsuid.commands.auth.115_23.2aac2ed9"),
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.qrcode.login",
-        "description": "运行交互式二维码登录。",
+        "description": _t("gsuid.commands.auth.122_23.6c00dd93"),
         "auth": "keyring",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "auth.device.set",
-        "description": "绑定并存储米游社设备元数据。",
+        "description": _t("gsuid.commands.auth.129_23.1da93d45"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.device.test",
-        "description": "检查本地米游社设备元数据可用性。",
+        "description": _t("gsuid.commands.auth.136_23.168e6a5c"),
         "auth": "device",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "auth.device.delete",
-        "description": "删除本地米游社设备元数据。",
+        "description": _t("gsuid.commands.auth.143_23.30eeeee7"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
@@ -151,7 +152,7 @@ _HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    auth = groups.add_parser("auth", help="管理本地凭据。")
+    auth = groups.add_parser("auth", help=_t("gsuid.commands.auth.154_42.105c097d"))
     credentials = auth.add_subparsers(dest="credential", required=True, metavar="<credential>")
     _register_credential(credentials, "cookie", "cookie")
     _register_credential(credentials, "stoken", "stoken")
@@ -270,11 +271,13 @@ def qrcode_login_command(args: argparse.Namespace) -> CommandResult:
             url=url,
             subject=uid,
         )
-        _write_interactive(args, f"二维码图片已保存至: {image_artifact['path']}", force=True)
+        _write_interactive(
+            args, _t("gsuid.commands.auth.273_33.16f039a1", image_artifact["path"]), force=True
+        )
 
-    _write_interactive(args, "请使用米游社APP扫码登录")
+    _write_interactive(args, _t("gsuid.commands.auth.275_29.e60edfed"))
     _write_interactive(args, _qrcode_terminal(url))
-    _write_interactive(args, "等待扫码确认...")
+    _write_interactive(args, _t("gsuid.commands.auth.277_29.20c714f9"))
 
     deadline = time.monotonic() + args.login_timeout
     last_status: str | None = None
@@ -290,7 +293,7 @@ def qrcode_login_command(args: argparse.Namespace) -> CommandResult:
         last_result = poll_result
         status = str(poll_result.data["status"])
         if status != last_status:
-            _write_interactive(args, f"二维码登录状态: {status}")
+            _write_interactive(args, _t("gsuid.commands.auth.293_37.158e9fdf", status))
             last_status = status
         if status == "confirmed":
             result = provider.complete_qrcode_login(
@@ -310,7 +313,7 @@ def qrcode_login_command(args: argparse.Namespace) -> CommandResult:
 
     raise CliError(
         "QR_LOGIN_TIMEOUT",
-        "二维码登录在确认前超时。",
+        _t("gsuid.commands.auth.313_8.217f84fa"),
         EXIT_NO_RESULT,
         {"timeout_seconds": args.login_timeout},
         source=last_result.source,
@@ -346,7 +349,7 @@ def device_test_command(args: argparse.Namespace) -> CommandResult | dict[str, o
     if row is None or not row["device_id"] or not row["device_fp"]:
         raise CliError(
             "AUTH_REQUIRED",
-            "此 UID 没有可用的米游社设备元数据。",
+            _t("gsuid.commands.auth.349_12.f01fc3fd"),
             EXIT_AUTH,
             {"uid": uid, "credential_type": "device"},
         )
@@ -444,10 +447,12 @@ def _register_credential(
     value_name: str,
 ) -> None:
     kind = cli_name.replace("-", "_")
-    credential = credentials.add_parser(cli_name, help=f"管理 {cli_name} 凭据。")
+    credential = credentials.add_parser(
+        cli_name, help=_t("gsuid.commands.auth.447_55.b0518732", cli_name)
+    )
     actions = credential.add_subparsers(dest="credential_action", required=True, metavar="<action>")
 
-    set_parser = actions.add_parser("set", help=f"将 {cli_name} 存储在操作系统凭据管理器中。")
+    set_parser = actions.add_parser("set", help=_t("gsuid.commands.auth.450_48.7e458f7d", cli_name))
     set_parser.add_argument("--uid", dest="command_uid")
     sources = set_parser.add_mutually_exclusive_group(required=True)
     sources.add_argument(f"--{value_name}-stdin", action="store_true")
@@ -460,7 +465,9 @@ def _register_credential(
         value_name=value_name,
     )
 
-    test_parser = actions.add_parser("test", help=f"检查本地 {cli_name} 可用性。")
+    test_parser = actions.add_parser(
+        "test", help=_t("gsuid.commands.auth.463_50.46f8d0c5", cli_name)
+    )
     test_parser.add_argument("--uid", dest="command_uid")
     test_parser.set_defaults(
         handler=test_command,
@@ -468,7 +475,9 @@ def _register_credential(
         credential_kind=kind,
     )
 
-    delete_parser = actions.add_parser("delete", help=f"删除已存储的 {cli_name}。")
+    delete_parser = actions.add_parser(
+        "delete", help=_t("gsuid.commands.auth.471_54.6abc8046", cli_name)
+    )
     delete_parser.add_argument("--uid", dest="command_uid")
     delete_parser.set_defaults(
         handler=delete_command,
@@ -480,7 +489,7 @@ def _register_credential(
 def _register_qrcode(
     credentials: argparse._SubParsersAction[argparse.ArgumentParser],
 ) -> None:
-    qrcode_parser = credentials.add_parser("qrcode", help="管理二维码登录会话。")
+    qrcode_parser = credentials.add_parser("qrcode", help=_t("gsuid.commands.auth.483_58.59615e76"))
     actions = qrcode_parser.add_subparsers(
         dest="qrcode_action",
         required=True,
@@ -509,7 +518,7 @@ def _register_qrcode(
 def _register_device(
     credentials: argparse._SubParsersAction[argparse.ArgumentParser],
 ) -> None:
-    device = credentials.add_parser("device", help="管理米游社设备绑定。")
+    device = credentials.add_parser("device", help=_t("gsuid.commands.auth.512_51.e148f5ba"))
     actions = device.add_subparsers(dest="device_action", required=True, metavar="<action>")
     set_parser = actions.add_parser("set", help=_HELPS["auth.device.set"])
     set_parser.add_argument("--uid", dest="command_uid")
@@ -559,7 +568,7 @@ def _uid_and_region(args: argparse.Namespace) -> tuple[str, str]:
             if uid is None:
                 raise CliError(
                     "INVALID_ARGUMENT",
-                    "当所选配置文件没有默认账号时，需要提供 UID",
+                    _t("gsuid.commands.auth.562_20.6a994a35"),
                     EXIT_INVALID_INPUT,
                     {"profile": args.profile},
                 )
@@ -591,7 +600,7 @@ def _credential(args: argparse.Namespace, uid: str) -> tuple[str, str, str | Non
     if value is None:
         raise CliError(
             "AUTH_REQUIRED",
-            f"此 UID 没有可用的 {CREDENTIALS[args.credential_kind].label}。",
+            _t("gsuid.commands.auth.594_12.2b1124b5", CREDENTIALS[args.credential_kind].label),
             EXIT_AUTH,
             {"uid": uid, "credential_type": args.credential_kind},
         )
@@ -611,11 +620,15 @@ def _read_value(args: argparse.Namespace) -> str:
     elif stdin_requested:
         value = sys.stdin.read()
     else:
-        raise CliError("INVALID_ARGUMENT", "需要提供凭据值", EXIT_INVALID_INPUT)
+        raise CliError(
+            "INVALID_ARGUMENT", _t("gsuid.commands.auth.614_43.e74bc334"), EXIT_INVALID_INPUT
+        )
 
     value = value.rstrip("\r\n")
     if not value:
-        raise CliError("INVALID_ARGUMENT", "凭据值为空", EXIT_INVALID_INPUT)
+        raise CliError(
+            "INVALID_ARGUMENT", _t("gsuid.commands.auth.618_43.4f4c81d1"), EXIT_INVALID_INPUT
+        )
     return value
 
 
@@ -627,20 +640,22 @@ def _read_device_payload(args: argparse.Namespace) -> dict[str, object]:
     elif args.device_stdin:
         raw = sys.stdin.read()
     else:
-        raise CliError("INVALID_ARGUMENT", "需要设备 payload", EXIT_INVALID_INPUT)
+        raise CliError(
+            "INVALID_ARGUMENT", _t("gsuid.commands.auth.630_43.39915618"), EXIT_INVALID_INPUT
+        )
 
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise CliError(
             "INVALID_ARGUMENT",
-            "设备 payload 必须是有效的 JSON",
+            _t("gsuid.commands.auth.637_12.a2ad1347"),
             EXIT_INVALID_INPUT,
         ) from exc
     if not isinstance(payload, dict):
         raise CliError(
             "INVALID_ARGUMENT",
-            "设备 payload 必须是一个 JSON 对象",
+            _t("gsuid.commands.auth.643_12.d197628d"),
             EXIT_INVALID_INPUT,
         )
     return payload
@@ -768,14 +783,14 @@ def _validate_qrcode_login_timing(args: argparse.Namespace) -> None:
     if args.poll_interval <= 0:
         raise CliError(
             "INVALID_ARGUMENT",
-            "轮询间隔必须大于 0",
+            _t("gsuid.commands.auth.771_12.6b9c568b"),
             EXIT_INVALID_INPUT,
             {"poll_interval": args.poll_interval},
         )
     if args.login_timeout <= 0:
         raise CliError(
             "INVALID_ARGUMENT",
-            "登录超时时间必须大于 0",
+            _t("gsuid.commands.auth.778_12.7fb080ee"),
             EXIT_INVALID_INPUT,
             {"login_timeout": args.login_timeout},
         )
@@ -800,7 +815,7 @@ def _auth_text_result(
         name=f"{command.replace('.', '/')}-text",
         filename=f"{command.replace('.', '-')}_{safe_filename_part(subject)}.txt",
         content=render_auth_command_text(command, data),
-        description="本地认证文本",
+        description=_t("gsuid.commands.auth.803_20.e7ec8d6e"),
     )
 
 
@@ -836,7 +851,7 @@ def _qrcode_render_result(
             name=f"{command.replace('.', '/')}-text",
             filename=f"{command.replace('.', '-')}_{safe_filename_part(subject)}.txt",
             content=_qrcode_text_content(command, result.data, url),
-            description="本地认证文本",
+            description=_t("gsuid.commands.auth.803_20.e7ec8d6e"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=image_enabled)
@@ -863,7 +878,7 @@ def _qrcode_image_artifact(
         name=command.replace(".", "/"),
         filename=f"{command.replace('.', '-')}_{safe_filename_part(subject)}.png",
         content=_qrcode_png(url),
-        description="米哈游二维码登录图片",
+        description=_t("gsuid.commands.auth.866_20.9bd1a07e"),
     )
 
 
@@ -886,7 +901,7 @@ def _qrcode_text_content(
                 "",
                 _qrcode_terminal(url),
                 "",
-                f"请在点击确认登录后立即执行: {_qrcode_poll_command(data)}",
+                _t("gsuid.commands.auth.889_16.b5da8917", _qrcode_poll_command(data)),
                 "",
                 *lines[2:],
             ]

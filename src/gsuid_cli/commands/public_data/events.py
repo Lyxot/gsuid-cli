@@ -34,6 +34,7 @@ from gsuid_cli.renderers.events.text import (
     render_codes_text,
     render_events_text,
 )
+from gsuid_cli.text import t as _t
 
 EVENT_IMAGE_WORKERS = 6
 LATEST_ANNOUNCEMENT_SCAN_LIMIT = 10000
@@ -41,35 +42,35 @@ LATEST_ANNOUNCEMENT_SCAN_LIMIT = 10000
 CAPABILITIES = [
     {
         "command": "events.list",
-        "description": "列出正在进行和即将开始的活动。",
+        "description": _t("gsuid.commands.public_data.events.44_23.c5d6f1b4"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "events.banners",
-        "description": "列出活动横幅图片 URL。",
+        "description": _t("gsuid.commands.public_data.events.51_23.0b77efeb"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "codes.list",
-        "description": "列出当前可用的兑换码。",
+        "description": _t("gsuid.commands.public_data.events.58_23.625e194d"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "announcements.list",
-        "description": "列出公开的游戏公告。",
+        "description": _t("gsuid.commands.public_data.events.65_23.4eb25e13"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "announcements.show",
-        "description": "显示单条公开的公告。",
+        "description": _t("gsuid.commands.public_data.events.72_23.ef9f0439"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
@@ -103,7 +104,7 @@ def codes_list_command(args: argparse.Namespace) -> CommandResult:
         render_name="codes/list-text",
         filename="codes-list.txt",
         content=render_codes_text(result.data),
-        description="兑换码列表",
+        description=_t("gsuid.commands.public_data.events.106_20.7f36cc79"),
     )
 
 
@@ -136,7 +137,9 @@ def announcements_show_command(args: argparse.Namespace) -> CommandResult:
 
 
 def register_events(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    events = groups.add_parser("events", help="显示公开的活动数据。")
+    events = groups.add_parser(
+        "events", help=_t("gsuid.commands.public_data.events.139_46.05274db9")
+    )
     commands = events.add_subparsers(dest="events_command", required=True, metavar="<command>")
 
     list_parser = commands.add_parser("list", help=_HELPS["events.list"])
@@ -149,14 +152,16 @@ def register_events(groups: argparse._SubParsersAction[argparse.ArgumentParser])
 
 
 def register_codes(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    codes = groups.add_parser("codes", help="显示公开的兑换码数据。")
+    codes = groups.add_parser("codes", help=_t("gsuid.commands.public_data.events.152_44.96fe0216"))
     commands = codes.add_subparsers(dest="codes_command", required=True, metavar="<command>")
     list_parser = commands.add_parser("list", help=_HELPS["codes.list"])
     list_parser.set_defaults(handler=codes_list_command, command_name="codes.list")
 
 
 def register_announcements(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    announcements = groups.add_parser("announcements", help="显示公开的游戏公告。")
+    announcements = groups.add_parser(
+        "announcements", help=_t("gsuid.commands.public_data.events.159_60.d6be9c00")
+    )
     commands = announcements.add_subparsers(
         dest="announcements_command",
         required=True,
@@ -173,12 +178,18 @@ def register_announcements(groups: argparse._SubParsersAction[argparse.ArgumentP
     show = commands.add_parser("show", help=_HELPS["announcements.show"])
     selector = show.add_mutually_exclusive_group(required=True)
     selector.add_argument("--id")
-    selector.add_argument("--latest", action="store_true", help="显示最新公告。")
+    selector.add_argument(
+        "--latest",
+        action="store_true",
+        help=_t("gsuid.commands.public_data.events.176_64.c60a42e0"),
+    )
     show.set_defaults(handler=announcements_show_command, command_name="announcements.show")
 
 
 def _add_event_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--all", action="store_true", help="包含已结束的活动。")
+    parser.add_argument(
+        "--all", action="store_true", help=_t("gsuid.commands.public_data.events.181_59.f7d0c698")
+    )
     parser.add_argument("--limit", type=int, default=20)
 
 
@@ -200,7 +211,7 @@ def _events_render_result(
             provider="event-assets",
             region="cn",
             category=f"events.{command_segment}.asset",
-            unavailable_warning="{count} 个活动横幅图片不可用，已使用占位图",
+            unavailable_warning=_t("gsuid.commands.public_data.events.203_32.203f0a83"),
             max_workers=EVENT_IMAGE_WORKERS,
         )
         png = render_events_card(result.data, kind=render_kind, asset_images=asset_images)
@@ -209,7 +220,7 @@ def _events_render_result(
             name=render_name,
             filename=f"{render_name.replace('/', '-')}.png",
             content=png,
-            description="活动列表卡片图片",
+            description=_t("gsuid.commands.public_data.events.212_24.71b1ff15"),
         )
         artifacts.append(image_artifact)
         warnings.extend(asset_warnings)
@@ -221,7 +232,7 @@ def _events_render_result(
             name=text_render_name,
             filename=f"{render_name.replace('/', '-')}.txt",
             content=render_events_text(result.data, kind=render_kind),
-            description="活动列表文本",
+            description=_t("gsuid.commands.public_data.events.224_24.8fbf4107"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -281,7 +292,7 @@ def _announcements_list_render_result(
             name="announcements/list",
             filename="announcements-list.png",
             content=png,
-            description="游戏公告列表卡片图片",
+            description=_t("gsuid.commands.public_data.events.284_24.6932b65e"),
         )
         artifacts.append(image_artifact)
         record_primary_image(render_data, image_artifact)
@@ -292,7 +303,7 @@ def _announcements_list_render_result(
             name=text_render_name,
             filename="announcements-list.txt",
             content=render_announcements_list_text(result.data),
-            description="公告列表文本",
+            description=_t("gsuid.commands.public_data.events.295_24.eb2c4f3c"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -322,7 +333,7 @@ def _announcement_detail_render_result(
             provider="announcement-assets",
             region="cn",
             category="announcements.show.asset",
-            unavailable_warning="{count} 张公告图片不可用，已在渲染时忽略",
+            unavailable_warning=_t("gsuid.commands.public_data.events.325_32.bb911dda"),
             max_workers=EVENT_IMAGE_WORKERS,
         )
         png = render_announcement_detail_card(announcement, asset_images=asset_images)
@@ -331,7 +342,7 @@ def _announcement_detail_render_result(
             name="announcements/show",
             filename=f"announcements-show_{safe_filename_part(ann_id)}.png",
             content=png,
-            description="公告详情卡片图片",
+            description=_t("gsuid.commands.public_data.events.334_24.485f97fd"),
         )
         artifacts.append(image_artifact)
         warnings.extend(asset_warnings)
@@ -343,7 +354,7 @@ def _announcement_detail_render_result(
             name=text_render_name,
             filename=f"announcements-show_{safe_filename_part(ann_id)}.txt",
             content=render_announcement_detail_text(announcement),
-            description="公告详情文本",
+            description=_t("gsuid.commands.public_data.events.346_24.4214fd67"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -375,7 +386,7 @@ def _latest_announcement(result: CommandResult) -> tuple[str, str]:
         return newest[1], newest[2]
     raise CliError(
         "NO_RESULT",
-        "找不到最新的公告。",
+        _t("gsuid.commands.public_data.events.378_8.eb9af110"),
         EXIT_NO_RESULT,
         {"command": "announcements.show", "selector": "latest"},
         source=result.source,

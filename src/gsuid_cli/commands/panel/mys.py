@@ -21,6 +21,7 @@ from gsuid_cli.commands.panel.common import (
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.providers import provider_for_region
+from gsuid_cli.text import t as _t
 
 MYS_PROP_IDS = {
     "1": "1",
@@ -314,11 +315,11 @@ def _weapon_affix(weapon: dict[str, object]) -> int:
 
 def _artifact_slot(value: object) -> object:
     return {
-        "生之花": "EQUIP_BRACER",
-        "死之羽": "EQUIP_NECKLACE",
-        "时之沙": "EQUIP_SHOES",
-        "空之杯": "EQUIP_RING",
-        "理之冠": "EQUIP_DRESS",
+        _t("gsuid.commands.panel.mys.317_8.5c8bb682"): "EQUIP_BRACER",
+        _t("gsuid.commands.panel.mys.318_8.9eaf35fa"): "EQUIP_NECKLACE",
+        _t("gsuid.commands.panel.mys.319_8.bc4a2cbb"): "EQUIP_SHOES",
+        _t("gsuid.commands.panel.mys.320_8.c4347056"): "EQUIP_RING",
+        _t("gsuid.commands.panel.mys.321_8.e5385dd2"): "EQUIP_DRESS",
     }.get(str(value), value)
 
 

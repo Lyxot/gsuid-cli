@@ -18,6 +18,7 @@ from gsuid_cli.renderers.common import (
     sequence as _sequence,
     text_value,
 )
+from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("wiki", "textures")
 AMBR_UI_URL = "https://gi.yatta.moe/assets/UI"
@@ -31,20 +32,20 @@ ARTIFACT_BONUS_TEXT_X = 151
 ARTIFACT_BONUS_TEXT_WIDTH = 367
 
 WEAPON_TYPE_NAMES = {
-    "WEAPON_SWORD_ONE_HAND": "单手剑",
-    "WEAPON_CLAYMORE": "双手剑",
-    "WEAPON_POLE": "长柄武器",
-    "WEAPON_CATALYST": "法器",
-    "WEAPON_BOW": "弓",
+    "WEAPON_SWORD_ONE_HAND": _t("gsuid.renderers.panel.text.61_29.19c268b4"),
+    "WEAPON_CLAYMORE": _t("gsuid.renderers.panel.text.62_23.1a1f46df"),
+    "WEAPON_POLE": _t("gsuid.renderers.panel.text.63_19.5d4b74a8"),
+    "WEAPON_CATALYST": _t("gsuid.renderers.panel.metrics.1053_22.4813ba67"),
+    "WEAPON_BOW": _t("gsuid.renderers.panel.metrics.1055_24.a0ec11cd"),
 }
 ELEMENT_NAMES = {
-    "Fire": "火",
-    "Water": "水",
-    "Wind": "风",
-    "Electric": "雷",
-    "Grass": "草",
-    "Ice": "冰",
-    "Rock": "岩",
+    "Fire": _t("gsuid.renderers.wiki.picwiki.41_12.efb26208"),
+    "Water": _t("gsuid.renderers.wiki.picwiki.42_13.8ffbf192"),
+    "Wind": _t("gsuid.renderers.wiki.picwiki.43_12.534418ad"),
+    "Electric": _t("gsuid.renderers.wiki.picwiki.44_16.deaefde2"),
+    "Grass": _t("gsuid.renderers.wiki.picwiki.45_13.67447716"),
+    "Ice": _t("gsuid.renderers.wiki.picwiki.46_11.6c20967f"),
+    "Rock": _t("gsuid.renderers.wiki.picwiki.47_12.9ba9dc86"),
 }
 
 
@@ -56,7 +57,7 @@ def render_wiki_food_card(
     asset_images = asset_images or {}
     recipe = _food_recipe(item.get("recipe"))
     effect = _food_effect(item)
-    desc = _clean_text(item.get("description")) or "暂无介绍"
+    desc = _clean_text(item.get("description")) or _t("gsuid.renderers.wiki.picwiki.59_51.6baf31a7")
 
     measure = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
     effect_text = _wrap_text(effect, font(22), 440, measure)
@@ -86,8 +87,12 @@ def render_wiki_food_card(
         food_icon = _placeholder((320, 320), _name(item)[:2])
     image.paste(food_icon, (140, 119), food_icon)
 
-    _draw_text(draw, (45, 465), "食物类型", GRAY, font(18), "lm")
-    _draw_text(draw, (45, 500), "料理", WHITE, font(36), "lm")
+    _draw_text(
+        draw, (45, 465), _t("gsuid.renderers.wiki.picwiki.89_32.f488e9b9"), GRAY, font(18), "lm"
+    )
+    _draw_text(
+        draw, (45, 500), _t("gsuid.renderers.wiki.picwiki.90_32.df2144b4"), WHITE, font(36), "lm"
+    )
 
     cost_tag = open_rgba(TEXTURE / "cost_tag.png")
     desc_tag = open_rgba(TEXTURE / "desc_tag.png")
@@ -120,7 +125,7 @@ def render_wiki_artifact_card(
     asset_images = asset_images or {}
     bonuses = [value for value in _mapping(item.get("bonuses")).values() if value]
     if not bonuses:
-        bonuses = ["暂无套装效果"]
+        bonuses = [_t("gsuid.renderers.wiki.picwiki.123_19.d07b7a24")]
 
     measure = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
     bonus_texts = [
@@ -171,7 +176,11 @@ def render_wiki_artifact_card(
 
     draw = ImageDraw.Draw(image)
     _draw_text(draw, (295, 182), _name(item), BROWN, font(40), "mm")
-    rarity = "稀有度：" + "/".join(str(v) for v in _sequence(item.get("level_list"))) + "星"
+    rarity = (
+        _t("gsuid.renderers.wiki.picwiki.174_13.d7cff412")
+        + "/".join(str(v) for v in _sequence(item.get("level_list")))
+        + _t("gsuid.renderers.gacha.600_70.92ae747c")
+    )
     _draw_text(draw, (295, 230), rarity, (175, 145, 75), font(22), "mm")
     for index, text in enumerate(bonus_texts):
         draw.multiline_text(
@@ -219,20 +228,43 @@ def render_wiki_weapon_card(
         weapon_icon = _placeholder((320, 320), _name(item)[:2])
     image.paste(weapon_icon, (140, 130), weapon_icon)
 
-    _draw_text(draw, (45, 744), "基础攻击力", (214, 214, 214), font(18), "lm")
+    _draw_text(
+        draw,
+        (45, 744),
+        _t("gsuid.renderers.panel.image.90_30.1ad8495e"),
+        (214, 214, 214),
+        font(18),
+        "lm",
+    )
     _draw_text(
         draw, (545, 744), _prop_label(item.get("special_prop")), (214, 214, 214), font(18), "rm"
     )
     base_atk = _base_attack(item)
-    _draw_text(draw, (45, 779), str(base_atk) if base_atk else "未知", WHITE, font(36), "lm")
-    _draw_text(draw, (545, 779), "公开数据", WHITE, font(36), "rm")
+    _draw_text(
+        draw,
+        (45, 779),
+        str(base_atk) if base_atk else _t("gsuid.renderers.daily.text.211_11.d9c32a4c"),
+        WHITE,
+        font(36),
+        "lm",
+    )
+    _draw_text(
+        draw, (545, 779), _t("gsuid.renderers.wiki.picwiki.228_33.9ebf33bf"), WHITE, font(36), "rm"
+    )
     _draw_text(draw, (46, 837), effect_name, GOLD, font(28), "lm")
     draw.multiline_text((46, 866), effect_text, fill=(214, 214, 214), font=font(22), spacing=6)
 
     cost_tag = open_rgba(TEXTURE / "cost_tag.png")
     image.paste(cost_tag, (37, 890 + effect_h), cost_tag)
     cost_bg = _cost_bar(_weapon_cost_entries(item), asset_images, max_items=5)
-    _draw_text(draw, (88, 918 + effect_h), "突破素材", WHITE, font(22), "lm")
+    _draw_text(
+        draw,
+        (88, 918 + effect_h),
+        _t("gsuid.renderers.wiki.picwiki.235_43.dcb7501d"),
+        WHITE,
+        font(22),
+        "lm",
+    )
     image.paste(cost_bg, (0, 920 + effect_h), cost_bg)
     return png_bytes(image, rgb=True)
 
@@ -265,13 +297,15 @@ def render_wiki_character_materials_card(
     talent_one = _talent_cost_entries(item)
     talent_all = [{**entry, "count": int_value(entry.get("count")) * 3} for entry in talent_one]
     sections = [
-        ("突破素材消耗", _character_ascension_entries(item)),
-        ("天赋素材消耗", talent_all),
-        ("天赋素材消耗 (一份)", talent_one),
+        (_t("gsuid.renderers.wiki.picwiki.268_9.117d629a"), _character_ascension_entries(item)),
+        (_t("gsuid.renderers.wiki.picwiki.269_9.957f8b65"), talent_all),
+        (_t("gsuid.renderers.wiki.picwiki.270_9.1a8a715d"), talent_one),
     ]
     cost_title = open_rgba(TEXTURE / "cost_title.png")
     image.paste(cost_title, (0, 338), cost_title)
-    _draw_text(draw, (450, 383), "材料来源请以游戏内秘境为准", WHITE, font(30), "mm")
+    _draw_text(
+        draw, (450, 383), _t("gsuid.renderers.wiki.picwiki.274_33.6a3c868a"), WHITE, font(30), "mm"
+    )
 
     for index, (title_text, entries) in enumerate(sections):
         section = _material_section(title_text, entries, asset_images)
@@ -579,7 +613,7 @@ def _food_effect(item: Mapping[str, object]) -> str:
         effect_text = next((value for value in values if value), None)
         if effect_text:
             return _clean_text(effect_text)
-    return _clean_text(item.get("effect")) or "暂无效果"
+    return _clean_text(item.get("effect")) or _t("gsuid.renderers.wiki.picwiki.582_46.43ce197c")
 
 
 def _food_inputs(recipe: Mapping[str, object]) -> list[Mapping[str, object]]:
@@ -623,11 +657,15 @@ def _artifact_parts(item: Mapping[str, object]) -> list[Mapping[str, object]]:
 def _weapon_effect(item: Mapping[str, object]) -> tuple[str, str]:
     affixes = [affix for affix in _sequence(item.get("affixes")) if isinstance(affix, Mapping)]
     if not affixes:
-        return "无特效", "无特效"
+        return _t("gsuid.renderers.wiki.picwiki.626_15.c1adb117"), _t(
+            "gsuid.renderers.wiki.picwiki.626_15.c1adb117"
+        )
     affix = affixes[0]
     upgrade = _mapping(affix.get("upgrade"))
     effect = text_value(upgrade.get("0")) or text_value(next(iter(upgrade.values()), ""))
-    return text_value(affix.get("name")) or "武器特效", _clean_text(effect) or "无特效"
+    return text_value(affix.get("name")) or _t(
+        "gsuid.renderers.wiki.picwiki.630_44.037909eb"
+    ), _clean_text(effect) or _t("gsuid.renderers.wiki.picwiki.626_15.c1adb117")
 
 
 def _base_attack(item: Mapping[str, object]) -> int | None:
@@ -701,27 +739,27 @@ def _constellation_entries(item: Mapping[str, object]) -> list[Mapping[str, obje
 def _weapon_type(item: Mapping[str, object]) -> str:
     value = text_value(item.get("weapon_type"))
     if not value:
-        return "单手剑"
+        return _t("gsuid.renderers.panel.text.61_29.19c268b4")
     return WEAPON_TYPE_NAMES.get(value, value)
 
 
 def _element_name(value: object) -> str:
     text = text_value(value)
     if not text:
-        return "风"
+        return _t("gsuid.renderers.wiki.picwiki.43_12.534418ad")
     return ELEMENT_NAMES.get(text, text)
 
 
 def _prop_label(value: object) -> str:
     labels = {
-        "FIGHT_PROP_CHARGE_EFFICIENCY": "元素充能效率",
-        "FIGHT_PROP_ATTACK_PERCENT": "攻击力",
-        "FIGHT_PROP_CRITICAL": "暴击率",
-        "FIGHT_PROP_CRITICAL_HURT": "暴击伤害",
-        "FIGHT_PROP_ELEMENT_MASTERY": "元素精通",
-        "FIGHT_PROP_HP_PERCENT": "生命值",
-        "FIGHT_PROP_DEFENSE_PERCENT": "防御力",
-        "FIGHT_PROP_PHYSICAL_ADD_HURT": "物理伤害加成",
+        "FIGHT_PROP_CHARGE_EFFICIENCY": _t("gsuid.providers.akasha.68_4.a7a24305"),
+        "FIGHT_PROP_ATTACK_PERCENT": _t("gsuid.renderers.panel.image.88_25.ef28aed2"),
+        "FIGHT_PROP_CRITICAL": _t("gsuid.providers.akasha.70_4.33e0f20a"),
+        "FIGHT_PROP_CRITICAL_HURT": _t("gsuid.providers.akasha.72_4.7c0dd18b"),
+        "FIGHT_PROP_ELEMENT_MASTERY": _t("gsuid.providers.akasha.66_4.af09dad1"),
+        "FIGHT_PROP_HP_PERCENT": _t("gsuid.renderers.panel.metrics.357_7.575ca7a8"),
+        "FIGHT_PROP_DEFENSE_PERCENT": _t("gsuid.renderers.panel.image.91_26.2557c107"),
+        "FIGHT_PROP_PHYSICAL_ADD_HURT": _t("gsuid.renderers.panel.image.109_36.be65271f"),
     }
     return labels.get(text_value(value) or "", "")
 
@@ -773,7 +811,7 @@ def _draw_text(
 
 
 def _name(item: Mapping[str, object]) -> str:
-    return text_value(item.get("name")) or "未知"
+    return text_value(item.get("name")) or _t("gsuid.renderers.daily.text.211_11.d9c32a4c")
 
 
 def _rank(item: Mapping[str, object]) -> int:

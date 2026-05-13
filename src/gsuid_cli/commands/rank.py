@@ -42,30 +42,31 @@ from gsuid_cli.renderers.rank.text import (
     render_rank_character_text,
     render_rank_list_text,
 )
+from gsuid_cli.text import t as _t
 
 RANK_IMAGE_WORKERS = 12
 DATA_PATH = asset_path("panel", "data")
 CROWN_ITEM_ID = 104319
-CONSTELLATION_SKILL_BONUS_RE = re.compile(r"<color=[^>]+>(.*?)</color>的技能等级提高3级")
+CONSTELLATION_SKILL_BONUS_RE = re.compile(_t("gsuid.commands.rank.49_42.8fc3f27e"))
 
 CAPABILITIES = [
     {
         "command": "rank.list",
-        "description": "显示指定 UID 的排行列表。",
+        "description": _t("gsuid.commands.rank.54_23.ea958b27"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "rank.character",
-        "description": "显示角色排行榜。",
+        "description": _t("gsuid.commands.rank.61_23.348c2ef2"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "rank.artifact",
-        "description": "显示圣遗物排行榜。",
+        "description": _t("gsuid.commands.rank.68_23.d4e2f763"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
@@ -76,7 +77,7 @@ _HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    rank = groups.add_parser("rank", help="显示 Akasha 排行榜。")
+    rank = groups.add_parser("rank", help=_t("gsuid.commands.rank.79_42.bcde729b"))
     commands = rank.add_subparsers(dest="rank_command", required=True, metavar="<command>")
 
     list_parser = commands.add_parser("list", help=_HELPS["rank.list"])
@@ -92,8 +93,8 @@ def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     artifact = commands.add_parser("artifact", help=_HELPS["rank.artifact"])
     artifact.add_argument(
         "--sort",
-        default="双爆",
-        help="Akasha 圣遗物排序方式，例如：双爆, 暴击率, crit-rate, recharge。",
+        default=_t("gsuid.commands.rank.95_16.d6a90bcf"),
+        help=_t("gsuid.commands.rank.96_13.e3f3c17a"),
     )
     artifact.set_defaults(handler=artifact_command, command_name="rank.artifact")
 
@@ -110,7 +111,7 @@ def character_command(args: argparse.Namespace) -> CommandResult:
     character_id = _character_id(args.character)
     region = normalize_region(args.region)
     selected_uid: str | None = None
-    tag = "前20"
+    tag = _t("gsuid.commands.rank.113_10.55e543db")
     calculation_id: str | None = None
     combo: float | None = None
     base_source: dict[str, object] | None = None
@@ -121,7 +122,7 @@ def character_command(args: argparse.Namespace) -> CommandResult:
         user_character = _find_user_character(user_rank.data, character_id, selected_uid)
         calculation_id = str(user_character.get("calculation_id") or "")
         combo = _number(user_character.get("result")) + 0.01
-        tag = "角色附近"
+        tag = _t("gsuid.commands.rank.124_14.d6013d10")
 
     result = _provider(args).character_leaderboard(
         character_id=character_id,
@@ -182,7 +183,7 @@ def _list_render_result(
             provider="akasha",
             region=region,
             category="rank.list.asset",
-            unavailable_warning="{count} 张 Akasha 排行图片不可用，已使用占位图",
+            unavailable_warning=_t("gsuid.commands.rank.185_32.c31897e7"),
             max_workers=RANK_IMAGE_WORKERS,
         )
         png = render_user_rank_list(
@@ -196,7 +197,7 @@ def _list_render_result(
             name="rank/list",
             filename=f"rank-list_{safe_filename_part(uid)}.png",
             content=png,
-            description="Akasha 排名列表图片",
+            description=_t("gsuid.commands.rank.199_24.2ab387be"),
         )
         artifacts.append(image_artifact)
         warnings.extend(image_warnings)
@@ -207,7 +208,7 @@ def _list_render_result(
             name="rank/list-text",
             filename=f"rank-list_{safe_filename_part(uid)}.txt",
             content=render_rank_list_text(result_data),
-            description="适合命令行阅读的 Akasha 排名列表文本",
+            description=_t("gsuid.commands.rank.210_24.bde12c4a"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -258,7 +259,7 @@ def _rank_list_title_context(
     except CliError as exc:
         if exc.code == "AUTH_REQUIRED":
             return player, []
-        return player, ["排名列表米游社标题数据不可用，已使用 Akasha 标题数据"]
+        return player, [_t("gsuid.commands.rank.261_24.d0959c8c")]
 
     summary = _dict(summary_result.data.get("summary"))
     mys_characters = _list_of_dicts(characters_result.data.get("characters"))
@@ -284,7 +285,7 @@ def _rank_list_title_context(
             details=details,
         )
     except CliError:
-        warnings.append("排名列表皇冠标题数据不可用，已显示为 0/0")
+        warnings.append(_t("gsuid.commands.rank.287_24.b8c494c3"))
     enriched["title_stats"] = _title_stats_from_mys(
         summary,
         mys_characters,
@@ -503,7 +504,7 @@ def _character_render_result(
             provider="akasha",
             region=region,
             category="rank.character.asset",
-            unavailable_warning=("{count} 张 Akasha 角色排行图片不可用，已使用占位图"),
+            unavailable_warning=(_t("gsuid.commands.rank.506_33.d96dd35b")),
             max_workers=RANK_IMAGE_WORKERS,
         )
         png = render_character_rank(
@@ -519,7 +520,7 @@ def _character_render_result(
             name="rank/character",
             filename=f"rank-character_{safe_filename_part(_character_name(character_id))}.png",
             content=png,
-            description="Akasha 角色排行榜图片",
+            description=_t("gsuid.commands.rank.522_24.5292d32b"),
         )
         artifacts.append(image_artifact)
         warnings.extend(image_warnings)
@@ -530,7 +531,7 @@ def _character_render_result(
             name="rank/character-text",
             filename=f"rank-character_{safe_filename_part(_character_name(character_id))}.txt",
             content=render_rank_character_text(result.data),
-            description="适合命令行阅读的 Akasha 角色排行榜文本",
+            description=_t("gsuid.commands.rank.533_24.86ddc481"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -560,11 +561,11 @@ def _artifact_render_result(
             provider="akasha",
             region=region,
             category="rank.artifact.asset",
-            unavailable_warning=("{count} 张 Akasha 圣遗物排行图片不可用，已使用占位图"),
+            unavailable_warning=(_t("gsuid.commands.rank.563_33.ab2eace8")),
             max_workers=RANK_IMAGE_WORKERS,
         )
         png = render_artifact_rank(
-            sort_label=str(result.data.get("sort") or "双爆"),
+            sort_label=str(result.data.get("sort") or _t("gsuid.commands.rank.95_16.d6a90bcf")),
             artifacts=artifacts,
             asset_images=images,
         )
@@ -574,7 +575,7 @@ def _artifact_render_result(
             name="rank/artifact",
             filename=f"rank-artifact_{sort_filename}.png",
             content=png,
-            description="Akasha 圣遗物排行榜图片",
+            description=_t("gsuid.commands.rank.577_24.f4ab3fa2"),
         )
         output_artifacts.append(image_artifact)
         warnings.extend(image_warnings)
@@ -586,7 +587,7 @@ def _artifact_render_result(
             name="rank/artifact-text",
             filename=f"rank-artifact_{sort_text_filename}.txt",
             content=render_rank_artifact_text(result.data),
-            description="适合命令行阅读的 Akasha 圣遗物排行榜文本",
+            description=_t("gsuid.commands.rank.589_24.7eb7dc38"),
         )
         output_artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -616,7 +617,7 @@ def _find_user_character(data: dict[str, object], character_id: str, uid: str) -
             return character
     raise CliError(
         "NO_RESULT",
-        f"此 UID 上没有 {_character_name(character_id)} 的 Akasha 排行数据。",
+        _t("gsuid.commands.rank.619_8.94eeaa0e", _character_name(character_id)),
         EXIT_NO_RESULT,
         {"uid": uid, "character_id": character_id},
     )
@@ -639,7 +640,7 @@ def _character_id(query: str) -> str:
             return _character_id(str(name))
     raise CliError(
         "NO_RESULT",
-        "没有找到与排行查询匹配的角色。",
+        _t("gsuid.commands.rank.642_8.a253c8d6"),
         EXIT_NO_RESULT,
         {"query": query},
     )

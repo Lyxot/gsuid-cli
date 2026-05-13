@@ -41,6 +41,7 @@ from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import REGION_CHOICES
 from gsuid_cli.core.render import explicit_render_modes, normalize_render_modes, render_data_enabled
 from gsuid_cli.core.secrets import redact_secret
+from gsuid_cli.text import t as _t
 
 GLOBAL_VALUE_OPTIONS = {
     "--profile",
@@ -69,77 +70,77 @@ SENSITIVE_KEY_PARTS = (
     "token",
 )
 OPTION_HELP = {
-    "--all": "包含通常省略的行。",
-    "--app-id": "来自 auth.qrcode.start 的二维码登录 app id。",
-    "--artifact-source-character": "要复用其圣遗物进行对比的角色。",
-    "--banner": "要汇总的祈愿卡池分类。",
-    "--build": "要对比的已保存或已缓存的配置名称。",
-    "--cache": "处理 JSON 和静态资源的缓存策略。",
-    "--character": "角色名称或 ID。",
-    "--check": "要运行的诊断检查分类。",
-    "--constellation": "命之座名称、序号或等级。",
-    "--cookie": "用于此次凭据写入的 Cookie 值。",
-    "--cookie-file": "从文件读取 Cookie 值。",
-    "--cookie-stdin": "从标准输入读取 Cookie 值。",
-    "--date": "请求数据的日历日期。",
-    "--day": "工作日名称或数字。",
-    "--debug": "在错误详情中包含调试诊断信息。",
-    "--deck-id": "七圣召唤牌组 ID。",
-    "--default": "将创建或选择的记录标记为默认。",
-    "--device": "来自 auth.qrcode.start 的二维码登录设备 ID。",
-    "--file": "输入文件路径。",
-    "--floor": "挑战层数。",
-    "--force": "在支持的情况下绕过本地时效性或防重复快捷策略。",
-    "--full": "使用较大的完全刷新分页限制。",
-    "--id": "请求行的数据源 ID。",
-    "--item": "物品名称或 ID。",
-    "--label": "本地账号标签。",
-    "--level": "派生 wiki 数据的目标等级。",
-    "--limit": "返回的最大行数。",
-    "--login-timeout": "二维码登录最大等待时间（秒）。",
-    "--map": "地图来源或地图 ID。",
-    "--material": "材料名称或 ID。",
-    "--max-artifact-files": "当产物文件超过此数量时发出警告。",
-    "--max-asset-cache-files": "当静态资源缓存文件超过此数量时发出警告。",
-    "--min-free-mb": "当可用磁盘空间低于此 MB 数时发出警告。",
-    "--name": "此命令的名称值。",
-    "--nearby": "要包含的附近排名行数。",
-    "--output": "输出文件路径。",
-    "--output-dir": "产物输出目录。",
-    "--page": "结果页码。",
-    "--poll-interval": "二维码登录轮询间隔（秒）。",
-    "--profile": "本地配置文件名称。",
-    "--query": "搜索查询。",
-    "--quiet": "抑制非结果的 stderr 日志。",
-    "--region": "目标 API 区服。",
-    "--render": "逗号分隔的渲染模式。重复使用以选择多个模式。",
-    "--request-id": "调用者提供的请求 ID。",
-    "--scope": "操作范围。",
-    "--season": "挑战赛季选择器。",
-    "--sort": "排序字段。",
-    "--source": "数据源提供者。",
-    "--stoken": "用于此次凭据写入的 Stoken 值。",
-    "--stoken-file": "从文件读取 Stoken 值。",
-    "--stoken-stdin": "从标准输入读取 Stoken 值。",
-    "--talent": "天赋名称或 ID。",
-    "--ticket": "来自 auth.qrcode.start 的二维码登录 ticket。",
-    "--timeout": "HTTP 超时时间（秒）。",
-    "--uid": "目标原神 UID。覆盖配置文件默认值。",
-    "--url": "用于此次凭据写入的安全 URL 值。",
-    "--url-file": "从文件读取安全 URL 值。",
-    "--url-stdin": "从标准输入读取安全 URL 值。",
-    "--version": "游戏或指南版本选择器。",
-    "--weapon": "武器名称或 ID。",
+    "--all": _t("gsuid.cli.72_13.80c7bc85"),
+    "--app-id": _t("gsuid.cli.73_16.23b02302"),
+    "--artifact-source-character": _t("gsuid.cli.74_35.12b00f08"),
+    "--banner": _t("gsuid.cli.75_16.81e01ff3"),
+    "--build": _t("gsuid.cli.76_15.63c90b76"),
+    "--cache": _t("gsuid.cli.77_15.ab20db96"),
+    "--character": _t("gsuid.cli.78_19.2552709c"),
+    "--check": _t("gsuid.cli.79_15.02577482"),
+    "--constellation": _t("gsuid.cli.80_23.83e36c26"),
+    "--cookie": _t("gsuid.cli.81_16.36e9efc8"),
+    "--cookie-file": _t("gsuid.cli.82_21.d7e94f77"),
+    "--cookie-stdin": _t("gsuid.cli.83_22.c7c27395"),
+    "--date": _t("gsuid.cli.84_14.d408a7e0"),
+    "--day": _t("gsuid.cli.85_13.5aa9ec83"),
+    "--debug": _t("gsuid.cli.86_15.4bbccfad"),
+    "--deck-id": _t("gsuid.cli.87_17.d635dcac"),
+    "--default": _t("gsuid.cli.88_17.e16f923b"),
+    "--device": _t("gsuid.cli.89_16.2d0c91c8"),
+    "--file": _t("gsuid.cli.90_14.28fabae0"),
+    "--floor": _t("gsuid.cli.91_15.c11873fc"),
+    "--force": _t("gsuid.cli.92_15.7eb1db5a"),
+    "--full": _t("gsuid.cli.93_14.06219718"),
+    "--id": _t("gsuid.cli.94_12.216b4ef5"),
+    "--item": _t("gsuid.cli.95_14.2a8d2a8d"),
+    "--label": _t("gsuid.cli.96_15.d0650369"),
+    "--level": _t("gsuid.cli.97_15.b22a69fc"),
+    "--limit": _t("gsuid.cli.98_15.7236070c"),
+    "--login-timeout": _t("gsuid.cli.99_23.44a0e51e"),
+    "--map": _t("gsuid.cli.100_13.5275a040"),
+    "--material": _t("gsuid.cli.101_18.d1b51600"),
+    "--max-artifact-files": _t("gsuid.cli.102_28.45377c79"),
+    "--max-asset-cache-files": _t("gsuid.cli.103_31.034e32fb"),
+    "--min-free-mb": _t("gsuid.cli.104_21.da010c5a"),
+    "--name": _t("gsuid.cli.105_14.656a5932"),
+    "--nearby": _t("gsuid.cli.106_16.eada310f"),
+    "--output": _t("gsuid.cli.107_16.f12d2e5f"),
+    "--output-dir": _t("gsuid.cli.108_20.12325143"),
+    "--page": _t("gsuid.cli.109_14.468b936c"),
+    "--poll-interval": _t("gsuid.cli.110_23.cbdff4b5"),
+    "--profile": _t("gsuid.cli.111_17.76251a4a"),
+    "--query": _t("gsuid.cli.112_15.5323cc71"),
+    "--quiet": _t("gsuid.cli.113_15.b6e4e626"),
+    "--region": _t("gsuid.cli.114_16.e2c46efe"),
+    "--render": _t("gsuid.cli.115_16.74f75e5c"),
+    "--request-id": _t("gsuid.cli.116_20.d006b223"),
+    "--scope": _t("gsuid.cli.117_15.9212869b"),
+    "--season": _t("gsuid.cli.118_16.11d49b1b"),
+    "--sort": _t("gsuid.cli.119_14.306876c6"),
+    "--source": _t("gsuid.cli.120_16.cf2d11d1"),
+    "--stoken": _t("gsuid.cli.121_16.2d3c8b7e"),
+    "--stoken-file": _t("gsuid.cli.122_21.40cc1625"),
+    "--stoken-stdin": _t("gsuid.cli.123_22.23958c6d"),
+    "--talent": _t("gsuid.cli.124_16.910aa1c6"),
+    "--ticket": _t("gsuid.cli.125_16.6a5f4761"),
+    "--timeout": _t("gsuid.cli.126_17.04b0fbc3"),
+    "--uid": _t("gsuid.cli.127_13.4cad1c3f"),
+    "--url": _t("gsuid.cli.128_13.e213125e"),
+    "--url-file": _t("gsuid.cli.129_18.8ba35213"),
+    "--url-stdin": _t("gsuid.cli.130_19.32077323"),
+    "--version": _t("gsuid.cli.131_17.ec7b3c84"),
+    "--weapon": _t("gsuid.cli.132_16.e7517378"),
 }
 DEST_HELP = {
-    "account_region": "账号 API 区服。",
-    "account_uid": "账号原神 UID。",
-    "command_uid": "目标原神 UID。覆盖配置文件默认值。",
-    "export_format": "祈愿记录导出格式。",
-    "format": "标准输出格式。",
-    "import_format": "祈愿记录导入格式。",
-    "profile_region": "配置文件默认 API 区服。",
-    "query": "搜索查询或查找名称。",
+    "account_region": _t("gsuid.cli.135_22.e1872fe3"),
+    "account_uid": _t("gsuid.cli.136_19.f031ea26"),
+    "command_uid": _t("gsuid.cli.127_13.4cad1c3f"),
+    "export_format": _t("gsuid.cli.138_21.f42499ba"),
+    "format": _t("gsuid.cli.139_14.bda6dd74"),
+    "import_format": _t("gsuid.cli.140_21.5111b5f6"),
+    "profile_region": _t("gsuid.cli.141_22.77c086e3"),
+    "query": _t("gsuid.cli.142_13.655d0abb"),
 }
 
 
@@ -151,11 +152,15 @@ class GsuidArgumentParser(argparse.ArgumentParser):
 def build_parser() -> argparse.ArgumentParser:
     parser = GsuidArgumentParser(
         prog="gsuid",
-        description="面向 Agent 的原神命令行工具。",
+        description=_t("gsuid.cli.154_20.ea648adb"),
         add_help=False,
     )
     parser.add_argument(
-        "-h", "--help", action="help", default=argparse.SUPPRESS, help="显示此帮助信息并退出。"
+        "-h",
+        "--help",
+        action="help",
+        default=argparse.SUPPRESS,
+        help=_t("gsuid.cli.158_71.ca4abdda"),
     )
     parser.add_argument("--profile", default=os.environ.get("GSUID_PROFILE", "default"))
     parser.add_argument("--uid")
@@ -177,7 +182,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument(
-        "--version", action="version", version=f"%(prog)s {__version__}", help="显示版本号并退出。"
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help=_t("gsuid.cli.180_79.9bdc68ac"),
     )
 
     groups = parser.add_subparsers(dest="group", required=True, metavar="<group>")
@@ -286,7 +294,7 @@ def run(
         return exc.exit_code
     except KeyboardInterrupt:
         context = _error_context(args_list)
-        error = CliError("INTERRUPTED", "已中断。", EXIT_INTERRUPTED)
+        error = CliError("INTERRUPTED", _t("gsuid.cli.289_40.d0ea587e"), EXIT_INTERRUPTED)
         payload = error_envelope(
             command=context["command"],
             request_id=context["request_id"],
@@ -311,7 +319,9 @@ def run(
         details = {}
         if context["debug"]:
             details = {"type": type(exc).__name__, "message": str(exc)}
-        error = CliError("INTERNAL_ERROR", "内部错误。", EXIT_INTERNAL_BUG, details)
+        error = CliError(
+            "INTERNAL_ERROR", _t("gsuid.cli.314_43.ba149deb"), EXIT_INTERNAL_BUG, details
+        )
         payload = error_envelope(
             command=context["command"],
             request_id=context["request_id"],
@@ -387,8 +397,8 @@ def _default_action_help(action: argparse.Action) -> str:
 def _label_help(value: str) -> str:
     label = value.replace("_", " ").replace("-", " ").strip()
     if not label:
-        return "此参数的值。"
-    return f"{label.capitalize()} 的值。"
+        return _t("gsuid.cli.390_15.c26f7543")
+    return _t("gsuid.cli.391_11.d8d8b025", label.capitalize())
 
 
 def _validate_runtime_defaults(args: argparse.Namespace) -> None:
@@ -449,7 +459,7 @@ def _write_payload(
             _write_plain_artifact_paths(
                 stdout,
                 image_paths,
-                label="图片已保存至",
+                label=_t("gsuid.cli.452_22.54f0b9a2"),
                 leading_blank=True,
             )
             return
@@ -460,7 +470,7 @@ def _write_payload(
             _write_plain_artifact_paths(
                 stdout,
                 image_paths,
-                label="图片已保存至",
+                label=_t("gsuid.cli.452_22.54f0b9a2"),
             )
             return
         stdout.write(json.dumps(payload["data"], ensure_ascii=False, indent=2))
@@ -484,7 +494,7 @@ def _unsupported_render_warnings(command: str, requested: object) -> list[str]:
     ]
     if not unsupported:
         return []
-    return [f"{command} 不支持渲染模式: {', '.join(unsupported)}，已忽略。"]
+    return [_t("gsuid.cli.487_12.1556201d", command, ", ".join(unsupported))]
 
 
 def _command_supported_renders(command: str) -> set[str]:
@@ -559,7 +569,14 @@ def _write_plain_warnings(payload: dict[str, object], stderr: TextIO) -> None:
         return
     for warning in warnings:
         if isinstance(warning, str) and warning:
-            stderr.write(f"{ANSI_YELLOW}警告: {_plain_warning_text(warning)}{ANSI_RESET}\n")
+            stderr.write(
+                _t(
+                    "gsuid.cli.562_25.edb1c72b",
+                    ANSI_YELLOW,
+                    _plain_warning_text(warning),
+                    ANSI_RESET,
+                )
+            )
 
 
 def _plain_warning_text(warning: str) -> str:
@@ -583,14 +600,14 @@ def _payload_with_debug_artifact(
             name="debug-envelope",
             filename="debug-envelope.json",
             content=content,
-            description="带有数据和来源的调试包",
+            description=_t("gsuid.cli.586_24.94d7b91b"),
             media_type="application/json; charset=utf-8",
             kind="debug",
         )
     except OSError as exc:
         warnings = result.setdefault("warnings", [])
         if isinstance(warnings, list):
-            warnings.append(f"调试产物写入失败: {type(exc).__name__}")
+            warnings.append(_t("gsuid.cli.593_28.d00773a0", type(exc).__name__))
         return result
     result["artifacts"] = [*_artifact_list(result), artifact]
     return result

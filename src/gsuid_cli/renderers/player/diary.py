@@ -15,20 +15,21 @@ from gsuid_cli.renderers.common import (
     sequence,
 )
 from gsuid_cli.renderers.player.summary import paste_player_footer, player_title_avatar_image
+from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("player", "diary", "textures")
 FIRST_COLOR = (29, 29, 29)
 SECOND_COLOR = (67, 61, 56)
 
 COLOR_MAP = {
-    "邮件奖励": (127, 115, 173),
-    "每日活跃": (190, 158, 97),
-    "活动奖励": (89, 126, 162),
-    "深境螺旋": (113, 152, 113),
-    "幻想剧诗": (152, 102, 146),
-    "冒险奖励": (220, 99, 96),
-    "任务奖励": (107, 182, 181),
-    "其他": (118, 168, 196),
+    _t("gsuid.renderers.player.diary.24_4.cf8d6bf7"): (127, 115, 173),
+    _t("gsuid.renderers.player.diary.25_4.2ed6f382"): (190, 158, 97),
+    _t("gsuid.renderers.player.diary.26_4.24317b86"): (89, 126, 162),
+    _t("gsuid.renderers.events.image.186_51.ce963b83"): (113, 152, 113),
+    _t("gsuid.renderers.player.diary.28_4.15dd8ad7"): (152, 102, 146),
+    _t("gsuid.renderers.player.diary.29_4.f2d9f0e8"): (220, 99, 96),
+    _t("gsuid.renderers.player.diary.30_4.abca6dc3"): (107, 182, 181),
+    _t("gsuid.renderers.player.diary.31_4.1a26edf9"): (118, 168, 196),
     "Mail": (127, 115, 173),
     "Daily Activity": (190, 158, 97),
     "Events": (89, 126, 162),
@@ -115,28 +116,28 @@ def _paste_text(image: Image.Image, uid: str, values: Mapping[str, int]) -> None
 
     draw.text(
         (245, 923),
-        f"昨日原石:{_int_carry(values['lastday_stone'])}",
+        _t("gsuid.renderers.player.diary.118_8.997c84a6", _int_carry(values["lastday_stone"])),
         SECOND_COLOR,
         font(26),
         "mm",
     )
     draw.text(
         (621, 923),
-        f"昨日摩拉:{_int_carry(values['lastday_mora'])}",
+        _t("gsuid.renderers.player.diary.125_8.bff5893f", _int_carry(values["lastday_mora"])),
         SECOND_COLOR,
         font(26),
         "mm",
     )
     draw.text(
         (245, 1396),
-        f"上月原石:{_int_carry(values['lastmonth_stone'])}",
+        _t("gsuid.renderers.player.diary.132_8.22d3370a", _int_carry(values["lastmonth_stone"])),
         SECOND_COLOR,
         font(26),
         "mm",
     )
     draw.text(
         (621, 1396),
-        f"上月摩拉:{_int_carry(values['lastmonth_mora'])}",
+        _t("gsuid.renderers.player.diary.139_8.2330b993", _int_carry(values["lastmonth_mora"])),
         SECOND_COLOR,
         font(26),
         "mm",
@@ -147,9 +148,15 @@ def _paste_group_chart(image: Image.Image, groups: list[Mapping[str, object]]) -
     draw = ImageDraw.Draw(image)
     if not groups:
         for index, action in enumerate(COLOR_MAP):
-            if action in {"其他", "Other"}:
+            if action in {_t("gsuid.renderers.player.diary.31_4.1a26edf9"), "Other"}:
                 continue
-            draw.text((614, 1535 + index * 52), f"{action}:无", SECOND_COLOR, font(26), "mm")
+            draw.text(
+                (614, 1535 + index * 52),
+                _t("gsuid.renderers.player.diary.152_48.4dde36d4", action),
+                SECOND_COLOR,
+                font(26),
+                "mm",
+            )
         oops = open_rgba(TEXTURE / "oops.png")
         image.paste(oops, (106, 1513), oops)
         return
@@ -163,7 +170,7 @@ def _paste_group_chart(image: Image.Image, groups: list[Mapping[str, object]]) -
         color = COLOR_MAP.get(action, (152, 102, 146))
         draw.pieslice(xy, start, end, color)
         start = end
-        if action in {"其他", "Other"}:
+        if action in {_t("gsuid.renderers.player.diary.31_4.1a26edf9"), "Other"}:
             continue
         y = 1523 + index * 52
         draw.rectangle(((407, y), (453, y + 25)), fill=color)

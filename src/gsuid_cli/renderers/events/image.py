@@ -19,6 +19,7 @@ from gsuid_cli.renderers.common import (
     sequence,
     text_value,
 )
+from gsuid_cli.text import t as _t
 
 EVENT_TEXTURE = asset_path("events", "textures")
 ANN_TEXTURE = asset_path("announcements", "textures")
@@ -27,6 +28,7 @@ TEXT_COLOR = (60, 59, 64)
 ANN_BG = "#f9f6f2"
 ANN_TEXT = "#3b4354"
 ANN_MUTED = "#767779"
+GACHA_EVENT_MARKERS = ("祈愿", "扭蛋")
 
 
 def event_image_urls(data: Mapping[str, object], key: str) -> list[str]:
@@ -60,17 +62,31 @@ def render_events_card(
 
     if not rows:
         draw = ImageDraw.Draw(image)
-        draw.text((475, height // 2), "暂无活动数据", TEXT_COLOR, font(36), "mm")
+        draw.text(
+            (475, height // 2),
+            _t("gsuid.renderers.events.image.63_38.9b22e30f"),
+            TEXT_COLOR,
+            font(36),
+            "mm",
+        )
         return png_bytes(image, rgb=True)
 
     for index, event in enumerate(rows):
         card = open_rgba(EVENT_TEXTURE / card_name)
         banner = _remote_image(event.get("banner_url"), asset_images, banner_size)
         if banner is None:
-            banner = _placeholder_banner(banner_size, text_value(event.get("name_full")) or "活动")
+            banner = _placeholder_banner(
+                banner_size,
+                text_value(event.get("name_full"))
+                or _t("gsuid.renderers.events.image.70_92.b2548636"),
+            )
         card.paste(banner, banner_pos, banner)
         draw = ImageDraw.Draw(card)
-        title = text_value(event.get("name_full")) or text_value(event.get("name")) or "未知活动"
+        title = (
+            text_value(event.get("name_full"))
+            or text_value(event.get("name"))
+            or _t("gsuid.renderers.events.image.73_87.9150e696")
+        )
         draw.text((475, 47), title[:26], TEXT_COLOR, font(26), "mm")
         start = _month_and_time(event.get("start_at"))
         end = _month_and_time(event.get("end_at"))
@@ -115,7 +131,7 @@ def render_announcements_list_card(data: Mapping[str, object]) -> bytes:
                 image.paste(card, (x, y_items + index * item.height), card)
         y = y_items + int(group["rows"]) * item.height
 
-    tip = "*可以使用 announcements show --id 0000 或 --latest 查看详细内容"
+    tip = _t("gsuid.renderers.events.image.118_10.7e19d750")
     ImageDraw.Draw(image).text(
         (12, image.height - 30),
         tip,
@@ -145,7 +161,11 @@ def render_announcement_detail_card(
     blocks = _announcement_blocks(announcement)
     if not blocks:
         blocks = [
-            {"type": "text", "text": text_value(announcement.get("title")) or "公告详情"},
+            {
+                "type": "text",
+                "text": text_value(announcement.get("title"))
+                or _t("gsuid.renderers.events.image.148_78.7dfb9873"),
+            },
             {"type": "text", "text": text_value(announcement.get("summary")) or ""},
         ]
 
@@ -178,12 +198,21 @@ def _event_rows(data: Mapping[str, object], kind: str) -> list[Mapping[str, obje
 
 def _is_gacha_event(event: Mapping[str, object]) -> bool:
     text = f"{event.get('name') or ''} {event.get('name_full') or ''}"
-    return "祈愿" in text or "扭蛋" in text or "wish" in text.casefold()
+    return any(marker in text for marker in GACHA_EVENT_MARKERS) or "wish" in text.casefold()
 
 
 def _is_banned_event(event: Mapping[str, object]) -> bool:
     text = f"{event.get('name') or ''} {event.get('name_full') or ''}"
-    return any(word in text for word in ("首充", "深境螺旋", "传说任务", "纪行", "更新修复"))
+    return any(
+        word in text
+        for word in (
+            _t("gsuid.renderers.events.image.186_41.889ea741"),
+            _t("gsuid.renderers.events.image.186_51.ce963b83"),
+            _t("gsuid.renderers.events.image.186_67.3c9302ec"),
+            _t("gsuid.renderers.events.image.186_83.67fd155e"),
+            _t("gsuid.renderers.events.image.186_93.6b73004e"),
+        )
+    )
 
 
 def _announcement_sections(data: Mapping[str, object]) -> list[Mapping[str, object]]:
@@ -196,7 +225,15 @@ def _announcement_sections(data: Mapping[str, object]) -> list[Mapping[str, obje
 
 def _section_pairs(sections: Sequence[Mapping[str, object]]) -> list[list[Mapping[str, object]]]:
     if not sections:
-        return [[{"type_id": 2, "type_label": "游戏公告", "items": []}]]
+        return [
+            [
+                {
+                    "type_id": 2,
+                    "type_label": _t("gsuid.renderers.events.image.199_46.1f25f82f"),
+                    "items": [],
+                }
+            ]
+        ]
     ordered = list(sections)
     return [ordered[index : index + 2] for index in range(0, len(ordered), 2)]
 
@@ -210,7 +247,9 @@ def _draw_section_headers(
     for column, section in enumerate(sections):
         x0 = 90 if column == 0 else 562
         x1 = x0 + 230
-        label = text_value(section.get("type_label")) or "公告"
+        label = text_value(section.get("type_label")) or _t(
+            "gsuid.renderers.events.image.224_79.3f956953"
+        )
         draw.rounded_rectangle((x0, y + 22, x1, y + 74), radius=24, fill=(164, 186, 224))
         draw.rounded_rectangle(
             (x0 + 5, y + 27, x1 - 5, y + 69), radius=20, outline="white", width=2
@@ -221,7 +260,11 @@ def _draw_section_headers(
 def _announcement_list_item(row: Mapping[str, object], template: Image.Image) -> Image.Image:
     card = template.copy()
     draw = ImageDraw.Draw(card)
-    title = text_value(row.get("subtitle")) or text_value(row.get("title")) or "公告"
+    title = (
+        text_value(row.get("subtitle"))
+        or text_value(row.get("title"))
+        or _t("gsuid.renderers.events.image.224_79.3f956953")
+    )
     title_font = font(26)
     lines = _wrap_text(title, title_font, 210).splitlines()
     y = max(14, (card.height - len(lines) * 31) // 2 + 2)
@@ -347,10 +390,17 @@ def _light_background(width: int, height: int) -> Image.Image:
 
 def _month_and_time(value: object) -> tuple[str, str]:
     text = text_value(value) or ""
-    if "永久开放" in text:
-        return text[:5] or "--/--", "永久开放"
-    if any(word in text for word in ("更新后", "版本", "版更")):
-        return text[:5] or "--/--", "更新后"
+    if _t("gsuid.renderers.events.image.350_7.69108729") in text:
+        return text[:5] or "--/--", _t("gsuid.renderers.events.image.350_7.69108729")
+    if any(
+        word in text
+        for word in (
+            _t("gsuid.renderers.events.image.353_36.27973a33"),
+            _t("gsuid.renderers.events.image.352_50.989d1aff"),
+            _t("gsuid.renderers.events.image.352_60.b0dd20ce"),
+        )
+    ):
+        return text[:5] or "--/--", _t("gsuid.renderers.events.image.353_36.27973a33")
     cleaned = text.replace("/", "-")
     try:
         parsed = datetime.fromisoformat(cleaned)

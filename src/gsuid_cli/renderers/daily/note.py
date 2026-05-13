@@ -15,6 +15,7 @@ from gsuid_cli.renderers.common import (
     sequence,
     text_value,
 )
+from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("daily", "note", "textures")
 
@@ -69,7 +70,7 @@ def render_daily_note_card(
 
     draw.text(
         (350, 466),
-        f"还剩{resin_recovery_time}",
+        _t("gsuid.renderers.daily.note.72_8.a46d2d2a", resin_recovery_time),
         font=font(28),
         fill=resin_color,
         anchor="mm",
@@ -89,8 +90,20 @@ def render_daily_note_card(
         fill=FIRST_COLOR,
         anchor="mm",
     )
-    draw.text((350, 89), nickname or "旅行者", fill=(13, 13, 13), font=font(58), anchor="mm")
-    draw.text((350, 1235), "当前数据源：战绩", fill=(92, 92, 92), font=font(20), anchor="mm")
+    draw.text(
+        (350, 89),
+        nickname or _t("gsuid.renderers.challenge.text.275_47.b2457913"),
+        fill=(13, 13, 13),
+        font=font(58),
+        anchor="mm",
+    )
+    draw.text(
+        (350, 1235),
+        _t("gsuid.renderers.daily.note.93_27.1b057455"),
+        fill=(92, 92, 92),
+        font=font(20),
+        anchor="mm",
+    )
 
     for index, bar in enumerate(bars):
         img.paste(bar, (0, 642 + 78 * index), bar)
@@ -115,43 +128,71 @@ def _home_coin_bar(note: Mapping[str, object]) -> Image.Image:
     current = int_value(note.get("current_home_coin"))
     maximum = int_value(note.get("max_home_coin"))
     status = "no" if maximum - current < 200 else "ok"
-    return _bar(status, "洞天宝钱", f"{current} / {maximum}")
+    return _bar(status, _t("gsuid.renderers.daily.note.118_24.0c8c7f71"), f"{current} / {maximum}")
 
 
 def _daily_task_bar(note: Mapping[str, object]) -> Image.Image:
     finished = int_value(note.get("finished_task_num"))
     total = int_value(note.get("total_task_num"))
     status = "ok" if bool_value(note.get("is_extra_task_reward_received")) else "no"
-    return _bar(status, "完成委托", f"{finished} / {total}")
+    return _bar(status, _t("gsuid.renderers.daily.note.125_24.a7d13255"), f"{finished} / {total}")
 
 
 def _weekly_discount_bar(note: Mapping[str, object]) -> Image.Image:
     remaining = int_value(note.get("remain_resin_discount_num"), -99)
     limit = int_value(note.get("resin_discount_num_limit"))
     if remaining == -99:
-        return _bar("un", "周本减半", "未知情况")
-    return _bar("ok" if remaining == 0 else "no", "周本减半", f"{remaining} / {limit}")
+        return _bar(
+            "un",
+            _t("gsuid.renderers.daily.note.133_50.ad504327"),
+            _t("gsuid.renderers.daily.note.132_42.9511a5c4"),
+        )
+    return _bar(
+        "ok" if remaining == 0 else "no",
+        _t("gsuid.renderers.daily.note.133_50.ad504327"),
+        f"{remaining} / {limit}",
+    )
 
 
 def _transformer_bar(note: Mapping[str, object]) -> Image.Image:
     transformer = note.get("transformer")
     if not isinstance(transformer, Mapping):
-        return _bar("un", "参量质变", "未知情况")
+        return _bar(
+            "un",
+            _t("gsuid.renderers.daily.note.148_24.76f68712"),
+            _t("gsuid.renderers.daily.note.132_42.9511a5c4"),
+        )
     recovery = transformer.get("recovery_time")
     if not isinstance(recovery, Mapping):
-        return _bar("un", "参量质变", "未知情况")
+        return _bar(
+            "un",
+            _t("gsuid.renderers.daily.note.148_24.76f68712"),
+            _t("gsuid.renderers.daily.note.132_42.9511a5c4"),
+        )
     day = int_value(recovery.get("Day"), -99)
     hour = int_value(recovery.get("Hour"))
     if day == -99:
-        return _bar("un", "参量质变", "未知情况")
+        return _bar(
+            "un",
+            _t("gsuid.renderers.daily.note.148_24.76f68712"),
+            _t("gsuid.renderers.daily.note.132_42.9511a5c4"),
+        )
     status = "no" if bool_value(recovery.get("reached")) else "ok"
-    return _bar(status, "参量质变", f"还剩{day}天{hour}小时")
+    return _bar(
+        status,
+        _t("gsuid.renderers.daily.note.148_24.76f68712"),
+        _t("gsuid.renderers.daily.note.148_40.a6143417", day, hour),
+    )
 
 
 def _archon_quest_bar(note: Mapping[str, object]) -> Image.Image:
     progress = note.get("archon_quest_progress")
     if not isinstance(progress, Mapping) or progress.get("wiki_url") == "False":
-        return _bar("un", "魔神任务", "数据未知...")
+        return _bar(
+            "un",
+            _t("gsuid.renderers.daily.note.166_22.5135b804"),
+            _t("gsuid.renderers.daily.note.154_42.70c0826b"),
+        )
     quests = list(sequence(progress.get("list")))
     done = (
         bool_value(progress.get("is_finish_all_interchapter"))
@@ -160,10 +201,22 @@ def _archon_quest_bar(note: Mapping[str, object]) -> Image.Image:
         and not quests
     )
     if done:
-        return _bar("ok", "魔神任务", "已全部完成")
+        return _bar(
+            "ok",
+            _t("gsuid.renderers.daily.note.166_22.5135b804"),
+            _t("gsuid.renderers.daily.note.163_42.1f8000f4"),
+        )
     if quests and isinstance(quests[0], Mapping):
-        return _bar("no", "魔神任务", str(quests[0].get("chapter_num") or "暂未开启..."))
-    return _bar("no", "魔神任务", "暂未开启...")
+        return _bar(
+            "no",
+            _t("gsuid.renderers.daily.note.166_22.5135b804"),
+            str(quests[0].get("chapter_num") or _t("gsuid.renderers.daily.note.166_38.0fd1c819")),
+        )
+    return _bar(
+        "no",
+        _t("gsuid.renderers.daily.note.166_22.5135b804"),
+        _t("gsuid.renderers.daily.note.166_38.0fd1c819"),
+    )
 
 
 def _task_img(expedition: object, avatar_images: Mapping[str, bytes]) -> Image.Image:
@@ -180,10 +233,10 @@ def _task_img(expedition: object, avatar_images: Mapping[str, bytes]) -> Image.I
     draw = ImageDraw.Draw(go_img)
     status = expedition.get("status") if isinstance(expedition, Mapping) else None
     if status == "Finished":
-        text = "待收取"
+        text = _t("gsuid.renderers.daily.note.183_15.1c8df181")
         color = RED_COLOR
     else:
-        text = "已派遣"
+        text = _t("gsuid.renderers.daily.note.186_15.9e5bcf8f")
         color = GREEN_COLOR
     draw.text((60, 125), text, font=font(20), fill=color, anchor="mm")
     return go_img
@@ -198,13 +251,13 @@ def _expedition_avatar_url(expedition: object) -> str | None:
 def _seconds_to_hours(seconds: int) -> str:
     minutes, _seconds = divmod(max(seconds, 0), 60)
     hours, minutes = divmod(minutes, 60)
-    return f"{hours:02d}小时{minutes:02d}分"
+    return _t("gsuid.renderers.daily.note.201_11.32a6a53b", hours, minutes)
 
 
 def _level_text(level: object | None) -> str:
     if level is None:
-        return "暂无数据"
-    return f"探索等级{level}"
+        return _t("gsuid.renderers.daily.note.206_15.b246458f")
+    return _t("gsuid.renderers.daily.note.207_11.7c69b166", level)
 
 
 def _sign_status(signed: bool | None) -> str:

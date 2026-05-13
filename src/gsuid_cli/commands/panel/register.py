@@ -13,10 +13,11 @@ from gsuid_cli.commands.panel.impl import (
     show_command,
     showcase_command,
 )
+from gsuid_cli.text import t as _t
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    panel = groups.add_parser("panel", help="管理 Enka 面板缓存。")
+    panel = groups.add_parser("panel", help=_t("gsuid.commands.panel.register.19_44.ecb09034"))
     commands = panel.add_subparsers(dest="panel_command", required=True, metavar="<command>")
 
     refresh = commands.add_parser("refresh", help=_HELPS["panel.refresh"])

@@ -48,34 +48,35 @@ from gsuid_cli.renderers.challenge.theater import (
     challenge_theater_image_urls,
     render_challenge_theater_card,
 )
+from gsuid_cli.text import t as _t
 
 CHALLENGE_IMAGE_WORKERS = 12
 
 CAPABILITIES = [
     {
         "command": "challenge.abyss",
-        "description": "显示深境螺旋数据。",
+        "description": _t("gsuid.commands.challenge.57_23.1ab14feb"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "challenge.theater",
-        "description": "显示幻想真境剧诗数据。",
+        "description": _t("gsuid.commands.challenge.64_23.7aa45edf"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "challenge.hard",
-        "description": "显示深罪旋曜挑战数据。",
+        "description": _t("gsuid.commands.challenge.71_23.48ae2dbd"),
         "auth": "cookie",
         "regions": ["cn"],
         "render": ["data", "image", "text", "all"],
     },
     {
         "command": "challenge.hard-rank",
-        "description": "显示 Akasha 深罪旋曜排名。",
+        "description": _t("gsuid.commands.challenge.78_23.8673e198"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
@@ -86,7 +87,7 @@ _HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    challenge = groups.add_parser("challenge", help="显示挑战数据。")
+    challenge = groups.add_parser("challenge", help=_t("gsuid.commands.challenge.89_52.1db25be0"))
     commands = challenge.add_subparsers(
         dest="challenge_command", required=True, metavar="<command>"
     )
@@ -243,7 +244,7 @@ def _abyss_render_result(
         if not _has_abyss_floor_data(abyss):
             raise CliError(
                 "NO_RESULT",
-                "渲染深境螺旋图片至少需要一层挑战数据。",
+                _t("gsuid.commands.challenge.246_16.6afe4e28"),
                 EXIT_NO_RESULT,
                 {
                     "uid": uid,
@@ -280,7 +281,7 @@ def _abyss_render_result(
             provider="mys",
             region=region,
             category="challenge.abyss.image",
-            unavailable_warning="{count} 个深境螺旋挑战图片不可用，已使用占位图",
+            unavailable_warning=_t("gsuid.commands.challenge.283_32.5b5a9d45"),
             max_workers=CHALLENGE_IMAGE_WORKERS,
         )
         png = render_challenge_abyss_card(
@@ -295,7 +296,7 @@ def _abyss_render_result(
             name="challenge/abyss",
             filename=f"challenge-abyss_{safe_filename_part(uid)}.png",
             content=png,
-            description="深境螺旋卡片图片",
+            description=_t("gsuid.commands.challenge.298_24.597762ae"),
         )
         artifacts.append(image_artifact)
         warnings.extend([*rank_warnings, *title_warnings, *image_warnings])
@@ -316,7 +317,7 @@ def _abyss_render_result(
             name="challenge/abyss-text",
             filename=f"challenge-abyss_{safe_filename_part(uid)}.txt",
             content=render_challenge_abyss_text(uid=uid, abyss=abyss, summary=summary),
-            description="深境螺旋挑战文本",
+            description=_t("gsuid.commands.challenge.319_24.5b2972ee"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -361,7 +362,7 @@ def _theater_render_result(
             provider="mys",
             region=region,
             category="challenge.theater.image",
-            unavailable_warning=("{count} 个幻想真境剧诗图片不可用，已使用占位图"),
+            unavailable_warning=(_t("gsuid.commands.challenge.364_33.67d18b00")),
             max_workers=CHALLENGE_IMAGE_WORKERS,
         )
         png = render_challenge_theater_card(
@@ -376,7 +377,7 @@ def _theater_render_result(
             name="challenge/theater",
             filename=f"challenge-theater_{safe_filename_part(uid)}.png",
             content=png,
-            description="幻想真境剧诗卡片图片",
+            description=_t("gsuid.commands.challenge.379_24.e1a7cff7"),
         )
         artifacts.append(image_artifact)
         warnings.extend([*title_warnings, *image_warnings])
@@ -397,7 +398,7 @@ def _theater_render_result(
             name="challenge/theater-text",
             filename=f"challenge-theater_{safe_filename_part(uid)}.txt",
             content=render_challenge_theater_text(uid=uid, theater=theater, summary=summary),
-            description="幻想真境剧诗挑战文本",
+            description=_t("gsuid.commands.challenge.400_24.9142c068"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -442,7 +443,7 @@ def _hard_render_result(
             provider="mys",
             region=region,
             category="challenge.hard.image",
-            unavailable_warning="{count} 个深罪旋曜挑战图片不可用，已使用占位图",
+            unavailable_warning=_t("gsuid.commands.challenge.445_32.8f3a225d"),
             max_workers=CHALLENGE_IMAGE_WORKERS,
         )
         png = render_challenge_hard_card(
@@ -457,7 +458,7 @@ def _hard_render_result(
             name="challenge/hard",
             filename=f"challenge-hard_{safe_filename_part(uid)}.png",
             content=png,
-            description="深罪旋曜挑战卡片图片",
+            description=_t("gsuid.commands.challenge.460_24.958cba6d"),
         )
         artifacts.append(image_artifact)
         warnings.extend([*title_warnings, *image_warnings])
@@ -478,7 +479,7 @@ def _hard_render_result(
             name="challenge/hard-text",
             filename=f"challenge-hard_{safe_filename_part(uid)}.txt",
             content=render_challenge_hard_text(uid=uid, hard=hard, summary=summary),
-            description="深罪旋曜挑战文本",
+            description=_t("gsuid.commands.challenge.481_24.0238d482"),
         )
         artifacts.append(text_artifact)
         record_text_artifact(render_data, text_artifact, image_enabled=render_image_enabled(args))
@@ -498,7 +499,7 @@ def _hard_rank_render_result(args: argparse.Namespace, result: CommandResult) ->
         name="challenge/hard-rank-text",
         filename="challenge-hard-rank.txt",
         content=render_challenge_hard_rank_text(result.data),
-        description="深罪旋曜排名支持状态文本",
+        description=_t("gsuid.commands.challenge.501_20.86b0c6d2"),
     )
     data = render_result_data(
         args,

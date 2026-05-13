@@ -19,6 +19,7 @@ from gsuid_cli.renderers.player.summary import (
     paste_player_footer,
     render_player_title_section,
 )
+from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("player", "calendar", "textures")
 PUBLIC_TEXTURE = asset_path("public", "textures")
@@ -122,7 +123,8 @@ def _pool_card(
     draw.text((110, 61), text_value(first.get("version_name")) or "", "white", font(30), "mm")
     draw.text(
         (110, 106),
-        "剩余时间：" + _duration_text(int_value(first.get("countdown_seconds"))),
+        _t("gsuid.renderers.player.calendar.125_8.be962ae8")
+        + _duration_text(int_value(first.get("countdown_seconds"))),
         GREY,
         font(26),
         "lm",
@@ -145,12 +147,12 @@ def _act_card(act: Mapping[str, object], asset_images: Mapping[str, bytes]) -> I
     draw = ImageDraw.Draw(card)
 
     if status == "un":
-        state_text = "未开始"
-        prefix = "开启剩余时间: "
+        state_text = _t("gsuid.renderers.player.calendar.148_21.062e5e67")
+        prefix = _t("gsuid.renderers.player.calendar.149_17.6d518ee6")
         sub_text = None
     else:
         state_text, sub_text = _finished_text(act)
-        prefix = "结束剩余时间: "
+        prefix = _t("gsuid.renderers.player.calendar.153_17.f5c64340")
 
     draw.text((94, 60), text_value(act.get("name")) or "", "white", font(38), "lm")
     draw.text(
@@ -235,7 +237,7 @@ def _hard_challenge_sub(act: Mapping[str, object]) -> Mapping[str, object] | Non
     rewards = _mapping_list(act.get("reward_list"))
     return {
         "type": "ActTypeHardChallengeSub",
-        "name": "幽境·紊乱爆发",
+        "name": _t("gsuid.renderers.player.calendar.238_16.68a41218"),
         "countdown_seconds": sub.get("seconds"),
         "x": sub.get("x"),
         "y": sub.get("y"),
@@ -255,21 +257,28 @@ def _finished_text(act: Mapping[str, object]) -> tuple[str, str | None]:
         if isinstance(detail, Mapping) and int_value(detail.get("second")) > 0:
             difficulty = int_value(detail.get("difficulty"))
             seconds = int_value(detail.get("second"))
-            return f"困难{difficulty}", f"{seconds}秒"
+            return _t("gsuid.renderers.player.calendar.258_19.bc37d2ed", difficulty), _t(
+                "gsuid.renderers.challenge.hard.119_25.05854e94", seconds
+            )
     if act.get("type") == "ActTypeHardChallengeSub" and not act.get("is_finished"):
-        return f"差{int_value(act.get('y')) - int_value(act.get('x'))}", None
+        return _t(
+            "gsuid.renderers.player.calendar.260_15.c8ba58fe",
+            int_value(act.get("y")) - int_value(act.get("x")),
+        ), None
     if act.get("type") == "ActTypeExplore":
         detail = act.get("explore_detail")
         if isinstance(detail, Mapping):
             return f"{int_value(detail.get('explore_percent'))}%", None
-    return "已完成" if act.get("is_finished") else "未完成", None
+    return _t("gsuid.renderers.daily.text.161_13.e99b48a2") if act.get("is_finished") else _t(
+        "gsuid.renderers.daily.text.247_11.b61b08ae"
+    ), None
 
 
 def _duration_text(seconds: int) -> str:
     days = max(seconds, 0) // (24 * 3600)
     hours = (max(seconds, 0) % (24 * 3600)) // 3600
     minutes = (max(seconds, 0) % 3600) // 60
-    return f"{days}天{hours}时{minutes}分"
+    return _t("gsuid.renderers.player.calendar.272_11.64b9941b", days, hours, minutes)
 
 
 def _append_url(urls: list[str], value: object) -> None:

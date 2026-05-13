@@ -12,13 +12,14 @@ from gsuid_cli.providers.public.common import (
 
 DAY_NAMES = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
 DAILY_RESET_OFFSET = timedelta(hours=4)
+WEAPON_DOMAIN_MARKER = "炼武"
 
 
 def daily_domain(value: dict[str, object], upgrades: dict[str, object]) -> dict[str, object]:
     reward_ids = value.get("reward") if isinstance(value.get("reward"), list) else []
     name = value.get("name")
     material_id = reward_ids[-1] if reward_ids else None
-    item_type = "weapon" if "炼武" in str(name or "") else "avatar"
+    item_type = "weapon" if WEAPON_DOMAIN_MARKER in str(name or "") else "avatar"
     return {
         "id": str(value.get("id") or ""),
         "name": name,

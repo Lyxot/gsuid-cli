@@ -9,11 +9,12 @@ from gsuid_cli.core.config import resolve_paths
 from gsuid_cli.core.errors import EXIT_INVALID_INPUT, CliError
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.renderers.utility_text import render_monitor_once_text
+from gsuid_cli.text import t as _t
 
 CAPABILITIES = [
     {
         "command": "monitor.once",
-        "description": "运行一次本地健康检查。",
+        "description": _t("gsuid.commands.monitor.16_23.1eda0967"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
@@ -24,7 +25,7 @@ _HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    monitor = groups.add_parser("monitor", help="运行本地健康检查。")
+    monitor = groups.add_parser("monitor", help=_t("gsuid.commands.monitor.27_48.e8f3d3e2"))
     commands = monitor.add_subparsers(dest="monitor_command", required=True, metavar="<command>")
 
     once = commands.add_parser("once", help=_HELPS["monitor.once"])
@@ -46,7 +47,7 @@ def once_command(args: argparse.Namespace) -> CommandResult:
             "storage.free_mb",
             free_mb,
             args.min_free_mb,
-            f"剩余 {free_mb} MiB",
+            _t("gsuid.commands.monitor.49_12.78828c20", free_mb),
         )
     ]
     if args.max_asset_cache_files is not None:
@@ -56,7 +57,7 @@ def once_command(args: argparse.Namespace) -> CommandResult:
                 "cache.asset_files",
                 count,
                 args.max_asset_cache_files,
-                f"静态资源缓存文件 {count} 个",
+                _t("gsuid.commands.monitor.59_16.47aa3487", count),
             )
         )
     if args.max_artifact_files is not None:
@@ -66,7 +67,7 @@ def once_command(args: argparse.Namespace) -> CommandResult:
                 "artifacts.files",
                 count,
                 args.max_artifact_files,
-                f"产物文件 {count} 个",
+                _t("gsuid.commands.monitor.69_16.83a1943b", count),
             )
         )
 
@@ -89,7 +90,7 @@ def once_command(args: argparse.Namespace) -> CommandResult:
         name="monitor/once-text",
         filename="monitor-once.txt",
         content=render_monitor_once_text(result.data),
-        description="适合命令行阅读的健康检查文本",
+        description=_t("gsuid.commands.monitor.92_20.05b757c4"),
     )
 
 
@@ -100,7 +101,7 @@ def _validate_threshold(name: str, value: int | None, *, allow_zero: bool) -> No
     if value < minimum:
         raise CliError(
             "INVALID_ARGUMENT",
-            f"{name} 必须至少为 {minimum}",
+            _t("gsuid.commands.monitor.103_12.edd88741", name, minimum),
             EXIT_INVALID_INPUT,
             {name.replace("-", "_"): value},
         )

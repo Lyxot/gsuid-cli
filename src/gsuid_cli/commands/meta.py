@@ -31,46 +31,47 @@ from gsuid_cli.core.schemas import command_envelope_schema, error_envelope_schem
 from gsuid_cli.core.secrets import SecretStore
 from gsuid_cli.providers.public import PublicDataProvider
 from gsuid_cli.renderers.utility_text import render_meta_command_text
+from gsuid_cli.text import t as _t
 
 CAPABILITIES = [
     {
         "command": "meta.version",
-        "description": "显示版本元信息。",
+        "description": _t("gsuid.commands.meta.38_23.e3069285"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "meta.paths",
-        "description": "显示解析后的本地路径。",
+        "description": _t("gsuid.commands.meta.45_23.130cd472"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "meta.capabilities",
-        "description": "显示已实现的功能信息。",
+        "description": _t("gsuid.commands.meta.52_23.49d35cdb"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "meta.schema",
-        "description": "显示 JSON 数据包的 schema 元信息。",
+        "description": _t("gsuid.commands.meta.59_23.f93645a2"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "meta.errors",
-        "description": "显示稳定的错误元信息。",
+        "description": _t("gsuid.commands.meta.66_23.2a0eabbd"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
     {
         "command": "meta.doctor",
-        "description": "运行本地诊断。",
+        "description": _t("gsuid.commands.meta.73_23.43a1d037"),
         "auth": "none",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
@@ -81,7 +82,7 @@ _HELPS = helps_from(CAPABILITIES)
 
 
 def register(groups: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    meta = groups.add_parser("meta", help="CLI 元信息和诊断。")
+    meta = groups.add_parser("meta", help=_t("gsuid.commands.meta.84_42.e713f593"))
     commands = meta.add_subparsers(dest="meta_command", required=True, metavar="<command>")
 
     version = commands.add_parser("version", help=_HELPS["meta.version"])
@@ -143,7 +144,7 @@ def schema_command(args: argparse.Namespace) -> CommandResult | dict[str, object
         if args.command not in commands:
             raise CliError(
                 "NO_RESULT",
-                "该命令没有可用的 schema。",
+                _t("gsuid.commands.meta.146_16.863458ab"),
                 EXIT_NO_RESULT,
                 {"command": args.command},
             )
@@ -193,7 +194,7 @@ def _meta_text_result(
         data,
         subject=subject,
         render_fn=render_meta_command_text,
-        description="适合命令行阅读的元信息文本",
+        description=_t("gsuid.commands.meta.196_20.7d45bae6"),
     )
 
 
@@ -223,77 +224,77 @@ def _global_options() -> list[dict[str, object]]:
             "value": "NAME",
             "default": "default",
             "placement": "anywhere",
-            "description": "本地配置文件名称。",
+            "description": _t("gsuid.cli.111_17.76251a4a"),
         },
         {
             "name": "--uid",
             "value": "UID",
             "default": None,
             "placement": "anywhere",
-            "description": "目标原神 UID。覆盖配置文件默认值。",
+            "description": _t("gsuid.cli.127_13.4cad1c3f"),
         },
         {
             "name": "--region",
             "value": "auto|cn|os",
             "default": "auto",
             "placement": "anywhere",
-            "description": "目标 API 区服。",
+            "description": _t("gsuid.cli.114_16.e2c46efe"),
         },
         {
             "name": "--format",
             "value": "json|pretty-json|plain",
             "default": "json",
             "placement": "anywhere",
-            "description": "标准输出格式。",
+            "description": _t("gsuid.cli.139_14.bda6dd74"),
         },
         {
             "name": "--render",
             "value": "data|image|text|all",
             "default": "data,text",
             "placement": "anywhere",
-            "description": "逗号分隔的渲染模式。可重复使用。",
+            "description": _t("gsuid.commands.meta.254_27.72b42a4a"),
         },
         {
             "name": "--output-dir",
             "value": "PATH",
             "default": "$GSUID_HOME/artifacts",
             "placement": "anywhere",
-            "description": "产物输出目录。",
+            "description": _t("gsuid.cli.108_20.12325143"),
         },
         {
             "name": "--cache",
             "value": "use|refresh|only|off",
             "default": "use",
             "placement": "anywhere",
-            "description": "处理 JSON 和静态资源的缓存策略。",
+            "description": _t("gsuid.cli.77_15.ab20db96"),
         },
         {
             "name": "--timeout",
             "value": "SECONDS",
             "default": 20,
             "placement": "anywhere",
-            "description": "HTTP 超时时间。",
+            "description": _t("gsuid.commands.meta.275_27.eda2f290"),
         },
         {
             "name": "--request-id",
             "value": "ID",
             "default": "generated UUID",
             "placement": "anywhere",
-            "description": "调用者提供的请求 ID。",
+            "description": _t("gsuid.cli.116_20.d006b223"),
         },
         {
             "name": "--quiet",
             "value": None,
             "default": False,
             "placement": "anywhere",
-            "description": "抑制非结果的 stderr 日志。",
+            "description": _t("gsuid.cli.113_15.b6e4e626"),
         },
         {
             "name": "--debug",
             "value": None,
             "default": False,
             "placement": "anywhere",
-            "description": "在错误详情中包含调试诊断信息。",
+            "description": _t("gsuid.cli.86_15.4bbccfad"),
         },
     ]
 

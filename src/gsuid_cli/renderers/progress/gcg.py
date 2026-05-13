@@ -18,6 +18,7 @@ from gsuid_cli.renderers.common import (
 )
 from gsuid_cli.renderers.player.summary import player_title_avatar_image
 from gsuid_cli.renderers.progress.collection import _color_background
+from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("progress", "gcg", "textures")
 FIRST_COLOR = (45, 45, 45)
@@ -42,8 +43,12 @@ def render_progress_gcg_card(
     image.paste(_bar(action_rate), (440, 101), _bar(action_rate))
 
     draw = ImageDraw.Draw(image)
-    draw.text((469, 63), "已解锁角色牌", FIRST_COLOR, font(26), "lm")
-    draw.text((469, 128), "已收集行动牌", FIRST_COLOR, font(26), "lm")
+    draw.text(
+        (469, 63), _t("gsuid.renderers.progress.gcg.45_25.53d270bf"), FIRST_COLOR, font(26), "lm"
+    )
+    draw.text(
+        (469, 128), _t("gsuid.renderers.progress.gcg.46_26.bdc75757"), FIRST_COLOR, font(26), "lm"
+    )
     draw.text(
         (805, 63),
         f"{int_value(basic.get('avatar_card_num_gained'))} / {avatar_total}",

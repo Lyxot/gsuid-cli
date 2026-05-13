@@ -65,6 +65,7 @@ from gsuid_cli.renderers.panel import (
     render_panel_showcase,
     render_panel_showcase_text,
 )
+from gsuid_cli.text import t as _t
 
 
 def refresh_command(args: argparse.Namespace) -> CommandResult:
@@ -203,7 +204,7 @@ def _show_render_result(
     if not isinstance(panel, dict):
         raise CliError(
             "UPSTREAM_INVALID_RESPONSE",
-            "面板数据中不包含可渲染的角色面板。",
+            _t("gsuid.commands.panel.impl.206_12.435704d6"),
             EXIT_INVALID_INPUT,
             {"command": "panel.show"},
             source=result.source,
@@ -215,7 +216,7 @@ def _show_render_result(
         provider="panel",
         region="cn",
         category="panel.show.asset",
-        unavailable_warning="{count} 个角色面板图片不可用，已使用占位图",
+        unavailable_warning=_t("gsuid.commands.panel.impl.218_28.f744020c"),
         max_workers=PANEL_IMAGE_WORKERS,
     )
     png = render_panel_show_card(
@@ -231,7 +232,7 @@ def _show_render_result(
         name="panel/show",
         filename=f"panel-show_{safe_filename_part(uid)}_{safe_filename_part(character_name)}.png",
         content=png,
-        description="角色面板卡片图片",
+        description=_t("gsuid.commands.panel.impl.234_20.4ca98c4e"),
     )
     render_data: dict[str, object] = {
         "uid": uid,
@@ -270,7 +271,7 @@ def _compare_render_result(
         provider="panel",
         region="cn",
         category="panel.compare.asset",
-        unavailable_warning="{count} 个面板对比图片不可用，已使用占位图",
+        unavailable_warning=_t("gsuid.commands.panel.impl.273_28.8f613616"),
         max_workers=PANEL_IMAGE_WORKERS,
     )
 
@@ -302,7 +303,7 @@ def _compare_render_result(
         name="panel/compare",
         filename=f"panel-compare_{safe_filename_part(names)}.png",
         content=png,
-        description="面板对比图片",
+        description=_t("gsuid.commands.panel.impl.305_20.d3618d84"),
     )
     render_data: dict[str, object] = {
         "build_count": len(render_builds),
@@ -333,7 +334,7 @@ def _artifacts_render_result(
         provider="panel",
         region="cn",
         category="panel.artifacts.asset",
-        unavailable_warning="{count} 个圣遗物图片不可用，已使用占位图",
+        unavailable_warning=_t("gsuid.commands.panel.impl.336_28.33539fc1"),
         max_workers=PANEL_IMAGE_WORKERS,
     )
     png = render_panel_artifacts_library(
@@ -348,7 +349,7 @@ def _artifacts_render_result(
         name="panel/artifacts",
         filename=f"panel-artifacts_{safe_filename_part(uid)}_p{args.page}.png",
         content=png,
-        description="圣遗物仓库图片",
+        description=_t("gsuid.commands.panel.impl.351_20.33393795"),
     )
     render_data: dict[str, object] = {
         "uid": uid,
@@ -380,7 +381,7 @@ def _showcase_render_result(
         provider="panel",
         region="cn",
         category="panel.showcase.asset",
-        unavailable_warning="{count} 个展柜图片不可用，已使用占位图",
+        unavailable_warning=_t("gsuid.commands.panel.impl.383_28.10697d1f"),
         max_workers=PANEL_IMAGE_WORKERS,
     )
     png = render_panel_showcase(
@@ -395,7 +396,7 @@ def _showcase_render_result(
         name="panel/showcase",
         filename=f"panel-showcase_{safe_filename_part(uid)}.png",
         content=png,
-        description="展柜汇总图片",
+        description=_t("gsuid.commands.panel.impl.398_20.703a20cb"),
     )
     render_data: dict[str, object] = {
         "uid": uid,
@@ -428,7 +429,7 @@ def _graduation_render_result(
         provider="panel",
         region="cn",
         category="panel.graduation.asset",
-        unavailable_warning="{count} 个毕业度图片不可用，已使用占位图",
+        unavailable_warning=_t("gsuid.commands.panel.impl.431_28.4cd27d2d"),
         max_workers=PANEL_IMAGE_WORKERS,
     )
     png = render_panel_graduation(
@@ -443,7 +444,7 @@ def _graduation_render_result(
         name="panel/graduation",
         filename=f"panel-graduation_{safe_filename_part(uid)}.png",
         content=png,
-        description="毕业度汇总图片",
+        description=_t("gsuid.commands.panel.impl.446_20.a2f0d250"),
     )
     render_data: dict[str, object] = {
         "uid": uid,
@@ -703,7 +704,7 @@ def _panel_text_result(
         name=name,
         filename=filename,
         content=content,
-        description="面板文本",
+        description=_t("gsuid.commands.panel.impl.706_20.83ee6484"),
     )  # type: ignore[return-value]
 
 
@@ -738,7 +739,7 @@ def _refresh_panel_cache(
             )
             if not changed:
                 existing_source = str(existing.get("source_provider") or "enka")
-                warning = "保留已有面板缓存，MYS 备份未发现等级、命座或武器差异。"
+                warning = _t("gsuid.commands.panel.impl.741_26.40b6e8c4")
                 return (
                     existing,
                     existing_source,
@@ -767,7 +768,7 @@ def _refresh_panel_cache(
     if enka_result is not None and mys_result is None:
         warnings = [*enka_result.warnings]
         if mys_error is not None and mys_error.code != "AUTH_REQUIRED":
-            warnings.append(f"MYS 备份不可用，已保留 Enka 面板: {mys_error.message}")
+            warnings.append(_t("gsuid.commands.panel.impl.770_28.298314f8", mys_error.message))
         return _save_refresh_result(
             args,
             uid=uid,
@@ -784,7 +785,7 @@ def _refresh_panel_cache(
     if enka_result is None and mys_result is not None:
         warnings = [*mys_result.warnings]
         if enka_error is not None:
-            warnings.append(f"Enka 面板不可用，已使用 MYS 备份: {enka_error.message}")
+            warnings.append(_t("gsuid.commands.panel.impl.787_28.a90fd835", enka_error.message))
         return _save_refresh_result(
             args,
             uid=uid,
@@ -822,7 +823,7 @@ def _refresh_panel_cache(
         raise mys_error
     raise CliError(
         "UPSTREAM_INVALID_RESPONSE",
-        "没有任何面板数据源返回数据。",
+        _t("gsuid.commands.panel.impl.825_8.df6989c2"),
         EXIT_UPSTREAM,
         {"uid": uid, "source": args.source},
     )
@@ -886,9 +887,9 @@ def _merge_panel_result(
         )
     warnings = [*base_result.warnings, *mys_result.warnings]
     if added:
-        warnings.append(f"MYS 补充角色: {'、'.join(added)}")
+        warnings.append(_t("gsuid.commands.panel.impl.889_24.881bb5e5", "、".join(added)))
     if replaced:
-        warnings.append(f"MYS 替换过期角色: {'；'.join(replaced)}")
+        warnings.append(_t("gsuid.commands.panel.impl.891_24.b82ac105", "；".join(replaced)))
     return (
         CommandResult(
             data=payload,
@@ -983,16 +984,16 @@ def _avatar_stale_reasons(
     mys = _avatar_compare_row(mys_avatar)
     reasons: list[str] = []
     for field, label in (
-        ("level", "等级"),
-        ("constellation", "命座"),
-        ("weapon_name", "武器"),
-        ("weapon_level", "武器等级"),
+        ("level", _t("gsuid.commands.panel.impl.986_18.5c42c048")),
+        ("constellation", _t("gsuid.commands.panel.impl.987_26.096ace91")),
+        ("weapon_name", _t("gsuid.commands.panel.impl.988_24.6f0f16e0")),
+        ("weapon_level", _t("gsuid.commands.panel.impl.989_25.0e62cbc3")),
     ):
         left = enka.get(field)
         right = mys.get(field)
         if left in (None, "") or right in (None, "") or left == right:
             continue
-        reasons.append(f"{label}不一致: Enka {left}，MYS {right}")
+        reasons.append(_t("gsuid.commands.panel.impl.995_23.428d7ae7", label, left, right))
     return reasons
 
 
@@ -1178,7 +1179,7 @@ def _write_panel(
         filename=filename,
         media_type="application/json",
         content=content,
-        description="已保存的角色面板",
+        description=_t("gsuid.commands.panel.impl.1181_20.4c6bad5c"),
         kind="json",
     )
 
