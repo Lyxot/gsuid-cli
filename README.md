@@ -39,6 +39,7 @@ language = "auto"
 ### 从源码安装 (推荐)
 
 当前工具尚未发布至 PyPI，建议从源码克隆并使用 `uv` 管理本地 Python 环境。
+如需使用传统 `venv + pip` 或 requirements 风格安装，请查看 [完整安装指南](docs/installation.md)。
 
 #### 1. 克隆代码仓库
 
@@ -49,16 +50,10 @@ cd gsuid-cli
 
 #### 2. 安装依赖与工具
 
-如果你打算只使用工具，可以执行标准同步：
+执行标准同步：
 
 ```sh
 uv sync --python 3.11
-```
-
-如果你希望参与开发、运行测试或查看代码规范，请同步开发者依赖：
-
-```sh
-uv sync --python 3.11 --extra dev
 ```
 
 ### 安装验证
@@ -241,6 +236,7 @@ gsuid meta errors
 更多深入信息，请查阅文档：
 
 - [命令参考 (Command Reference)](docs/commands.md)
+- [安装指南 (Installation Guide)](docs/installation.md)
 - [凭据安全指南 (Credential Safety)](docs/credential-safety.md)
 - [HTTP 缓存策略 (Cache Policy)](docs/http-cache-policy.md)
 - [架构设计 (Architecture)](docs/architecture.md)
