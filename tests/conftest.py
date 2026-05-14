@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 
 import keyring
 import pytest
 from keyring.backend import KeyringBackend
 from keyring.errors import PasswordDeleteError
+
+os.environ["GSUID_LANG"] = "zh-CN"
 
 
 class MemoryKeyring(KeyringBackend):

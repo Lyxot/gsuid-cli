@@ -8,6 +8,7 @@
 
 默认的渲染模式为 `data,text`，因此 JSON 输出会包含结构化的 `data` 和 `sources`。如果你只想要紧凑的产物包（不包含大量 JSON 数据），你可以选择非数据渲染模式，比如 `--render image` 或 `--render text`。加上 `--debug` 选项将会在本地生成包含完整细节的 `debug-envelope.json` 文件用于诊断。
 如果添加了 `--format plain` 选项，文本渲染模式将直接在终端打印人类可读的文本，而图片渲染模式会打印生成的图片路径。
+CLI 文本语言会优先读取 `GSUID_LANG` / `GSUID_LANGUAGE`，再读取 `LANGUAGE` / `LC_ALL` / `LC_MESSAGES` / `LANG`，目前支持 `zh-CN` 与 `en`；无法识别时默认使用中文。
 
 ## 安装指南 (Installation Guide)
 
