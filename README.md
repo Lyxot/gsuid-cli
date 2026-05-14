@@ -32,12 +32,13 @@ language = "auto"
 ### 环境要求
 
 - **Python**: 3.11 或更高版本
+- **uv**: 用于同步依赖、运行测试和构建产物
 - **操作系统**: macOS、Linux 或 Windows
 - **凭据管理器 (Keyring)**: 操作系统必须提供安全的凭据管理器服务。在 Linux 系统上，可能需要安装 `dbus-x11` 和相应的 `keyring` 后端，例如 `gnome-keyring` 或 `kwallet`。
 
 ### 从源码安装 (推荐)
 
-当前工具尚未发布至 PyPI，建议从源码克隆并使用虚拟环境进行安装。
+当前工具尚未发布至 PyPI，建议从源码克隆并使用 `uv` 管理本地 Python 环境。
 
 #### 1. 克隆代码仓库
 
@@ -46,35 +47,18 @@ git clone https://github.com/Lyxot/gsuid-cli.git
 cd gsuid-cli
 ```
 
-#### 2. 创建并激活虚拟环境
+#### 2. 安装依赖与工具
 
-为了避免依赖冲突，请务必使用 Python 虚拟环境。
+如果你打算只使用工具，可以执行标准同步：
 
 ```sh
-python3 -m venv .venv
-
-# macOS / Linux
-source .venv/bin/activate
-
-# Windows (Command Prompt)
-.venv\Scripts\activate.bat
-
-# Windows (PowerShell)
-.venv\Scripts\Activate.ps1
+uv sync --python 3.11
 ```
 
-#### 3. 安装依赖与工具
-
-如果你打算只使用工具，可以执行标准安装：
+如果你希望参与开发、运行测试或查看代码规范，请同步开发者依赖：
 
 ```sh
-python3 -m pip install -e .
-```
-
-如果你希望参与开发、运行测试或查看代码规范，请安装开发者依赖：
-
-```sh
-python3 -m pip install -e ".[dev]"
+uv sync --python 3.11 --extra dev
 ```
 
 ### 安装验证
@@ -82,13 +66,13 @@ python3 -m pip install -e ".[dev]"
 安装完成后，你可以通过运行以下命令来验证是否安装成功：
 
 ```sh
-gsuid meta version
+uv run gsuid meta version
 ```
 
 或者使用 Python 模块方式调用（在使用自动化 Agent 时更为推荐，因为它确保了使用的是当前环境的 Python）：
 
 ```sh
-gsuid meta version
+uv run python -m gsuid_cli meta version
 ```
 
 如果成功输出包含版本号和当前环境状态的 JSON 数据包，说明安装完成！
@@ -264,8 +248,8 @@ gsuid meta errors
 ## 代码检查和测试
 
 ```sh
-.venv/bin/python -m pytest
-.venv/bin/ruff check .
-.venv/bin/ruff format --check .
-.venv/bin/python scripts/generate_command_reference.py --check
+uv run --python 3.11 --extra dev python -m pytest
+uv run --python 3.11 --extra dev ruff check .
+uv run --python 3.11 --extra dev ruff format --check .
+uv run --python 3.11 --extra dev python scripts/generate_command_reference.py --check
 ```

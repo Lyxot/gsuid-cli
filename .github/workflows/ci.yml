@@ -14,31 +14,32 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
+          version: "0.11.14"
           python-version: ${{ matrix.python-version }}
+          enable-cache: true
       - name: Install
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
+        run: uv sync --locked --extra dev
       - name: Command reference check
-        run: python scripts/generate_command_reference.py --check
+        run: uv run python scripts/generate_command_reference.py --check
       - name: Tests
-        run: python -m pytest
+        run: uv run python -m pytest
       - name: Ruff
         run: |
-          ruff check .
-          ruff format --check .
+          uv run ruff check .
+          uv run ruff format --check .
 
   build:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
+          version: "0.11.14"
           python-version: "3.11"
       - name: Build package
-        run: |
-          python -m pip install --upgrade pip build
-          python -m build
+        run: uv build --python 3.11

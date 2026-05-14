@@ -98,12 +98,12 @@ Be honest, direct, and constructive.
 
 ### 0. Python environment
 
-Use the repository-local Python virtual environment at `.venv`.
+Use `uv` for the repository-local Python environment.
 
-- Create it with `python3 -m venv .venv` if it is missing.
-- Activate it with `source .venv/bin/activate` for interactive work.
-- Prefer `.venv/bin/python -m ...` and `.venv/bin/<tool>` in scripts or non-interactive commands.
-- Do not commit `.venv`; it is local machine state and must remain ignored.
+- Sync the development environment with `uv sync --python 3.11 --extra dev`.
+- Prefer `uv run --python 3.11 --extra dev python -m ...` and `uv run --python 3.11 --extra dev <tool>` in scripts or non-interactive commands.
+- Do not create or manage `.venv` manually. `uv` may create `.venv` as local machine state; do not commit it.
+- Commit `uv.lock` when dependency resolution changes.
 
 ### 1. Version control discipline
 

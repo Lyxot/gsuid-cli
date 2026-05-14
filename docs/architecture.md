@@ -139,5 +139,5 @@ src/gsuid_cli/
 如果在后续的开发任务中启用了新的 AI Agent：
 - **执行原则**：优先遵循既有实现模式；除非代码缺乏测试覆盖，否则请先保障旧有逻辑不被破坏再考虑重构。
 - **提交规范**：严格使用 [Conventional Commits](https://www.conventionalcommits.org/)，每次完成一个实质性阶段请单独进行一次原子提交 (Commit)。
-- **隔离环境**：执行 Python 命令时强制使用仓库本地目录的虚拟环境 `.venv/bin/python`。不得将虚拟环境产生的文件包含进 `git` 提交中。
+- **隔离环境**：执行 Python 命令时使用 `uv run --python 3.11 --extra dev ...`。不得将 `uv` 生成的本地虚拟环境 `.venv` 包含进 `git` 提交中。
 - **授权协议**：若全盘复制 GenshinUID 的代码或资源，必须首先评估并明确解决版权许可兼容及引用署名问题。
