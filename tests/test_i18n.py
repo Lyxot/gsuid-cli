@@ -63,6 +63,53 @@ def test_standard_locale_environment_selects_english(monkeypatch) -> None:
     assert text.language() == "en"
 
 
+def test_configured_language_selects_english(monkeypatch, tmp_path) -> None:
+    _clear_language_environment(monkeypatch)
+    monkeypatch.setattr(text.locale, "getlocale", lambda: (None, None))
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("GSUID_HOME", str(home))
+    (home / "config.toml").write_text('[defaults]\nlanguage = "en"\n', encoding="utf-8")
+
+    assert text.language() == "en"
+    assert text.t("gsuid.renderers.utility_text.21_16.4cb4e572") == "CLI Version"
+
+
+def test_auto_configured_language_uses_locale_environment(monkeypatch, tmp_path) -> None:
+    _clear_language_environment(monkeypatch)
+    monkeypatch.setenv("LANG", "en_US.UTF-8")
+    monkeypatch.setattr(text.locale, "getlocale", lambda: (None, None))
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("GSUID_HOME", str(home))
+    (home / "config.toml").write_text('[defaults]\nlanguage = "auto"\n', encoding="utf-8")
+
+    assert text.language() == "en"
+
+
+def test_explicit_language_environment_overrides_config(monkeypatch, tmp_path) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("GSUID_HOME", str(home))
+    monkeypatch.setenv("GSUID_LANG", "zh-CN")
+    (home / "config.toml").write_text('[defaults]\nlanguage = "en"\n', encoding="utf-8")
+
+    assert text.language() == "zh-cn"
+
+
+def test_explicit_auto_language_environment_skips_config(monkeypatch, tmp_path) -> None:
+    _clear_language_environment(monkeypatch)
+    monkeypatch.setenv("GSUID_LANG", "auto")
+    monkeypatch.setenv("LANG", "C.UTF-8")
+    monkeypatch.setattr(text.locale, "getlocale", lambda: (None, None))
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("GSUID_HOME", str(home))
+    (home / "config.toml").write_text('[defaults]\nlanguage = "en"\n', encoding="utf-8")
+
+    assert text.language() == "zh-cn"
+
+
 def test_unsupported_environment_language_falls_back_to_chinese(monkeypatch) -> None:
     _clear_language_environment(monkeypatch)
     monkeypatch.setenv("LANG", "C.UTF-8")
@@ -70,6 +117,25 @@ def test_unsupported_environment_language_falls_back_to_chinese(monkeypatch) -> 
 
     assert text.language() == "zh-cn"
     assert text.t("gsuid.renderers.utility_text.21_16.4cb4e572") == "CLI版本"
+
+
+def test_invalid_configured_language_returns_config_error(monkeypatch, tmp_path) -> None:
+    _clear_language_environment(monkeypatch)
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("GSUID_HOME", str(home))
+    (home / "config.toml").write_text('[defaults]\nlanguage = "fr"\n', encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, "-m", "gsuid_cli", "meta", "version"],
+        check=False,
+        capture_output=True,
+        env=_subprocess_env(home),
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert "INVALID_ARGUMENT" in result.stdout
 
 
 def test_cli_process_uses_environment_language(monkeypatch, tmp_path) -> None:
@@ -102,6 +168,45 @@ def test_cli_process_uses_environment_language(monkeypatch, tmp_path) -> None:
     assert "CLI版本" not in result.stdout
 
 
+def test_cli_process_uses_configured_language(monkeypatch, tmp_path) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / "config.toml").write_text('[defaults]\nlanguage = "en"\n', encoding="utf-8")
+    monkeypatch.setenv("GSUID_LANG", "zh-CN")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "gsuid_cli",
+            "meta",
+            "version",
+            "--render",
+            "text",
+            "--format",
+            "plain",
+        ],
+        check=False,
+        capture_output=True,
+        env=_subprocess_env(home),
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert "CLI Version" in result.stdout
+    assert "CLI版本" not in result.stdout
+
+
 def _clear_language_environment(monkeypatch) -> None:
     for name in ("GSUID_LANG", "GSUID_LANGUAGE", "LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
         monkeypatch.delenv(name, raising=False)
+
+
+def _subprocess_env(home) -> dict[str, str]:
+    env = os.environ.copy()
+    env["GSUID_HOME"] = str(home)
+    env["LANG"] = "C.UTF-8"
+    for name in ("GSUID_LANG", "GSUID_LANGUAGE", "LANGUAGE", "LC_ALL", "LC_MESSAGES"):
+        env.pop(name, None)
+    return env

@@ -176,6 +176,131 @@ def test_plain_format_prints_direct_result_data() -> None:
     assert "ok" not in payload
 
 
+def test_config_defaults_apply_to_global_options(monkeypatch, tmp_path) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("GSUID_HOME", str(home))
+    _clear_cli_env(monkeypatch)
+    (home / "config.toml").write_text(
+        """
+[defaults]
+format = "plain"
+render = "text"
+output_dir = "configured-artifacts"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = run(["meta", "version"], stdout=stdout, stderr=stderr)
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    assert "CLI版本" in stdout.getvalue()
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = run(["--format=json", "--render=data", "meta", "paths"], stdout=stdout, stderr=stderr)
+
+    assert code == 0
+    payload = json.loads(stdout.getvalue())
+    assert payload["data"]["artifacts"] == str((home / "configured-artifacts").resolve())
+
+
+def test_environment_defaults_override_config(monkeypatch, tmp_path) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("GSUID_HOME", str(home))
+    monkeypatch.setenv("GSUID_FORMAT", "json")
+    (home / "config.toml").write_text(
+        """
+[defaults]
+format = "plain"
+render = "text"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = run(["--render=data", "meta", "version"], stdout=stdout, stderr=stderr)
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    assert json.loads(stdout.getvalue())["data"]["package"] == "gsuid-cli"
+
+
+def test_config_cache_timeout_and_region_reach_provider(monkeypatch, tmp_path) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("GSUID_HOME", str(home))
+    _clear_cli_env(monkeypatch)
+    (home / "config.toml").write_text(
+        """
+[defaults]
+region = "cn"
+cache = "off"
+timeout = 7
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    class FakePublicDataProvider:
+        def __init__(self, http_client):
+            self.http_client = http_client
+
+        def wiki_lookup(self, *, kind: str, query: str) -> CommandResult:
+            return CommandResult(
+                data={
+                    "kind": kind,
+                    "query": query,
+                    "timeout": self.http_client.timeout,
+                    "cache_policy": self.http_client.cache_policy,
+                }
+            )
+
+    monkeypatch.setattr(
+        "gsuid_cli.commands.public_data._common.PublicDataProvider", FakePublicDataProvider
+    )
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    code = run(["wiki", "character", "--name", "Amber"], stdout=stdout, stderr=stderr)
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    payload = json.loads(stdout.getvalue())
+    assert payload["sources"][0]["region"] == "cn"
+    assert payload["data"]["timeout"] == 7
+    assert payload["data"]["cache_policy"] == "off"
+
+
+def test_invalid_config_returns_error_envelope(monkeypatch, tmp_path) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("GSUID_HOME", str(home))
+    _clear_cli_env(monkeypatch)
+    (home / "config.toml").write_text(
+        """
+[defaults]
+timeout = 0
+""".lstrip(),
+        encoding="utf-8",
+    )
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(["meta", "version"], stdout=stdout, stderr=stderr)
+
+    assert code == 1
+    assert stderr.getvalue() == ""
+    payload = json.loads(stdout.getvalue())
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "INVALID_ARGUMENT"
+    assert "配置文件无效" in payload["error"]["message"]
+
+
 def test_plain_format_ignores_non_render_text_artifacts(tmp_path) -> None:
     artifact_path = tmp_path / "debug.txt"
     artifact_path.write_text("debug details", encoding="utf-8")
@@ -518,3 +643,8 @@ def _source(region: str) -> dict[str, object]:
         "cached": False,
         "fetched_at": "2026-04-29T00:00:00Z",
     }
+
+
+def _clear_cli_env(monkeypatch) -> None:
+    for name in ("GSUID_FORMAT", "GSUID_OUTPUT_DIR", "GSUID_PROFILE", "GSUID_REGION"):
+        monkeypatch.delenv(name, raising=False)

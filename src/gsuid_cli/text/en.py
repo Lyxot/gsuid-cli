@@ -78,6 +78,7 @@ TEXT_EN: dict[str, str] = {
     "gsuid.cli.81_16.36e9efc8": "The cookie value used for this credential write.",
     "gsuid.cli.82_21.d7e94f77": "Read cookie values from file.",
     "gsuid.cli.83_22.c7c27395": "Read cookie values from standard input.",
+    "gsuid.cli.config.invalid": "Invalid config file: {0}",
     "gsuid.cli.84_14.d408a7e0": "The calendar date for which data is requested.",
     "gsuid.cli.85_13.5aa9ec83": "Weekday name or number.",
     "gsuid.cli.86_15.4bbccfad": "Include debugging diagnostic information in error details.",

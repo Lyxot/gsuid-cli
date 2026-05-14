@@ -4,6 +4,7 @@ import locale
 import os
 from collections.abc import Mapping
 
+from gsuid_cli.core.config import ConfigError, load_cli_defaults, normalize_language
 from gsuid_cli.text.en import TEXT_EN
 from gsuid_cli.text.zh_cn import TEXT_ZH_CN
 
@@ -17,18 +18,20 @@ TEXT: Mapping[str, str] = TEXT_ZH_CN
 
 
 def language() -> str:
-    for name in ("GSUID_LANG", "GSUID_LANGUAGE"):
-        selected = _language_from_value(os.environ.get(name))
-        if selected:
-            return selected
+    selected = _environment_language(("GSUID_LANG", "GSUID_LANGUAGE"))
+    if selected and selected != "auto":
+        return selected
 
-    for name in ("LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
-        selected = _language_from_value(os.environ.get(name))
-        if selected:
-            return selected
+    configured = None if selected == "auto" else _configured_language()
+    if configured and configured != "auto":
+        return configured
+
+    selected = _environment_language(("LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"))
+    if selected and selected != "auto":
+        return selected
 
     try:
-        selected = _language_from_value(locale.getlocale()[0])
+        selected = normalize_language(locale.getlocale()[0])
     except ValueError:
         selected = None
     return selected or DEFAULT_LANGUAGE
@@ -45,15 +48,16 @@ def t(key: str, *args: object, **kwargs: object) -> str:
     return value
 
 
-def _language_from_value(value: str | None) -> str | None:
-    if not value:
+def _configured_language() -> str | None:
+    try:
+        return load_cli_defaults().language
+    except ConfigError:
         return None
-    for raw_token in value.split(":"):
-        token = raw_token.split(".", maxsplit=1)[0].strip().replace("_", "-").lower()
-        if not token or token in {"c", "posix"}:
-            continue
-        if token.startswith("zh"):
-            return "zh-cn"
-        if token.startswith("en"):
-            return "en"
+
+
+def _environment_language(names: tuple[str, ...]) -> str | None:
+    for name in names:
+        selected = normalize_language(os.environ.get(name))
+        if selected:
+            return selected
     return None

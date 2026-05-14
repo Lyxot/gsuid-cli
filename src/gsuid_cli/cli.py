@@ -29,6 +29,7 @@ from gsuid_cli.commands import (
     rank,
 )
 from gsuid_cli.core.artifacts import ArtifactManager
+from gsuid_cli.core.config import CliDefaults, ConfigError, load_cli_defaults
 from gsuid_cli.core.envelope import error_envelope, success_envelope
 from gsuid_cli.core.errors import (
     EXIT_INTERNAL_BUG,
@@ -54,9 +55,10 @@ GLOBAL_VALUE_OPTIONS = {
     "--timeout",
     "--request-id",
 }
-GLOBAL_FLAG_OPTIONS = {"--quiet", "--debug", "--help", "--version"}
-HOISTED_GLOBAL_FLAG_OPTIONS = {"--quiet", "--debug"}
+GLOBAL_FLAG_OPTIONS = {"--quiet", "--no-quiet", "--debug", "--no-debug", "--help", "--version"}
+HOISTED_GLOBAL_FLAG_OPTIONS = {"--quiet", "--no-quiet", "--debug", "--no-debug"}
 OUTPUT_FORMATS = {"json", "pretty-json", "plain"}
+CACHE_POLICIES = {"use", "refresh", "only", "off"}
 ANSI_YELLOW = "\033[33m"
 ANSI_RESET = "\033[0m"
 SENSITIVE_KEY_PARTS = (
@@ -149,12 +151,14 @@ class GsuidArgumentParser(argparse.ArgumentParser):
         raise CliError("INVALID_ARGUMENT", message, EXIT_INVALID_INPUT)
 
 
-def build_parser() -> argparse.ArgumentParser:
+def build_parser(defaults: CliDefaults | None = None) -> argparse.ArgumentParser:
+    defaults = defaults or effective_cli_defaults()
     parser = GsuidArgumentParser(
         prog="gsuid",
         description=_t("gsuid.cli.154_20.ea648adb"),
         add_help=False,
     )
+    parser.set_defaults(cli_defaults=defaults)
     parser.add_argument(
         "-h",
         "--help",
@@ -162,25 +166,25 @@ def build_parser() -> argparse.ArgumentParser:
         default=argparse.SUPPRESS,
         help=_t("gsuid.cli.158_71.ca4abdda"),
     )
-    parser.add_argument("--profile", default=os.environ.get("GSUID_PROFILE", "default"))
+    parser.add_argument("--profile", default=defaults.profile)
     parser.add_argument("--uid")
     parser.add_argument(
         "--region",
         choices=tuple(sorted(REGION_CHOICES)),
-        default=os.environ.get("GSUID_REGION", "auto"),
+        default=defaults.region,
     )
     parser.add_argument(
         "--format",
         choices=("json", "pretty-json", "plain"),
-        default=os.environ.get("GSUID_FORMAT", "json"),
+        default=defaults.format,
     )
     parser.add_argument("--render", action="append", metavar="data|image|text|all")
-    parser.add_argument("--output-dir", default=os.environ.get("GSUID_OUTPUT_DIR"))
-    parser.add_argument("--cache", choices=("use", "refresh", "only", "off"), default="use")
-    parser.add_argument("--timeout", type=float, default=20.0)
+    parser.add_argument("--output-dir", default=defaults.output_dir)
+    parser.add_argument("--cache", choices=tuple(sorted(CACHE_POLICIES)), default=defaults.cache)
+    parser.add_argument("--timeout", type=float, default=defaults.timeout)
     parser.add_argument("--request-id")
-    parser.add_argument("--quiet", action="store_true")
-    parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--quiet", action=argparse.BooleanOptionalAction, default=defaults.quiet)
+    parser.add_argument("--debug", action=argparse.BooleanOptionalAction, default=defaults.debug)
     parser.add_argument(
         "--version",
         action="version",
@@ -208,7 +212,34 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def parse_argv(argv: Sequence[str]) -> argparse.Namespace:
-    return build_parser().parse_args(_canonicalize_global_options(argv))
+    defaults = effective_cli_defaults()
+    args = build_parser(defaults).parse_args(_canonicalize_global_options(argv))
+    _apply_post_parse_defaults(args, defaults)
+    return args
+
+
+def effective_cli_defaults() -> CliDefaults:
+    try:
+        defaults = load_cli_defaults()
+    except ConfigError as exc:
+        raise CliError(
+            "INVALID_ARGUMENT",
+            _t("gsuid.cli.config.invalid", exc),
+            EXIT_INVALID_INPUT,
+            {"config": str(exc.path)},
+        ) from exc
+    return CliDefaults(
+        profile=os.environ.get("GSUID_PROFILE", defaults.profile),
+        region=os.environ.get("GSUID_REGION", defaults.region),
+        format=os.environ.get("GSUID_FORMAT", defaults.format),
+        render=defaults.render,
+        output_dir=os.environ.get("GSUID_OUTPUT_DIR") or defaults.output_dir,
+        cache=defaults.cache,
+        timeout=defaults.timeout,
+        quiet=defaults.quiet,
+        debug=defaults.debug,
+        language=defaults.language,
+    )
 
 
 def run(
@@ -224,12 +255,14 @@ def run(
     captured_sources: list[dict[str, object]] = []
 
     try:
-        parser = build_parser()
+        defaults = effective_cli_defaults()
+        parser = build_parser(defaults)
         if _write_explicit_help(parser, args_list, stdout):
             return 0
         if _write_incomplete_help(parser, args_list, stdout):
             return 0
         args = parser.parse_args(args_list)
+        _apply_post_parse_defaults(args, defaults)
         _validate_runtime_defaults(args)
         command = args.command_name
         request_id = args.request_id or str(uuid.uuid4())
@@ -272,7 +305,11 @@ def run(
     except SystemExit as exc:
         return _system_exit_code(exc)
     except CliError as exc:
-        context = _context_from_args(args) if "args" in locals() else _error_context(args_list)
+        context = (
+            _context_from_args(args)
+            if "args" in locals()
+            else _error_context(args_list, locals().get("defaults"))
+        )
         payload = error_envelope(
             command=context["command"],
             request_id=context["request_id"],
@@ -293,7 +330,7 @@ def run(
         )
         return exc.exit_code
     except KeyboardInterrupt:
-        context = _error_context(args_list)
+        context = _error_context(args_list, locals().get("defaults"))
         error = CliError("INTERRUPTED", _t("gsuid.cli.289_40.d0ea587e"), EXIT_INTERRUPTED)
         payload = error_envelope(
             command=context["command"],
@@ -315,7 +352,7 @@ def run(
         )
         return EXIT_INTERRUPTED
     except Exception as exc:  # pragma: no cover - defensive command boundary.
-        context = _error_context(args_list)
+        context = _error_context(args_list, locals().get("defaults"))
         details = {}
         if context["debug"]:
             details = {"type": type(exc).__name__, "message": str(exc)}
@@ -401,6 +438,11 @@ def _label_help(value: str) -> str:
     return _t("gsuid.cli.391_11.d8d8b025", label.capitalize())
 
 
+def _apply_post_parse_defaults(args: argparse.Namespace, defaults: CliDefaults) -> None:
+    if args.render is None and defaults.render is not None:
+        args.render = list(defaults.render)
+
+
 def _validate_runtime_defaults(args: argparse.Namespace) -> None:
     if args.format not in OUTPUT_FORMATS:
         raise CliError(
@@ -408,6 +450,20 @@ def _validate_runtime_defaults(args: argparse.Namespace) -> None:
             f"invalid output format: {args.format}",
             EXIT_INVALID_INPUT,
             {"format": args.format},
+        )
+    if args.region not in REGION_CHOICES:
+        raise CliError(
+            "INVALID_ARGUMENT",
+            f"invalid region: {args.region}",
+            EXIT_INVALID_INPUT,
+            {"region": args.region},
+        )
+    if args.cache not in CACHE_POLICIES:
+        raise CliError(
+            "INVALID_ARGUMENT",
+            f"invalid cache policy: {args.cache}",
+            EXIT_INVALID_INPUT,
+            {"cache": args.cache},
         )
     args.explicit_render = explicit_render_modes(args.render)
     args.render = normalize_render_modes(args.render)
@@ -677,7 +733,16 @@ def _system_exit_code(exc: SystemExit) -> int:
     return EXIT_INVALID_INPUT
 
 
-def _error_context(argv: Sequence[str]) -> dict[str, object]:
+def _error_context(
+    argv: Sequence[str],
+    defaults: CliDefaults | None = None,
+) -> dict[str, object]:
+    defaults = defaults or CliDefaults(
+        profile=os.environ.get("GSUID_PROFILE", "default"),
+        region=_valid_env("GSUID_REGION", REGION_CHOICES, "auto"),
+        format=_valid_env("GSUID_FORMAT", OUTPUT_FORMATS, "json"),
+        output_dir=os.environ.get("GSUID_OUTPUT_DIR"),
+    )
     argv = _canonicalize_global_options(argv)
     output_format = _global_option_value(argv, "--format")
     region = _global_option_value(argv, "--region")
@@ -686,14 +751,11 @@ def _error_context(argv: Sequence[str]) -> dict[str, object]:
         "request_id": _option_value(argv, "--request-id") or str(uuid.uuid4()),
         "format": output_format
         if output_format in OUTPUT_FORMATS
-        else _valid_env("GSUID_FORMAT", OUTPUT_FORMATS, "json"),
-        "region": region
-        if region in REGION_CHOICES
-        else _valid_env("GSUID_REGION", REGION_CHOICES, "auto"),
-        "debug": "--debug" in argv,
-        "output_dir": _global_option_value(argv, "--output-dir")
-        or os.environ.get("GSUID_OUTPUT_DIR"),
-        "include_details": _context_render_data_enabled(argv),
+        else _safe_output_format(defaults.format),
+        "region": region if region in REGION_CHOICES else defaults.region,
+        "debug": _context_flag_value(argv, "--debug", "--no-debug", defaults.debug),
+        "output_dir": _global_option_value(argv, "--output-dir") or defaults.output_dir,
+        "include_details": _context_render_data_enabled(argv, defaults),
     }
 
 
@@ -701,7 +763,7 @@ def _context_from_args(args: argparse.Namespace) -> dict[str, object]:
     return {
         "command": args.command_name,
         "request_id": args.request_id or str(uuid.uuid4()),
-        "format": args.format,
+        "format": _safe_output_format(args.format),
         "region": args.region,
         "debug": args.debug,
         "output_dir": args.output_dir,
@@ -713,6 +775,25 @@ def _optional_str(value: object) -> str | None:
     if value is None:
         return None
     return str(value)
+
+
+def _safe_output_format(value: object) -> str:
+    return value if isinstance(value, str) and value in OUTPUT_FORMATS else "json"
+
+
+def _context_flag_value(
+    argv: Sequence[str],
+    positive: str,
+    negative: str,
+    default: bool,
+) -> bool:
+    value = default
+    for token in _canonicalize_global_options(argv):
+        if token == positive:
+            value = True
+        elif token == negative:
+            value = False
+    return value
 
 
 def _valid_env(name: str, allowed: set[str], default: str) -> str:
@@ -961,7 +1042,7 @@ def _validate_global_value(option: str, value: str) -> None:
     choices = {
         "--region": REGION_CHOICES,
         "--format": OUTPUT_FORMATS,
-        "--cache": {"use", "refresh", "only", "off"},
+        "--cache": CACHE_POLICIES,
     }.get(option)
     if choices is not None and value not in choices:
         allowed = ", ".join(sorted(choices))
@@ -990,9 +1071,14 @@ def _validate_global_value(option: str, value: str) -> None:
         normalize_render_modes(value)
 
 
-def _context_render_data_enabled(argv: Sequence[str]) -> bool:
+def _context_render_data_enabled(
+    argv: Sequence[str],
+    defaults: CliDefaults | None = None,
+) -> bool:
     values = _global_option_values(argv, "--render")
     if not values:
+        if defaults is not None and defaults.render is not None:
+            return _safe_render_data_enabled(defaults.render)
         return True
     return _safe_render_data_enabled(values)
 

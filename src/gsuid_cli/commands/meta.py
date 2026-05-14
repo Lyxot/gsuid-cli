@@ -22,7 +22,7 @@ from gsuid_cli.commands import (
     rank,
 )
 from gsuid_cli.commands._text import command_subject_text_result, helps_from
-from gsuid_cli.core.config import resolve_paths
+from gsuid_cli.core.config import CliDefaults, resolve_paths
 from gsuid_cli.core.envelope import SCHEMA
 from gsuid_cli.core.errors import ERROR_CATALOG, EXIT_NO_RESULT, CliError
 from gsuid_cli.core.http import HttpClient
@@ -126,13 +126,14 @@ def paths_command(args: argparse.Namespace) -> CommandResult | dict[str, object]
 
 
 def capabilities_command(_args: argparse.Namespace) -> CommandResult | dict[str, object]:
+    defaults = getattr(_args, "cli_defaults", CliDefaults())
     commands = [dict(command, implemented=True) for command in _capabilities()]
     data = {
         "schema": SCHEMA,
         "regions": ["auto", "cn", "os"],
         "formats": ["json", "pretty-json", "plain"],
-        "default_format": "json",
-        "global_options": _global_options(),
+        "default_format": defaults.format,
+        "global_options": _global_options(defaults),
         "commands": commands,
     }
     return _meta_text_result(_args, data)
@@ -217,12 +218,13 @@ def _capabilities() -> list[dict[str, object]]:
     )
 
 
-def _global_options() -> list[dict[str, object]]:
+def _global_options(defaults: CliDefaults | None = None) -> list[dict[str, object]]:
+    defaults = defaults or CliDefaults()
     return [
         {
             "name": "--profile",
             "value": "NAME",
-            "default": "default",
+            "default": defaults.profile,
             "placement": "anywhere",
             "description": _t("gsuid.cli.111_17.76251a4a"),
         },
@@ -236,42 +238,42 @@ def _global_options() -> list[dict[str, object]]:
         {
             "name": "--region",
             "value": "auto|cn|os",
-            "default": "auto",
+            "default": defaults.region,
             "placement": "anywhere",
             "description": _t("gsuid.cli.114_16.e2c46efe"),
         },
         {
             "name": "--format",
             "value": "json|pretty-json|plain",
-            "default": "json",
+            "default": defaults.format,
             "placement": "anywhere",
             "description": _t("gsuid.cli.139_14.bda6dd74"),
         },
         {
             "name": "--render",
             "value": "data|image|text|all",
-            "default": "data,text",
+            "default": ",".join(defaults.render) if defaults.render is not None else "data,text",
             "placement": "anywhere",
             "description": _t("gsuid.commands.meta.254_27.72b42a4a"),
         },
         {
             "name": "--output-dir",
             "value": "PATH",
-            "default": "$GSUID_HOME/artifacts",
+            "default": defaults.output_dir or "$GSUID_HOME/artifacts",
             "placement": "anywhere",
             "description": _t("gsuid.cli.108_20.12325143"),
         },
         {
             "name": "--cache",
             "value": "use|refresh|only|off",
-            "default": "use",
+            "default": defaults.cache,
             "placement": "anywhere",
             "description": _t("gsuid.cli.77_15.ab20db96"),
         },
         {
             "name": "--timeout",
             "value": "SECONDS",
-            "default": 20,
+            "default": defaults.timeout,
             "placement": "anywhere",
             "description": _t("gsuid.commands.meta.275_27.eda2f290"),
         },
@@ -285,14 +287,14 @@ def _global_options() -> list[dict[str, object]]:
         {
             "name": "--quiet",
             "value": None,
-            "default": False,
+            "default": defaults.quiet,
             "placement": "anywhere",
             "description": _t("gsuid.cli.113_15.b6e4e626"),
         },
         {
             "name": "--debug",
             "value": None,
-            "default": False,
+            "default": defaults.debug,
             "placement": "anywhere",
             "description": _t("gsuid.cli.86_15.4bbccfad"),
         },

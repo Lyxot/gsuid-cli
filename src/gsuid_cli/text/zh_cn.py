@@ -78,6 +78,7 @@ TEXT_ZH_CN: dict[str, str] = {
     "gsuid.cli.81_16.36e9efc8": "用于此次凭据写入的 Cookie 值。",
     "gsuid.cli.82_21.d7e94f77": "从文件读取 Cookie 值。",
     "gsuid.cli.83_22.c7c27395": "从标准输入读取 Cookie 值。",
+    "gsuid.cli.config.invalid": "配置文件无效: {0}",
     "gsuid.cli.84_14.d408a7e0": "请求数据的日历日期。",
     "gsuid.cli.85_13.5aa9ec83": "工作日名称或数字。",
     "gsuid.cli.86_15.4bbccfad": "在错误详情中包含调试诊断信息。",
