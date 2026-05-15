@@ -11,8 +11,7 @@ rendering.
   announcement-list textures, gacha summary textures, panel textures, rank
   textures, challenge textures, progress textures, shared title/footer/mask
   textures, the shared v4 background, weapon rarity backgrounds,
-  character-card frame/background textures, and the bundled
-  Yuanshen font are from GenshinUID historical renderer assets.
+  character-card frame/background textures.
 - Player character-list textures are copied from
   `GenshinUID/genshinuid_roleinfo/texture2d/`; the shared v4 background is
   copied from `GenshinUID/utils/image/texture2d/bg.jpg`.
