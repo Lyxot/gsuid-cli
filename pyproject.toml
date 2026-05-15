@@ -14,7 +14,9 @@ dependencies = [
   "filelock>=3.13",
   "httpx[socks]>=0.28",
   "keyring>=25.0",
+  "langcodes>=3.5,<4",
   "Pillow>=10,<13",
+  "pyobjc-framework-cocoa>=12,<13 ; sys_platform == 'darwin'",
   "qrcode>=7.3,<8",
 ]
 

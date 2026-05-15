@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from langcodes import LanguageTagError, get as get_language
+
 CONFIG_DEFAULT_KEYS = {
     "profile",
     "region",
@@ -213,13 +215,20 @@ def normalize_language(value: str | None) -> str | None:
     if not value:
         return None
     for raw_token in value.split(":"):
-        token = raw_token.split(".", maxsplit=1)[0].strip().replace("_", "-").lower()
-        if not token or token in {"c", "posix"}:
+        token = raw_token.split(".", maxsplit=1)[0].split("@", maxsplit=1)[0].strip()
+        key = token.lower()
+        if not token or key in {"c", "posix"}:
             continue
-        if token == "auto":
+        if key == "auto":
             return "auto"
-        if token.startswith("zh"):
+        try:
+            parsed = get_language(token.replace("_", "-"))
+        except (LanguageTagError, ValueError):
+            continue
+        if not parsed.is_valid():
+            continue
+        if parsed.language == "zh":
             return "zh-cn"
-        if token.startswith("en"):
+        if parsed.language == "en":
             return "en"
     return None

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import locale
 import os
+import sys
 from collections.abc import Mapping
 
 from gsuid_cli.core.config import ConfigError, load_cli_defaults, normalize_language
@@ -30,11 +31,7 @@ def language() -> str:
     if selected and selected != "auto":
         return selected
 
-    try:
-        selected = normalize_language(locale.getlocale()[0])
-    except ValueError:
-        selected = None
-    return selected or DEFAULT_LANGUAGE
+    return _system_language() or DEFAULT_LANGUAGE
 
 
 def catalog() -> Mapping[str, str]:
@@ -61,3 +58,26 @@ def _environment_language(names: tuple[str, ...]) -> str | None:
         if selected:
             return selected
     return None
+
+
+def _system_language() -> str | None:
+    if sys.platform == "darwin":
+        selected = _macos_language()
+        if selected:
+            return selected
+    try:
+        return normalize_language(locale.getlocale()[0])
+    except ValueError:
+        return None
+
+
+def _macos_language() -> str | None:
+    try:
+        from Foundation import NSLocale
+    except Exception:
+        return None
+    for raw_language in NSLocale.preferredLanguages():
+        selected = normalize_language(str(raw_language))
+        if selected:
+            return selected
+    return normalize_language(str(NSLocale.currentLocale().localeIdentifier()))

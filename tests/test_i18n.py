@@ -6,6 +6,7 @@ import subprocess
 import sys
 
 from gsuid_cli import text
+from gsuid_cli.core.config import normalize_language
 from gsuid_cli.text.en import TEXT_EN
 from gsuid_cli.text.zh_cn import TEXT_ZH_CN
 
@@ -58,14 +59,14 @@ def test_explicit_environment_language_selects_english(monkeypatch) -> None:
 def test_standard_locale_environment_selects_english(monkeypatch) -> None:
     _clear_language_environment(monkeypatch)
     monkeypatch.setenv("LANG", "en_US.UTF-8")
-    monkeypatch.setattr(text.locale, "getlocale", lambda: (None, None))
+    monkeypatch.setattr(text, "_system_language", lambda: None)
 
     assert text.language() == "en"
 
 
 def test_configured_language_selects_english(monkeypatch, tmp_path) -> None:
     _clear_language_environment(monkeypatch)
-    monkeypatch.setattr(text.locale, "getlocale", lambda: (None, None))
+    monkeypatch.setattr(text, "_system_language", lambda: None)
     home = tmp_path / "home"
     home.mkdir()
     monkeypatch.setenv("GSUID_HOME", str(home))
@@ -78,7 +79,7 @@ def test_configured_language_selects_english(monkeypatch, tmp_path) -> None:
 def test_auto_configured_language_uses_locale_environment(monkeypatch, tmp_path) -> None:
     _clear_language_environment(monkeypatch)
     monkeypatch.setenv("LANG", "en_US.UTF-8")
-    monkeypatch.setattr(text.locale, "getlocale", lambda: (None, None))
+    monkeypatch.setattr(text, "_system_language", lambda: None)
     home = tmp_path / "home"
     home.mkdir()
     monkeypatch.setenv("GSUID_HOME", str(home))
@@ -101,7 +102,7 @@ def test_explicit_auto_language_environment_skips_config(monkeypatch, tmp_path) 
     _clear_language_environment(monkeypatch)
     monkeypatch.setenv("GSUID_LANG", "auto")
     monkeypatch.setenv("LANG", "C.UTF-8")
-    monkeypatch.setattr(text.locale, "getlocale", lambda: (None, None))
+    monkeypatch.setattr(text, "_system_language", lambda: None)
     home = tmp_path / "home"
     home.mkdir()
     monkeypatch.setenv("GSUID_HOME", str(home))
@@ -113,10 +114,25 @@ def test_explicit_auto_language_environment_skips_config(monkeypatch, tmp_path) 
 def test_unsupported_environment_language_falls_back_to_chinese(monkeypatch) -> None:
     _clear_language_environment(monkeypatch)
     monkeypatch.setenv("LANG", "C.UTF-8")
-    monkeypatch.setattr(text.locale, "getlocale", lambda: (None, None))
+    monkeypatch.setattr(text, "_system_language", lambda: None)
 
     assert text.language() == "zh-cn"
     assert text.t("gsuid.renderers.utility_text.21_16.4cb4e572") == "CLI版本"
+
+
+def test_system_language_prefers_macos_preferred_languages(monkeypatch) -> None:
+    monkeypatch.setattr(text.sys, "platform", "darwin")
+    monkeypatch.setattr(text, "_macos_language", lambda: "zh-cn")
+
+    assert text._system_language() == "zh-cn"
+
+
+def test_language_normalization_uses_locale_parser() -> None:
+    assert normalize_language("zh_Hans_CN.UTF-8") == "zh-cn"
+    assert normalize_language("zh-Hans-US") == "zh-cn"
+    assert normalize_language("en-Latn-US") == "en"
+    assert normalize_language("enochian") is None
+    assert normalize_language("fr-FR") is None
 
 
 def test_invalid_configured_language_returns_config_error(monkeypatch, tmp_path) -> None:
