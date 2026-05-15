@@ -12,6 +12,7 @@
 | `announcements.list` | `none` | `data, image, text, all` | 列出公开的游戏公告。 |
 | `announcements.show` | `none` | `data, image, text, all` | 显示单条公开的公告。 |
 | `auth.cookie.delete` | `keyring` | `data, text, all` | 从操作系统凭据管理器中删除已存储的 Cookie。 |
+| `auth.cookie.refresh` | `stoken` | `data, text, all` | 使用已保存的 Stoken 刷新并存储 Cookie。 |
 | `auth.cookie.set` | `keyring` | `data, text, all` | 将 Cookie 存储在操作系统凭据管理器中。 |
 | `auth.cookie.test` | `cookie` | `data, text, all` | 在国服数据源处验证 Cookie 是否可用。 |
 | `auth.device.delete` | `none` | `data, text, all` | 删除本地米游社设备元数据。 |

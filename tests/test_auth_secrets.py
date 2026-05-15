@@ -7,6 +7,7 @@ from pathlib import Path
 from helpers import run_json as _run_json, run_json_with_stderr as _run_json_with_stderr
 
 from gsuid_cli.cli import run
+from gsuid_cli.core.errors import EXIT_AUTH, CliError
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.secrets import SecretStore, redact_secret
 
@@ -56,6 +57,56 @@ def test_env_cookie_takes_priority_without_stored_secret(monkeypatch, tmp_path) 
     assert code == 0
     assert payload["data"]["source"] == "environment"
     assert payload["data"]["storage_backend"] is None
+
+
+def test_cookie_refresh_stores_fresh_cookie(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _cookie_refresh_provider())
+    store = SecretStore()
+    store.set_secret("stoken", "100000001", "stuid=1;stoken=stoken-secret;mid=mid-secret")
+
+    code, payload = _run_json(["auth", "cookie", "refresh", "--uid", "100000001"])
+
+    assert code == 0
+    assert payload["command"] == "auth.cookie.refresh"
+    assert payload["data"]["validity_status"] == "refreshed"
+    assert payload["data"]["stored"] is True
+    assert store.get_secret("cookie", "100000001") == "account_id=1;cookie_token=fresh-cookie"
+    raw_payload = json.dumps(payload, ensure_ascii=False)
+    assert "fresh-cookie" not in raw_payload
+    assert "stoken-secret" not in raw_payload
+
+
+def test_keyring_cookie_auto_refresh_retries_auth_expiry(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _retry_refresh_provider())
+    store = SecretStore()
+    store.set_secret("cookie", "100000001", "account_id=1;cookie_token=expired-cookie")
+    store.set_secret("stoken", "100000001", "stuid=1;stoken=stoken-secret;mid=mid-secret")
+
+    code, payload = _run_json(["auth", "cookie", "test", "--uid", "100000001"])
+
+    assert code == 0
+    assert payload["data"]["validity_status"] == "valid"
+    assert payload["warnings"] == ["Cookie 已过期，已使用已保存的 Stoken 刷新并重试。"]
+    assert store.get_secret("cookie", "100000001") == "account_id=1;cookie_token=fresh-cookie"
+
+
+def test_keyring_cookie_auto_refresh_reports_expired_stoken(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.auth.provider_for_region",
+        _retry_refresh_provider(stoken_expired=True),
+    )
+    store = SecretStore()
+    store.set_secret("cookie", "100000001", "account_id=1;cookie_token=expired-cookie")
+    store.set_secret("stoken", "100000001", "stuid=1;stoken=expired-stoken;mid=mid-secret")
+
+    code, payload = _run_json(["auth", "cookie", "test", "--uid", "100000001"])
+
+    assert code == 2
+    assert payload["error"]["code"] == "AUTH_EXPIRED"
+    assert "Stoken 已过期" in payload["error"]["message"]
 
 
 def test_qrcode_complete_stores_credentials_without_printing_secrets(monkeypatch, tmp_path) -> None:
@@ -458,6 +509,15 @@ def test_redact_secret_never_returns_short_secret() -> None:
     assert redact_secret("123456789") == "1234...6789"
 
 
+def _source(region: str) -> dict[str, object]:
+    return {
+        "provider": "mys",
+        "region": region,
+        "cached": False,
+        "fetched_at": "2026-04-29T10:30:00Z",
+    }
+
+
 def _provider(status: str):
     class FakeProvider:
         def __init__(self, _http_client) -> None:
@@ -488,6 +548,124 @@ def _provider(status: str):
                     "cached": False,
                     "fetched_at": "2026-04-29T10:30:00Z",
                 },
+            )
+
+    def provider_for_region(_region: str, http_client) -> FakeProvider:
+        return FakeProvider(http_client)
+
+    return provider_for_region
+
+
+def _cookie_refresh_provider():
+    class FakeProvider:
+        def __init__(self, _http_client) -> None:
+            pass
+
+        def refresh_cookie_from_stoken(
+            self,
+            *,
+            uid: str,
+            stoken_cookie: str,
+            region: str,
+            credential_source: str,
+            storage_backend: str | None,
+        ) -> CommandResult:
+            assert uid == "100000001"
+            assert stoken_cookie == "stuid=1;stoken=stoken-secret;mid=mid-secret"
+            return CommandResult(
+                data={
+                    "uid": uid,
+                    "account_id": "1",
+                    "credential_type": "cookie",
+                    "validity_status": "refreshed",
+                    "source": credential_source,
+                    "storage_backend": storage_backend,
+                    "cookie": "account_id=1;cookie_token=fresh-cookie",
+                    "redacted": "acco...okie",
+                    "refreshed_from": "stoken",
+                },
+                source=_source(region),
+            )
+
+    def provider_for_region(_region: str, http_client) -> FakeProvider:
+        return FakeProvider(http_client)
+
+    return provider_for_region
+
+
+def _retry_refresh_provider(*, stoken_expired: bool = False):
+    state = {"validated": False}
+
+    class FakeProvider:
+        def __init__(self, _http_client) -> None:
+            pass
+
+        def validate_cookie(
+            self,
+            *,
+            uid: str,
+            cookie: str,
+            region: str,
+            credential_source: str,
+            storage_backend: str | None,
+        ) -> CommandResult:
+            if not state["validated"]:
+                state["validated"] = True
+                assert cookie == "account_id=1;cookie_token=expired-cookie"
+                raise CliError(
+                    "AUTH_EXPIRED",
+                    "expired",
+                    EXIT_AUTH,
+                    {"credential_type": "cookie"},
+                    source=_source(region),
+                )
+            assert cookie == "account_id=1;cookie_token=fresh-cookie"
+            return CommandResult(
+                data={
+                    "uid": uid,
+                    "credential_type": "cookie",
+                    "source": credential_source,
+                    "storage_backend": storage_backend,
+                    "validity_status": "valid",
+                    "redacted": redact_secret(cookie),
+                    "provider_response": {"retcode": 0, "message": "OK"},
+                },
+                source=_source(region),
+            )
+
+        def refresh_cookie_from_stoken(
+            self,
+            *,
+            uid: str,
+            stoken_cookie: str,
+            region: str,
+            credential_source: str,
+            storage_backend: str | None,
+        ) -> CommandResult:
+            assert uid == "100000001"
+            expected_stoken = "expired-stoken" if stoken_expired else "stoken-secret"
+            assert stoken_cookie == f"stuid=1;stoken={expected_stoken};mid=mid-secret"
+            if stoken_expired:
+                raise CliError(
+                    "AUTH_EXPIRED",
+                    "Stoken 已过期或被数据源拒绝，请重新扫码登录。",
+                    EXIT_AUTH,
+                    {"credential_type": "stoken"},
+                    source=_source(region),
+                )
+            return CommandResult(
+                data={
+                    "uid": uid,
+                    "account_id": "1",
+                    "credential_type": "cookie",
+                    "validity_status": "refreshed",
+                    "source": credential_source,
+                    "storage_backend": storage_backend,
+                    "cookie": "account_id=1;cookie_token=fresh-cookie",
+                    "redacted": "acco...okie",
+                    "refreshed_from": "stoken",
+                },
+                source=_source(region),
             )
 
     def provider_for_region(_region: str, http_client) -> FakeProvider:

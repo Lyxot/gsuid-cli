@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 import json
+from http.cookies import CookieError, SimpleCookie
 
-from gsuid_cli.core.errors import EXIT_NO_RESULT, EXIT_UPSTREAM, CliError
+from gsuid_cli.core.errors import (
+    EXIT_AUTH,
+    EXIT_INVALID_INPUT,
+    EXIT_NO_RESULT,
+    EXIT_UPSTREAM,
+    CliError,
+)
 from gsuid_cli.core.http import raise_for_retcode
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
@@ -19,6 +26,18 @@ from gsuid_cli.providers.mys.constants import (
 )
 from gsuid_cli.providers.mys.device import _random_device_id
 from gsuid_cli.providers.mys.normalizers import _payload_data
+from gsuid_cli.text import t as _t
+
+_ACCOUNT_ID_KEYS = (
+    "login_uid",
+    "login_uid_v2",
+    "account_id",
+    "stuid",
+    "stuid_v2",
+    "ltuid",
+    "ltuid_v2",
+)
+_STOKEN_KEYS = ("stoken", "stoken_v2")
 
 
 class MysQrcodeMixin:
@@ -188,6 +207,65 @@ class MysQrcodeMixin:
             source=cookie_source,
         )
 
+    def refresh_cookie_from_stoken(
+        self,
+        *,
+        uid: str,
+        stoken_cookie: str,
+        region: str,
+        credential_source: str,
+        storage_backend: str | None,
+    ) -> CommandResult:
+        ensure_supported_region(region)
+        account_id, stoken, full_cookie = _stoken_cookie_parts(stoken_cookie)
+        try:
+            cookie_data, cookie_source = self._cookie_token_by_stoken(
+                stoken=stoken,
+                account_id=account_id,
+                full_cookie=full_cookie,
+                region=region,
+                category="auth.cookie.refresh",
+            )
+        except CliError as exc:
+            if exc.code != "AUTH_EXPIRED":
+                raise
+            raise CliError(
+                "AUTH_EXPIRED",
+                _t("gsuid.providers.mys.qrcode.stoken_expired"),
+                EXIT_AUTH,
+                {
+                    **exc.details,
+                    "uid": uid,
+                    "account_id": account_id,
+                    "credential_type": "stoken",
+                },
+                source=exc.source,
+            ) from exc
+        cookie_token = str(cookie_data.get("cookie_token") or "")
+        if not cookie_token:
+            raise CliError(
+                "UPSTREAM_INVALID_RESPONSE",
+                _t("gsuid.providers.mys.qrcode.cookie_refresh_invalid"),
+                EXIT_UPSTREAM,
+                {"provider": PROVIDER, "category": "auth.cookie.refresh"},
+                source=cookie_source,
+            )
+        cookie = f"account_id={account_id};cookie_token={cookie_token}"
+        return CommandResult(
+            data={
+                "uid": uid,
+                "account_id": account_id,
+                "credential_type": "cookie",
+                "validity_status": "refreshed",
+                "source": credential_source,
+                "storage_backend": storage_backend,
+                "cookie": cookie,
+                "redacted": redact_secret(cookie),
+                "refreshed_from": "stoken",
+            },
+            source=cookie_source,
+        )
+
     def _qrcode_status(
         self,
         *,
@@ -283,13 +361,14 @@ class MysQrcodeMixin:
         account_id: str,
         full_cookie: str,
         region: str,
+        category: str = "auth.qrcode.cookie",
     ) -> tuple[dict[str, object], dict[str, object]]:
         response = self.http.request_json(
             "GET",
             f"{PASSPORT_BASE_CN}{GET_COOKIE_TOKEN_BY_STOKEN_PATH}",
             provider=PROVIDER,
             region=region,
-            category="auth.qrcode.cookie",
+            category=category,
             params={"stoken": stoken, "uid": account_id},
             headers={**_headers(full_cookie), "Cookie": full_cookie},
         )
@@ -297,11 +376,52 @@ class MysQrcodeMixin:
             response.payload,
             provider=PROVIDER,
             region=region,
-            category="auth.qrcode.cookie",
+            category=category,
             source=response.source,
             debug=self.http.debug,
         )
         return (
-            _payload_data(response.payload, "auth.qrcode.cookie", response.source),
+            _payload_data(response.payload, category, response.source),
             response.source,
         )
+
+
+def _stoken_cookie_parts(stoken_cookie: str) -> tuple[str, str, str]:
+    parsed = SimpleCookie()
+    try:
+        parsed.load(stoken_cookie)
+    except CookieError as exc:
+        raise _invalid_stoken_cookie() from exc
+    account_id = _first_cookie_value(parsed, _ACCOUNT_ID_KEYS)
+    stoken = _first_cookie_value(parsed, _STOKEN_KEYS)
+    if not account_id or not stoken:
+        raise _invalid_stoken_cookie()
+    mid = _first_cookie_value(parsed, ("mid",))
+    if stoken.startswith("v2_") and not mid:
+        raise CliError(
+            "INVALID_ARGUMENT",
+            _t("gsuid.providers.mys.qrcode.stoken_v2_requires_mid"),
+            EXIT_INVALID_INPUT,
+            {"credential_type": "stoken"},
+        )
+    full_cookie = f"stuid={account_id};stoken={stoken}"
+    if mid:
+        full_cookie = f"{full_cookie};mid={mid}"
+    return account_id, stoken, full_cookie
+
+
+def _first_cookie_value(parsed: SimpleCookie, keys: tuple[str, ...]) -> str:
+    for key in keys:
+        morsel = parsed.get(key)
+        if morsel and morsel.value:
+            return morsel.value
+    return ""
+
+
+def _invalid_stoken_cookie() -> CliError:
+    return CliError(
+        "INVALID_ARGUMENT",
+        _t("gsuid.providers.mys.qrcode.invalid_stoken_cookie"),
+        EXIT_INVALID_INPUT,
+        {"credential_type": "stoken"},
+    )

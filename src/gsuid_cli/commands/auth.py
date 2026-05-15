@@ -49,6 +49,13 @@ CAPABILITIES = [
         "render": ["data", "text", "all"],
     },
     {
+        "command": "auth.cookie.refresh",
+        "description": _t("gsuid.commands.auth.cookie_refresh.description"),
+        "auth": "stoken",
+        "regions": ["cn"],
+        "render": ["data", "text", "all"],
+    },
+    {
         "command": "auth.cookie.delete",
         "description": _t("gsuid.commands.auth.52_23.35561591"),
         "auth": "keyring",
@@ -220,6 +227,11 @@ def delete_command(args: argparse.Namespace) -> CommandResult | dict[str, object
         "deleted": deleted,
     }
     return _auth_text_result(args, data)
+
+
+def refresh_cookie_command(args: argparse.Namespace) -> CommandResult:
+    uid, region = _uid_and_region(args)
+    return _auth_text_result(args, refresh_cookie_for_uid(args, uid=uid, region=region))
 
 
 def qrcode_start_command(args: argparse.Namespace) -> CommandResult:
@@ -410,6 +422,41 @@ def _store_qrcode_credentials(uid: str, result: CommandResult) -> CommandResult:
     return CommandResult(data=data, source=result.source, warnings=result.warnings)
 
 
+def refresh_cookie_for_uid(
+    args: argparse.Namespace,
+    *,
+    uid: str,
+    region: str,
+) -> CommandResult:
+    original_kind = getattr(args, "credential_kind", None)
+    try:
+        args.credential_kind = "stoken"
+        stoken, stoken_source, stoken_storage_backend = _credential(args, uid)
+    finally:
+        if original_kind is not None:
+            args.credential_kind = original_kind
+    provider = provider_for_region(region, _http_client(args))
+    result = provider.refresh_cookie_from_stoken(
+        uid=uid,
+        stoken_cookie=stoken,
+        region=region,
+        credential_source=stoken_source,
+        storage_backend=stoken_storage_backend,
+    )
+    cookie = str(result.data.pop("cookie"))
+    store = SecretStore()
+    store.set_secret("cookie", uid, cookie)
+    return CommandResult(
+        data={
+            **result.data,
+            "storage_backend": store.backend_name(),
+            "stored": True,
+        },
+        source=result.source,
+        warnings=result.warnings,
+    )
+
+
 def _store_device_binding(
     args: argparse.Namespace,
     uid: str,
@@ -474,6 +521,15 @@ def _register_credential(
         command_name=f"auth.{cli_name}.test",
         credential_kind=kind,
     )
+
+    if cli_name == "cookie":
+        refresh_parser = actions.add_parser("refresh", help=_HELPS["auth.cookie.refresh"])
+        refresh_parser.add_argument("--uid", dest="command_uid")
+        refresh_parser.set_defaults(
+            handler=refresh_cookie_command,
+            command_name="auth.cookie.refresh",
+            credential_kind=kind,
+        )
 
     delete_parser = actions.add_parser(
         "delete", help=_t("gsuid.commands.auth.471_54.6abc8046", cli_name)

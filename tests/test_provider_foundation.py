@@ -460,6 +460,43 @@ def test_qrcode_complete_exchanges_tokens() -> None:
     assert result.data["stoken"] == "stuid=123456;stoken=stoken-secret;mid=mid-secret"
 
 
+def test_cookie_refresh_exchanges_stoken_for_cookie() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {"cookie_token": "fresh-cookie"},
+            }
+        )
+
+    provider = MysProvider(
+        HttpClient(
+            timeout=1,
+            cache_policy="off",
+            transport=httpx.MockTransport(handler),
+        )
+    )
+
+    result = provider.refresh_cookie_from_stoken(
+        uid="100000001",
+        stoken_cookie="stuid=123456;stoken=stoken-secret;mid=mid-secret",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="memory",
+    )
+
+    assert result.data["validity_status"] == "refreshed"
+    assert result.data["cookie"] == "account_id=123456;cookie_token=fresh-cookie"
+    assert result.data["redacted"] != result.data["cookie"]
+    assert requests[0].url.params["stoken"] == "stoken-secret"
+    assert requests[0].url.params["uid"] == "123456"
+    assert requests[0].headers["cookie"] == "stuid=123456;stoken=stoken-secret;mid=mid-secret"
+
+
 def test_qrcode_complete_requires_confirmed_status() -> None:
     provider = MysProvider(
         _client(

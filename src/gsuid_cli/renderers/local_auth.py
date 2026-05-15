@@ -91,9 +91,19 @@ def _render_credential_text(data: Mapping[str, object]) -> str:
     source = _text(data.get("source"))
     if source != "-":
         lines.append(_t("gsuid.renderers.events.text.53_21.15097066", _source_label(source)))
+    refreshed_from = _text(data.get("refreshed_from"))
+    if refreshed_from != "-":
+        lines.append(
+            _t(
+                "gsuid.renderers.local_auth.cookie_refresh_source",
+                _credential_label(refreshed_from),
+            )
+        )
     storage_backend = _text(data.get("storage_backend"))
     if storage_backend != "-":
         lines.append(_t("gsuid.renderers.local_auth.83_21.12234f1e", storage_backend))
+    if "stored" in data:
+        lines.append(_t("gsuid.renderers.gacha.202_21.cf53b8f1", _yes_no(data.get("stored"))))
     if "deleted" in data:
         lines.append(_t("gsuid.renderers.local_auth.85_21.0abdec75", _yes_no(data.get("deleted"))))
     lines.append(_t("gsuid.renderers.gacha.219_17.9cfef6ee"))
@@ -315,6 +325,7 @@ def _status_label(value: object) -> str:
     return {
         "stored": _t("gsuid.renderers.local_auth.292_11.cdfab96f"),
         "valid": _t("gsuid.renderers.local_auth.266_17.ad385d38"),
+        "refreshed": _t("gsuid.renderers.local_auth.cookie_refreshed"),
         "available": _t("gsuid.renderers.daily.text.222_15.e91365cf"),
         "deleted": _t("gsuid.renderers.local_auth.201_15.fb5fe1e2"),
         "missing": _t("gsuid.renderers.local_auth.292_43.4123f1fa"),

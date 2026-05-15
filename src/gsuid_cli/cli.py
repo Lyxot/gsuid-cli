@@ -41,7 +41,7 @@ from gsuid_cli.core.http import begin_source_capture, end_source_capture
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import REGION_CHOICES
 from gsuid_cli.core.render import explicit_render_modes, normalize_render_modes, render_data_enabled
-from gsuid_cli.core.secrets import redact_secret
+from gsuid_cli.core.secrets import SecretStore, env_secret, redact_secret
 from gsuid_cli.text import t as _t
 
 GLOBAL_VALUE_OPTIONS = {
@@ -270,12 +270,28 @@ def run(
         args.stdout = stdout
         args.stderr = stderr
         source_capture = begin_source_capture()
+        retry_warnings: list[str] = []
         try:
-            result = args.handler(args)
+            try:
+                result = args.handler(args)
+            except CliError as exc:
+                warning = _refresh_cookie_for_retry(args, exc)
+                if warning is None:
+                    raise
+                retry_warnings.append(warning)
+                result = args.handler(args)
         finally:
             captured_sources = end_source_capture(source_capture)
         if not isinstance(result, CommandResult):
             result = CommandResult(data=result)
+        if retry_warnings:
+            result = CommandResult(
+                data=result.data,
+                artifacts=result.artifacts,
+                source=result.source,
+                warnings=[*retry_warnings, *result.warnings],
+                pagination=result.pagination,
+            )
         render_warnings = _unsupported_render_warnings(
             command,
             getattr(args, "explicit_render", []),
@@ -551,6 +567,33 @@ def _unsupported_render_warnings(command: str, requested: object) -> list[str]:
     if not unsupported:
         return []
     return [_t("gsuid.cli.487_12.1556201d", command, ", ".join(unsupported))]
+
+
+def _refresh_cookie_for_retry(args: argparse.Namespace, exc: CliError) -> str | None:
+    if exc.code != "AUTH_EXPIRED":
+        return None
+    if getattr(args, "command_name", "") == "auth.cookie.refresh":
+        return None
+    if getattr(args, "credential_kind", None) != "cookie":
+        return None
+    if getattr(args, "_cookie_refresh_retried", False):
+        return None
+    if env_secret("cookie"):
+        return None
+
+    uid, region = auth._uid_and_region(args)
+    store = SecretStore()
+    if store.get_secret("cookie", uid) is None or store.get_secret("stoken", uid) is None:
+        return None
+
+    args._cookie_refresh_retried = True
+    try:
+        auth.refresh_cookie_for_uid(args, uid=uid, region=region)
+    except CliError as refresh_error:
+        if refresh_error.code in {"AUTH_EXPIRED", "INVALID_ARGUMENT"}:
+            raise
+        return None
+    return _t("gsuid.cli.auth_cookie_refreshed_retry")
 
 
 def _command_supported_renders(command: str) -> set[str]:
