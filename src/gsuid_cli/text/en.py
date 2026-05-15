@@ -896,6 +896,7 @@ TEXT_EN: dict[str, str] = {
     "gsuid.renderers.local_auth.83_21.12234f1e": "Storage: {0}",
     "gsuid.renderers.local_auth.85_21.0abdec75": "Delete: {0}",
     "gsuid.renderers.local_auth.99_21.cf0cfd9c": "Miyoushe account: {0}",
+    "gsuid.renderers.local_auth.credential_invalid": "invalid",
     "gsuid.renderers.local_auth.cookie_refresh_source": "Refresh source: {0}",
     "gsuid.renderers.local_auth.cookie_refreshed": "refreshed",
     "gsuid.renderers.panel.image.101_27.f1fcdb6f": "Healing Bonus",

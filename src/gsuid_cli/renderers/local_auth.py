@@ -325,6 +325,7 @@ def _status_label(value: object) -> str:
     return {
         "stored": _t("gsuid.renderers.local_auth.292_11.cdfab96f"),
         "valid": _t("gsuid.renderers.local_auth.266_17.ad385d38"),
+        "invalid": _t("gsuid.renderers.local_auth.credential_invalid"),
         "refreshed": _t("gsuid.renderers.local_auth.cookie_refreshed"),
         "available": _t("gsuid.renderers.daily.text.222_15.e91365cf"),
         "deleted": _t("gsuid.renderers.local_auth.201_15.fb5fe1e2"),

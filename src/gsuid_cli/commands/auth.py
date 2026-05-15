@@ -195,13 +195,34 @@ def test_command(args: argparse.Namespace) -> CommandResult | dict[str, object]:
             debug=args.debug,
         )
         provider = provider_for_region(region, http_client)
-        result = provider.validate_cookie(
-            uid=uid,
-            cookie=value,
-            region=region,
-            credential_source=source,
-            storage_backend=storage_backend,
-        )
+        try:
+            result = provider.validate_cookie(
+                uid=uid,
+                cookie=value,
+                region=region,
+                credential_source=source,
+                storage_backend=storage_backend,
+            )
+        except CliError as exc:
+            if exc.code != "AUTH_EXPIRED":
+                raise
+            result = CommandResult(
+                data={
+                    **_credential_data(
+                        uid=uid,
+                        kind=args.credential_kind,
+                        source=source,
+                        storage_backend=storage_backend,
+                        validity_status="invalid",
+                        value=value,
+                    ),
+                    "provider_response": {
+                        "retcode": exc.details.get("retcode"),
+                        "message": exc.details.get("message"),
+                    },
+                },
+                source=exc.source,
+            )
         return _auth_text_result(args, result)
 
     data = _credential_data(

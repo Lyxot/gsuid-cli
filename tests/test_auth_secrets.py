@@ -59,6 +59,46 @@ def test_env_cookie_takes_priority_without_stored_secret(monkeypatch, tmp_path) 
     assert payload["data"]["storage_backend"] is None
 
 
+def test_cookie_test_reports_expired_cookie_as_invalid(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _expired_cookie_provider())
+    secret = "account_id=1;cookie_token=expired-cookie"
+    SecretStore().set_secret("cookie", "100000001", secret)
+
+    code, payload = _run_json(["auth", "cookie", "test", "--uid", "100000001"])
+
+    assert code == 0
+    assert payload["data"]["validity_status"] == "invalid"
+    assert payload["data"]["provider_response"]["retcode"] == 10001
+    assert "expired-cookie" not in json.dumps(payload, ensure_ascii=False)
+
+
+def test_cookie_test_plain_reports_invalid_status(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _expired_cookie_provider())
+    SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=expired-cookie")
+
+    code, stdout, stderr = _run_plain(
+        [
+            "auth",
+            "cookie",
+            "test",
+            "--uid",
+            "100000001",
+            "--render",
+            "text,image",
+            "--format",
+            "plain",
+        ]
+    )
+
+    assert code == 0
+    assert "认证凭据 - Cookie" in stdout
+    assert "状态: 无效" in stdout
+    assert "expired-cookie" not in stdout
+    assert "不支持渲染模式: image" in stderr
+
+
 def test_cookie_refresh_stores_fresh_cookie(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _cookie_refresh_provider())
@@ -79,30 +119,31 @@ def test_cookie_refresh_stores_fresh_cookie(monkeypatch, tmp_path) -> None:
 
 def test_keyring_cookie_auto_refresh_retries_auth_expiry(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _retry_refresh_provider())
+    provider_factory = _retry_refresh_provider()
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", provider_factory)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", provider_factory)
     store = SecretStore()
     store.set_secret("cookie", "100000001", "account_id=1;cookie_token=expired-cookie")
     store.set_secret("stoken", "100000001", "stuid=1;stoken=stoken-secret;mid=mid-secret")
 
-    code, payload = _run_json(["auth", "cookie", "test", "--uid", "100000001"])
+    code, payload = _run_json(["daily", "note", "--uid", "100000001", "--render", "data"])
 
     assert code == 0
-    assert payload["data"]["validity_status"] == "valid"
+    assert payload["command"] == "daily.note"
     assert payload["warnings"] == ["Cookie 已过期，已使用已保存的 Stoken 刷新并重试。"]
     assert store.get_secret("cookie", "100000001") == "account_id=1;cookie_token=fresh-cookie"
 
 
 def test_keyring_cookie_auto_refresh_reports_expired_stoken(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
-    monkeypatch.setattr(
-        "gsuid_cli.commands.auth.provider_for_region",
-        _retry_refresh_provider(stoken_expired=True),
-    )
+    provider_factory = _retry_refresh_provider(stoken_expired=True)
+    monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", provider_factory)
+    monkeypatch.setattr("gsuid_cli.commands._shared.provider_for_region", provider_factory)
     store = SecretStore()
     store.set_secret("cookie", "100000001", "account_id=1;cookie_token=expired-cookie")
     store.set_secret("stoken", "100000001", "stuid=1;stoken=expired-stoken;mid=mid-secret")
 
-    code, payload = _run_json(["auth", "cookie", "test", "--uid", "100000001"])
+    code, payload = _run_json(["daily", "note", "--uid", "100000001", "--render", "data"])
 
     assert code == 2
     assert payload["error"]["code"] == "AUTH_EXPIRED"
@@ -593,6 +634,44 @@ def _cookie_refresh_provider():
     return provider_for_region
 
 
+def _expired_cookie_provider():
+    class FakeProvider:
+        def __init__(self, _http_client) -> None:
+            pass
+
+        def validate_cookie(
+            self,
+            *,
+            uid: str,
+            cookie: str,
+            region: str,
+            credential_source: str,
+            storage_backend: str | None,
+        ) -> CommandResult:
+            raise CliError(
+                "AUTH_EXPIRED",
+                "The cookie has expired or been rejected by the data source.",
+                EXIT_AUTH,
+                {
+                    "provider": "mys",
+                    "region": region,
+                    "category": "auth.cookie.test",
+                    "retcode": 10001,
+                    "message": "Please login",
+                    "credential_source": credential_source,
+                    "storage_backend": storage_backend,
+                    "uid": uid,
+                    "redacted": redact_secret(cookie),
+                },
+                source=_source(region),
+            )
+
+    def provider_for_region(_region: str, http_client) -> FakeProvider:
+        return FakeProvider(http_client)
+
+    return provider_for_region
+
+
 def _retry_refresh_provider(*, stoken_expired: bool = False):
     state = {"validated": False}
 
@@ -629,6 +708,36 @@ def _retry_refresh_provider(*, stoken_expired: bool = False):
                     "validity_status": "valid",
                     "redacted": redact_secret(cookie),
                     "provider_response": {"retcode": 0, "message": "OK"},
+                },
+                source=_source(region),
+            )
+
+        def daily_note(
+            self,
+            *,
+            uid: str,
+            cookie: str,
+            region: str,
+            credential_source: str,
+            storage_backend: str | None,
+        ) -> CommandResult:
+            if not state["validated"]:
+                state["validated"] = True
+                assert cookie == "account_id=1;cookie_token=expired-cookie"
+                raise CliError(
+                    "AUTH_EXPIRED",
+                    "expired",
+                    EXIT_AUTH,
+                    {"credential_type": "cookie"},
+                    source=_source(region),
+                )
+            assert cookie == "account_id=1;cookie_token=fresh-cookie"
+            return CommandResult(
+                data={
+                    "uid": uid,
+                    "credential_source": credential_source,
+                    "storage_backend": storage_backend,
+                    "note": {},
                 },
                 source=_source(region),
             )

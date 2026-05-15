@@ -896,6 +896,7 @@ TEXT_ZH_CN: dict[str, str] = {
     "gsuid.renderers.local_auth.83_21.12234f1e": "存储: {0}",
     "gsuid.renderers.local_auth.85_21.0abdec75": "删除: {0}",
     "gsuid.renderers.local_auth.99_21.cf0cfd9c": "米游社账号: {0}",
+    "gsuid.renderers.local_auth.credential_invalid": "无效",
     "gsuid.renderers.local_auth.cookie_refresh_source": "刷新来源: {0}",
     "gsuid.renderers.local_auth.cookie_refreshed": "已刷新",
     "gsuid.renderers.panel.image.101_27.f1fcdb6f": "治疗加成",
