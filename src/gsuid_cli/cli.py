@@ -55,8 +55,22 @@ GLOBAL_VALUE_OPTIONS = {
     "--timeout",
     "--request-id",
 }
-GLOBAL_FLAG_OPTIONS = {"--quiet", "--no-quiet", "--debug", "--no-debug", "--help", "--version"}
-HOISTED_GLOBAL_FLAG_OPTIONS = {"--quiet", "--no-quiet", "--debug", "--no-debug"}
+GLOBAL_FLAG_OPTIONS = {
+    "--quiet",
+    "--no-quiet",
+    "--debug",
+    "--no-debug",
+    "--no-image-compression",
+    "--help",
+    "--version",
+}
+HOISTED_GLOBAL_FLAG_OPTIONS = {
+    "--quiet",
+    "--no-quiet",
+    "--debug",
+    "--no-debug",
+    "--no-image-compression",
+}
 OUTPUT_FORMATS = {"json", "pretty-json", "plain"}
 CACHE_POLICIES = {"use", "refresh", "only", "off"}
 ANSI_YELLOW = "\033[33m"
@@ -107,6 +121,7 @@ OPTION_HELP = {
     "--min-free-mb": _t("gsuid.cli.104_21.da010c5a"),
     "--name": _t("gsuid.cli.105_14.656a5932"),
     "--nearby": _t("gsuid.cli.106_16.eada310f"),
+    "--no-image-compression": _t("gsuid.cli.no_image_compression"),
     "--output": _t("gsuid.cli.107_16.f12d2e5f"),
     "--output-dir": _t("gsuid.cli.108_20.12325143"),
     "--page": _t("gsuid.cli.109_14.468b936c"),
@@ -185,6 +200,12 @@ def build_parser(defaults: CliDefaults | None = None) -> argparse.ArgumentParser
     parser.add_argument("--request-id")
     parser.add_argument("--quiet", action=argparse.BooleanOptionalAction, default=defaults.quiet)
     parser.add_argument("--debug", action=argparse.BooleanOptionalAction, default=defaults.debug)
+    parser.add_argument(
+        "--no-image-compression",
+        action="store_false",
+        dest="image_compression",
+        default=True,
+    )
     parser.add_argument(
         "--version",
         action="version",

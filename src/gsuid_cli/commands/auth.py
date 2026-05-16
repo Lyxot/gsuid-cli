@@ -852,7 +852,7 @@ def _qrcode_png(url: str) -> bytes:
     qr.make(fit=True)
     image = qr.make_image(fill_color="black", back_color="white")
     buffer = io.BytesIO()
-    image.save(buffer, format="PNG")
+    image.save(buffer, format="PNG", compress_level=0)
     return buffer.getvalue()
 
 

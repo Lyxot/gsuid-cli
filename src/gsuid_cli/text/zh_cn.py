@@ -80,6 +80,7 @@ TEXT_ZH_CN: dict[str, str] = {
     "gsuid.cli.83_22.c7c27395": "从标准输入读取 Cookie 值。",
     "gsuid.cli.auth_cookie_refreshed_retry": "Cookie 已过期，已使用已保存的 Stoken 刷新并重试。",
     "gsuid.cli.config.invalid": "配置文件无效: {0}",
+    "gsuid.cli.no_image_compression": "禁用图片产物的无损 PNG 压缩。",
     "gsuid.cli.84_14.d408a7e0": "请求数据的日历日期。",
     "gsuid.cli.85_13.5aa9ec83": "工作日名称或数字。",
     "gsuid.cli.86_15.4bbccfad": "在错误详情中包含调试诊断信息。",

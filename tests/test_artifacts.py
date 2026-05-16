@@ -1,14 +1,20 @@
 from __future__ import annotations
 
+import argparse
 import hashlib
+import io
 import os
 import time
 from datetime import datetime
 from pathlib import Path
 
 from helpers import UUIDV7_RE
+from PIL import Image
 
+from gsuid_cli.commands._text import write_image_artifact
+from gsuid_cli.core import image_compression
 from gsuid_cli.core.artifacts import ArtifactManager, artifact_date, artifact_run_id
+from gsuid_cli.renderers.common import png_bytes as renderer_png_bytes
 
 
 def test_artifact_manager_write_text(monkeypatch, tmp_path) -> None:
@@ -101,3 +107,200 @@ def test_artifact_run_directory_is_stable_for_request(monkeypatch, tmp_path) -> 
     )
 
     assert Path(str(first["path"])).parent == Path(str(second["path"])).parent
+
+
+def test_write_image_artifact_compresses_valid_png(monkeypatch, tmp_path) -> None:
+    artifact_run_id.cache_clear()
+    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
+    raw = _png_bytes(compress_level=0)
+    args = argparse.Namespace(
+        request_id="image-compressed",
+        output_dir=str(tmp_path),
+        image_compression=True,
+    )
+
+    artifact = write_image_artifact(
+        args,
+        name="test/image",
+        filename="image.png",
+        content=raw,
+        description="Image artifact",
+    )
+
+    content = Path(str(artifact["path"])).read_bytes()
+    assert len(content) < len(raw)
+    assert _rgba_bytes(content) == _rgba_bytes(raw)
+    assert artifact["sha256"] == hashlib.sha256(content).hexdigest()
+
+
+def test_write_image_artifact_can_disable_compression(monkeypatch, tmp_path) -> None:
+    artifact_run_id.cache_clear()
+    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
+    raw = _png_bytes(compress_level=0)
+    args = argparse.Namespace(
+        request_id="image-uncompressed",
+        output_dir=str(tmp_path),
+        image_compression=False,
+    )
+
+    artifact = write_image_artifact(
+        args,
+        name="test/image",
+        filename="image.png",
+        content=raw,
+        description="Image artifact",
+    )
+
+    content = Path(str(artifact["path"])).read_bytes()
+    assert content == raw
+    assert artifact["sha256"] == hashlib.sha256(raw).hexdigest()
+
+
+def test_write_image_artifact_keeps_invalid_png_bytes(monkeypatch, tmp_path) -> None:
+    artifact_run_id.cache_clear()
+    monkeypatch.setattr("gsuid_cli.core.artifacts.utc_now", lambda: "2026-04-29T10:30:00Z")
+    raw = b"png"
+    args = argparse.Namespace(
+        request_id="image-invalid",
+        output_dir=str(tmp_path),
+        image_compression=True,
+    )
+
+    artifact = write_image_artifact(
+        args,
+        name="test/image",
+        filename="image.png",
+        content=raw,
+        description="Image artifact",
+    )
+
+    content = Path(str(artifact["path"])).read_bytes()
+    assert content == raw
+    assert artifact["sha256"] == hashlib.sha256(raw).hexdigest()
+
+
+def test_renderer_png_bytes_saves_without_pillow_compression() -> None:
+    image = Image.new("RGBA", (64, 64), (214, 83, 63, 255))
+    uncompressed = renderer_png_bytes(image)
+    compressed = _png_bytes(compress_level=9)
+
+    assert len(uncompressed) > len(compressed)
+    assert _rgba_bytes(uncompressed) == _rgba_bytes(compressed)
+
+
+def test_png_optimizer_races_small_images_and_uses_highest_finished_level(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_optimize_levels(
+        content: bytes,
+        levels: tuple[int, ...],
+        timeout_seconds: float,
+    ) -> dict[int, bytes | None]:
+        captured["content"] = content
+        captured["levels"] = levels
+        captured["timeout_seconds"] = timeout_seconds
+        return {0: b"level-zero", 1: b"level-one"}
+
+    monkeypatch.setattr(image_compression, "_optimize_png_levels", fake_optimize_levels)
+    monkeypatch.setattr(image_compression, "PNG_LARGE_IMAGE_THRESHOLD_BYTES", 20)
+
+    optimized = image_compression.optimize_png_artifact(
+        b"original-content",
+        media_type="image/png",
+    )
+
+    assert optimized == b"level-one"
+    assert captured == {
+        "content": b"original-content",
+        "levels": (0, 1, 2),
+        "timeout_seconds": image_compression.PNG_COMPRESSION_TIMEOUT_SECONDS,
+    }
+
+
+def test_png_optimizer_uses_level_zero_for_large_images(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_optimize_levels(
+        content: bytes,
+        levels: tuple[int, ...],
+        timeout_seconds: float,
+    ) -> dict[int, bytes | None]:
+        captured["levels"] = levels
+        captured["timeout_seconds"] = timeout_seconds
+        return {0: b"smaller"}
+
+    monkeypatch.setattr(image_compression, "_optimize_png_levels", fake_optimize_levels)
+    monkeypatch.setattr(image_compression, "PNG_LARGE_IMAGE_THRESHOLD_BYTES", 8)
+
+    optimized = image_compression.optimize_png_artifact(
+        b"large-image",
+        media_type="image/png",
+    )
+
+    assert optimized == b"smaller"
+    assert captured == {
+        "levels": (0,),
+        "timeout_seconds": image_compression.PNG_COMPRESSION_TIMEOUT_SECONDS,
+    }
+
+
+def test_png_optimizer_waits_for_level_zero_when_budget_has_no_success(monkeypatch) -> None:
+    stopped: list[int] = []
+    level_zero = _FakeCompressionProcess(0)
+    processes = {
+        0: level_zero,
+        1: _FakeCompressionProcess(1),
+        2: _FakeCompressionProcess(2),
+    }
+
+    def fake_stop_process(process: _FakeCompressionProcess) -> None:
+        stopped.append(process.level)
+
+    monkeypatch.setattr(image_compression, "_stop_process", fake_stop_process)
+    results: dict[int, bytes | None] = {}
+
+    image_compression._finish_after_budget(
+        b"original-content",
+        results,
+        processes,
+        _FakeCompressionQueue(waited=[(0, b"level0")]),
+    )
+
+    assert results == {0: b"level0"}
+    assert stopped == [1, 2]
+    assert level_zero.joined is True
+    assert processes == {}
+
+
+def _png_bytes(*, compress_level: int) -> bytes:
+    image = Image.new("RGBA", (64, 64), (214, 83, 63, 255))
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG", compress_level=compress_level)
+    return buffer.getvalue()
+
+
+def _rgba_bytes(content: bytes) -> bytes:
+    with Image.open(io.BytesIO(content)) as image:
+        return image.convert("RGBA").tobytes()
+
+
+class _FakeCompressionProcess:
+    def __init__(self, level: int) -> None:
+        self.level = level
+        self.joined = False
+
+    def join(self, timeout: float | None = None) -> None:
+        self.joined = True
+
+
+class _FakeCompressionQueue:
+    def __init__(self, *, waited: list[tuple[int, bytes | None]]) -> None:
+        self.waited = waited
+
+    def get_nowait(self) -> tuple[int, bytes | None]:
+        raise image_compression.queue.Empty
+
+    def get(self, timeout: float | None = None) -> tuple[int, bytes | None]:
+        if self.waited:
+            return self.waited.pop(0)
+        raise image_compression.queue.Empty

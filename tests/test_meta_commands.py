@@ -118,6 +118,7 @@ def test_meta_capabilities_lists_implemented_commands() -> None:
     assert global_options["--region"]["value"] == "auto|cn|os"
     assert global_options["--region"]["default"] == "auto"
     assert global_options["--format"]["value"] == "json|pretty-json|plain"
+    assert global_options["--no-image-compression"]["default"] is False
 
 
 def test_invalid_command_returns_json_error_envelope() -> None:

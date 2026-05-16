@@ -298,6 +298,13 @@ def _global_options(defaults: CliDefaults | None = None) -> list[dict[str, objec
             "placement": "anywhere",
             "description": _t("gsuid.cli.86_15.4bbccfad"),
         },
+        {
+            "name": "--no-image-compression",
+            "value": None,
+            "default": False,
+            "placement": "anywhere",
+            "description": _t("gsuid.cli.no_image_compression"),
+        },
     ]
 
 

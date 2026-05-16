@@ -80,6 +80,7 @@ TEXT_EN: dict[str, str] = {
     "gsuid.cli.83_22.c7c27395": "Read cookie values from standard input.",
     "gsuid.cli.auth_cookie_refreshed_retry": "The cookie expired; refreshed it from the stored Stoken and retried.",
     "gsuid.cli.config.invalid": "Invalid config file: {0}",
+    "gsuid.cli.no_image_compression": "Disable lossless PNG compression for image artifacts.",
     "gsuid.cli.84_14.d408a7e0": "The calendar date for which data is requested.",
     "gsuid.cli.85_13.5aa9ec83": "Weekday name or number.",
     "gsuid.cli.86_15.4bbccfad": "Include debugging diagnostic information in error details.",

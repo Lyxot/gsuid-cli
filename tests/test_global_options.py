@@ -6,7 +6,7 @@ from pathlib import Path
 
 from helpers import UUIDV7_RE, run_json_with_stderr as _run_json
 
-from gsuid_cli.cli import _write_payload, run
+from gsuid_cli.cli import _write_payload, parse_argv, run
 from gsuid_cli.core.models import CommandResult
 
 
@@ -28,6 +28,19 @@ def test_pretty_json_and_request_id_work_after_command_tokens() -> None:
     payload = json.loads(raw)
     assert payload["request_id"] == "req-pretty"
     assert payload["command"] == "meta.version"
+
+
+def test_no_image_compression_works_after_command_tokens() -> None:
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = run(["meta", "version", "--no-image-compression"], stdout=stdout, stderr=stderr)
+
+    assert code == 0
+    assert stderr.getvalue() == ""
+    payload = json.loads(stdout.getvalue())
+    assert payload["command"] == "meta.version"
+    assert parse_argv(["meta", "version", "--no-image-compression"]).image_compression is False
 
 
 def test_default_render_data_shows_data_and_sources() -> None:

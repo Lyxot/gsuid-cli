@@ -57,8 +57,7 @@ def png_bytes(image: Image.Image, *, rgb: bool = False) -> bytes:
     (image.convert("RGB") if rgb else image).save(
         output,
         format="PNG",
-        optimize=True,
-        compress_level=9,
+        compress_level=0,
     )
     return output.getvalue()
 

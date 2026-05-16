@@ -7,6 +7,7 @@ from collections.abc import Callable, Mapping
 
 from gsuid_cli.core.artifacts import ArtifactManager
 from gsuid_cli.core.errors import EXIT_UPSTREAM, CliError
+from gsuid_cli.core.image_compression import optimize_png_artifact
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.render import render_result_data, render_text_enabled
 
@@ -80,6 +81,11 @@ def write_image_artifact(
     media_type: str = "image/png",
 ) -> dict[str, object]:
     """Write a raster (or other bytes) image artifact and return its descriptor."""
+    content = optimize_png_artifact(
+        content,
+        media_type=media_type,
+        enabled=getattr(args, "image_compression", True),
+    )
     return ArtifactManager(args.request_id, args.output_dir).write_bytes(
         name=name,
         filename=filename,

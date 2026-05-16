@@ -17,6 +17,7 @@ dependencies = [
   "langcodes>=3.5,<4",
   "Pillow>=10,<13",
   "pyobjc-framework-cocoa>=12,<13 ; sys_platform == 'darwin'",
+  "pyoxipng>=9.1,<10",
   "qrcode>=7.3,<8",
 ]
 
