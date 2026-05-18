@@ -12,6 +12,7 @@ from gsuid_cli.renderers.common import (
     int_value,
     open_rgba,
     png_bytes,
+    progress_ring_frame,
     sequence,
     text_value,
 )
@@ -23,6 +24,13 @@ FIRST_COLOR = (29, 29, 29)
 SECOND_COLOR = (98, 98, 98)
 GREEN_COLOR = (15, 196, 35)
 RED_COLOR = (235, 61, 75)
+RING_COLOR_STOPS = (
+    (0.0, (15, 196, 35)),
+    (12 / 49, (22, 190, 34)),
+    (25 / 49, (53, 165, 29)),
+    (37 / 49, (128, 103, 18)),
+    (1.0, (255, 0, 0)),
+)
 
 
 def render_daily_note_card(
@@ -59,13 +67,16 @@ def render_daily_note_card(
         task_img = _task_img(expedition, expedition_avatar_images or {})
         img.paste(task_img, (81 + index * 106, 1051), task_img)
 
-    ring = Image.open(TEXTURE / "ring.apng")
     frame = min(round(resin_percent * 49), 49)
-    try:
-        ring.seek(frame)
-    except EOFError:
-        ring.seek(0)
-    ring = ring.convert("RGBA")
+    ring = progress_ring_frame(
+        size=(700, 1200),
+        frame=frame,
+        total_frames=50,
+        center=(350, 428),
+        radius=219,
+        width=26,
+        color_stops=RING_COLOR_STOPS,
+    )
     img.paste(ring, (0, -21), ring)
 
     draw.text(

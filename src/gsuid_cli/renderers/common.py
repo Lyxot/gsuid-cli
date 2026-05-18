@@ -62,6 +62,69 @@ def png_bytes(image: Image.Image, *, rgb: bool = False) -> bytes:
     return output.getvalue()
 
 
+def progress_ring_frame(
+    *,
+    size: tuple[int, int],
+    frame: int,
+    total_frames: int,
+    center: tuple[float, float],
+    radius: float,
+    width: float,
+    color_stops: Sequence[tuple[float, tuple[int, int, int]]],
+) -> Image.Image:
+    total_frames = max(total_frames, 1)
+    frame = min(max(frame, 0), total_frames - 1)
+    progress = frame / max(total_frames - 1, 1)
+    color = (*_interpolated_color(color_stops, progress), 255)
+    scale = 4
+    image = Image.new("RGBA", (size[0] * scale, size[1] * scale), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    scaled_center = (center[0] * scale, center[1] * scale)
+    scaled_radius = radius * scale
+    scaled_width = round(width * scale)
+    if frame == 0:
+        dot_radius = scaled_width / 2
+        x = scaled_center[0]
+        y = scaled_center[1] - scaled_radius
+        draw.ellipse((x - dot_radius, y - dot_radius, x + dot_radius, y + dot_radius), fill=color)
+    else:
+        box = (
+            scaled_center[0] - scaled_radius,
+            scaled_center[1] - scaled_radius,
+            scaled_center[0] + scaled_radius,
+            scaled_center[1] + scaled_radius,
+        )
+        draw.arc(
+            box,
+            -90,
+            -90 + (frame + 1) / total_frames * 360,
+            fill=color,
+            width=scaled_width,
+        )
+    return image.resize(size, Image.Resampling.LANCZOS)
+
+
+def _interpolated_color(
+    color_stops: Sequence[tuple[float, tuple[int, int, int]]],
+    progress: float,
+) -> tuple[int, int, int]:
+    if not color_stops:
+        return (255, 255, 255)
+    for (start_progress, start), (end_progress, end) in zip(
+        color_stops,
+        color_stops[1:],
+        strict=False,
+    ):
+        if progress <= end_progress:
+            span = end_progress - start_progress
+            amount = 0.0 if span == 0 else (progress - start_progress) / span
+            return tuple(
+                round(start[index] + (end[index] - start[index]) * amount)
+                for index in range(3)
+            )
+    return color_stops[-1][1]
+
+
 class FallbackFont(ImageFont.ImageFont):
     def __init__(
         self,

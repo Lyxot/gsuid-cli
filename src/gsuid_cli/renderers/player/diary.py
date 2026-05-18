@@ -12,6 +12,7 @@ from gsuid_cli.renderers.common import (
     int_value,
     open_rgba,
     png_bytes,
+    progress_ring_frame,
     sequence,
 )
 from gsuid_cli.renderers.player.summary import paste_player_footer, player_title_avatar_image
@@ -38,6 +39,13 @@ COLOR_MAP = {
     "Quests": (107, 182, 181),
     "Other": (118, 168, 196),
 }
+RING_COLOR_STOPS = (
+    (0.0, (250, 89, 89)),
+    (12 / 49, (245, 120, 105)),
+    (25 / 49, (231, 196, 143)),
+    (37 / 49, (167, 151, 214)),
+    (1.0, (130, 125, 255)),
+)
 
 
 def render_player_diary_card(
@@ -89,7 +97,6 @@ def _diary_values(
 
 
 def _paste_rings(image: Image.Image, values: Mapping[str, int]) -> None:
-    ring = Image.open(TEXTURE / "ring.apng")
     ring_data = [
         (_ratio_frame(values["day_stone"], values["lastday_stone"]), (-5, 475)),
         (_ratio_frame(values["day_mora"], values["lastday_mora"]), (371, 475)),
@@ -97,11 +104,15 @@ def _paste_rings(image: Image.Image, values: Mapping[str, int]) -> None:
         (_ratio_frame(values["month_mora"], values["lastmonth_mora"]), (371, 948)),
     ]
     for frame, position in sorted(ring_data):
-        try:
-            ring.seek(frame)
-        except EOFError:
-            ring.seek(0)
-        frame_image = ring.convert("RGBA")
+        frame_image = progress_ring_frame(
+            size=(500, 500),
+            frame=frame,
+            total_frames=50,
+            center=(250, 251.5),
+            radius=138,
+            width=32,
+            color_stops=RING_COLOR_STOPS,
+        )
         image.paste(frame_image, position, frame_image)
 
 
