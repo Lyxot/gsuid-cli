@@ -125,6 +125,27 @@ def _interpolated_color(
     return color_stops[-1][1]
 
 
+def draw_text_fit(
+    draw: ImageDraw.ImageDraw,
+    xy: tuple[float, float],
+    text: str,
+    *,
+    fill: str | tuple[int, int, int] | tuple[int, int, int, int],
+    size: int,
+    max_width: int,
+    min_size: int = 12,
+    anchor: str = "mm",
+) -> None:
+    selected = font(size)
+    for candidate_size in range(size, min_size - 1, -2):
+        candidate = font(candidate_size)
+        left, _, right, _ = draw.textbbox((0, 0), text, font=candidate, anchor="lt")
+        if right - left <= max_width:
+            selected = candidate
+            break
+    draw.text(xy, text, fill=fill, font=selected, anchor=anchor)
+
+
 class FallbackFont(ImageFont.ImageFont):
     def __init__(
         self,

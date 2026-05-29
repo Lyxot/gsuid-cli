@@ -79,7 +79,7 @@ def render_challenge_abyss_card(
     _paste_floor_overview(image, floors, full_floor)
 
     if not full_floor:
-        hint = open_rgba(TEXTURE / "hint.png")
+        hint = _hint_panel()
         image.paste(hint, (0, 830), hint)
         draw.text(
             (475, 865),
@@ -92,6 +92,13 @@ def render_challenge_abyss_card(
         _paste_floor_detail(image, selected_floor, asset_images)
 
     return png_bytes(image, rgb=True)
+
+
+def _hint_panel() -> Image.Image:
+    panel = Image.new("RGBA", (950, 70), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(panel)
+    draw.rounded_rectangle((35, 10, 915, 60), radius=25, fill=(255, 255, 255, 245))
+    return panel
 
 
 def challenge_abyss_image_urls(

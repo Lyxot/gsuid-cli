@@ -12,6 +12,7 @@ from PIL import Image, ImageDraw
 from gsuid_cli.renderers._text_helpers import _finish, _mapping_list
 from gsuid_cli.renderers.common import (
     asset_path,
+    draw_text_fit,
     font,
     image_from_bytes,
     int_value,
@@ -421,7 +422,7 @@ def _group_summary(
 
 
 def _title_panel(uid: str, group: Mapping[str, object]) -> Image.Image:
-    title = open_rgba(TEXTURE / "gahca_title.png")
+    title = _title_panel_background()
     level = _luck_level(group)
     emotion = _emotion_image(uid, str(group["label"]), level)
     title.paste(emotion, (703, 28), emotion)
@@ -429,12 +430,40 @@ def _title_panel(uid: str, group: Mapping[str, object]) -> Image.Image:
     draw.text((778, 207), HOMO_TAG[level - 1], FIRST_COLOR, font(36), "mm")
     draw.text((69, 72), str(group["label"]), FIRST_COLOR, font(62), "lm")
     draw.text((68, 122), str(group["time_range"]), BROWN_COLOR, font(28), "lm")
-    draw.text((123, 176), _number_text(group["avg"]), FIRST_COLOR, font(40), "mm")
-    draw.text((272, 176), _number_text(group["avg_up"]), FIRST_COLOR, font(40), "mm")
-    draw.text((424, 176), str(group["total_draws"]), FIRST_COLOR, font(40), "mm")
-    draw.text((585, 176), str(group["type"]), FIRST_COLOR, font(40), "mm")
-    draw.text((383, 85), str(group["remain"]), RED_COLOR, font(28), "mm")
+    draw_text_fit(
+        draw,
+        (500, 85),
+        _t("gsuid.renderers.gacha.summary.pity", group["remain"]),
+        fill=RED_COLOR,
+        size=28,
+        max_width=300,
+        min_size=20,
+    )
+    value_positions = (
+        (123, _number_text(group["avg"]), _t("gsuid.renderers.gacha.summary.avg")),
+        (272, _number_text(group["avg_up"]), _t("gsuid.renderers.gacha.summary.avg_up")),
+        (424, str(group["total_draws"]), _t("gsuid.renderers.gacha.summary.total")),
+        (585, str(group["type"]), _t("gsuid.renderers.gacha.summary.type")),
+    )
+    for x, value, label in value_positions:
+        draw.text((x, 176), value, FIRST_COLOR, font(40), "mm")
+        draw_text_fit(
+            draw,
+            (x, 210),
+            label,
+            fill=FIRST_COLOR,
+            size=24,
+            max_width=130,
+            min_size=16,
+        )
     return title
+
+
+def _title_panel_background() -> Image.Image:
+    image = Image.new("RGBA", (950, 260), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle((32, 15, 912, 245), radius=42, fill=(255, 255, 255, 250))
+    return image
 
 
 def _item_card(

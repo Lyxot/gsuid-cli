@@ -17,6 +17,7 @@ from gsuid_cli.renderers.challenge.common import (
 from gsuid_cli.renderers.common import (
     asset_path,
     crop_center,
+    draw_text_fit,
     font,
     int_value,
     open_rgba,
@@ -123,6 +124,16 @@ def _paste_banner(image: Image.Image, best: Mapping[str, object]) -> None:
         medal = open_rgba(medal_path).resize((84, 84), Image.Resampling.LANCZOS)
         banner.paste(medal, (636, 9), medal)
     draw = ImageDraw.Draw(banner)
+    draw_text_fit(
+        draw,
+        (84, 53),
+        _t("gsuid.renderers.challenge.theater.status.best_record"),
+        fill="white",
+        size=38,
+        max_width=260,
+        min_size=24,
+        anchor="lm",
+    )
     draw.text(
         (820, 51),
         _t("gsuid.renderers.challenge.hard.119_25.05854e94", int_value(best.get("second"))),

@@ -19,7 +19,14 @@ from gsuid_cli.renderers.challenge.common import (
     remote_image,
     timestamp_text,
 )
-from gsuid_cli.renderers.common import asset_path, font, int_value, open_rgba, png_bytes
+from gsuid_cli.renderers.common import (
+    asset_path,
+    draw_text_fit,
+    font,
+    int_value,
+    open_rgba,
+    png_bytes,
+)
 from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("challenge", "theater", "textures")
@@ -167,7 +174,7 @@ def _paste_status(
     stat: Mapping[str, object],
     fight: Mapping[str, object],
 ) -> None:
-    status = open_rgba(TEXTURE / "bar.png")
+    status = _status_bar()
     draw = ImageDraw.Draw(status)
     total_time = int_value(fight.get("total_use_time"))
     total_time_text = _t(
@@ -195,7 +202,32 @@ def _paste_status(
     )
     for x, value in values:
         draw.text((x, 41), value, "white", font(38), "mm")
+    labels = (
+        (145, _t("gsuid.renderers.challenge.theater.status.best_record")),
+        (327, _t("gsuid.renderers.challenge.theater.status.stella")),
+        (508, _t("gsuid.renderers.challenge.theater.status.flower")),
+        (690, _t("gsuid.renderers.challenge.theater.status.off_field")),
+        (871, _t("gsuid.renderers.challenge.theater.status.friend")),
+        (1052, _t("gsuid.renderers.challenge.theater.status.total_time")),
+    )
+    for x, label in labels:
+        draw_text_fit(
+            draw,
+            (x, 84),
+            label,
+            fill=(166, 166, 166),
+            size=32,
+            max_width=170,
+            min_size=18,
+        )
     image.paste(status, (0, 577), status)
+
+
+def _status_bar() -> Image.Image:
+    status = Image.new("RGBA", (1200, 150), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(status)
+    draw.line((73, 141, 1125, 141), fill=(191, 181, 174, 220), width=2)
+    return status
 
 
 def _paste_rounds(
