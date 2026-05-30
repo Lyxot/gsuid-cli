@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw
 from gsuid_cli.renderers.common import (
     asset_path,
     bool_value,
+    draw_text_fit,
     font,
     image_from_bytes,
     int_value,
@@ -119,10 +120,36 @@ def render_daily_note_card(
     for index, bar in enumerate(bars):
         img.paste(bar, (0, 642 + 78 * index), bar)
 
-    sign_pic = open_rgba(TEXTURE / f"sign_{_sign_status(signed)}.png")
+    sign_pic = _sign_badge(_sign_status(signed))
     img.paste(sign_pic, (275, 500), sign_pic)
 
     return png_bytes(img)
+
+
+def _sign_badge(status: str) -> Image.Image:
+    image = Image.new("RGBA", (150, 75), (0, 0, 0, 0))
+    icon = open_rgba(TEXTURE / f"{status}.png")
+    image.paste(icon, (5, 12), icon)
+    if status == "ok":
+        label = _t("gsuid.renderers.daily.text.208_15.26cc11aa")
+        color = GREEN_COLOR
+    elif status == "no":
+        label = _t("gsuid.renderers.daily.text.210_15.48ab7a95")
+        color = RED_COLOR
+    else:
+        label = _t("gsuid.renderers.daily.text.211_11.d9c32a4c")
+        color = (90, 60, 42)
+    draw_text_fit(
+        ImageDraw.Draw(image),
+        (55, 37),
+        label,
+        fill=color,
+        size=32,
+        max_width=92,
+        min_size=18,
+        anchor="lm",
+    )
+    return image
 
 
 def _bar(status: str, text: str, data: str) -> Image.Image:

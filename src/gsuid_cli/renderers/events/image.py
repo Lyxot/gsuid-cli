@@ -12,6 +12,7 @@ from gsuid_cli.renderers._text_helpers import _mapping_list
 from gsuid_cli.renderers.common import (
     asset_path,
     crop_center,
+    draw_text_fit,
     font,
     image_from_bytes,
     open_rgba,
@@ -114,15 +115,16 @@ def render_announcements_list_card(data: Mapping[str, object]) -> bytes:
         for pair in section_pairs
     ]
     height = sum(head.height + int(group["rows"]) * item.height for group in groups) + 50
-    image = Image.new("RGBA", (head.width, max(height, head.height + item.height + 50)), ANN_BG)
+    image = Image.new(
+        "RGBA",
+        (head.width, max(height, head.height + item.height + 50)),
+        ANN_BG,
+    )
 
     y = 0
-    for group_index, group in enumerate(groups):
+    for group in groups:
         pair = group["sections"]
-        if group_index == 0:
-            image.paste(head, (0, y), head)
-        else:
-            _draw_section_headers(image, pair, y)
+        _draw_section_headers(image, head, pair, y)
         y_items = y + head.height
         for column, section in enumerate(pair):
             x = 45 if column == 0 else 472
@@ -240,21 +242,26 @@ def _section_pairs(sections: Sequence[Mapping[str, object]]) -> list[list[Mappin
 
 def _draw_section_headers(
     image: Image.Image,
+    head: Image.Image,
     sections: Sequence[Mapping[str, object]],
     y: int,
 ) -> None:
+    image.paste(head, (0, y), head)
     draw = ImageDraw.Draw(image)
     for column, section in enumerate(sections):
-        x0 = 90 if column == 0 else 562
-        x1 = x0 + 230
+        x = 238 if column == 0 else 665
         label = text_value(section.get("type_label")) or _t(
             "gsuid.renderers.events.image.224_79.3f956953"
         )
-        draw.rounded_rectangle((x0, y + 22, x1, y + 74), radius=24, fill=(164, 186, 224))
-        draw.rounded_rectangle(
-            (x0 + 5, y + 27, x1 - 5, y + 69), radius=20, outline="white", width=2
+        draw_text_fit(
+            draw,
+            (x, y + 44),
+            label[:12],
+            fill="white",
+            size=32,
+            max_width=190,
+            min_size=18,
         )
-        draw.text(((x0 + x1) // 2, y + 48), label[:8], fill="white", font=font(32), anchor="mm")
 
 
 def _announcement_list_item(row: Mapping[str, object], template: Image.Image) -> Image.Image:

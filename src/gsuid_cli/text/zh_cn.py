@@ -622,6 +622,8 @@ TEXT_ZH_CN: dict[str, str] = {
     "gsuid.renderers.challenge.text.99_21.389c2b09": "时间: {0}",
     "gsuid.renderers.challenge.theater.140_33.28915553": "最高伤害",
     "gsuid.renderers.challenge.theater.154_22.163ee8ea": "{0}分{1}秒",
+    "gsuid.renderers.challenge.theater.avatar_type.support": "助演",
+    "gsuid.renderers.challenge.theater.avatar_type.trial": "试用",
     "gsuid.renderers.challenge.theater.status.best_record": "最佳记录",
     "gsuid.renderers.challenge.theater.status.flower": "幻剧之花",
     "gsuid.renderers.challenge.theater.status.friend": "支援好友",

@@ -622,6 +622,8 @@ TEXT_EN: dict[str, str] = {
     "gsuid.renderers.challenge.text.99_21.389c2b09": "Time: {0}",
     "gsuid.renderers.challenge.theater.140_33.28915553": "highest damage",
     "gsuid.renderers.challenge.theater.154_22.163ee8ea": "{0} minutes {1} seconds",
+    "gsuid.renderers.challenge.theater.avatar_type.support": "Support",
+    "gsuid.renderers.challenge.theater.avatar_type.trial": "Trial",
     "gsuid.renderers.challenge.theater.status.best_record": "Best Record",
     "gsuid.renderers.challenge.theater.status.flower": "Fantasia Flowers",
     "gsuid.renderers.challenge.theater.status.friend": "Support Friends",

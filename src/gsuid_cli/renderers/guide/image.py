@@ -8,6 +8,7 @@ from gsuid_cli.renderers._text_helpers import _mapping_list
 from gsuid_cli.renderers.common import (
     asset_path,
     crop_center,
+    draw_text_fit,
     font,
     image_from_bytes,
     int_value,
@@ -176,7 +177,7 @@ def _abyss_half(
             )
         y += block_height
         height += block_height
-    tag = open_rgba(ABYSS_TEXTURE / ("upper_tag.png" if half == "Upper" else "lower_tag.png"))
+    tag = _abyss_half_tag(half)
     content.paste(tag, (0, 0), tag)
     background = Image.new("RGBA", (WIDTH_ABYSS, height), (0, 0, 0, 0))
     bg_draw = ImageDraw.Draw(background)
@@ -184,6 +185,27 @@ def _abyss_half(
     cropped = content.crop((0, 0, WIDTH_ABYSS, height))
     background.paste(cropped, (0, 0), cropped)
     return background
+
+
+def _abyss_half_tag(half: str) -> Image.Image:
+    image = open_rgba(ABYSS_TEXTURE / ("upper_tag.png" if half == "Upper" else "lower_tag.png"))
+    draw = ImageDraw.Draw(image)
+    label = (
+        _t("gsuid.renderers.guide.text.29_34.b648ea14")
+        if half == "Upper"
+        else _t("gsuid.renderers.guide.text.30_34.9c03bee7")
+    )
+    draw_text_fit(
+        draw,
+        (47, 27),
+        label,
+        fill="white",
+        size=28,
+        max_width=58,
+        min_size=18,
+        anchor="lm",
+    )
+    return image
 
 
 def _abyss_monster(

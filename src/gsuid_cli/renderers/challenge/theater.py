@@ -267,12 +267,37 @@ def _paste_rounds(
             )
             stage.paste(char_card, (45 + 123 * char_index, 109), char_card)
             char_type = int_value(character.get("avatar_type"), 1)
-            if char_type != 1 and (TEXTURE / f"{char_type}.png").exists():
-                tag = open_rgba(TEXTURE / f"{char_type}.png")
-                stage.paste(tag, (74 + 123 * char_index, 99), tag)
+            if char_type != 1:
+                tag = _avatar_type_tag(char_type)
+                if tag is not None:
+                    stage.paste(tag, (74 + 123 * char_index, 99), tag)
         image.paste(stage, (30 + 570 * (index % 2), 760 + 280 * (index // 2)), stage)
         if index % 2 == 1:
             image.paste(div, (75, 756 + 280 * ((index // 2) + 1)), div)
+
+
+def _avatar_type_tag(char_type: int) -> Image.Image | None:
+    image = Image.new("RGBA", (56, 26), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    if char_type == 2:
+        label = _t("gsuid.renderers.challenge.theater.avatar_type.trial")
+        fill = (255, 78, 91)
+    elif char_type == 3:
+        label = _t("gsuid.renderers.challenge.theater.avatar_type.support")
+        fill = (40, 158, 236)
+    else:
+        return None
+    draw.rounded_rectangle((0, 0, 56, 26), radius=5, fill=fill)
+    draw_text_fit(
+        draw,
+        (28, 13),
+        label,
+        fill="white",
+        size=20,
+        max_width=50,
+        min_size=12,
+    )
+    return image
 
 
 def _paste_buffs(
