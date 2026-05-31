@@ -654,7 +654,7 @@ def _character_ids(item: Mapping[str, object]) -> list[str]:
 
 @lru_cache(maxsize=1)
 def _character_name_map() -> dict[str, list[str]]:
-    zh = json.loads((DATA / "avatarId2Name_mapping_6.5.0.json").read_text(encoding="utf-8"))
+    zh = json.loads((DATA / "avatarId2Name_mapping_6.6.0.json").read_text(encoding="utf-8"))
     mapping: dict[str, list[str]] = {}
     if isinstance(zh, dict):
         for avatar_id, name in zh.items():

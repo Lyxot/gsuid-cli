@@ -926,7 +926,7 @@ def _talent_count(avatar: Mapping[str, object], panel: Mapping[str, object]) -> 
 
 
 def _avatar_star(avatar: Mapping[str, object], panel: Mapping[str, object]) -> int:
-    mapped = _map("avatarId2Star_mapping_6.5.0.json").get(_avatar_id(avatar, panel))
+    mapped = _map("avatarId2Star_mapping_6.6.0.json").get(_avatar_id(avatar, panel))
     return min(max(int_value(mapped, 5), 1), 5)
 
 
@@ -939,12 +939,12 @@ def _panel_constellation(row: Mapping[str, object]) -> int:
 
 def _total_avatar_star(star: str) -> int:
     return sum(
-        1 for value in _map("avatarId2Star_mapping_6.5.0.json").values() if str(value) == star
+        1 for value in _map("avatarId2Star_mapping_6.6.0.json").values() if str(value) == star
     )
 
 
 def _total_weapon_star(star: str) -> int:
-    weapon_list = _map("weaponList_6.5.0.json")
+    weapon_list = _map("weaponList_6.6.0.json")
     count = 0
     for value in weapon_list.values():
         if isinstance(value, Mapping) and str(value.get("rank")) == star:
@@ -1684,7 +1684,7 @@ def _weapon_equip(avatar: Mapping[str, object]) -> Mapping[str, object]:
 
 def _weapon_name(weapon: Mapping[str, object], panel: Mapping[str, object]) -> str | None:
     flat = _flat(weapon)
-    mapped = _map("weaponHash2Name_mapping_6.5.0.json").get(str(flat.get("nameTextMapHash") or ""))
+    mapped = _map("weaponHash2Name_mapping_6.6.0.json").get(str(flat.get("nameTextMapHash") or ""))
     if mapped:
         return str(mapped)
     panel_weapon = panel.get("weapon")
@@ -1696,7 +1696,7 @@ def _weapon_name(weapon: Mapping[str, object], panel: Mapping[str, object]) -> s
 
 
 def _weapon_type(weapon: Mapping[str, object]) -> str:
-    mapped = _map("weaponHash2Type_mapping_6.5.0.json").get(
+    mapped = _map("weaponHash2Type_mapping_6.6.0.json").get(
         str(_flat(weapon).get("nameTextMapHash") or "")
     )
     return str(mapped or "")
@@ -1799,7 +1799,7 @@ def _artifact_name(
     normalized: Mapping[str, object],
 ) -> str:
     icon_name = _flat_icon(raw_artifact)
-    mapped = _map("icon2Name_mapping_6.5.0.json").get(icon_name or "")
+    mapped = _map("icon2Name_mapping_6.6.0.json").get(icon_name or "")
     return str(mapped or normalized.get("name") or "")
 
 
@@ -1902,7 +1902,7 @@ def _skill_entries(avatar: Mapping[str, object]) -> list[dict[str, object]]:
     skill_map = avatar.get("skillLevelMap")
     if not isinstance(skill_map, Mapping):
         return []
-    icons = _nested_map("skillId2Name_mapping_6.5.0.json", "Icon")
+    icons = _nested_map("skillId2Name_mapping_6.6.0.json", "Icon")
     entries = []
     for skill_id, level in skill_map.items():
         icon_name = icons.get(str(skill_id))
@@ -1920,7 +1920,7 @@ def _talent_icon_urls(avatar: Mapping[str, object]) -> list[str]:
     talents = avatar.get("talentIdList")
     if not isinstance(talents, list):
         return []
-    icons = _nested_map("talentId2Name_mapping_6.5.0.json", "Icon")
+    icons = _nested_map("talentId2Name_mapping_6.6.0.json", "Icon")
     urls = []
     for talent in talents:
         icon_name = icons.get(str(talent))
@@ -1930,7 +1930,7 @@ def _talent_icon_urls(avatar: Mapping[str, object]) -> list[str]:
 
 
 def _avatar_element(avatar: Mapping[str, object], panel: Mapping[str, object]) -> str:
-    mapped = _map("avatarName2Element_mapping_6.5.0.json").get(_avatar_name(avatar, panel) or "")
+    mapped = _map("avatarName2Element_mapping_6.6.0.json").get(_avatar_name(avatar, panel) or "")
     return str(mapped or "Anemo")
 
 
@@ -1942,7 +1942,7 @@ def _avatar_name(avatar: Mapping[str, object], panel: Mapping[str, object]) -> s
     )
     if value:
         return value
-    mapped = _map("avatarId2Name_mapping_6.5.0.json").get(_avatar_id(avatar, panel))
+    mapped = _map("avatarId2Name_mapping_6.6.0.json").get(_avatar_id(avatar, panel))
     return str(mapped) if mapped else None
 
 

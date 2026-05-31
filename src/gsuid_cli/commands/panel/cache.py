@@ -244,7 +244,7 @@ def avatar_id(avatar: JsonDict) -> str:
 
 
 def avatar_name(avatar: JsonDict) -> str:
-    mapped = _mapped_text("avatarId2Name_mapping_6.5.0.json", avatar_id(avatar))
+    mapped = _mapped_text("avatarId2Name_mapping_6.6.0.json", avatar_id(avatar))
     if mapped:
         return mapped
     value = (
@@ -261,7 +261,7 @@ def avatar_name(avatar: JsonDict) -> str:
 def avatar_aliases(avatar: JsonDict) -> list[str]:
     values = [
         avatar_id(avatar),
-        _mapped_text("avatarId2Name_mapping_6.5.0.json", avatar_id(avatar)),
+        _mapped_text("avatarId2Name_mapping_6.6.0.json", avatar_id(avatar)),
         avatar.get("name"),
         avatar.get("route"),
         avatar.get("avatarName"),
@@ -327,13 +327,13 @@ def artifact_list(avatar: JsonDict) -> list[JsonDict]:
             continue
         substats = _list_of_dicts(flat.get("reliquarySubstats") or equip.get("substats"))
         main_stat = _dict_value(flat.get("reliquaryMainstat") or equip.get("main_stat"))
-        mapped_name = _mapped_text("icon2Name_mapping_6.5.0.json", flat.get("icon"))
+        mapped_name = _mapped_text("icon2Name_mapping_6.6.0.json", flat.get("icon"))
         name = mapped_name or flat.get("name") or ""
         artifact = {
             "item_id": str(equip.get("itemId") or equip.get("id") or ""),
             "name": str(name or equip.get("name") or ""),
             "slot": flat.get("equipType") or equip.get("slot"),
-            "set_name": _mapped_text("artifact2attr_mapping_6.5.0.json", name)
+            "set_name": _mapped_text("artifact2attr_mapping_6.6.0.json", name)
             or flat.get("setName")
             or equip.get("set_name"),
             "rank": _optional_int(flat.get("rankLevel") or equip.get("rank")),
@@ -431,8 +431,8 @@ def _fight_prop_value(label: str, value: object) -> object:
 
 def _weapon_name(equip: JsonDict, flat: JsonDict) -> str:
     return str(
-        _mapped_text("weaponId2Name_mapping_6.5.0.json", equip.get("itemId") or equip.get("id"))
-        or _mapped_text("weaponHash2Name_mapping_6.5.0.json", flat.get("nameTextMapHash"))
+        _mapped_text("weaponId2Name_mapping_6.6.0.json", equip.get("itemId") or equip.get("id"))
+        or _mapped_text("weaponHash2Name_mapping_6.6.0.json", flat.get("nameTextMapHash"))
         or _weapon_name_by_route(flat.get("name") or equip.get("name") or equip.get("itemName"))
         or flat.get("name")
         or equip.get("name")
@@ -448,7 +448,7 @@ def _weapon_type(equip: JsonDict, flat: JsonDict) -> str | None:
         value = weapon_data.get("type")
         if value:
             return str(value)
-    return _mapped_text("weaponHash2Type_mapping_6.5.0.json", flat.get("nameTextMapHash"))
+    return _mapped_text("weaponHash2Type_mapping_6.6.0.json", flat.get("nameTextMapHash"))
 
 
 def _weapon_affix(weapon: JsonDict) -> int:
@@ -488,7 +488,7 @@ def _mapped_text(filename: str, key: object) -> str | None:
 
 @lru_cache(maxsize=1)
 def _weapon_list() -> dict[str, object]:
-    return _text_map("weaponList_6.5.0.json")
+    return _text_map("weaponList_6.6.0.json")
 
 
 @lru_cache(maxsize=16)

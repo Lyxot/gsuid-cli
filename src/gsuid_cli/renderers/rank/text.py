@@ -214,7 +214,7 @@ def render_rank_artifact_text(data: Mapping[str, object]) -> str:
 
 def _character_name(character: Mapping[str, object]) -> str:
     avatar_id = str(character.get("avatar_id") or character.get("character_id") or "")
-    mapped = _text_map("avatarId2Name_mapping_6.5.0.json").get(avatar_id)
+    mapped = _text_map("avatarId2Name_mapping_6.6.0.json").get(avatar_id)
     return _text(mapped or character.get("name") or avatar_id)
 
 
@@ -222,7 +222,7 @@ def _weapon_name(weapon: Mapping[str, object]) -> str:
     name = _text(weapon.get("name"))
     if name == "-":
         return name
-    for item in _text_map("weaponList_6.5.0.json").values():
+    for item in _text_map("weaponList_6.6.0.json").values():
         if isinstance(item, Mapping) and item.get("route") == name:
             return _text(item.get("name"))
     return name
@@ -270,9 +270,9 @@ def _artifact_sets_text(sets: Mapping[str, object]) -> str:
 
 def _artifact_set_label(name: object, item: Mapping[str, object]) -> str:
     icon = _icon_key(item.get("icon"))
-    artifact_name = _text_map("icon2Name_mapping_6.5.0.json").get(icon)
+    artifact_name = _text_map("icon2Name_mapping_6.6.0.json").get(icon)
     if artifact_name:
-        set_name = _text_map("artifact2attr_mapping_6.5.0.json").get(str(artifact_name))
+        set_name = _text_map("artifact2attr_mapping_6.6.0.json").get(str(artifact_name))
         if set_name:
             return _text(set_name)
     return _text(name)
@@ -280,7 +280,7 @@ def _artifact_set_label(name: object, item: Mapping[str, object]) -> str:
 
 def _artifact_name(artifact: Mapping[str, object]) -> str:
     icon_key = _icon_key(artifact.get("icon"))
-    mapped = _text_map("icon2Name_mapping_6.5.0.json").get(icon_key)
+    mapped = _text_map("icon2Name_mapping_6.6.0.json").get(icon_key)
     return _text(mapped or artifact.get("name"))
 
 

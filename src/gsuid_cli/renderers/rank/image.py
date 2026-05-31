@@ -532,7 +532,7 @@ def _title_stats(
     owned = [str(item) for item in _sequence(player.get("owned_characters"))]
     if not owned:
         owned = [str(item.get("avatar_id")) for item in characters if item.get("avatar_id")]
-    star_map = _json_map("avatarId2Star_mapping_6.5.0.json")
+    star_map = _json_map("avatarId2Star_mapping_6.6.0.json")
     star5 = [avatar_id for avatar_id in owned if str(star_map.get(avatar_id)) == "5"]
     star4 = [avatar_id for avatar_id in owned if str(star_map.get(avatar_id)) == "4"]
     full_star4 = _full_constellation_count(characters, star_map, "4")
@@ -549,7 +549,7 @@ def _title_stats(
         f"{full_star4}/{len(star4)}",
         f"{len(star5)}/{_total_star_count(star_map, '5')}",
         f"{len(star4)}/{_total_star_count(star_map, '4')}",
-        f"{star5_weapon}/{len(_json_map('weaponId2Name_mapping_6.5.0.json'))}",
+        f"{star5_weapon}/{len(_json_map('weaponId2Name_mapping_6.6.0.json'))}",
         high_score,
         useful,
     ]
@@ -577,7 +577,7 @@ def _stat_cv(character: Mapping[str, object]) -> float:
 
 
 def _character_quality(character: Mapping[str, object]) -> int:
-    star_map = _json_map("avatarId2Star_mapping_6.5.0.json")
+    star_map = _json_map("avatarId2Star_mapping_6.6.0.json")
     return int_value(star_map.get(str(character.get("avatar_id"))), 5)
 
 
@@ -727,7 +727,7 @@ def _main_stat_value_text(artifact: Mapping[str, object]) -> str:
 def _artifact_name(artifact: Mapping[str, object]) -> str:
     icon_url = text_value(artifact.get("icon")) or ""
     icon_key = icon_url.rsplit("/", 1)[-1].split(".", 1)[0]
-    mapped = _json_map("icon2Name_mapping_6.5.0.json").get(icon_key)
+    mapped = _json_map("icon2Name_mapping_6.6.0.json").get(icon_key)
     return str(mapped or artifact.get("name") or "")
 
 
