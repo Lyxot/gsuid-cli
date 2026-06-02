@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import json
+import uuid
 from http.cookies import CookieError, SimpleCookie
 
 from gsuid_cli.core.errors import (
@@ -14,17 +14,14 @@ from gsuid_cli.core.http import raise_for_retcode
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
 from gsuid_cli.core.secrets import redact_secret
-from gsuid_cli.providers.mys.auth import _headers, _passport_headers, _ticket_from_url
+from gsuid_cli.providers.mys.auth import _headers, _ticket_from_url
 from gsuid_cli.providers.mys.constants import (
-    CHECK_QRCODE_PATH,
-    CREATE_QRCODE_PATH,
+    CHECK_QRCODE_HYP_PATH,
+    CREATE_QRCODE_HYP_PATH,
     GET_COOKIE_TOKEN_BY_STOKEN_PATH,
-    GET_STOKEN_BY_GAME_TOKEN_PATH,
-    HK4_SDK_BASE_CN,
     PASSPORT_BASE_CN,
     PROVIDER,
 )
-from gsuid_cli.providers.mys.device import _random_device_id
 from gsuid_cli.providers.mys.normalizers import _payload_data
 from gsuid_cli.text import t as _t
 
@@ -38,20 +35,23 @@ _ACCOUNT_ID_KEYS = (
     "ltuid_v2",
 )
 _STOKEN_KEYS = ("stoken", "stoken_v2")
+_HYP_QRCODE_APP_ID = "2"
+_HYP_QRCODE_RPC_APP_ID = "ddxf5dufpuyo"
+_HYP_QRCODE_VERSION = "1.3.3.182"
 
 
 class MysQrcodeMixin:
     def create_qrcode_session(self, *, region: str) -> CommandResult:
         ensure_supported_region(region)
-        device = _random_device_id()
-        app_id = "2"
+        device = _random_hyp_device_id()
         response = self.http.request_json(
             "POST",
-            f"{HK4_SDK_BASE_CN}{CREATE_QRCODE_PATH}",
+            f"{PASSPORT_BASE_CN}{CREATE_QRCODE_HYP_PATH}",
             provider=PROVIDER,
             region=region,
             category="auth.qrcode.start",
-            json_body={"app_id": app_id, "device": device},
+            json_body={},
+            headers=_hyp_qrcode_headers(device),
         )
         raise_for_retcode(
             response.payload,
@@ -63,7 +63,7 @@ class MysQrcodeMixin:
         )
         data = _payload_data(response.payload, "auth.qrcode.start", response.source)
         url = str(data.get("url") or "")
-        ticket = _ticket_from_url(url)
+        ticket = str(data.get("ticket") or _ticket_from_url(url))
         if not url or not ticket:
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
@@ -74,7 +74,7 @@ class MysQrcodeMixin:
             )
         return CommandResult(
             data={
-                "app_id": app_id,
+                "app_id": _HYP_QRCODE_APP_ID,
                 "ticket": ticket,
                 "device": device,
                 "url": url,
@@ -135,42 +135,26 @@ class MysQrcodeMixin:
                 source=status["source"],
             )
 
-        game_token = status["game_token"]
-        account_id = status["account_id"]
-        if not isinstance(game_token, str) or not isinstance(account_id, str):
+        user_info = status["user_info"]
+        tokens = status["tokens"]
+        if not isinstance(user_info, dict) or not isinstance(tokens, list):
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
-                "Provider confirmed QR login without a usable game token.",
+                "Provider confirmed QR login without usable credentials.",
                 EXIT_UPSTREAM,
                 {"provider": PROVIDER, "category": "auth.qrcode.complete"},
                 source=status["source"],
             )
-
-        stoken_data, stoken_source = self._stoken_by_game_token(
-            account_id=account_id,
-            game_token=game_token,
-            region=region,
-        )
-        token_data = stoken_data.get("token")
-        user_info = stoken_data.get("user_info")
-        if not isinstance(token_data, dict) or not isinstance(user_info, dict):
-            raise CliError(
-                "UPSTREAM_INVALID_RESPONSE",
-                "Provider returned an invalid stoken response.",
-                EXIT_UPSTREAM,
-                {"provider": PROVIDER, "category": "auth.qrcode.complete"},
-                source=stoken_source,
-            )
-        stoken = str(token_data.get("token") or "")
-        stuid = str(user_info.get("aid") or account_id)
+        stoken = _token_value(tokens)
+        stuid = _account_id_from_user_info(user_info)
         mid = str(user_info.get("mid") or "")
-        if not stoken or not mid:
+        if not stoken or not stuid or not mid:
             raise CliError(
                 "UPSTREAM_INVALID_RESPONSE",
                 "Provider returned incomplete stoken credentials.",
                 EXIT_UPSTREAM,
                 {"provider": PROVIDER, "category": "auth.qrcode.complete"},
-                source=stoken_source,
+                source=status["source"],
             )
 
         stoken_cookie = f"stuid={stuid};stoken={stoken};mid={mid}"
@@ -278,11 +262,12 @@ class MysQrcodeMixin:
         ensure_supported_region(region)
         response = self.http.request_json(
             "POST",
-            f"{HK4_SDK_BASE_CN}{CHECK_QRCODE_PATH}",
+            f"{PASSPORT_BASE_CN}{CHECK_QRCODE_HYP_PATH}",
             provider=PROVIDER,
             region=region,
             category=category,
-            json_body={"app_id": app_id, "ticket": ticket, "device": device},
+            json_body={"ticket": ticket},
+            headers=_hyp_qrcode_headers(device),
         )
         raise_for_retcode(
             response.payload,
@@ -293,66 +278,26 @@ class MysQrcodeMixin:
             debug=self.http.debug,
         )
         data = _payload_data(response.payload, category, response.source)
-        raw_status = str(data.get("stat") or "Init")
+        raw_status = str(data.get("status") or data.get("stat") or "Created")
         status = {
-            "Init": "init",
+            "Created": "created",
             "Scanned": "scanned",
             "Confirmed": "confirmed",
         }.get(raw_status, raw_status.lower())
-
-        account_id = None
-        game_token = None
-        payload = data.get("payload")
-        if isinstance(payload, dict) and payload.get("raw"):
-            try:
-                raw = json.loads(str(payload["raw"]))
-            except json.JSONDecodeError as exc:
-                raise CliError(
-                    "UPSTREAM_INVALID_RESPONSE",
-                    "Provider returned invalid QR login payload.",
-                    EXIT_UPSTREAM,
-                    {"provider": PROVIDER, "category": category},
-                    source=response.source,
-                ) from exc
-            account_id = str(raw.get("uid") or "") or None
-            game_token = str(raw.get("token") or "") or None
+        user_info = data.get("user_info")
+        if not isinstance(user_info, dict):
+            user_info = {}
+        tokens = data.get("tokens")
+        if not isinstance(tokens, list):
+            tokens = []
 
         return {
             "status": status,
-            "account_id": account_id,
-            "game_token": game_token,
+            "account_id": _account_id_from_user_info(user_info) or None,
+            "tokens": tokens,
+            "user_info": user_info,
             "source": response.source,
         }
-
-    def _stoken_by_game_token(
-        self,
-        *,
-        account_id: str,
-        game_token: str,
-        region: str,
-    ) -> tuple[dict[str, object], dict[str, object]]:
-        body = {"account_id": int(account_id), "game_token": game_token}
-        response = self.http.request_json(
-            "POST",
-            f"{PASSPORT_BASE_CN}{GET_STOKEN_BY_GAME_TOKEN_PATH}",
-            provider=PROVIDER,
-            region=region,
-            category="auth.qrcode.stoken",
-            json_body=body,
-            headers=_passport_headers(body),
-        )
-        raise_for_retcode(
-            response.payload,
-            provider=PROVIDER,
-            region=region,
-            category="auth.qrcode.stoken",
-            source=response.source,
-            debug=self.http.debug,
-        )
-        return (
-            _payload_data(response.payload, "auth.qrcode.stoken", response.source),
-            response.source,
-        )
 
     def _cookie_token_by_stoken(
         self,
@@ -363,13 +308,17 @@ class MysQrcodeMixin:
         region: str,
         category: str = "auth.qrcode.cookie",
     ) -> tuple[dict[str, object], dict[str, object]]:
+        params = {"stoken": stoken, "uid": account_id}
+        mid = _cookie_value(full_cookie, "mid")
+        if mid:
+            params["mid"] = mid
         response = self.http.request_json(
             "GET",
             f"{PASSPORT_BASE_CN}{GET_COOKIE_TOKEN_BY_STOKEN_PATH}",
             provider=PROVIDER,
             region=region,
             category=category,
-            params={"stoken": stoken, "uid": account_id},
+            params=params,
             headers={**_headers(full_cookie), "Cookie": full_cookie},
         )
         raise_for_retcode(
@@ -384,6 +333,52 @@ class MysQrcodeMixin:
             _payload_data(response.payload, category, response.source),
             response.source,
         )
+
+
+def _random_hyp_device_id() -> str:
+    return f"{uuid.uuid4().hex}{uuid.uuid4().hex}"
+
+
+def _hyp_qrcode_headers(device_id: str) -> dict[str, str]:
+    return {
+        "x-rpc-device_id": device_id,
+        "User-Agent": f"HYPContainer/{_HYP_QRCODE_VERSION}",
+        "x-rpc-app_id": _HYP_QRCODE_RPC_APP_ID,
+        "x-rpc-client_type": "3",
+    }
+
+
+def _account_id_from_user_info(user_info: dict[str, object]) -> str:
+    for key in ("aid", "uid", "account_id"):
+        value = str(user_info.get(key) or "")
+        if value:
+            return value
+    return ""
+
+
+def _token_value(tokens: list[object]) -> str:
+    fallback = ""
+    for token in tokens:
+        if not isinstance(token, dict):
+            continue
+        value = str(token.get("token") or "")
+        if not value:
+            continue
+        if not fallback:
+            fallback = value
+        if token.get("name") in _STOKEN_KEYS:
+            return value
+    return fallback
+
+
+def _cookie_value(cookie: str, key: str) -> str:
+    parsed = SimpleCookie()
+    try:
+        parsed.load(cookie)
+    except CookieError:
+        return ""
+    morsel = parsed.get(key)
+    return morsel.value if morsel and morsel.value else ""
 
 
 def _stoken_cookie_parts(stoken_cookie: str) -> tuple[str, str, str]:

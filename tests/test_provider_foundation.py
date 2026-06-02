@@ -362,15 +362,26 @@ def test_get_cache_policy_uses_cached_payload(monkeypatch, tmp_path) -> None:
 
 
 def test_qrcode_start_returns_session() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {
+                    "ticket": "ticket-1",
+                    "url": "https://example.test/login?ticket=ticket-1",
+                },
+            }
+        )
+
     provider = MysProvider(
-        _client(
-            _json_response(
-                {
-                    "retcode": 0,
-                    "message": "OK",
-                    "data": {"url": "https://example.test/login?ticket=ticket-1"},
-                }
-            )
+        HttpClient(
+            timeout=1,
+            cache_policy="off",
+            transport=httpx.MockTransport(handler),
         )
     )
 
@@ -379,21 +390,34 @@ def test_qrcode_start_returns_session() -> None:
     assert result.data["app_id"] == "2"
     assert result.data["ticket"] == "ticket-1"
     assert result.data["url"] == "https://example.test/login?ticket=ticket-1"
+    assert len(str(result.data["device"])) == 64
+    assert requests[0].url.path == "/account/ma-cn-passport/app/createQRLogin"
+    assert requests[0].headers["x-rpc-app_id"] == "ddxf5dufpuyo"
+    assert requests[0].headers["user-agent"] == "HYPContainer/1.3.3.182"
 
 
 def test_qrcode_poll_confirmed_does_not_return_game_token() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {
+                    "status": "Confirmed",
+                    "tokens": [{"name": "stoken", "token": "stoken-secret"}],
+                    "user_info": {"aid": "123456", "mid": "mid-secret"},
+                },
+            }
+        )
+
     provider = MysProvider(
-        _client(
-            _json_response(
-                {
-                    "retcode": 0,
-                    "message": "OK",
-                    "data": {
-                        "stat": "Confirmed",
-                        "payload": {"raw": json.dumps({"uid": "123456", "token": "game-secret"})},
-                    },
-                }
-            )
+        HttpClient(
+            timeout=1,
+            cache_policy="off",
+            transport=httpx.MockTransport(handler),
         )
     )
 
@@ -406,43 +430,44 @@ def test_qrcode_poll_confirmed_does_not_return_game_token() -> None:
 
     assert result.data["status"] == "confirmed"
     assert result.data["account_id"] == "123456"
-    assert "game-secret" not in json.dumps(result.data)
+    assert "stoken-secret" not in json.dumps(result.data)
+    assert requests[0].url.path == "/account/ma-cn-passport/app/queryQRLoginStatus"
+    assert json.loads(requests[0].content.decode()) == {"ticket": "ticket-1"}
+    assert requests[0].headers["x-rpc-device_id"] == "device-1"
 
 
 def test_qrcode_complete_exchanges_tokens() -> None:
+    requests: list[httpx.Request] = []
+    responses = [
+        _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {
+                    "status": "Confirmed",
+                    "tokens": [{"name": "stoken", "token": "stoken-secret"}],
+                    "user_info": {"aid": "123456", "mid": "mid-secret"},
+                },
+            }
+        ),
+        _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {"cookie_token": "cookie-secret"},
+            }
+        ),
+    ]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return responses.pop(0)
+
     provider = MysProvider(
-        _sequence_client(
-            [
-                _json_response(
-                    {
-                        "retcode": 0,
-                        "message": "OK",
-                        "data": {
-                            "stat": "Confirmed",
-                            "payload": {
-                                "raw": json.dumps({"uid": "123456", "token": "game-secret"})
-                            },
-                        },
-                    }
-                ),
-                _json_response(
-                    {
-                        "retcode": 0,
-                        "message": "OK",
-                        "data": {
-                            "token": {"token": "stoken-secret"},
-                            "user_info": {"aid": "123456", "mid": "mid-secret"},
-                        },
-                    }
-                ),
-                _json_response(
-                    {
-                        "retcode": 0,
-                        "message": "OK",
-                        "data": {"cookie_token": "cookie-secret"},
-                    }
-                ),
-            ]
+        HttpClient(
+            timeout=1,
+            cache_policy="off",
+            transport=httpx.MockTransport(handler),
         )
     )
 
@@ -458,6 +483,11 @@ def test_qrcode_complete_exchanges_tokens() -> None:
     assert result.data["account_id"] == "123456"
     assert result.data["cookie"] == "account_id=123456;cookie_token=cookie-secret"
     assert result.data["stoken"] == "stuid=123456;stoken=stoken-secret;mid=mid-secret"
+    assert [request.url.path for request in requests] == [
+        "/account/ma-cn-passport/app/queryQRLoginStatus",
+        "/account/auth/api/getCookieAccountInfoBySToken",
+    ]
+    assert requests[1].url.params["mid"] == "mid-secret"
 
 
 def test_cookie_refresh_exchanges_stoken_for_cookie() -> None:
@@ -494,6 +524,7 @@ def test_cookie_refresh_exchanges_stoken_for_cookie() -> None:
     assert result.data["redacted"] != result.data["cookie"]
     assert requests[0].url.params["stoken"] == "stoken-secret"
     assert requests[0].url.params["uid"] == "123456"
+    assert requests[0].url.params["mid"] == "mid-secret"
     assert requests[0].headers["cookie"] == "stuid=123456;stoken=stoken-secret;mid=mid-secret"
 
 
@@ -504,7 +535,7 @@ def test_qrcode_complete_requires_confirmed_status() -> None:
                 {
                     "retcode": 0,
                     "message": "OK",
-                    "data": {"stat": "Scanned", "payload": {"raw": ""}},
+                    "data": {"status": "Scanned"},
                 }
             )
         )
