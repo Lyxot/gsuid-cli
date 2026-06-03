@@ -161,6 +161,8 @@ def test_qrcode_complete_stores_credentials_without_printing_secrets(monkeypatch
             "complete",
             "--uid",
             "100000001",
+            "--app-id",
+            "legacy-app-id",
             "--ticket",
             "ticket-1",
             "--device",
@@ -411,8 +413,7 @@ def test_auth_qrcode_render_text_plain_hides_session_values(monkeypatch, tmp_pat
     assert "扫码登录会话" in stdout
     assert "请使用米游社APP扫码登录" in stdout
     assert (
-        "请在点击确认登录后立即执行: "
-        "gsuid auth qrcode poll --app-id 2 --ticket ticket-1 --device device-1"
+        "请在点击确认登录后立即执行: gsuid auth qrcode poll --ticket ticket-1 --device device-1"
     ) in stdout
     assert "█" in stdout
     assert "状态: 已创建" in stdout
@@ -431,8 +432,7 @@ def test_auth_qrcode_start_plain_default_prints_terminal_qr(monkeypatch, tmp_pat
     assert stderr == ""
     assert "请使用米游社APP扫码登录" in stdout
     assert (
-        "请在点击确认登录后立即执行: "
-        "gsuid auth qrcode poll --app-id 2 --ticket ticket-1 --device device-1"
+        "请在点击确认登录后立即执行: gsuid auth qrcode poll --ticket ticket-1 --device device-1"
     ) in stdout
     assert "█" in stdout
     assert "https://example.test" not in stdout
@@ -462,7 +462,7 @@ def test_auth_qrcode_start_render_text_image_plain_prints_prompt_and_path(
     assert code == 0
     assert stderr == ""
     assert "请使用米游社APP扫码登录" in stdout
-    assert "gsuid auth qrcode poll --app-id 2 --ticket ticket-1 --device device-1" in stdout
+    assert "gsuid auth qrcode poll --ticket ticket-1 --device device-1" in stdout
     assert "https://example.test" not in stdout
     image_line = next(line for line in stdout.splitlines() if line.startswith("图片已保存至: "))
     assert Path(image_line.split(": ", 1)[1]).exists()
@@ -493,8 +493,7 @@ def test_auth_qrcode_start_plain_data_image_does_not_dump_session_values(
     assert stderr == ""
     assert "请使用米游社APP扫码登录" in stdout
     assert (
-        "请在点击确认登录后立即执行: "
-        "gsuid auth qrcode poll --app-id 2 --ticket ticket-1 --device device-1"
+        "请在点击确认登录后立即执行: gsuid auth qrcode poll --ticket ticket-1 --device device-1"
     ) in stdout
     assert "图片已保存至:" in stdout
     assert "https://example.test" not in stdout

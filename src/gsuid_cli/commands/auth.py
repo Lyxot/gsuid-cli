@@ -616,7 +616,7 @@ def _register_device(
 
 
 def _add_qrcode_session_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--app-id", default="2")
+    parser.add_argument("--app-id", default="2", help=argparse.SUPPRESS)
     parser.add_argument("--ticket", required=True)
     parser.add_argument("--device", required=True)
 
@@ -988,7 +988,6 @@ def _qrcode_text_content(
 
 
 def _qrcode_poll_command(data: dict[str, object]) -> str:
-    app_id = shlex.quote(str(data.get("app_id") or "2"))
     ticket = shlex.quote(str(data.get("ticket") or ""))
     device = shlex.quote(str(data.get("device") or ""))
-    return f"gsuid auth qrcode poll --app-id {app_id} --ticket {ticket} --device {device}"
+    return f"gsuid auth qrcode poll --ticket {ticket} --device {device}"

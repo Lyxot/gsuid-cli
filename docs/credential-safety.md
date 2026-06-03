@@ -37,8 +37,8 @@ gsuid auth qrcode login --uid <你的UID>
 
 ```sh
 gsuid auth qrcode start
-gsuid auth qrcode poll --app-id APP --ticket TICKET --device DEVICE
-gsuid auth qrcode complete --uid <UID> --app-id APP --ticket TICKET --device DEVICE
+gsuid auth qrcode poll --ticket TICKET --device DEVICE
+gsuid auth qrcode complete --uid <UID> --ticket TICKET --device DEVICE
 ```
 
 由于二维码登录票据有效期很短，人工操作时建议直接使用 `auth qrcode login`，它会在展示二维码后立即自动开始轮询。

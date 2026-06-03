@@ -44,6 +44,21 @@ def test_incomplete_parser_paths_show_help() -> None:
         assert usage in stdout.getvalue(), path
 
 
+def test_qrcode_legacy_app_id_is_hidden_from_help() -> None:
+    for path in (
+        ("auth", "qrcode", "poll"),
+        ("auth", "qrcode", "complete"),
+    ):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        code = run([*path, "--help"], stdout=stdout, stderr=stderr)
+
+        assert code == 0
+        assert stderr.getvalue() == ""
+        assert "--app-id" not in stdout.getvalue()
+
+
 def test_capabilities_have_matching_help_paths() -> None:
     parsers_by_path = {tuple(path): parser for path, parser in _parser_paths(build_parser())}
     missing = []

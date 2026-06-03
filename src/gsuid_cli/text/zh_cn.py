@@ -67,7 +67,6 @@ TEXT_ZH_CN: dict[str, str] = {
     "gsuid.cli.586_24.94d7b91b": "带有数据和来源的调试包",
     "gsuid.cli.593_28.d00773a0": "调试产物写入失败: {0}",
     "gsuid.cli.72_13.80c7bc85": "包含通常省略的行。",
-    "gsuid.cli.73_16.23b02302": "来自 auth.qrcode.start 的二维码登录 app id。",
     "gsuid.cli.74_35.12b00f08": "要复用其圣遗物进行对比的角色。",
     "gsuid.cli.75_16.81e01ff3": "要汇总的祈愿卡池分类。",
     "gsuid.cli.76_15.63c90b76": "要对比的已保存或已缓存的配置名称。",

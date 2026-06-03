@@ -422,7 +422,7 @@ def test_qrcode_poll_confirmed_does_not_return_game_token() -> None:
     )
 
     result = provider.poll_qrcode_session(
-        app_id="2",
+        app_id="legacy-app-id",
         ticket="ticket-1",
         device="device-1",
         region="cn",
@@ -472,7 +472,7 @@ def test_qrcode_complete_exchanges_tokens() -> None:
     )
 
     result = provider.complete_qrcode_login(
-        app_id="2",
+        app_id="legacy-app-id",
         ticket="ticket-1",
         device="device-1",
         uid="100000001",

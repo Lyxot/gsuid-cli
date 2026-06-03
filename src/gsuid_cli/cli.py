@@ -87,7 +87,6 @@ SENSITIVE_KEY_PARTS = (
 )
 OPTION_HELP = {
     "--all": _t("gsuid.cli.72_13.80c7bc85"),
-    "--app-id": _t("gsuid.cli.73_16.23b02302"),
     "--artifact-source-character": _t("gsuid.cli.74_35.12b00f08"),
     "--banner": _t("gsuid.cli.75_16.81e01ff3"),
     "--build": _t("gsuid.cli.76_15.63c90b76"),

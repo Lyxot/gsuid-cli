@@ -67,7 +67,6 @@ TEXT_EN: dict[str, str] = {
     "gsuid.cli.586_24.94d7b91b": "Debug package with data and sources",
     "gsuid.cli.593_28.d00773a0": "Debug output artifact writing failed: {0}",
     "gsuid.cli.72_13.80c7bc85": "Include rows that are usually omitted.",
-    "gsuid.cli.73_16.23b02302": "QR code login app id from auth.qrcode.start.",
     "gsuid.cli.74_35.12b00f08": "A character whose artifacts are to be reused for comparison.",
     "gsuid.cli.75_16.81e01ff3": "Wish banner categories to summarize.",
     "gsuid.cli.76_15.63c90b76": "The name of the saved or cached configuration to compare.",
