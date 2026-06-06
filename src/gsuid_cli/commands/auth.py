@@ -8,9 +8,6 @@ import sys
 import time
 from pathlib import Path
 
-import qrcode
-from qrcode.constants import ERROR_CORRECT_L
-
 from gsuid_cli.commands._text import (
     command_text_result,
     helps_from,
@@ -830,6 +827,9 @@ def _http_client(args: argparse.Namespace) -> HttpClient:
 
 
 def _qrcode_terminal(url: str) -> str:
+    import qrcode
+    from qrcode.constants import ERROR_CORRECT_L
+
     qr = qrcode.QRCode(
         version=1,
         error_correction=ERROR_CORRECT_L,
@@ -843,6 +843,9 @@ def _qrcode_terminal(url: str) -> str:
 
 
 def _qrcode_png(url: str) -> bytes:
+    import qrcode
+    from qrcode.constants import ERROR_CORRECT_L
+
     qr = qrcode.QRCode(
         version=1,
         error_correction=ERROR_CORRECT_L,
