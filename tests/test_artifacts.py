@@ -244,7 +244,9 @@ def test_png_optimizer_uses_level_zero_for_large_images(monkeypatch) -> None:
     }
 
 
-def test_png_optimizer_waits_for_level_zero_when_budget_has_no_success(monkeypatch) -> None:
+def test_png_optimizer_waits_briefly_for_level_zero_when_budget_has_no_success(
+    monkeypatch,
+) -> None:
     stopped: list[int] = []
     level_zero = _FakeCompressionProcess(0)
     processes = {
@@ -269,6 +271,33 @@ def test_png_optimizer_waits_for_level_zero_when_budget_has_no_success(monkeypat
     assert results == {0: b"level0"}
     assert stopped == [1, 2]
     assert level_zero.joined is True
+    assert level_zero.join_timeouts == [image_compression._PROCESS_JOIN_TIMEOUT_SECONDS]
+    assert processes == {}
+
+
+def test_png_optimizer_stops_level_zero_when_budget_wait_expires(monkeypatch) -> None:
+    stopped: list[int] = []
+    level_zero = _FakeCompressionProcess(0, alive=True)
+    processes = {0: level_zero}
+
+    def fake_stop_process(process: _FakeCompressionProcess) -> None:
+        stopped.append(process.level)
+        process.alive = False
+
+    monkeypatch.setattr(image_compression, "_stop_process", fake_stop_process)
+    results: dict[int, bytes | None] = {}
+
+    image_compression._finish_after_budget(
+        b"original-content",
+        results,
+        processes,
+        _FakeCompressionQueue(waited=[(0, b"level0")]),
+    )
+
+    assert results == {0: None}
+    assert stopped == [0]
+    assert level_zero.joined is True
+    assert level_zero.join_timeouts == [image_compression._PROCESS_JOIN_TIMEOUT_SECONDS]
     assert processes == {}
 
 
@@ -285,12 +314,18 @@ def _rgba_bytes(content: bytes) -> bytes:
 
 
 class _FakeCompressionProcess:
-    def __init__(self, level: int) -> None:
+    def __init__(self, level: int, *, alive: bool = False) -> None:
         self.level = level
+        self.alive = alive
         self.joined = False
+        self.join_timeouts: list[float | None] = []
 
     def join(self, timeout: float | None = None) -> None:
         self.joined = True
+        self.join_timeouts.append(timeout)
+
+    def is_alive(self) -> bool:
+        return self.alive
 
 
 class _FakeCompressionQueue:

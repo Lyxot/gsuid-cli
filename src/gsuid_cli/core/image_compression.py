@@ -117,7 +117,12 @@ def _finish_after_budget(
     for level, process in list(processes.items()):
         _stop_process(process)
         del processes[level]
-    results[0] = _wait_for_process_result(0, level_zero_process, result_queue)
+    results[0] = _wait_for_process_result(
+        0,
+        level_zero_process,
+        result_queue,
+        _PROCESS_JOIN_TIMEOUT_SECONDS,
+    )
 
 
 def _drain_ready_results(
@@ -136,8 +141,16 @@ def _drain_ready_results(
             _stop_process(process)
 
 
-def _wait_for_process_result(level: int, process: Any, result_queue: Any) -> bytes | None:
-    process.join()
+def _wait_for_process_result(
+    level: int,
+    process: Any,
+    result_queue: Any,
+    timeout_seconds: float,
+) -> bytes | None:
+    process.join(timeout=timeout_seconds)
+    if process.is_alive():
+        _stop_process(process)
+        return None
     while True:
         try:
             result_level, optimized = result_queue.get(timeout=_PROCESS_JOIN_TIMEOUT_SECONDS)

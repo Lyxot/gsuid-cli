@@ -119,8 +119,7 @@ def _interpolated_color(
             span = end_progress - start_progress
             amount = 0.0 if span == 0 else (progress - start_progress) / span
             return tuple(
-                round(start[index] + (end[index] - start[index]) * amount)
-                for index in range(3)
+                round(start[index] + (end[index] - start[index]) * amount) for index in range(3)
             )
     return color_stops[-1][1]
 
