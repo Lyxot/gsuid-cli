@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import io
+import subprocess
+import sys
 
 from gsuid_cli.cli import build_parser, run
 from gsuid_cli.commands.meta import capabilities_command
@@ -42,6 +44,22 @@ def test_incomplete_parser_paths_show_help() -> None:
         assert code == 0, path
         assert stderr.getvalue() == "", path
         assert usage in stdout.getvalue(), path
+
+
+def test_cli_import_does_not_load_qrcode() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys; import gsuid_cli.cli; print('qrcode' in sys.modules)",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "False"
 
 
 def test_qrcode_legacy_app_id_is_hidden_from_help() -> None:
