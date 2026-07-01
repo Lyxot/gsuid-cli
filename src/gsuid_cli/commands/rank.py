@@ -440,7 +440,7 @@ def _crown_owned_from_calculator_data(data: dict[str, object]) -> int:
 
 
 def _crown_compute_items(details: list[dict[str, object]]) -> list[dict[str, object]]:
-    skill_map = _json_map("avatarId2SkillList_mapping_6.6.0.json")
+    skill_map = _json_map("avatarId2SkillList_mapping_6.7.0.json")
     items: list[dict[str, object]] = []
     for character in details:
         base = _dict(character.get("base"))
@@ -627,10 +627,10 @@ def _character_id(query: str) -> str:
     if query.isdigit():
         return query
     needle = _normalize(query)
-    for avatar_id, name in _json_map("avatarId2Name_mapping_6.6.0.json").items():
+    for avatar_id, name in _json_map("avatarId2Name_mapping_6.7.0.json").items():
         if needle == _normalize(str(name)):
             return avatar_id
-    for name, avatar_id in _json_map("enName2AvatarID_mapping_6.6.0.json").items():
+    for name, avatar_id in _json_map("enName2AvatarID_mapping_6.7.0.json").items():
         if needle == _normalize(str(name)):
             return str(avatar_id)
     aliases = _json_map("char_alias.json")
@@ -647,7 +647,7 @@ def _character_id(query: str) -> str:
 
 
 def _character_name(character_id: str) -> str:
-    return str(_json_map("avatarId2Name_mapping_6.6.0.json").get(str(character_id)) or character_id)
+    return str(_json_map("avatarId2Name_mapping_6.7.0.json").get(str(character_id)) or character_id)
 
 
 @lru_cache(maxsize=8)
@@ -666,14 +666,14 @@ def _stat_cv(character: dict[str, object]) -> float:
 
 def _total_star_count(star: str) -> int:
     return sum(
-        1 for value in _json_map("avatarId2Star_mapping_6.6.0.json").values() if str(value) == star
+        1 for value in _json_map("avatarId2Star_mapping_6.7.0.json").values() if str(value) == star
     )
 
 
 def _total_weapon_count(star: str) -> int:
     return sum(
         1
-        for item in _json_map("weaponList_6.6.0.json").values()
+        for item in _json_map("weaponList_6.7.0.json").values()
         if str(_dict(item).get("rank")) == star
     )
 

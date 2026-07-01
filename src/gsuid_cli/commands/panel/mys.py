@@ -326,7 +326,7 @@ def _artifact_slot(value: object) -> object:
 def _artifact_icon(name: object) -> str | None:
     if name in (None, ""):
         return None
-    names = _text_map("icon2Name_mapping_6.6.0.json")
+    names = _text_map("icon2Name_mapping_6.7.0.json")
     for icon, mapped_name in names.items():
         if mapped_name == name:
             return str(icon)
