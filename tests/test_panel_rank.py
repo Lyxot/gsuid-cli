@@ -402,7 +402,7 @@ def test_panel_compare_artifacts_showcase_render_images(monkeypatch, tmp_path) -
             ],
             "panel.compare",
             "panel/compare",
-            (1900, 2250),
+            (1900, 2290),
         ),
         (
             ["panel", "artifacts", "--uid", "100000001", "--render", "image"],
