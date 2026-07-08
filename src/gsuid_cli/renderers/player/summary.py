@@ -629,6 +629,10 @@ def _world_icon_url(world: Mapping[str, object]) -> str | None:
         return "https://webstatic.mihoyo.com/app/community-game-records/images/world-logo-16.1c751ac9.png"
     if name == _t("gsuid.renderers.daily.text.24_9.b6b55ca3"):
         return "https://webstatic.mihoyo.com/app/community-game-records/images/world-logo-17.dadac5bf.png"
+    if name == "风息山":
+        return "https://webstatic.mihoyo.com/app/community-game-records/images/world-logo-1.20b81b5f.png"
+    if name == "空之神殿":
+        return "https://webstatic.mihoyo.com/app/community-game-records/images/world-logo-19.a9df3078.png"
     return text_value(world.get("icon"))
 
 

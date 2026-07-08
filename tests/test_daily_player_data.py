@@ -1032,6 +1032,24 @@ def test_player_summary_render_handles_missing_oculus_texture() -> None:
         assert image.getbbox() is not None
 
 
+def test_player_summary_icon_urls_include_new_exploration_fallbacks() -> None:
+    urls = player_summary_renderer.player_summary_mys_icon_urls(
+        {
+            "world_explorations": [
+                {"name": "风息山"},
+                {"name": "空之神殿"},
+                {"name": "蒙德", "icon": "https://upload.example.test/world.png"},
+            ],
+        }
+    )
+
+    assert urls == [
+        "https://webstatic.mihoyo.com/app/community-game-records/images/world-logo-1.20b81b5f.png",
+        "https://webstatic.mihoyo.com/app/community-game-records/images/world-logo-19.a9df3078.png",
+        "https://upload.example.test/world.png",
+    ]
+
+
 def test_player_summary_render_prefers_role_avatar_icon() -> None:
     role_avatar = _solid_png((220, 10, 10, 255))
     player_avatar = _solid_png((10, 220, 10, 255))
