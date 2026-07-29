@@ -1241,12 +1241,7 @@ class FakeOsMysPanelProvider:
         assert kwargs["uid"] == "800000001"
         self.characters_calls += 1
         return CommandResult(
-            data={
-                "characters": [
-                    {"id": detail["base"]["id"]}
-                    for detail in self.details
-                ]
-            },
+            data={"characters": [{"id": detail["base"]["id"]} for detail in self.details]},
             source=_mys_source(),
         )
 

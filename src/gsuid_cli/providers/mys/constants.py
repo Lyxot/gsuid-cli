@@ -17,9 +17,7 @@ NEW_BBS_BASE_CN = "https://bbs-api.miyoushe.com"
 BBS_BASE_CN = "https://bbs-api.mihoyo.com"
 GET_FP_URL = "https://public-data-api.mihoyo.com/device-fp/api/getFp"
 GACHA_LOG_URL = "https://public-operation-hk4e.mihoyo.com/gacha_info/api/getGachaLog"
-GACHA_LOG_URL_OS = (
-    "https://public-operation-hk4e-sg.hoyoverse.com/gacha_info/api/getGachaLog"
-)
+GACHA_LOG_URL_OS = "https://public-operation-hk4e-sg.hoyoverse.com/gacha_info/api/getGachaLog"
 INDEX_PATH = "/game_record/app/genshin/api/index"
 INDEX_PATH_OS = "/game_record/genshin/api/index"
 CARD_PATH = "/game_record/card/wapi/getGameRecordCard"

@@ -1085,9 +1085,7 @@ def test_mys_gacha_authkey_generation_uses_os_server_for_os_uid() -> None:
             },
         )
 
-    provider = MysProvider(
-        _mock_client(handler)
-    )
+    provider = MysProvider(_mock_client(handler))
 
     result = provider.generate_gacha_authkey_url(
         uid="800000001",
@@ -1105,8 +1103,7 @@ def test_mys_gacha_authkey_generation_uses_os_server_for_os_uid() -> None:
     assert body["game_biz"] == "hk4e_global"
     assert body["region"] == "os_asia"
     assert (
-        urlsplit(str(result.data["gacha_url"])).netloc
-        == "public-operation-hk4e-sg.hoyoverse.com"
+        urlsplit(str(result.data["gacha_url"])).netloc == "public-operation-hk4e-sg.hoyoverse.com"
     )
     assert query["region"] == ["os_asia"]
     assert query["game_biz"] == ["hk4e_global"]

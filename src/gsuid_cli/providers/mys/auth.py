@@ -51,13 +51,9 @@ def record_path_for_uid(uid: str, path: str) -> str:
         "/game_record/app/genshin/api/dailyNote": "/game_record/genshin/api/dailyNote",
         "/game_record/app/genshin/api/spiralAbyss": "/game_record/genshin/api/spiralAbyss",
         "/game_record/app/genshin/api/role_combat": "/game_record/genshin/api/role_combat",
-        "/game_record/app/genshin/api/hard_challenge": (
-            "/game_record/genshin/api/hard_challenge"
-        ),
+        "/game_record/app/genshin/api/hard_challenge": ("/game_record/genshin/api/hard_challenge"),
         "/game_record/app/genshin/api/achievement": "/game_record/genshin/api/achievement",
-        "/game_record/app/genshin/api/character/list": (
-            "/game_record/genshin/api/character/list"
-        ),
+        "/game_record/app/genshin/api/character/list": ("/game_record/genshin/api/character/list"),
         "/game_record/app/genshin/api/character/detail": (
             "/game_record/genshin/api/character/detail"
         ),
