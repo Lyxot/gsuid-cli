@@ -1063,22 +1063,29 @@ def test_mys_gacha_authkey_generation_uses_stoken_endpoint() -> None:
 
 
 def test_mys_gacha_authkey_generation_uses_os_server_for_os_uid() -> None:
-    captured: dict[str, httpx.Request] = {}
-    provider = MysProvider(
-        _mock_client(
-            lambda request: (
-                _capture_request(captured, request),
-                httpx.Response(
-                    200,
-                    json={
-                        "retcode": 0,
-                        "message": "OK",
-                        "data": {"authkey": "secret-authkey"},
-                    },
-                ),
-            )[1]
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/device-fp/api/getFp":
+            return httpx.Response(
+                200,
+                json={
+                    "retcode": 0,
+                    "message": "OK",
+                    "data": {"device_fp": "device-fp-1", "code": 200, "msg": "ok"},
+                },
+            )
+        return httpx.Response(
+            200,
+            json={
+                "retcode": 0,
+                "message": "OK",
+                "data": {"authkey": "secret-authkey"},
+            },
         )
-    )
+
+    provider = MysProvider(_mock_client(handler))
 
     result = provider.generate_gacha_authkey_url(
         uid="800000001",
@@ -1087,11 +1094,17 @@ def test_mys_gacha_authkey_generation_uses_os_server_for_os_uid() -> None:
         region="os",
     )
 
-    body = json.loads(captured["request"].content)
+    authkey_request = requests[-1]
+    body = json.loads(authkey_request.content)
     query = parse_qs(urlsplit(str(result.data["gacha_url"])).query)
+    assert authkey_request.url.host == "sg-public-api.hoyoverse.com"
+    assert authkey_request.headers["x-rpc-client_type"] == "5"
+    assert authkey_request.headers["x-rpc-device_fp"] == "device-fp-1"
     assert body["game_biz"] == "hk4e_global"
     assert body["region"] == "os_asia"
-    assert urlsplit(str(result.data["gacha_url"])).netloc == "hk4e-api-os.hoyoverse.com"
+    assert (
+        urlsplit(str(result.data["gacha_url"])).netloc == "public-operation-hk4e-sg.hoyoverse.com"
+    )
     assert query["region"] == ["os_asia"]
     assert query["game_biz"] == ["hk4e_global"]
 

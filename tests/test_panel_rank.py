@@ -751,6 +751,26 @@ def test_panel_refresh_auto_adds_mys_only_characters(monkeypatch, tmp_path) -> N
     assert payload["data"]["characters"][2]["name"] == "香菱"
 
 
+def test_panel_refresh_mys_uses_complete_hoyolab_roster(monkeypatch, tmp_path) -> None:
+    mys_provider = FakeOsMysPanelProvider()
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "gsuid_cli.commands.panel.mys.provider_for_region",
+        lambda _region, _http: mys_provider,
+    )
+    SecretStore().set_secret("cookie", "800000001", "ltuid=1;ltoken=secret")
+
+    code, payload = _run_json(
+        ["panel", "refresh", "--uid", "800000001", "--region", "os", "--source", "mys"]
+    )
+
+    assert code == 0
+    assert payload["data"]["character_count"] == 3
+    assert mys_provider.summary_calls == 1
+    assert mys_provider.characters_calls == 1
+    assert mys_provider.details_calls == 1
+
+
 def test_panel_refresh_mys_keeps_matching_enka_cache(monkeypatch, tmp_path) -> None:
     mys_provider = FakeMysPanelProvider()
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
@@ -1188,6 +1208,46 @@ class FakeMysPanelProvider:
         assert kwargs["cookie"] == "account_id=1;cookie_token=secret"
         assert kwargs["character_ids"] == [detail["base"]["id"] for detail in self.details]
         assert kwargs["category"] == "panel.refresh.mys"
+        self.details_calls += 1
+        return CommandResult(data={"details": self.details}, source=_mys_source())
+
+
+class FakeOsMysPanelProvider:
+    def __init__(self) -> None:
+        self.summary_calls = 0
+        self.characters_calls = 0
+        self.details_calls = 0
+        self.details = [
+            _mys_detail_from_avatar(avatar)
+            for avatar in [*_enka_payload()["avatarInfoList"], _xiangling_avatar()]
+        ]
+
+    def player_summary(self, **kwargs) -> CommandResult:
+        assert kwargs["uid"] == "800000001"
+        assert kwargs["cookie"] == "ltuid=1;ltoken=secret"
+        self.summary_calls += 1
+        return CommandResult(
+            data={
+                "summary": {
+                    "role": {"nickname": "Traveler", "level": 60, "region": "os_asia"},
+                    "stats": {"world_level": 8, "achievement_number": 900},
+                    "avatars": [{"id": self.details[0]["base"]["id"]}],
+                }
+            },
+            source=_mys_source(),
+        )
+
+    def player_characters(self, **kwargs) -> CommandResult:
+        assert kwargs["uid"] == "800000001"
+        self.characters_calls += 1
+        return CommandResult(
+            data={"characters": [{"id": detail["base"]["id"]} for detail in self.details]},
+            source=_mys_source(),
+        )
+
+    def character_details(self, **kwargs) -> CommandResult:
+        assert kwargs["uid"] == "800000001"
+        assert kwargs["character_ids"] == [detail["base"]["id"] for detail in self.details]
         self.details_calls += 1
         return CommandResult(data={"details": self.details}, source=_mys_source())
 

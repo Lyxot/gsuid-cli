@@ -3,7 +3,7 @@ from __future__ import annotations
 from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.http import raise_for_retcode
 from gsuid_cli.core.models import CommandResult
-from gsuid_cli.providers.mys.auth import record_base_for_uid, server_for_uid
+from gsuid_cli.providers.mys.auth import record_base_for_uid, record_path_for_uid, server_for_uid
 from gsuid_cli.providers.mys.constants import (
     ACHIEVEMENT_PATH,
     GCG_BASIC_PATH,
@@ -113,7 +113,7 @@ class MysProgressMixin:
         body = {"role_id": uid, "server": server}
         response = self.http.request_json(
             "POST",
-            f"{record_base_for_uid(uid)}{ACHIEVEMENT_PATH}",
+            f"{record_base_for_uid(uid)}{record_path_for_uid(uid, ACHIEVEMENT_PATH)}",
             provider=PROVIDER,
             region=region,
             category="progress.achievements",

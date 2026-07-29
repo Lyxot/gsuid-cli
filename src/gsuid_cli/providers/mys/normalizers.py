@@ -106,6 +106,15 @@ def _avatar_summary(avatar: dict[str, object]) -> dict[str, object]:
 
 
 def _character(character: dict[str, object]) -> dict[str, object]:
+    base = character.get("base")
+    if isinstance(base, dict):
+        character = {
+            **base,
+            "weapon": character.get("weapon") or base.get("weapon"),
+            "reliquaries": character.get("relics") or base.get("reliquaries"),
+            "constellations": character.get("constellations"),
+            "costumes": character.get("costumes"),
+        }
     weapon = character.get("weapon")
     reliquaries = character.get("reliquaries")
     constellations = character.get("constellations")

@@ -15,6 +15,7 @@ from gsuid_cli.core.http import (
     raise_for_retcode,
 )
 from gsuid_cli.providers.mys import MysProvider
+from gsuid_cli.providers.mys.auth import record_path_for_uid
 
 
 def test_mys_cookie_validation_success() -> None:
@@ -226,8 +227,42 @@ def test_mys_cookie_validation_uses_hoyolab_record_endpoint_for_os_uid() -> None
         "/game_record/genshin/api/index?role_id=800000001&server=os_asia"
     )
     assert request.headers["x-rpc-app_version"] == "1.5.0"
-    assert request.headers["x-rpc-client_type"] == "4"
+    assert request.headers["x-rpc-client_type"] == "5"
+    assert "Chrome/111.0.5563.116" in request.headers["user-agent"]
     assert request.headers["ds"].count(",") == 2
+
+
+@pytest.mark.parametrize(
+    ("cn_path", "os_path"),
+    [
+        (
+            "/game_record/app/genshin/api/role_combat",
+            "/game_record/genshin/api/role_combat",
+        ),
+        (
+            "/game_record/app/genshin/api/hard_challenge",
+            "/game_record/genshin/api/hard_challenge",
+        ),
+        (
+            "/game_record/app/genshin/api/achievement",
+            "/game_record/genshin/api/achievement",
+        ),
+        (
+            "/game_record/app/genshin/api/gcg/deckList",
+            "/game_record/genshin/api/gcg/deckList",
+        ),
+        (
+            "/game_record/app/genshin/api/character/list",
+            "/game_record/genshin/api/character/list",
+        ),
+        (
+            "/game_record/app/genshin/api/character/detail",
+            "/game_record/genshin/api/character/detail",
+        ),
+    ],
+)
+def test_hoyolab_record_paths_match_current_os_endpoints(cn_path: str, os_path: str) -> None:
+    assert record_path_for_uid("800000001", cn_path) == os_path
 
 
 def test_mys_cookie_auth_failure_is_sanitized() -> None:

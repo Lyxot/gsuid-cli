@@ -21,6 +21,7 @@ from gsuid_cli.commands.panel.common import (
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.providers import provider_for_region
+from gsuid_cli.providers.mys.auth import is_os_uid
 from gsuid_cli.text import t as _t
 
 MYS_PROP_IDS = {
@@ -104,7 +105,7 @@ def _mys_panel_profile(args: argparse.Namespace, *, uid: str, region: str) -> Co
         storage_backend=storage_backend,
     )
     character_ids = _summary_character_ids(summary_result.data)
-    if not character_ids:
+    if is_os_uid(uid) or not character_ids:
         characters_result = provider.player_characters(
             uid=uid,
             cookie=cookie,

@@ -1252,7 +1252,8 @@ def test_mys_daily_signin_status_uses_hoyolab_endpoint_for_os_uid() -> None:
     assert request.url.params["region"] == "os_asia"
     assert request.url.params["uid"] == "800000001"
     assert request.headers["x-rpc-app_version"] == "1.5.0"
-    assert request.headers["x-rpc-client_type"] == "4"
+    assert request.headers["x-rpc-client_type"] == "5"
+    assert "Chrome/111.0.5563.116" in request.headers["user-agent"]
     assert request.headers["ds"].count(",") == 2
 
 
@@ -1377,6 +1378,103 @@ def test_mys_player_characters_fetches_detail_for_index_avatars() -> None:
     assert requests[2].headers["x-rpc-device_fp"] == "device-fp-1"
 
 
+def test_mys_player_characters_fetches_complete_hoyolab_roster() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/device-fp/api/getFp":
+            return _device_fp_response()
+        if request.url.path == "/game_record/genshin/api/index":
+            return _json_response(
+                {
+                    "retcode": 0,
+                    "message": "OK",
+                    "data": {"avatars": [{"id": 10000021, "name": "Amber"}]},
+                }
+            )
+        return _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {
+                    "list": [
+                        {
+                            "base": {
+                                "id": 10000021,
+                                "name": "Amber",
+                                "element": "Pyro",
+                                "level": 80,
+                                "rarity": 4,
+                                "image": "https://example.test/amber.png",
+                            },
+                            "weapon": {"id": 15401, "name": "Favonius Warbow", "level": 80},
+                            "relics": [{"id": 1, "name": "Flower"}],
+                            "constellations": [{"id": 1, "is_actived": True}],
+                            "costumes": [],
+                        }
+                    ]
+                },
+            }
+        )
+
+    provider = MysProvider(_mock_client(handler))
+
+    result = provider.player_characters(
+        uid="800000001",
+        cookie="ltuid=1;ltoken=secret",
+        region="os",
+        credential_source="keyring",
+        storage_backend="tests.MemoryKeyring",
+    )
+
+    roster_request = requests[-1]
+    assert [request.url.path for request in requests] == [
+        "/device-fp/api/getFp",
+        "/game_record/genshin/api/character/list",
+    ]
+    assert json.loads(roster_request.content) == {
+        "role_id": "800000001",
+        "server": "os_asia",
+    }
+    assert result.data["count"] == 1
+    assert result.data["characters"][0]["name"] == "Amber"
+    assert result.data["characters"][0]["weapon"]["id"] == 15401
+    assert result.data["characters"][0]["reliquaries"][0]["name"] == "Flower"
+
+
+def test_mys_character_details_uses_hoyolab_detail_endpoint() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/device-fp/api/getFp":
+            return _device_fp_response()
+        return _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {"list": [{"base": {"id": 10000021, "name": "Amber"}, "skills": []}]},
+            }
+        )
+
+    result = MysProvider(_mock_client(handler)).character_details(
+        uid="800000001",
+        cookie="ltuid=1;ltoken=secret",
+        region="os",
+        character_ids=[10000021],
+        category="panel.refresh.mys",
+    )
+
+    assert requests[-1].url.path == "/game_record/genshin/api/character/detail"
+    assert json.loads(requests[-1].content) == {
+        "character_ids": [10000021],
+        "role_id": "800000001",
+        "server": "os_asia",
+    }
+    assert result.data["details"][0]["base"]["name"] == "Amber"
+
+
 def test_mys_player_inventory_uses_calculator_batch_compute() -> None:
     requests: list[httpx.Request] = []
 
@@ -1479,6 +1577,71 @@ def test_mys_player_inventory_uses_calculator_batch_compute() -> None:
     assert result.data["inventory"]["overall"][0]["owned"] == 60
     assert result.data["inventory"]["raw_count"]["weapon_consume"] == 1
     assert result.data["inventory"]["categories"]["weapon_consume"][0]["owned"] == 15
+
+
+def test_mys_player_inventory_uses_hoyolab_calculator_for_os_uid() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/device-fp/api/getFp":
+            return _device_fp_response()
+        if request.url.path == "/game_record/genshin/api/character/list":
+            return _json_response(
+                {
+                    "retcode": 0,
+                    "message": "OK",
+                    "data": {
+                        "list": [
+                            {
+                                "base": {
+                                    "id": 10000021,
+                                    "name": "Amber",
+                                    "element": "Pyro",
+                                    "rarity": 4,
+                                },
+                                "weapon": {
+                                    "id": 15401,
+                                    "name": "Favonius Warbow",
+                                    "type": 12,
+                                    "rarity": 4,
+                                },
+                            }
+                        ]
+                    },
+                }
+            )
+        return _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {
+                    "has_user_info": True,
+                    "overall_consume": [],
+                    "overall_material_consume": {},
+                },
+            }
+        )
+
+    result = MysProvider(_mock_client(handler)).player_inventory(
+        uid="800000001",
+        cookie="ltuid=1;ltoken=secret",
+        region="os",
+        credential_source="keyring",
+        storage_backend="tests.MemoryKeyring",
+    )
+
+    compute_request = requests[-1]
+    assert [request.url.path for request in requests] == [
+        "/device-fp/api/getFp",
+        "/game_record/genshin/api/character/list",
+        "/event/e20200928calculate/v3/batch_compute",
+    ]
+    assert compute_request.url.host == "sg-public-api.hoyolab.com"
+    assert compute_request.headers["x-rpc-client_type"] == "5"
+    assert compute_request.headers["x-rpc-device_fp"] == "device-fp-1"
+    assert json.loads(compute_request.content)["items"][0]["avatar_id"] == 10000021
+    assert result.data["compute_item_count"] == 1
 
 
 def test_mys_player_inventory_skips_rejected_calculator_rows() -> None:
@@ -1650,6 +1813,79 @@ def test_mys_player_register_time_fetches_hk4e_token() -> None:
     assert requests[1].headers["ds"]
     assert result.data["register_time"]["timestamp"] == 1600000000
     assert result.data["register_time"]["registered_at"] == "2020-09-13T20:26:40+08:00"
+
+
+def test_mys_player_diary_uses_hoyolab_endpoint_for_os_uid() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/device-fp/api/getFp":
+            return _device_fp_response()
+        return _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {
+                    "day_data": {},
+                    "month_data": {},
+                    "optional_month": [],
+                    "lantern": {},
+                },
+            }
+        )
+
+    MysProvider(_mock_client(handler)).player_diary(
+        uid="800000001",
+        cookie="ltuid=1;ltoken=secret",
+        region="os",
+        credential_source="keyring",
+        storage_backend="tests.MemoryKeyring",
+    )
+
+    diary_request = requests[-1]
+    assert diary_request.url.host == "sg-hk4e-api.hoyolab.com"
+    assert diary_request.url.path == "/event/ysledgeros/month_info"
+    assert diary_request.headers["x-rpc-client_type"] == "5"
+    assert diary_request.headers["x-rpc-device_fp"] == "device-fp-1"
+
+
+def test_mys_player_register_time_uses_hoyolab_endpoints_for_os_uid() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/device-fp/api/getFp":
+            return _device_fp_response()
+        if request.url.path == "/common/badge/v1/login/account":
+            return _json_response(
+                {"retcode": 0, "message": "OK", "data": {"game_uid": "800000001"}},
+                headers={"set-cookie": "e_hk4e_token=token-1; Path=/; HttpOnly"},
+            )
+        return _json_response(
+            {
+                "retcode": 0,
+                "message": "OK",
+                "data": {"data": json.dumps({"1": 1600000000})},
+            }
+        )
+
+    MysProvider(_mock_client(handler)).player_register_time(
+        uid="800000001",
+        cookie="ltuid=1;ltoken=secret",
+        region="os",
+        credential_source="keyring",
+        storage_backend="tests.MemoryKeyring",
+    )
+
+    login_request = requests[-2]
+    register_request = requests[-1]
+    assert login_request.url.host == "sg-public-api.hoyoverse.com"
+    assert login_request.headers["x-rpc-client_type"] == "5"
+    assert login_request.headers["x-rpc-device_fp"] == "device-fp-1"
+    assert register_request.url.host == "sg-hk4e-api.hoyoverse.com"
+    assert register_request.headers["x-rpc-client_type"] == "5"
+    assert register_request.headers["x-rpc-device_fp"] == "device-fp-1"
 
 
 def test_mys_player_diary_rejects_invalid_month() -> None:
