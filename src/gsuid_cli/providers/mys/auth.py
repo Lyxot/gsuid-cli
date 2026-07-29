@@ -14,6 +14,7 @@ from gsuid_cli.providers.mys.constants import (
     BBS_SIGN_SALT,
     GS_BASE_CN,
     GS_BASE_OS,
+    OS_USER_AGENT,
     PASSPORT_SALT,
     RECORD_BASE_CN,
     RECORD_BASE_OS,
@@ -49,9 +50,19 @@ def record_path_for_uid(uid: str, path: str) -> str:
         "/game_record/app/genshin/api/index": "/game_record/genshin/api/index",
         "/game_record/app/genshin/api/dailyNote": "/game_record/genshin/api/dailyNote",
         "/game_record/app/genshin/api/spiralAbyss": "/game_record/genshin/api/spiralAbyss",
-        "/game_record/app/genshin/api/character/list": "/game_record/genshin/api/character",
-        "/game_record/app/genshin/api/character/detail": "/game_record/genshin/api/character",
+        "/game_record/app/genshin/api/role_combat": "/game_record/genshin/api/role_combat",
+        "/game_record/app/genshin/api/hard_challenge": (
+            "/game_record/genshin/api/hard_challenge"
+        ),
+        "/game_record/app/genshin/api/achievement": "/game_record/genshin/api/achievement",
+        "/game_record/app/genshin/api/character/list": (
+            "/game_record/genshin/api/character/list"
+        ),
+        "/game_record/app/genshin/api/character/detail": (
+            "/game_record/genshin/api/character/detail"
+        ),
         "/game_record/app/genshin/api/gcg/basicInfo": "/game_record/genshin/api/gcg/basicInfo",
+        "/game_record/app/genshin/api/gcg/deckList": "/game_record/genshin/api/gcg/deckList",
     }.get(path, path)
 
 
@@ -119,8 +130,9 @@ def _record_os_headers(cookie: str) -> dict[str, str]:
         "Cookie": cookie,
         "DS": _os_ds(),
         "x-rpc-app_version": "1.5.0",
-        "x-rpc-client_type": "4",
+        "x-rpc-client_type": "5",
         "x-rpc-language": "zh-cn",
+        "User-Agent": OS_USER_AGENT,
     }
 
 
@@ -154,8 +166,9 @@ def _sign_os_headers(cookie: str) -> dict[str, str]:
         "Cookie": cookie,
         "DS": _os_ds(),
         "x-rpc-app_version": "1.5.0",
-        "x-rpc-client_type": "4",
+        "x-rpc-client_type": "5",
         "x-rpc-language": "zh-cn",
+        "User-Agent": OS_USER_AGENT,
     }
 
 

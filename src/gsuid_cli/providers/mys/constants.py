@@ -7,8 +7,8 @@ RECORD_BASE_CN = "https://api-takumi-record.mihoyo.com"
 GS_BASE_CN = "https://api-takumi.mihoyo.com"
 HK4_API_BASE_CN = "https://hk4e-api.mihoyo.com"
 RECORD_BASE_OS = "https://bbs-api-os.hoyolab.com"
-GS_BASE_OS = "https://api-os-takumi.mihoyo.com"
-HK4_API_BASE_OS = "https://hk4e-api-os.hoyoverse.com"
+GS_BASE_OS = "https://sg-public-api.hoyoverse.com"
+CALCULATOR_BASE_OS = "https://sg-public-api.hoyolab.com"
 SIGN_BASE_OS = "https://sg-hk4e-api.hoyolab.com"
 ACT_BASE_OS = "https://sg-hk4e-api.hoyoverse.com"
 PASSPORT_BASE_CN = "https://passport-api.mihoyo.com"
@@ -17,7 +17,9 @@ NEW_BBS_BASE_CN = "https://bbs-api.miyoushe.com"
 BBS_BASE_CN = "https://bbs-api.mihoyo.com"
 GET_FP_URL = "https://public-data-api.mihoyo.com/device-fp/api/getFp"
 GACHA_LOG_URL = "https://public-operation-hk4e.mihoyo.com/gacha_info/api/getGachaLog"
-GACHA_LOG_URL_OS = f"{HK4_API_BASE_OS}/gacha_info/api/getGachaLog"
+GACHA_LOG_URL_OS = (
+    "https://public-operation-hk4e-sg.hoyoverse.com/gacha_info/api/getGachaLog"
+)
 INDEX_PATH = "/game_record/app/genshin/api/index"
 INDEX_PATH_OS = "/game_record/genshin/api/index"
 CARD_PATH = "/game_record/card/wapi/getGameRecordCard"
@@ -32,7 +34,7 @@ GCG_BASIC_PATH = "/game_record/app/genshin/api/gcg/basicInfo"
 GCG_BASIC_PATH_OS = "/game_record/genshin/api/gcg/basicInfo"
 GCG_DECK_PATH = "/game_record/app/genshin/api/gcg/deckList"
 CHARACTER_LIST_PATH = "/game_record/app/genshin/api/character/list"
-CHARACTER_LIST_PATH_OS = "/game_record/genshin/api/character"
+CHARACTER_LIST_PATH_OS = "/game_record/genshin/api/character/list"
 CHARACTER_DETAIL_PATH = "/game_record/app/genshin/api/character/detail"
 ACT_CALENDAR_PATH = "/game_record/app/genshin/api/act_calendar"
 MONTHLY_AWARD_PATH = "/event/ys_ledger/monthInfo"
@@ -71,6 +73,11 @@ USER_AGENT = (
     "Mozilla/5.0 (Linux; Android 13; PHK110 Build/SKQ1.221119.001; wv)"
     "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/"
     f"126.0.6478.133 Mobile Safari/537.36 miHoYoBBS/{APP_VERSION}"
+)
+OS_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/111.0.5563.116 Safari/537.36"
 )
 
 SERVER_BY_UID_PREFIX = {

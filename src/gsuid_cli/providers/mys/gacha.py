@@ -9,6 +9,8 @@ from gsuid_cli.core.models import CommandResult
 from gsuid_cli.providers.mys.auth import (
     _account_id_from_cookie,
     _authkey_headers,
+    _record_os_headers,
+    gs_base_for_uid,
     is_os_uid,
     server_for_uid,
 )
@@ -16,7 +18,6 @@ from gsuid_cli.providers.mys.constants import (
     GACHA_LOG_URL,
     GACHA_LOG_URL_OS,
     GET_AUTHKEY_PATH,
-    GS_BASE_CN,
     PROVIDER,
 )
 from gsuid_cli.providers.mys.normalizers import _payload_data
@@ -59,6 +60,7 @@ class MysGachaMixin:
             region=region,
             category="gacha.refresh",
             params=params,
+            headers=_record_os_headers("") if is_os_uid(uid) else None,
         )
         raise_for_retcode(
             response.payload,
@@ -86,14 +88,19 @@ class MysGachaMixin:
             "game_uid": uid,
             "region": server,
         }
+        headers = (
+            self._record_headers_for_uid(uid, stoken, body=body)
+            if is_os_uid(uid)
+            else _authkey_headers(stoken)
+        )
         response = self.http.request_json(
             "POST",
-            f"{GS_BASE_CN}{GET_AUTHKEY_PATH}",
+            f"{gs_base_for_uid(uid)}{GET_AUTHKEY_PATH}",
             provider=PROVIDER,
             region=region,
             category="gacha.authkey.refresh",
             json_body=body,
-            headers=_authkey_headers(stoken),
+            headers=headers,
         )
         raise_for_retcode(
             response.payload,

@@ -23,18 +23,19 @@ from gsuid_cli.providers.mys.auth import (
 from gsuid_cli.providers.mys.constants import (
     ACT_BASE_OS,
     ACT_CALENDAR_PATH,
+    CALCULATOR_BASE_OS,
     CALCULATOR_BATCH_COMPUTE_PATH,
     CHARACTER_DETAIL_PATH,
     CHARACTER_LIST_PATH,
     DAILY_NOTE_PATH,
     HK4_API_BASE_CN,
-    HK4_API_BASE_OS,
     HK4E_LOGIN_PATH,
     INDEX_PATH,
     MONTHLY_AWARD_PATH,
     MONTHLY_AWARD_PATH_OS,
     PROVIDER,
     REGISTER_TIME_PATH,
+    SIGN_BASE_OS,
 )
 from gsuid_cli.providers.mys.normalizers import (
     _calendar,
@@ -133,35 +134,42 @@ class MysPlayerMixin:
         credential_source: str,
         storage_backend: str | None,
     ) -> CommandResult:
-        index_data, index_source = self._record_get(
-            path=INDEX_PATH,
-            uid=uid,
-            cookie=cookie,
-            region=region,
-            category="player.characters.index",
-        )
-        avatars = index_data.get("avatars")
-        character_ids = []
-        if isinstance(avatars, list):
-            character_ids = [
-                int(avatar["id"])
-                for avatar in avatars
-                if isinstance(avatar, dict) and avatar.get("id")
-            ]
-        if not character_ids:
-            return CommandResult(
-                data={
-                    "uid": uid,
-                    "credential_source": credential_source,
-                    "storage_backend": storage_backend,
-                    "characters": [],
-                    "count": 0,
-                },
-                source=index_source,
+        if is_os_uid(uid):
+            character_ids = []
+        else:
+            index_data, index_source = self._record_get(
+                path=INDEX_PATH,
+                uid=uid,
+                cookie=cookie,
+                region=region,
+                category="player.characters.index",
             )
+            avatars = index_data.get("avatars")
+            character_ids = []
+            if isinstance(avatars, list):
+                character_ids = [
+                    int(avatar["id"])
+                    for avatar in avatars
+                    if isinstance(avatar, dict) and avatar.get("id")
+                ]
+            if not character_ids:
+                return CommandResult(
+                    data={
+                        "uid": uid,
+                        "credential_source": credential_source,
+                        "storage_backend": storage_backend,
+                        "characters": [],
+                        "count": 0,
+                    },
+                    source=index_source,
+                )
 
         server = server_for_uid(uid)
-        body = {"character_ids": character_ids, "role_id": uid, "server": server}
+        body = (
+            {"role_id": uid, "server": server}
+            if is_os_uid(uid)
+            else {"character_ids": character_ids, "role_id": uid, "server": server}
+        )
         path = record_path_for_uid(uid, CHARACTER_LIST_PATH)
         response = self.http.request_json(
             "POST",
@@ -348,7 +356,7 @@ class MysPlayerMixin:
             provider=PROVIDER,
             region=region,
             category="player.calendar",
-            headers=_headers(cookie),
+            headers=_record_headers(cookie, body=body, os_region=is_os_uid(uid)),
             json_body=body,
         )
         raise_for_retcode(
@@ -406,7 +414,10 @@ class MysPlayerMixin:
             region=region,
             category="player.diary",
             params=params,
-            headers=_diary_headers(uid, cookie),
+            headers={
+                **_diary_headers(uid, cookie),
+                **(self._device_headers(uid) if is_os_uid(uid) else {}),
+            },
         )
         raise_for_retcode(
             response.payload,
@@ -451,7 +462,15 @@ class MysPlayerMixin:
             region=region,
             category="player.register-time",
             params=params,
-            headers=_record_headers(f"{hk4e_token};{cookie}", _query_string(params)),
+            headers=(
+                self._record_headers_for_uid(
+                    uid,
+                    f"{hk4e_token};{cookie}",
+                    _query_string(params),
+                )
+                if is_os_uid(uid)
+                else _record_headers(f"{hk4e_token};{cookie}", _query_string(params))
+            ),
         )
         raise_for_retcode(
             response.payload,
@@ -485,13 +504,16 @@ class MysPlayerMixin:
             "uid": uid,
             "region": server_for_uid(uid),
         }
+        headers = _hk4e_login_headers(cookie)
+        if is_os_uid(uid):
+            headers.update(self._record_headers_for_uid(uid, cookie, body=body))
         response = self.http.request_json(
             "POST",
             f"{gs_base_for_uid(uid)}{HK4E_LOGIN_PATH}",
             provider=PROVIDER,
             region=region,
             category="player.register-time.hk4e-token",
-            headers=_hk4e_login_headers(cookie),
+            headers=headers,
             json_body=body,
         )
         raise_for_retcode(
@@ -520,13 +542,19 @@ class MysPlayerMixin:
         region: str,
         body: dict[str, object],
     ) -> ProviderResponse:
+        uid = str(body.get("uid") or "")
         return self.http.request_json(
             "POST",
-            f"{gs_base_for_uid(str(body.get('uid') or ''))}{CALCULATOR_BATCH_COMPUTE_PATH}",
+            f"{CALCULATOR_BASE_OS if is_os_uid(uid) else gs_base_for_uid(uid)}"
+            f"{CALCULATOR_BATCH_COMPUTE_PATH}",
             provider=PROVIDER,
             region=region,
             category="player.inventory",
-            headers=_headers(cookie),
+            headers=(
+                self._record_headers_for_uid(uid, cookie, body=body)
+                if is_os_uid(uid)
+                else _headers(cookie)
+            ),
             json_body=body,
         )
 
@@ -631,7 +659,7 @@ def _diary_month(month: str | None) -> str:
 
 def _diary_url(uid: str) -> str:
     if is_os_uid(uid):
-        return f"{HK4_API_BASE_OS}{MONTHLY_AWARD_PATH_OS}"
+        return f"{SIGN_BASE_OS}{MONTHLY_AWARD_PATH_OS}"
     return f"{HK4_API_BASE_CN}{MONTHLY_AWARD_PATH}"
 
 
