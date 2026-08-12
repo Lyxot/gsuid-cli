@@ -132,6 +132,30 @@ def test_panel_refresh_list_show_compare_and_save(monkeypatch, tmp_path) -> None
     assert payload["warnings"] == []
 
 
+def test_panel_7_0_data_resolves_new_characters_and_weapon() -> None:
+    panel = normalized_avatar(
+        {
+            "avatarId": 10000148,
+            "equipList": [
+                {
+                    "itemId": 11520,
+                    "weapon": {"level": 90, "affixMap": {"1": 0}},
+                    "flat": {
+                        "itemType": "ITEM_WEAPON",
+                        "rankLevel": 5,
+                        "weaponStats": [],
+                    },
+                }
+            ],
+        }
+    )
+
+    assert panel["name"] == "阿罗夏"
+    assert panel["weapon"]["name"] == "白湖冬羽"
+    assert rank_commands._character_id("Alyosha") == "10000148"
+    assert rank_commands._character_id("奥黛塔") == "10000150"
+
+
 def test_panel_show_render_image_writes_card(monkeypatch, tmp_path) -> None:
     captured_urls: list[str] = []
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
