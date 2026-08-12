@@ -35,7 +35,30 @@ DEFAULT_ATTRS = [
     _t("gsuid.providers.akasha.70_4.33e0f20a"),
     _t("gsuid.providers.akasha.72_4.7c0dd18b"),
 ]
-PERCENT_ATTRS = {"dmgBonus", "addAtk", "addDef", "addHp"}
+PERCENT_ATTRS = {
+    "dmgBonus",
+    "addAtk",
+    "addDef",
+    "addHp",
+    "stellarBaseDmgBonus",
+    "stellarDmgBonus",
+    "stellarSpreadDmgBonus",
+    "stellarSuperconductDmgBonus",
+    "stellarCritDmg",
+    "stellarElevate",
+    "lunarDmgBonus",
+    "lunarBaseDmgBonus",
+    "lunarElectroDmgBonus",
+    "lunarBloomDmgBonus",
+    "lunarCrystallizeDmgBonus",
+    "lunarCritDmg",
+    "lunarElevate",
+    "lunarElectroElevate",
+    "lunarBloomElevate",
+    "lunarCrystallizeElevate",
+    "moonDmgBonus",
+    "moonExDmgBonus",
+}
 ELEMENT_DAMAGE_PROP = {
     "Anemo": "44",
     "Cryo": "46",
@@ -282,6 +305,12 @@ def _action_damage(
     attack_type = _attack_type(action_name, _avatar_name(avatar, panel))
     sp = _sp_bonus(fight_prop, action_name)
     real_prop = _real_prop_for_action(fight_prop, action_name, attack_type)
+    if any(token in action_name for token in ("星超导", "星扩散", "星烁")):
+        return _stellar_damage(
+            action_name, action, avatar, panel, attack_type, real_prop, enemy, sp
+        )
+    if any(token in action_name for token in ("月感电", "月绽放", "月结晶")):
+        return _lunar_damage(action_name, action, avatar, panel, attack_type, real_prop, enemy, sp)
     if (
         _t("gsuid.renderers.panel.metrics.331_7.b6adc0f5") in action_name
         or _t("gsuid.renderers.panel.metrics.322_7.3ba2689a") in action_name
@@ -332,6 +361,147 @@ def _action_damage(
     else:
         avg = crit * crit_rate + normal * (1 - crit_rate)
     return normal, avg, crit
+
+
+def _lunar_damage(
+    action_name: str,
+    action: Mapping[str, object],
+    avatar: Mapping[str, object],
+    panel: Mapping[str, object],
+    attack_type: str,
+    real_prop: Mapping[str, object],
+    enemy: Mapping[str, object],
+    sp: Mapping[str, float],
+) -> tuple[float, float, float]:
+    kind = next(
+        (token for token in ("月感电", "月绽放", "月结晶") if token in action_name),
+        "月感电",
+    )
+    base_k = {"月感电": 3.0, "月绽放": 1.0, "月结晶": 1.6}[kind]
+    element = {"月感电": "Electro", "月绽放": "Dendro", "月结晶": "Geo"}[kind]
+    bonus_key = {
+        "月感电": "lunarElectroDmgBonus",
+        "月绽放": "lunarBloomDmgBonus",
+        "月结晶": "lunarCrystallizeDmgBonus",
+    }[kind]
+    elevate_key = {
+        "月感电": "lunarElectroElevate",
+        "月绽放": "lunarBloomElevate",
+        "月结晶": "lunarCrystallizeElevate",
+    }[kind]
+    em = _prefixed_prop(real_prop, attack_type, "elementalMastery")
+    base_bonus = _float_value(real_prop.get("lunarBaseDmgBonus")) + _float_value(
+        real_prop.get("moonExDmgBonus")
+    )
+    lunar_bonus = (
+        _float_value(real_prop.get("lunarDmgBonus"))
+        + _float_value(real_prop.get("moonDmgBonus"))
+        + _float_value(real_prop.get(bonus_key))
+    )
+    if _is_direct_reaction_action(action):
+        raw = _base_area(action_name, action, avatar, panel, attack_type, real_prop, sp)
+        core = raw * base_k * (1 + base_bonus) * (1 + (6.0 * em) / (em + 2000) + lunar_bonus) * (
+            _float_value(real_prop.get("lunarBaseArea"), 1.0) or 1.0
+        ) + _float_value(real_prop.get("lunarAddDmg"))
+    else:
+        level = max(min(_avatar_level(avatar, panel), len(BASE_VALUE_LIST)), 1)
+        core = BASE_VALUE_LIST[level - 1] * 2 * base_k * (1 + base_bonus) * (
+            1 + (6.0 * em) / (em + 2000) + lunar_bonus
+        ) + _float_value(real_prop.get("lunarAddDmg"))
+    elevate = _float_value(real_prop.get("lunarElevate")) + _float_value(real_prop.get(elevate_key))
+    return _special_damage_result(core, element, attack_type, real_prop, enemy, elevate, "lunar")
+
+
+def _stellar_damage(
+    action_name: str,
+    action: Mapping[str, object],
+    avatar: Mapping[str, object],
+    panel: Mapping[str, object],
+    attack_type: str,
+    real_prop: Mapping[str, object],
+    enemy: Mapping[str, object],
+    sp: Mapping[str, float],
+) -> tuple[float, float, float]:
+    em = _prefixed_prop(real_prop, attack_type, "elementalMastery")
+    is_spread = "星扩散" in action_name
+    is_superconduct = "星超导" in action_name
+    bonus = _float_value(real_prop.get("stellarDmgBonus"))
+    if is_spread:
+        bonus += _float_value(real_prop.get("stellarSpreadDmgBonus"))
+    if is_superconduct:
+        bonus += _float_value(real_prop.get("stellarSuperconductDmgBonus"))
+    em_factor = 1 + (6.0 * em) / (em + 2000) + bonus
+
+    if is_spread and _is_stellar_reaction_action(action):
+        level = max(min(_avatar_level(avatar, panel), len(BASE_VALUE_LIST)), 1)
+        if "·风" in action_name or "风元素" in action_name:
+            element = "Anemo"
+            base_k = 0.75
+        else:
+            element = "Cryo"
+            base_k = 3.0
+        core = (
+            BASE_VALUE_LIST[level - 1]
+            * 2
+            * base_k
+            * (1 + _float_value(real_prop.get("stellarBaseDmgBonus")))
+            * em_factor
+        )
+    else:
+        raw = _base_area(action_name, action, avatar, panel, attack_type, real_prop, sp)
+        base_k = 2.0 if is_superconduct or not is_spread else 1.0
+        core = raw * base_k * (
+            1 + _float_value(real_prop.get("stellarBaseDmgBonus"))
+        ) * em_factor * (_float_value(real_prop.get("stellarBaseArea"), 1.0) or 1.0) + _float_value(
+            real_prop.get("stellarAddDmg")
+        )
+        element = _avatar_element(avatar, panel)
+    return _special_damage_result(
+        core,
+        element,
+        attack_type,
+        real_prop,
+        enemy,
+        _float_value(real_prop.get("stellarElevate")),
+        "stellar",
+    )
+
+
+def _is_direct_reaction_action(action: Mapping[str, object]) -> bool:
+    values = action.get("value")
+    if not isinstance(values, list) or not values:
+        return False
+    first = str(values[0])
+    if "%" in first:
+        try:
+            return float(first.replace("%", "").split("+", 1)[0]) > 0
+        except ValueError:
+            return True
+    try:
+        return float(first.split("+", 1)[0]) > 15
+    except ValueError:
+        return "+" in first
+
+
+def _is_stellar_reaction_action(action: Mapping[str, object]) -> bool:
+    return "扩散" in str(action.get("type") or "")
+
+
+def _special_damage_result(
+    core: float,
+    element: str,
+    attack_type: str,
+    real_prop: Mapping[str, object],
+    enemy: Mapping[str, object],
+    elevate: float,
+    prefix: str,
+) -> tuple[float, float, float]:
+    normal = core * _resist_proof(enemy, element) * (1 + elevate)
+    crit_rate = _prefixed_prop(real_prop, attack_type, "critRate")
+    crit_damage = _prefixed_prop(real_prop, attack_type, "critDmg") + _float_value(
+        real_prop.get(f"{prefix}CritDmg")
+    )
+    return normal, normal * (1 + crit_rate * crit_damage), normal * (1 + crit_damage)
 
 
 def _transform_damage(
@@ -715,6 +885,26 @@ def _apply_effects(
                 "extraBonus": 0.0,
                 "moonDmgBonus": 0.0,
                 "moonExDmgBonus": 0.0,
+                "lunarBaseDmgBonus": 0.0,
+                "lunarDmgBonus": 0.0,
+                "lunarElectroDmgBonus": 0.0,
+                "lunarBloomDmgBonus": 0.0,
+                "lunarCrystallizeDmgBonus": 0.0,
+                "lunarCritDmg": 0.0,
+                "lunarBaseArea": 1.0,
+                "lunarAddDmg": 0.0,
+                "lunarElevate": 0.0,
+                "lunarElectroElevate": 0.0,
+                "lunarBloomElevate": 0.0,
+                "lunarCrystallizeElevate": 0.0,
+                "stellarBaseDmgBonus": 0.0,
+                "stellarDmgBonus": 0.0,
+                "stellarSpreadDmgBonus": 0.0,
+                "stellarSuperconductDmgBonus": 0.0,
+                "stellarCritDmg": 0.0,
+                "stellarBaseArea": 1.0,
+                "stellarAddDmg": 0.0,
+                "stellarElevate": 0.0,
             }
         )
         if _float_value(result.get("baseHp")) + _float_value(result.get("addHp")) == _float_value(
@@ -767,7 +957,7 @@ def _set_attack_damage_bonuses(
     panel: Mapping[str, object],
 ) -> None:
     char_name = _avatar_name(avatar, panel)
-    weapon_type = str(_map("avatarName2Weapon_mapping_6.7.0.json").get(char_name) or "")
+    weapon_type = str(_map("avatarName2Weapon_mapping_7.0.0.json").get(char_name) or "")
     for prefix in ATTACK_TYPES:
         if (
             weapon_type == _t("gsuid.renderers.panel.metrics.1053_22.4813ba67")
@@ -820,7 +1010,22 @@ def _parse_effect_value(
 
     if "DmgBonus" in effect_attr:
         char_element = _avatar_element(avatar, panel)
-        if effect_attr.replace("DmgBonus", "") == char_element:
+        special_dmg_attrs = {
+            "stellarDmgBonus",
+            "stellarSpreadDmgBonus",
+            "stellarSuperconductDmgBonus",
+            "stellarBaseDmgBonus",
+            "lunarDmgBonus",
+            "lunarBaseDmgBonus",
+            "lunarElectroDmgBonus",
+            "lunarBloomDmgBonus",
+            "lunarCrystallizeDmgBonus",
+            "moonDmgBonus",
+            "moonExDmgBonus",
+        }
+        if effect_attr in special_dmg_attrs:
+            pass
+        elif effect_attr.replace("DmgBonus", "") == char_element:
             effect_attr = "dmgBonus"
         elif effect_attr != "physicalDmgBonus":
             # Match GenshinUID's convention: generic damage bonuses use lowercase
@@ -1119,7 +1324,7 @@ def _damage_type(
 ) -> str:
     char_name = _avatar_name(avatar, panel)
     element = _avatar_element(avatar, panel)
-    weapon_type = str(_map("avatarName2Weapon_mapping_6.7.0.json").get(char_name) or "")
+    weapon_type = str(_map("avatarName2Weapon_mapping_7.0.0.json").get(char_name) or "")
     damage_type = "Physical"
     if (
         weapon_type == _t("gsuid.renderers.panel.metrics.1053_22.4813ba67")
@@ -1250,7 +1455,7 @@ def _avatar_name(avatar: Mapping[str, object], panel: Mapping[str, object]) -> s
     if value:
         return value
     avatar_id = str(panel.get("avatar_id") or avatar.get("avatarId") or "")
-    return str(_map("avatarId2Name_mapping_6.7.0.json").get(avatar_id) or avatar_id)
+    return str(_map("avatarId2Name_mapping_7.0.0.json").get(avatar_id) or avatar_id)
 
 
 def _avatar_level(avatar: Mapping[str, object], panel: Mapping[str, object]) -> int:
@@ -1267,7 +1472,7 @@ def _avatar_level(avatar: Mapping[str, object], panel: Mapping[str, object]) -> 
 
 def _avatar_element(avatar: Mapping[str, object], panel: Mapping[str, object]) -> str:
     return str(
-        _map("avatarName2Element_mapping_6.7.0.json").get(_avatar_name(avatar, panel)) or "Anemo"
+        _map("avatarName2Element_mapping_7.0.0.json").get(_avatar_name(avatar, panel)) or "Anemo"
     )
 
 

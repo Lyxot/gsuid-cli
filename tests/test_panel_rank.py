@@ -26,6 +26,7 @@ from gsuid_cli.providers.enka import EnkaProvider
 from gsuid_cli.renderers.panel import render_panel_compare_text, render_panel_graduation
 from gsuid_cli.renderers.panel.metrics import (
     _action_damage,
+    _apply_effects,
     _base_area,
     panel_reference_metrics,
 )
@@ -130,6 +131,30 @@ def test_panel_refresh_list_show_compare_and_save(monkeypatch, tmp_path) -> None
     assert payload["data"]["characters"][0]["name"] == "安柏"
     assert payload["data"]["characters"][0]["graduation_score"] is not None
     assert payload["warnings"] == []
+
+
+def test_panel_7_0_data_resolves_new_characters_and_weapon() -> None:
+    panel = normalized_avatar(
+        {
+            "avatarId": 10000148,
+            "equipList": [
+                {
+                    "itemId": 11520,
+                    "weapon": {"level": 90, "affixMap": {"1": 0}},
+                    "flat": {
+                        "itemType": "ITEM_WEAPON",
+                        "rankLevel": 5,
+                        "weaponStats": [],
+                    },
+                }
+            ],
+        }
+    )
+
+    assert panel["name"] == "阿罗夏"
+    assert panel["weapon"]["name"] == "白湖冬羽"
+    assert rank_commands._character_id("Alyosha") == "10000148"
+    assert rank_commands._character_id("奥黛塔") == "10000150"
 
 
 def test_panel_show_render_image_writes_card(monkeypatch, tmp_path) -> None:
@@ -647,6 +672,71 @@ def test_panel_metric_damage_primitives_follow_genshinuid() -> None:
     assert normal == expected
     assert avg == expected
     assert crit == expected * 2
+
+
+def test_panel_metric_lunar_and_stellar_damage_follow_genshinuid() -> None:
+    avatar: dict[str, object] = {"avatarId": 10000148}
+    panel: dict[str, object] = {"name": "阿罗夏", "level": 90}
+    real_prop = {
+        "A_atk": 1000.0,
+        "A_skill_level": 1,
+        "A_powerPlus": 1.0,
+        "A_elementalMastery": 0.0,
+        "A_critRate": 0.5,
+        "A_critDmg": 1.0,
+        "lunarBaseArea": 1.0,
+        "stellarBaseArea": 1.0,
+        "sp": [],
+    }
+    action = {"type": "攻击", "plus": 1, "value": ["100%"]}
+
+    lunar = _action_damage(
+        "A测试月感电",
+        action,
+        avatar,
+        panel,
+        real_prop,
+        {"ElectroResist": 0.1},
+    )
+    stellar = _action_damage(
+        "A测试星超导",
+        action,
+        avatar,
+        panel,
+        real_prop,
+        {"CryoResist": 0.1},
+    )
+
+    assert lunar == (2700.0, 4050.0, 5400.0)
+    assert stellar == (1800.0, 2700.0, 3600.0)
+
+
+def test_panel_metric_effects_preserve_lunar_and_stellar_bonuses() -> None:
+    prop = _apply_effects(
+        {
+            "hp": 1000.0,
+            "baseHp": 1000.0,
+            "addHp": 0.0,
+            "exHp": 0.0,
+            "atk": 100.0,
+            "baseAtk": 100.0,
+            "addAtk": 0.0,
+            "exAtk": 0.0,
+            "def": 100.0,
+            "baseDef": 100.0,
+            "addDef": 0.0,
+            "exDef": 0.0,
+            "dmgBonus": 0.0,
+            "physicalDmgBonus": 0.0,
+        },
+        ["lunarDmgBonus+60;stellarDmgBonus+50;lunarElectroElevate+45"],
+        {"avatarId": 10000148},
+        {"name": "阿罗夏"},
+    )
+
+    assert prop["lunarDmgBonus"] == 0.6
+    assert prop["stellarDmgBonus"] == 0.5
+    assert prop["lunarElectroElevate"] == 0.45
 
 
 def test_panel_metric_sp_base_uses_atk_and_elemental_mastery() -> None:
