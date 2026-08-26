@@ -243,6 +243,25 @@ def test_gacha_summary_renderer_uses_profile_avatar_pixels() -> None:
         assert image.getpixel((475, 200))[:3] == (255, 0, 0)
 
 
+def test_gacha_summary_renderer_balances_large_histories_across_two_columns() -> None:
+    forty_items = [
+        _item(str(index), "301" if index <= 20 else "302", f"Item {index}", "5")
+        for index in range(1, 41)
+    ]
+    forty_one_items = [
+        _item(str(index), "301" if index <= 21 else "302", f"Item {index}", "5")
+        for index in range(1, 42)
+    ]
+
+    single_column = render_gacha_summary_card(uid="100000001", items=forty_items)
+    two_columns = render_gacha_summary_card(uid="100000001", items=forty_one_items)
+
+    with Image.open(io.BytesIO(single_column)) as image:
+        assert image.size == (950, 2330)
+    with Image.open(io.BytesIO(two_columns)) as image:
+        assert image.size == (1900, 1430)
+
+
 def test_gacha_summary_uses_stored_uigf_gacha_type(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     with state_db(None) as conn:

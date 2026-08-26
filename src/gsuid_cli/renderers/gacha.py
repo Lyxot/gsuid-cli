@@ -35,8 +35,10 @@ BROWN_COLOR = (41, 25, 0)
 RED_COLOR = (255, 66, 66)
 GREEN_COLOR = (74, 189, 119)
 WIDTH = 950
+TWO_COLUMN_WIDTH = WIDTH * 2
 SINGLE_Y = 150
 GROUP_SPACING = 300
+TWO_COLUMN_MIN_FIVE_STARS = 41
 
 GROUPS = (
     (_t("gsuid.renderers.gacha.53_14.8cbeebe7"), ("100",)),
@@ -299,15 +301,31 @@ def render_gacha_summary_card(
     asset_images = asset_images or {}
     summary = summary or {}
     groups = _gacha_groups(items)
+    total_five_stars = sum(len(_mapping_list(group.get("five_stars"))) for group in groups)
+    if total_five_stars >= TWO_COLUMN_MIN_FIVE_STARS:
+        left_groups, right_groups = _pack_two_columns(groups)
+        width = TWO_COLUMN_WIDTH
+        header_x = (TWO_COLUMN_WIDTH - WIDTH) // 2
+        if right_groups:
+            columns = ((left_groups, 0), (right_groups, WIDTH))
+        else:
+            columns = ((left_groups, header_x),)
+        content_height = max(
+            sum(_group_height(group) for group in left_groups),
+            sum(_group_height(group) for group in right_groups),
+        )
+    else:
+        width = WIDTH
+        header_x = 0
+        columns = ((groups, 0),)
+        content_height = sum(_group_height(group) for group in groups)
     height = max(
         700,
-        530
-        + len(groups) * GROUP_SPACING
-        + sum(_five_star_rows(group["five_stars"]) * SINGLE_Y for group in groups),
+        530 + content_height,
     )
-    image = _color_background(WIDTH, height)
+    image = _color_background(width, height)
     avatar_title = open_rgba(TEXTURE / "avatar_title.png")
-    image.paste(avatar_title, (0, 0), avatar_title)
+    image.paste(avatar_title, (header_x, 0), avatar_title)
     avatar = player_title_avatar_image(
         summary=_profile_avatar_summary(summary, title_avatar_url),
         asset_images=asset_images,
@@ -315,26 +333,31 @@ def render_gacha_summary_card(
         title_avatar_url=title_avatar_url,
         with_ring=True,
     )
-    image.paste(avatar, (343, 68), avatar)
+    image.paste(avatar, (header_x + 343, 68), avatar)
     draw = ImageDraw.Draw(image)
-    draw.text((475, 454), f"UID {uid}", FIRST_COLOR, font(36), "mm")
+    draw.text((header_x + 475, 454), f"UID {uid}", FIRST_COLOR, font(36), "mm")
 
     if not groups:
         draw.text(
-            (475, 610), _t("gsuid.renderers.gacha.279_30.e6d8f951"), FIRST_COLOR, font(42), "mm"
+            (header_x + 475, 610),
+            _t("gsuid.renderers.gacha.279_30.e6d8f951"),
+            FIRST_COLOR,
+            font(42),
+            "mm",
         )
         return png_bytes(image, rgb=True)
 
-    y = 540
-    for group in groups:
-        title = _title_panel(uid, group)
-        image.paste(title, (0, y), title)
-        for index, item in enumerate(group["five_stars"]):
-            card = _item_card(item, asset_images)
-            x = (index % 6) * 138 + 60
-            card_y = (index // 6) * SINGLE_Y + y + 275
-            image.paste(card, (x, card_y), card)
-        y += GROUP_SPACING + _five_star_rows(group["five_stars"]) * SINGLE_Y
+    for column_groups, column_x in columns:
+        y = 540
+        for group in column_groups:
+            title = _title_panel(uid, group)
+            image.paste(title, (column_x, y), title)
+            for index, item in enumerate(group["five_stars"]):
+                card = _item_card(item, asset_images)
+                x = column_x + (index % 6) * 138 + 60
+                card_y = (index // 6) * SINGLE_Y + y + 275
+                image.paste(card, (x, card_y), card)
+            y += _group_height(group)
 
     return png_bytes(image, rgb=True)
 
@@ -347,6 +370,43 @@ def _gacha_groups(items: Sequence[Mapping[str, object]]) -> list[dict[str, objec
             continue
         groups.append(_group_summary(label, group_items))
     return groups
+
+
+def _group_height(group: Mapping[str, object]) -> int:
+    return GROUP_SPACING + _five_star_rows(group.get("five_stars")) * SINGLE_Y
+
+
+def _pack_two_columns(
+    groups: list[dict[str, object]],
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    if len(groups) < 2:
+        return groups, []
+
+    heights = [_group_height(group) for group in groups]
+    tallest = max(range(len(groups)), key=lambda index: (heights[index], -index))
+    best_score: tuple[int, int, int, int] | None = None
+    best_left: list[dict[str, object]] = []
+    best_right: list[dict[str, object]] = []
+
+    for mask in range(1, (1 << len(groups)) - 1):
+        left = [group for index, group in enumerate(groups) if mask & (1 << index)]
+        right = [group for index, group in enumerate(groups) if not mask & (1 << index)]
+        left_height = sum(heights[index] for index in range(len(groups)) if mask & (1 << index))
+        right_height = sum(
+            heights[index] for index in range(len(groups)) if not mask & (1 << index)
+        )
+        score = (
+            max(left_height, right_height),
+            abs(left_height - right_height),
+            0 if mask & (1 << tallest) else 1,
+            len(left),
+        )
+        if best_score is None or score < best_score:
+            best_score = score
+            best_left = left
+            best_right = right
+
+    return best_left, best_right
 
 
 def _profile_avatar_summary(
