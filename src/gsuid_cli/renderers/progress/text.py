@@ -18,6 +18,7 @@ OCULUS_LABELS = {
     "hydroculus_number": _t("gsuid.renderers.player.summary.48_4.53cdf0ba"),
     "pyroculus_number": _t("gsuid.renderers.player.summary.50_4.600de4a5"),
     "cryoculus_number": _t("gsuid.renderers.player.summary.49_4.463844dd"),
+    "iceculus_number": _t("gsuid.renderers.player.summary.49_4.463844dd"),
     "moono_culus_number": _t("gsuid.renderers.player.summary.51_4.68a591a2"),
 }
 CHEST_LABELS = {

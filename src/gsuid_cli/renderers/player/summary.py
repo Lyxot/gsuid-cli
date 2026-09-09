@@ -50,11 +50,11 @@ CMAP = {
     _t("gsuid.renderers.player.summary.49_4.463844dd"): [271, 211, 150, 90, 20],
     _t("gsuid.renderers.player.summary.50_4.600de4a5"): [271, 211, 150, 90, 20],
     _t("gsuid.renderers.player.summary.51_4.68a591a2"): [271, 211, 150, 90, 20],
-    _t("gsuid.renderers.player.summary.52_4.2eef40ce"): [367, 293, 220, 146, 73],
-    _t("gsuid.renderers.player.summary.53_4.cad09647"): [960, 768, 576, 384, 192],
-    _t("gsuid.renderers.player.summary.54_4.8d1ca1ac"): [3043, 2434, 1825, 1217, 608],
-    _t("gsuid.renderers.player.summary.55_4.33e13053"): [3570, 2856, 2142, 1428, 714],
-    _t("gsuid.renderers.player.summary.56_4.0788ed91"): [366, 292, 219, 146, 73],
+    _t("gsuid.renderers.player.summary.52_4.2eef40ce"): [410, 328, 246, 164, 82],
+    _t("gsuid.renderers.player.summary.53_4.cad09647"): [1073, 858, 643, 429, 214],
+    _t("gsuid.renderers.player.summary.54_4.8d1ca1ac"): [3372, 2697, 2023, 1348, 674],
+    _t("gsuid.renderers.player.summary.55_4.33e13053"): [3838, 3070, 2302, 1535, 767],
+    _t("gsuid.renderers.player.summary.56_4.0788ed91"): [416, 332, 249, 166, 83],
 }
 
 DMAP = {
@@ -78,6 +78,7 @@ STCMAP = {
     "cryo": _t("gsuid.renderers.player.summary.49_4.463844dd"),
     "pyro": _t("gsuid.renderers.player.summary.50_4.600de4a5"),
     "moono": _t("gsuid.renderers.player.summary.51_4.68a591a2"),
+    "ice": _t("gsuid.renderers.player.summary.49_4.463844dd"),
 }
 
 EXPMAX_DATA = {
@@ -92,11 +93,11 @@ EXPMAX_DATA = {
 }
 
 CHEST_MAX = {
-    _t("gsuid.renderers.player.summary.55_4.33e13053"): 3570,
-    _t("gsuid.renderers.player.summary.54_4.8d1ca1ac"): 3043,
-    _t("gsuid.renderers.player.summary.53_4.cad09647"): 960,
-    _t("gsuid.renderers.player.summary.52_4.2eef40ce"): 367,
-    _t("gsuid.renderers.player.summary.56_4.0788ed91"): 366,
+    _t("gsuid.renderers.player.summary.55_4.33e13053"): 3838,
+    _t("gsuid.renderers.player.summary.54_4.8d1ca1ac"): 3372,
+    _t("gsuid.renderers.player.summary.53_4.cad09647"): 1073,
+    _t("gsuid.renderers.player.summary.52_4.2eef40ce"): 410,
+    _t("gsuid.renderers.player.summary.56_4.0788ed91"): 416,
 }
 
 COLOR_MAP = {
