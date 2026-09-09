@@ -15,6 +15,7 @@ from gsuid_cli.renderers.common import (
     text_value,
     v4_background,
 )
+from gsuid_cli.renderers.player.char_score import character_total_score
 
 TEXTURE = asset_path("player", "characters", "textures")
 GENSHINUID_RESOURCE_BASE = "genshinuid://resource"
@@ -190,14 +191,7 @@ def _first_remote_image(
 def _sorted_characters(
     characters: Sequence[Mapping[str, object]],
 ) -> list[Mapping[str, object]]:
-    return sorted(
-        characters,
-        key=lambda character: (
-            -_character_rarity(character.get("rarity")),
-            -int_value(character.get("fetter")),
-            -int_value(character.get("actived_constellation_num")),
-        ),
-    )
+    return sorted(characters, key=character_total_score, reverse=True)
 
 
 def character_portrait_url(character: Mapping[str, object]) -> str | None:
