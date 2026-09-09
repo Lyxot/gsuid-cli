@@ -28,14 +28,14 @@ BROWN = (142, 91, 35)
 CHARACTER_MAX = 119
 
 COLLECTION_MAX = {
-    _t("gsuid.renderers.progress.collection.30_4.5dc7d7ba"): 1677,
-    _t("gsuid.renderers.player.summary.55_4.33e13053"): 3570,
-    _t("gsuid.renderers.player.summary.54_4.8d1ca1ac"): 3043,
-    _t("gsuid.renderers.player.summary.53_4.cad09647"): 960,
-    _t("gsuid.renderers.player.summary.52_4.2eef40ce"): 367,
-    _t("gsuid.renderers.player.summary.56_4.0788ed91"): 366,
-    _t("gsuid.renderers.progress.collection.36_4.8f1e37e8"): 691,
-    _t("gsuid.renderers.progress.collection.37_4.2dcc7eb2"): 69,
+    _t("gsuid.renderers.progress.collection.30_4.5dc7d7ba"): 1839,
+    _t("gsuid.renderers.player.summary.55_4.33e13053"): 3838,
+    _t("gsuid.renderers.player.summary.54_4.8d1ca1ac"): 3372,
+    _t("gsuid.renderers.player.summary.53_4.cad09647"): 1073,
+    _t("gsuid.renderers.player.summary.52_4.2eef40ce"): 410,
+    _t("gsuid.renderers.player.summary.56_4.0788ed91"): 416,
+    _t("gsuid.renderers.progress.collection.36_4.8f1e37e8"): 839,
+    _t("gsuid.renderers.progress.collection.37_4.2dcc7eb2"): 74,
 }
 COLLECTION_AWARD = {
     _t("gsuid.renderers.progress.collection.30_4.5dc7d7ba"): 5,
@@ -67,6 +67,7 @@ STCMAP = {
     "cryo": _t("gsuid.renderers.player.summary.49_4.463844dd"),
     "pyro": _t("gsuid.renderers.player.summary.50_4.600de4a5"),
     "moono": _t("gsuid.renderers.player.summary.51_4.68a591a2"),
+    "ice": _t("gsuid.renderers.player.summary.49_4.463844dd"),
 }
 ELEMENT_LABELS = set(STCMAP.values())
 
