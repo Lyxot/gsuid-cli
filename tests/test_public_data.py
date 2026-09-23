@@ -1119,6 +1119,50 @@ def test_ambr_wiki_lookup_matches_route_alias() -> None:
     assert result.data["item"]["title"] == "飞行冠军"
 
 
+def test_ambr_weapon_lookup_resolves_genshinuid_signature_alias() -> None:
+    assert public_provider_impl._resolve_weapon_name("银缸") == "银釭"
+
+    provider = PublicDataProvider(
+        _sequence_client(
+            [
+                _json_response(
+                    {
+                        "response": 200,
+                        "data": {
+                            "items": {
+                                "15412": {
+                                    "id": 15412,
+                                    "rank": 4,
+                                    "name": "幽夜华尔兹",
+                                    "type": "WEAPON_BOW",
+                                    "route": "Mitternachts Waltz",
+                                }
+                            }
+                        },
+                    }
+                ),
+                _json_response(
+                    {
+                        "response": 200,
+                        "data": {
+                            "id": 15412,
+                            "rank": 4,
+                            "name": "幽夜华尔兹",
+                            "type": "WEAPON_BOW",
+                            "route": "Mitternachts Waltz",
+                        },
+                    }
+                ),
+            ]
+        )
+    )
+
+    result = provider.wiki_lookup(kind="weapon", query="皇女专武")
+
+    assert result.data["query"] == "皇女专武"
+    assert result.data["match"] == {"id": "15412", "name": "幽夜华尔兹"}
+
+
 def test_ambr_artifact_suit_icons_use_reliquary_asset_path() -> None:
     provider = PublicDataProvider(
         _sequence_client(
