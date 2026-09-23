@@ -957,7 +957,7 @@ def _set_attack_damage_bonuses(
     panel: Mapping[str, object],
 ) -> None:
     char_name = _avatar_name(avatar, panel)
-    weapon_type = str(_map("avatarName2Weapon_mapping_7.0.0.json").get(char_name) or "")
+    weapon_type = str(_map("avatarName2Weapon_mapping_7.1.0.json").get(char_name) or "")
     for prefix in ATTACK_TYPES:
         if (
             weapon_type == _t("gsuid.renderers.panel.metrics.1053_22.4813ba67")
@@ -1324,7 +1324,7 @@ def _damage_type(
 ) -> str:
     char_name = _avatar_name(avatar, panel)
     element = _avatar_element(avatar, panel)
-    weapon_type = str(_map("avatarName2Weapon_mapping_7.0.0.json").get(char_name) or "")
+    weapon_type = str(_map("avatarName2Weapon_mapping_7.1.0.json").get(char_name) or "")
     damage_type = "Physical"
     if (
         weapon_type == _t("gsuid.renderers.panel.metrics.1053_22.4813ba67")
@@ -1455,7 +1455,7 @@ def _avatar_name(avatar: Mapping[str, object], panel: Mapping[str, object]) -> s
     if value:
         return value
     avatar_id = str(panel.get("avatar_id") or avatar.get("avatarId") or "")
-    return str(_map("avatarId2Name_mapping_7.0.0.json").get(avatar_id) or avatar_id)
+    return str(_map("avatarId2Name_mapping_7.1.0.json").get(avatar_id) or avatar_id)
 
 
 def _avatar_level(avatar: Mapping[str, object], panel: Mapping[str, object]) -> int:
@@ -1472,7 +1472,7 @@ def _avatar_level(avatar: Mapping[str, object], panel: Mapping[str, object]) -> 
 
 def _avatar_element(avatar: Mapping[str, object], panel: Mapping[str, object]) -> str:
     return str(
-        _map("avatarName2Element_mapping_7.0.0.json").get(_avatar_name(avatar, panel)) or "Anemo"
+        _map("avatarName2Element_mapping_7.1.0.json").get(_avatar_name(avatar, panel)) or "Anemo"
     )
 
 

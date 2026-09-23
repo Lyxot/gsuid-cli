@@ -14,7 +14,7 @@ from PIL import Image
 from gsuid_cli.cli import run
 from gsuid_cli.commands import rank as rank_commands
 from gsuid_cli.commands.panel import impl as panel_impl
-from gsuid_cli.commands.panel.cache import find_avatar, normalized_avatar
+from gsuid_cli.commands.panel.cache import PANEL_DATA, find_avatar, normalized_avatar
 from gsuid_cli.commands.panel.common import _refresh_cache_policy
 from gsuid_cli.core.errors import EXIT_UPSTREAM, CliError
 from gsuid_cli.core.http import HttpClient
@@ -133,13 +133,13 @@ def test_panel_refresh_list_show_compare_and_save(monkeypatch, tmp_path) -> None
     assert payload["warnings"] == []
 
 
-def test_panel_7_0_data_resolves_new_characters_and_weapon() -> None:
+def test_panel_7_1_data_resolves_new_characters_weapons_and_aliases() -> None:
     panel = normalized_avatar(
         {
-            "avatarId": 10000148,
+            "avatarId": 10000140,
             "equipList": [
                 {
-                    "itemId": 11520,
+                    "itemId": 14524,
                     "weapon": {"level": 90, "affixMap": {"1": 0}},
                     "flat": {
                         "itemType": "ITEM_WEAPON",
@@ -151,10 +151,20 @@ def test_panel_7_0_data_resolves_new_characters_and_weapon() -> None:
         }
     )
 
-    assert panel["name"] == "阿罗夏"
-    assert panel["weapon"]["name"] == "白湖冬羽"
-    assert rank_commands._character_id("Alyosha") == "10000148"
-    assert rank_commands._character_id("奥黛塔") == "10000150"
+    assert panel["name"] == "沃雅妮莎"
+    assert panel["weapon"]["name"] == "漩流颂歌"
+    assert rank_commands._character_id("Vodyanitsa") == "10000140"
+    assert rank_commands._character_id("风仙") == "10000143"
+
+
+def test_panel_7_1_effects_cover_new_characters_and_weapons() -> None:
+    char_effect = json.loads((PANEL_DATA / "char_effect.json").read_text(encoding="utf-8"))
+    weapon_effect = json.loads((PANEL_DATA / "weapon_effect.json").read_text(encoding="utf-8"))
+
+    assert char_effect["沃雅妮莎"]["fight"]["fight_talent"]["2"] == "stellarCritDmg+60"
+    assert char_effect["薇斯纳"]["fight"]["fight_talent"]["6"] == "stellarElevate+20"
+    assert weapon_effect["漩流颂歌"]["normal"]["normal_effect"]["1"] == "healBonus+4"
+    assert weapon_effect["柔风游弦"]["fight"]["group_effect"]["1"] == "stellarDmgBonus+24"
 
 
 def test_panel_show_render_image_writes_card(monkeypatch, tmp_path) -> None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from datetime import datetime
+from functools import lru_cache
 from html import unescape
 from pathlib import Path
 
@@ -66,6 +67,7 @@ GENSHINUID_COMMISSION_GUIDE_URL = (
     f"{GENSHINUID_JSDELIVR_BASE}@main/GenshinUID/genshinuid_achievement/daily_achi.json"
 )
 ASSETS_ROOT = Path(__file__).resolve().parents[2] / "assets"
+PANEL_DATA_DIR = ASSETS_ROOT / "panel" / "data"
 PRIMOGEMS_PLAN_ASSET_DIR = ASSETS_ROOT / "misc" / "primogems"
 GENSHINUID_RESOURCE_BASE = _public_common.GENSHINUID_RESOURCE_BASE
 GENSHINUID_RESOURCE_ASSET_BASE = f"{GENSHINUID_RESOURCE_BASE}resource"
@@ -113,6 +115,7 @@ class PublicDataProvider:
 
     def wiki_lookup(self, *, kind: str, query: str) -> CommandResult:
         list_path, detail_path = WIKI_PATHS[kind]
+        lookup_query = _resolve_weapon_name(query) if kind == "weapon" else query
         index = self._ambr_json(
             f"{AMBR_BASE_URL}/api/v2/chs/{list_path}",
             category=f"wiki.{kind}.list",
@@ -120,7 +123,7 @@ class PublicDataProvider:
         item = _find_item(
             _items(index.payload, f"wiki.{kind}.list", index.source),
             kind,
-            query,
+            lookup_query,
             index.source,
         )
         detail = self._ambr_json(
@@ -933,6 +936,51 @@ def _find_item(
         {"kind": kind, "query": query},
         source=source,
     )
+
+
+def _resolve_weapon_name(weapon_name: str) -> str:
+    weapon_aliases = _alias_map("weapon_alias.json")
+    if weapon_name in weapon_aliases:
+        return weapon_name
+    for weapon, aliases in weapon_aliases.items():
+        if weapon_name in aliases:
+            return weapon
+    suffix = "专武"
+    if not weapon_name.endswith(suffix):
+        return weapon_name
+    character = _unique_character_name(weapon_name[: -len(suffix)])
+    if not character:
+        return weapon_name
+    signature = f"{character}{suffix}"
+    for weapon, aliases in weapon_aliases.items():
+        if signature in aliases:
+            return weapon
+    return weapon_name
+
+
+def _unique_character_name(label: str) -> str:
+    if not label or any(character.isascii() and character.isalpha() for character in label):
+        return ""
+    hits: list[str] = []
+    for official, aliases in _alias_map("char_alias.json").items():
+        if (label == official or label in aliases) and official not in hits:
+            hits.append(official)
+    return hits[0] if len(hits) == 1 else ""
+
+
+@lru_cache(maxsize=2)
+def _alias_map(filename: str) -> dict[str, list[str]]:
+    try:
+        raw = json.loads((PANEL_DATA_DIR / filename).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        str(name): [str(alias) for alias in aliases if isinstance(alias, str)]
+        for name, aliases in raw.items()
+        if isinstance(aliases, list)
+    }
 
 
 def _normalize(value: str) -> str:
