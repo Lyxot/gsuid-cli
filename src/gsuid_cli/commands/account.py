@@ -192,10 +192,10 @@ def _required_uid(args: argparse.Namespace) -> str:
 
 
 def _validate_uid(uid: str) -> str:
-    if not uid or not uid.isdigit():
+    if not uid.isdigit() or not 9 <= len(uid) <= 10:
         raise CliError(
             "INVALID_ARGUMENT",
-            "uid must contain digits only",
+            "uid must contain 9 to 10 digits",
             EXIT_INVALID_INPUT,
             {"uid": uid},
         )

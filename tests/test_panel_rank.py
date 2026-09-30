@@ -167,6 +167,13 @@ def test_panel_7_1_effects_cover_new_characters_and_weapons() -> None:
     assert weapon_effect["柔风游弦"]["fight"]["group_effect"]["1"] == "stellarDmgBonus+24"
 
 
+def test_panel_damage_standards_exclude_empty_placeholders() -> None:
+    damage_map = json.loads((PANEL_DATA / "dmg_map.json").read_text(encoding="utf-8"))
+
+    assert "沃雅妮莎" not in damage_map
+    assert "薇斯纳" not in damage_map
+
+
 def test_panel_show_render_image_writes_card(monkeypatch, tmp_path) -> None:
     captured_urls: list[str] = []
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
