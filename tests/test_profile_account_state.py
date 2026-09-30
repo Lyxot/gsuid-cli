@@ -87,6 +87,26 @@ def test_account_add_auto_region_infers_from_uid(monkeypatch, tmp_path) -> None:
     assert payload["data"]["account"]["region"] == "os"
 
 
+def test_account_add_accepts_ten_digit_uid(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+
+    code, payload = _run_json(["account", "add", "--uid", "1000000001"])
+
+    assert code == 0
+    assert payload["data"]["account"]["uid"] == "1000000001"
+
+
+def test_account_add_rejects_uids_outside_supported_lengths(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+
+    for uid in ("12345678", "12345678a", "12345678901"):
+        code, payload = _run_json(["account", "add", "--uid", uid])
+
+        assert code == 1
+        assert payload["error"]["code"] == "INVALID_ARGUMENT"
+        assert payload["error"]["details"]["uid"] == uid
+
+
 def test_profile_and_account_render_text_plain(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
 
