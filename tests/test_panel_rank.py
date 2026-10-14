@@ -155,6 +155,7 @@ def test_panel_7_1_data_resolves_new_characters_weapons_and_aliases() -> None:
     assert panel["weapon"]["name"] == "漩流颂歌"
     assert rank_commands._character_id("Vodyanitsa") == "10000140"
     assert rank_commands._character_id("风仙") == "10000143"
+    assert rank_commands._character_id("奉先") == "10000143"
 
 
 def test_panel_7_1_effects_cover_new_characters_and_weapons() -> None:
