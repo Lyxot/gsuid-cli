@@ -5,6 +5,7 @@ from collections.abc import Mapping
 
 from gsuid_cli.renderers._text_helpers import _finish, _mapping
 from gsuid_cli.renderers.common import int_value, sequence, text_value
+from gsuid_cli.renderers.wiki import enhanced_effect
 from gsuid_cli.text import t as _t
 
 KIND_LABELS = {
@@ -99,6 +100,7 @@ def render_wiki_talent_text(data: Mapping[str, object]) -> str:
     )
     if desc:
         lines.extend(["", desc])
+    _append_enhanced_effect(lines, talent)
     promote = _mapping(talent.get("promote"))
     named_promote = talent.get("promote_materials")
     if named_promote:
@@ -335,6 +337,23 @@ def _append_constellation(
     desc = _clean_text(row.get("description") or row.get("desc"))
     if desc:
         lines.append(("    " if bullet else "") + desc)
+    _append_enhanced_effect(lines, row, indent="    " if bullet else "")
+
+
+def _append_enhanced_effect(
+    lines: list[str],
+    row: Mapping[str, object],
+    *,
+    indent: str = "",
+) -> None:
+    buff, replaces = enhanced_effect(row)
+    text = _clean_text(buff)
+    if not text:
+        return
+    label = _t(
+        "gsuid.renderers.wiki.enhanced.full" if replaces else "gsuid.renderers.wiki.enhanced.append"
+    )
+    lines.extend(["", f"{indent}{label}", f"{indent}{text}"])
 
 
 def _append_field(lines: list[str], label: str, value: object) -> None:

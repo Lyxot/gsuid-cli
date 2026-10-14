@@ -116,7 +116,11 @@ def test_provider_character_talent_and_materials_from_ambr() -> None:
     materials = provider.character_materials(character="Amber")
 
     assert talent.data["talent"]["name"] == "Normal Attack"
+    assert talent.data["talent"]["descriptionBuff"] == "Base talent. Enhanced talent."
     assert constellation.data["constellation"]["name"] == "One Arrow"
+    assert constellation.data["constellation"]["descriptionBuff"] == (
+        "Base constellation. Enhanced constellation."
+    )
     assert materials.data["ascension"] == {"1001": 3}
     assert materials.data["talents"][0]["promote"]["1"]["coinCost"] == 1000
 
@@ -319,10 +323,18 @@ def _ambr_character_detail() -> dict[str, object]:
                 "a": {
                     "name": "Normal Attack",
                     "type": 0,
+                    "description": "Base talent. ",
+                    "descriptionBuff": "Base talent. Enhanced talent.",
                     "promote": {"1": {"coinCost": 1000}},
                 }
             },
-            "constellation": {"c1": {"name": "One Arrow", "description": "More arrows."}},
+            "constellation": {
+                "c1": {
+                    "name": "One Arrow",
+                    "description": "Base constellation. ",
+                    "descriptionBuff": "Base constellation. Enhanced constellation.",
+                }
+            },
         },
     }
 

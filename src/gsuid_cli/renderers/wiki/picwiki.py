@@ -18,6 +18,7 @@ from gsuid_cli.renderers.common import (
     sequence as _sequence,
     text_value,
 )
+from gsuid_cli.renderers.wiki import enhanced_effect
 from gsuid_cli.text import t as _t
 
 TEXTURE = asset_path("wiki", "textures")
@@ -485,7 +486,16 @@ def _constellation_entry_card(
     *,
     with_background: bool,
 ) -> Image.Image:
-    effect = _wrap_text(_clean_text(row.get("description")) or "", font(20), 420)
+    effect_parts = [_clean_text(row.get("description"))]
+    buff, replaces = enhanced_effect(row)
+    if buff:
+        label = _t(
+            "gsuid.renderers.wiki.enhanced.full"
+            if replaces
+            else "gsuid.renderers.wiki.enhanced.append"
+        )
+        effect_parts.append(f"{label}\n{_clean_text(buff)}")
+    effect = _wrap_text("\n".join(part for part in effect_parts if part), font(20), 420)
     measure = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
     effect_h = _text_height(effect, font(20), measure)
     height = 90 + effect_h
