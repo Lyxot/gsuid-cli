@@ -1366,6 +1366,8 @@ TEXT_ZH_CN: dict[str, str] = {
     "gsuid.renderers.wiki.picwiki.630_44.037909eb": "武器特效",
     "gsuid.renderers.wiki.picwiki.89_32.f488e9b9": "食物类型",
     "gsuid.renderers.wiki.picwiki.90_32.df2144b4": "料理",
+    "gsuid.renderers.wiki.enhanced.append": "完成对应任务或辉映变化后追加:",
+    "gsuid.renderers.wiki.enhanced.full": "完成对应任务或辉映变化后的完整效果:",
     "gsuid.renderers.wiki.text.108_13.063354cb": "角色命座 - {0}",
     "gsuid.renderers.wiki.text.10_17.692036b0": "角色资料",
     "gsuid.renderers.wiki.text.11_14.751d5bdc": "武器资料",

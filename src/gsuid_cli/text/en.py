@@ -1366,6 +1366,12 @@ TEXT_EN: dict[str, str] = {
     "gsuid.renderers.wiki.picwiki.630_44.037909eb": "Weapon effects",
     "gsuid.renderers.wiki.picwiki.89_32.f488e9b9": "food type",
     "gsuid.renderers.wiki.picwiki.90_32.df2144b4": "Cuisine",
+    "gsuid.renderers.wiki.enhanced.append": (
+        "Added after completing the corresponding quest or Radiant Change:"
+    ),
+    "gsuid.renderers.wiki.enhanced.full": (
+        "Full effect after completing the corresponding quest or Radiant Change:"
+    ),
     "gsuid.renderers.wiki.text.108_13.063354cb": "Character Constellations - {0}",
     "gsuid.renderers.wiki.text.10_17.692036b0": "character profile",
     "gsuid.renderers.wiki.text.11_14.751d5bdc": "Weapon information",

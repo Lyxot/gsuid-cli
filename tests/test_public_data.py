@@ -24,6 +24,11 @@ from gsuid_cli.providers.public import (
     provider as public_provider_impl,
 )
 from gsuid_cli.renderers import recommend as recommend_renderer
+from gsuid_cli.renderers.wiki.picwiki import render_wiki_constellation_card
+from gsuid_cli.renderers.wiki.text import (
+    render_wiki_constellation_text,
+    render_wiki_talent_text,
+)
 
 
 def test_public_wiki_command_returns_json(monkeypatch) -> None:
@@ -941,6 +946,65 @@ def test_wiki_constellation_render_data_image_preserves_data(monkeypatch, tmp_pa
     assert payload["data"]["constellation"] == {"index": 1, "name": "One Arrow"}
     assert payload["data"]["requested_constellation"] == 1
     assert payload["data"]["render"] == "wiki/constellation"
+
+
+def test_wiki_enhanced_effects_render_without_repeating_base(monkeypatch) -> None:
+    monkeypatch.setenv("GSUID_LANG", "zh-CN")
+
+    talent_text = render_wiki_talent_text(
+        {
+            "character": "Amber",
+            "talent": {
+                "index": 1,
+                "name": "Sharpshooter",
+                "description": "基础效果。",
+                "descriptionBuff": "基础效果。追加效果。",
+            },
+        }
+    )
+    constellation_text = render_wiki_constellation_text(
+        {
+            "character": "Amber",
+            "constellation": {
+                "index": 1,
+                "name": "One Arrow",
+                "description": "基础效果。",
+                "descriptionBuff": "改写后的完整效果。",
+            },
+        }
+    )
+
+    assert "完成对应任务或辉映变化后追加:" in talent_text
+    assert talent_text.count("基础效果。") == 1
+    assert "追加效果。" in talent_text
+    assert "完成对应任务或辉映变化后的完整效果:" in constellation_text
+    assert "改写后的完整效果。" in constellation_text
+
+
+def test_wiki_constellation_card_expands_for_enhanced_effect() -> None:
+    base = {
+        "name": "One Arrow",
+        "description": "基础效果。",
+    }
+    enhanced = {
+        **base,
+        "descriptionBuff": "基础效果。追加效果。",
+    }
+
+    base_card = render_wiki_constellation_card(
+        {"constellation": {"c1": base}},
+        constellation=1,
+    )
+    enhanced_card = render_wiki_constellation_card(
+        {"constellation": {"c1": enhanced}},
+        constellation=1,
+    )
+
+    with Image.open(io.BytesIO(base_card)) as base_image:
+        base_height = base_image.height
+    with Image.open(io.BytesIO(enhanced_card)) as enhanced_image:
+        enhanced_height = enhanced_image.height
+    assert enhanced_height > base_height
 
 
 def test_daily_materials_enriches_ambr_upgrade_icon_urls() -> None:
