@@ -427,12 +427,13 @@ def _theater(data: dict[str, object], _season: str) -> dict[str, object]:
     }
 
 
-def _hard_challenge(data: dict[str, object]) -> dict[str, object]:
+def _hard_challenge(data: dict[str, object], season: str = "current") -> dict[str, object]:
     sessions = data.get("data")
     if isinstance(sessions, list):
         session_items = [item for item in sessions if isinstance(item, dict)]
+        index = 1 if season == "previous" else 0
         return {
-            "selected": session_items[0] if session_items else None,
+            "selected": session_items[index] if index < len(session_items) else None,
             "data": session_items,
             "count": len(session_items),
         }

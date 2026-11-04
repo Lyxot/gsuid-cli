@@ -318,7 +318,10 @@ def _hard_sections(hard: Mapping[str, object]) -> tuple[Mapping[str, object], Ma
     root = root if isinstance(root, Mapping) else hard
     sessions = root.get("data") if isinstance(root, Mapping) else None
     session = {}
-    if isinstance(sessions, list) and sessions and isinstance(sessions[0], Mapping):
+    if "selected" in root:
+        selected = root.get("selected")
+        session = selected if isinstance(selected, Mapping) else {}
+    elif isinstance(sessions, list) and sessions and isinstance(sessions[0], Mapping):
         session = sessions[0]
     elif isinstance(root, Mapping):
         session = root
