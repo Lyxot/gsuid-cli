@@ -174,6 +174,31 @@ def test_panel_damage_standards_exclude_empty_placeholders() -> None:
 
     assert "沃雅妮莎" not in damage_map
     assert "薇斯纳" not in damage_map
+    assert "米提亚" not in damage_map
+    assert "瓦列里" not in damage_map
+
+
+def test_panel_7_2_data_resolves_new_characters_weapons_and_aliases() -> None:
+    panel = normalized_avatar(
+        {
+            "avatarId": 10000136,
+            "equipList": [
+                {
+                    "itemId": 14525,
+                    "weapon": {"level": 90},
+                    "flat": {"itemType": "ITEM_WEAPON", "rankLevel": 5, "weaponStats": []},
+                }
+            ],
+        }
+    )
+
+    assert panel["name"] == "米提亚"
+    assert panel["weapon"]["name"] == "秘星典谕"
+    assert rank_commands._character_id("Mitya") == "10000136"
+    assert rank_commands._character_id("米蒂亚") == "10000136"
+    assert rank_commands._character_id("Valeriy") == "10000137"
+    assert rank_commands._character_id("瓦莱里") == "10000137"
+    assert normalized_avatar({"avatarId": 10000137})["name"] == "瓦列里"
 
 
 def test_panel_effective_scores_follow_updated_character_stats() -> None:
