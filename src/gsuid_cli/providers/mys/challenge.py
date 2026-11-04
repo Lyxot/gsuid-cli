@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from gsuid_cli.core.errors import EXIT_NO_RESULT, CliError
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.providers.mys.auth import server_for_uid
 from gsuid_cli.providers.mys.constants import ABYSS_PATH, HARD_CHALLENGE_PATH, ROLE_COMBAT_PATH
@@ -107,18 +108,23 @@ class MysChallengeMixin:
                 "need_detail": "true",
             },
         )
-        warnings = []
-        if season != "current":
-            warnings.append("hard challenge season selection is not exposed by the provider")
+        hard = _hard_challenge(data, season)
+        if hard.get("selected") is None and (season == "previous" or "selected" in hard):
+            raise CliError(
+                "NO_RESULT",
+                "no hard challenge data for the requested season",
+                EXIT_NO_RESULT,
+                {"uid": uid, "season": season},
+                source=source,
+            )
         return CommandResult(
             data={
                 "uid": uid,
                 "credential_source": credential_source,
                 "storage_backend": storage_backend,
                 "season": season,
-                "effective_season": "current",
-                "hard": _hard_challenge(data),
+                "effective_season": season,
+                "hard": hard,
             },
             source=source,
-            warnings=warnings,
         )

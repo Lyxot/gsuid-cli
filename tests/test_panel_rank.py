@@ -28,6 +28,7 @@ from gsuid_cli.renderers.panel.metrics import (
     _action_damage,
     _apply_effects,
     _base_area,
+    artifact_effective_score,
     panel_reference_metrics,
 )
 from gsuid_cli.renderers.rank.text import render_rank_artifact_text
@@ -173,6 +174,46 @@ def test_panel_damage_standards_exclude_empty_placeholders() -> None:
 
     assert "沃雅妮莎" not in damage_map
     assert "薇斯纳" not in damage_map
+    assert "米提亚" not in damage_map
+    assert "瓦列里" not in damage_map
+
+
+def test_panel_7_2_data_resolves_new_characters_weapons_and_aliases() -> None:
+    panel = normalized_avatar(
+        {
+            "avatarId": 10000136,
+            "equipList": [
+                {
+                    "itemId": 14525,
+                    "weapon": {"level": 90},
+                    "flat": {"itemType": "ITEM_WEAPON", "rankLevel": 5, "weaponStats": []},
+                }
+            ],
+        }
+    )
+
+    assert panel["name"] == "米提亚"
+    assert panel["weapon"]["name"] == "秘星典谕"
+    assert rank_commands._character_id("Mitya") == "10000136"
+    assert rank_commands._character_id("米蒂亚") == "10000136"
+    assert rank_commands._character_id("Valeriy") == "10000137"
+    assert rank_commands._character_id("瓦莱里") == "10000137"
+    assert normalized_avatar({"avatarId": 10000137})["name"] == "瓦列里"
+
+
+def test_panel_effective_scores_follow_updated_character_stats() -> None:
+    artifact = {
+        "flat": {
+            "reliquarySubstats": [
+                {"appendPropId": "FIGHT_PROP_ELEMENT_MASTERY", "statValue": 19.82},
+                {"appendPropId": "FIGHT_PROP_CRITICAL_HURT", "statValue": 6.6},
+            ]
+        }
+    }
+
+    assert artifact_effective_score(artifact, {}, {}, {"name": "莫娜"}) == 0.0
+    assert artifact_effective_score(artifact, {}, {}, {"name": "瓦列里"}) == 1.0
+    assert artifact_effective_score(artifact, {}, {}, {"name": "米提亚"}) == 2.0
 
 
 def test_panel_show_render_image_writes_card(monkeypatch, tmp_path) -> None:
@@ -645,7 +686,7 @@ def test_panel_metrics_match_genshinuid_reference_counts() -> None:
     metrics = panel_reference_metrics(avatar, panel)
     rows = {str(row["action"]): row for row in metrics["damage_rows"]}
 
-    assert metrics["effective_stat_count"] == 22.25
+    assert metrics["effective_stat_count"] == 24.0
     assert metrics["sequence_label"] == "终末|翠绿|精精精"
     assert 12.0 < metrics["graduation_percent"] < 12.2
     assert round(rows["A一段伤害"]["normal"]) == 335

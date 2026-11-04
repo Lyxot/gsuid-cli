@@ -19,11 +19,17 @@ from PIL import Image
 
 from gsuid_cli.cli import run
 from gsuid_cli.commands import challenge as challenge_commands, progress as progress_commands
+from gsuid_cli.core.errors import CliError
 from gsuid_cli.core.http import HttpClient
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.secrets import SecretStore, redact_secret
 from gsuid_cli.providers.mys import RECORD_SALT, MysProvider
 from gsuid_cli.renderers.challenge import abyss as abyss_renderer
+from gsuid_cli.renderers.challenge.hard import _hard_sections as image_hard_sections
+from gsuid_cli.renderers.challenge.text import (
+    _hard_sections as text_hard_sections,
+    render_challenge_hard_text,
+)
 from gsuid_cli.renderers.common import crop_center
 
 
@@ -726,7 +732,8 @@ def test_mys_challenge_theater_signs_sent_query_and_marks_effective_season() -> 
     assert result.warnings == ["theater season selection is not exposed by the provider"]
 
 
-def test_mys_challenge_hard_marks_effective_season_when_previous_requested() -> None:
+@pytest.mark.parametrize("season,index", [("current", 0), ("previous", 1)])
+def test_mys_challenge_hard_selects_requested_season(season, index) -> None:
     requests: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -742,7 +749,11 @@ def test_mys_challenge_hard_marks_effective_season_when_previous_requested() -> 
                         {
                             "schedule": {"start_time": "1777130000"},
                             "single": {"best": {"difficulty": 4}, "challenge": []},
-                        }
+                        },
+                        {
+                            "schedule": {"start_time": "1774538000"},
+                            "single": {"best": {"difficulty": 6}, "challenge": []},
+                        },
                     ]
                 },
             }
@@ -756,17 +767,53 @@ def test_mys_challenge_hard_marks_effective_season_when_previous_requested() -> 
         region="cn",
         credential_source="keyring",
         storage_backend="tests.MemoryKeyring",
-        season="previous",
+        season=season,
     )
 
     query = dict(parse_qsl(requests[1].url.query.decode()))
     assert requests[1].url.path.endswith("/hard_challenge")
     assert query == {"role_id": "100000001", "server": "cn_gf01", "need_detail": "true"}
-    assert result.data["season"] == "previous"
-    assert result.data["effective_season"] == "current"
-    assert result.data["hard"]["count"] == 1
-    assert result.data["hard"]["data"][0]["single"]["best"]["difficulty"] == 4
-    assert result.warnings == ["hard challenge season selection is not exposed by the provider"]
+    assert result.data["season"] == season
+    assert result.data["effective_season"] == season
+    hard = result.data["hard"]
+    assert hard["count"] == 2
+    assert hard["selected"] == hard["data"][index]
+    selected = hard["data"][index]
+    for sections in (image_hard_sections, text_hard_sections):
+        assert sections(hard) == (selected["schedule"], selected["single"])
+    text = render_challenge_hard_text(uid="100000001", hard=hard, summary={})
+    assert f"最高难度: {4 if index == 0 else 6}" in text
+    assert result.warnings == []
+
+
+@pytest.mark.parametrize(
+    "season,data",
+    [
+        ("current", {"data": []}),
+        ("previous", {"data": []}),
+        ("previous", {"data": [{"single": {"best": {"difficulty": 4}}}]}),
+        ("previous", {"hard_challenge": {"single": {"best": {"difficulty": 4}}}}),
+    ],
+)
+def test_mys_challenge_hard_rejects_unavailable_season(season, data) -> None:
+    provider = MysProvider(
+        _sequence_client(
+            [_device_fp_response(), _json_response({"retcode": 0, "message": "OK", "data": data})]
+        )
+    )
+
+    with pytest.raises(CliError) as exc:
+        provider.challenge_hard(
+            uid="100000001",
+            cookie="account_id=1;cookie_token=secret",
+            region="cn",
+            credential_source="keyring",
+            storage_backend="tests.MemoryKeyring",
+            season=season,
+        )
+
+    assert exc.value.code == "NO_RESULT"
+    assert exc.value.details["season"] == season
 
 
 def test_mys_challenge_errors_do_not_leak_cookie() -> None:
