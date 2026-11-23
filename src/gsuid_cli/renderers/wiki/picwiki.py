@@ -777,7 +777,8 @@ def _prop_label(value: object) -> str:
 def _clean_text(value: object) -> str:
     text = text_value(value) or ""
     text = text.replace("\\n", "\n")
-    text = re.sub(r"</?color[^>]*>", "", text)
+    text = re.sub(r"\{/?LINK(?:#[^}]*)?\}", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", "", text)
     return text.replace("**", "")
 
 

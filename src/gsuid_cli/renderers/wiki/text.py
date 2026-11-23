@@ -540,6 +540,7 @@ def _clean_text(value: object) -> str | None:
     if text is None:
         return None
     text = text.replace("\\n", "\n")
-    text = re.sub(r"</?color[^>]*>", "", text)
+    text = re.sub(r"\{/?LINK(?:#[^}]*)?\}", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", "", text)
     text = text.replace("**", "")
     return text.strip() or None
