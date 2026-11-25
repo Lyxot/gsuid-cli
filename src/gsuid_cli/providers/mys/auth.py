@@ -162,6 +162,9 @@ def _sign_headers(cookie: str) -> dict[str, str]:
         "x-rpc-signgame": "hk4e",
         "x-rpc-device_id": uuid.uuid4().hex,
         "x-rpc-client_type": "5",
+        "x-rpc-platform": "2",
+        "Origin": "https://act.mihoyo.com",
+        "Referer": "https://act.mihoyo.com/",
     }
 
 

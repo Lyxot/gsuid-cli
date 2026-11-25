@@ -1144,12 +1144,31 @@ def test_mys_daily_signin_is_idempotent_when_already_signed() -> None:
     assert result.data["already_signed"] is True
     assert result.data["signed"] is False
     assert len(requests) == 1
-    assert requests[0].url.path == "/event/luna/info"
+    assert requests[0].url.path == "/event/luna/hk4e/info"
     assert result.data["day_number"] == 3
     assert result.data["provider_message"] == "OK"
 
 
-def test_mys_daily_signin_success_normalizes_reward_and_message() -> None:
+@pytest.mark.parametrize(
+    "total_days,day_number,reward",
+    [
+        (0, 1, {"name": "Mora", "count": 1000, "icon": "mora.png"}),
+        (2, 3, {"name": "Primogem", "count": 20, "icon": "primogem.png"}),
+    ],
+)
+def test_mys_daily_signin_success_normalizes_reward_and_message(
+    monkeypatch, tmp_path, total_days, day_number, reward
+) -> None:
+    from gsuid_cli.core.state import state_db
+
+    monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
+    with state_db() as conn:
+        conn.execute(
+            "INSERT INTO accounts "
+            "(uid, region, device_id, device_fp, device_info, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, '2026-11-25', '2026-11-25')",
+            ("100000001", "cn", "bound-device", "bound-fp", "TestBrand/TestModel/TestDev:16/build"),
+        )
     requests: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -1161,7 +1180,7 @@ def test_mys_daily_signin_success_normalizes_reward_and_message() -> None:
                     "message": "OK",
                     "data": {
                         "is_sign": False,
-                        "total_sign_day": 2,
+                        "total_sign_day": total_days,
                         "awards": [
                             {"name": "Mora", "cnt": 1000, "icon": "mora.png"},
                             {"name": "Ore", "cnt": 3, "icon": "ore.png"},
@@ -1170,7 +1189,7 @@ def test_mys_daily_signin_success_normalizes_reward_and_message() -> None:
                     },
                 }
             )
-        return _json_response({"retcode": 0, "message": "OK", "data": {"success": 0}})
+        return _json_response({"retcode": 0, "message": "Signed", "data": {"success": 0}})
 
     provider = MysProvider(_mock_client(handler))
 
@@ -1184,10 +1203,22 @@ def test_mys_daily_signin_success_normalizes_reward_and_message() -> None:
 
     assert result.data["already_signed"] is False
     assert result.data["signed"] is True
-    assert result.data["day_number"] == 3
-    assert result.data["reward"] == {"name": "Primogem", "count": 20, "icon": "primogem.png"}
-    assert result.data["provider_message"] == "OK"
+    assert result.data["day_number"] == day_number
+    assert result.data["reward"] == reward
+    assert result.data["provider_message"] == "Signed"
+    assert result.data["provider_response"]["data"] == {"success": 0}
     assert len(requests) == 2
+    assert [r.url.path for r in requests] == ["/event/luna/hk4e/info", "/event/luna/hk4e/sign"]
+    for request in requests:
+        assert request.headers["origin"] == "https://act.mihoyo.com"
+        assert request.headers["referer"] == "https://act.mihoyo.com/"
+        assert request.headers["x-requested-with"] == "com.mihoyo.hyperion"
+        assert request.headers["x-rpc-signgame"] == "hk4e"
+    assert requests[1].headers["x-rpc-platform"] == "2"
+    assert requests[1].headers["x-rpc-device_id"] == "bound-device"
+    assert requests[1].headers["x-rpc-device_fp"] == "bound-fp"
+    assert requests[1].headers["x-rpc-device_model"] == "TestModel"
+    assert requests[1].headers["x-rpc-device_name"] == "TestBrand%20TestModel"
 
 
 def test_mys_daily_signin_status_is_read_only() -> None:
@@ -1198,7 +1229,7 @@ def test_mys_daily_signin_status_is_read_only() -> None:
         return _json_response(
             {
                 "retcode": 0,
-                "message": "OK",
+                "message": "Status read",
                 "data": {"is_sign": False, "total_sign_day": 3},
             }
         )
@@ -1215,9 +1246,39 @@ def test_mys_daily_signin_status_is_read_only() -> None:
 
     assert result.data["already_signed"] is False
     assert result.data["signed"] is False
+    assert result.data["provider_message"] == "Status read"
     assert len(requests) == 1
     assert requests[0].method == "GET"
-    assert requests[0].url.path == "/event/luna/info"
+    assert requests[0].url.path == "/event/luna/hk4e/info"
+
+
+@pytest.mark.parametrize(
+    "message,expected", [("Signed elsewhere", "Signed elsewhere"), ("", "Already signed")]
+)
+def test_mys_daily_signin_handles_already_signed_race(message, expected) -> None:
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if len(requests) == 1:
+            return _json_response({"retcode": 0, "data": {"is_sign": False, "total_sign_day": 3}})
+        return _json_response({"retcode": -5003, "message": message})
+
+    result = MysProvider(_mock_client(handler)).daily_signin(
+        uid="800000001",
+        cookie="ltoken=secret",
+        region="os",
+        credential_source="keyring",
+        storage_backend="test",
+    )
+    assert result.data["already_signed"] is True
+    assert result.data["signed"] is False
+    assert result.data["provider_message"] == expected
+    assert result.data["day_number"] == 3
+    assert len(requests) == 2
+    assert requests[1].url.path == "/event/sol/sign"
+    assert not requests[1].url.query
+    assert "x-rpc-platform" not in requests[1].headers
 
 
 def test_mys_daily_signin_status_uses_hoyolab_endpoint_for_os_uid() -> None:

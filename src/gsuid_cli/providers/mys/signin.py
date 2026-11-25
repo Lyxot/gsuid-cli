@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from gsuid_cli.core.http import raise_for_retcode
 from gsuid_cli.core.models import CommandResult
+from gsuid_cli.core.state import state_db
 from gsuid_cli.providers.mys.auth import (
     _already_signed,
     _headers,
@@ -21,6 +24,7 @@ from gsuid_cli.providers.mys.constants import (
     SIGN_PATH,
     SIGN_PATH_OS,
 )
+from gsuid_cli.providers.mys.device import _device_info_parts
 from gsuid_cli.providers.mys.normalizers import _payload_data
 
 
@@ -64,7 +68,7 @@ class MysSigninMixin:
             provider=PROVIDER,
             region=region,
             category="daily.signin",
-            headers=_sign_headers_for_uid(uid, cookie),
+            headers=self._sign_headers_for_uid(uid, cookie),
             json_body=body,
         )
         if _already_signed(response.payload):
@@ -139,6 +143,20 @@ class MysSigninMixin:
             ),
             source=source,
         )
+
+    def _sign_headers_for_uid(self, uid: str, cookie: str) -> dict[str, str]:
+        if is_os_uid(uid):
+            return _sign_os_headers(cookie)
+        with state_db(self.http.output_dir) as conn:
+            row = conn.execute("SELECT device_info FROM accounts WHERE uid = ?", (uid,)).fetchone()
+        device_info = str(row["device_info"] or "") if row else ""
+        brand, model, _ = _device_info_parts(device_info)
+        return {
+            **_sign_headers(cookie),
+            **self._device_headers(uid),
+            "x-rpc-device_model": model,
+            "x-rpc-device_name": quote(f"{brand} {model}"),
+        }
 
     def _sign_info(
         self,
@@ -251,11 +269,12 @@ def _sign_info_url(uid: str) -> str:
     return f"{GS_BASE_CN}{SIGN_INFO_PATH}"
 
 
-def _sign_headers_for_uid(uid: str, cookie: str) -> dict[str, str]:
-    return _sign_os_headers(cookie) if is_os_uid(uid) else _sign_headers(cookie)
-
-
 def _sign_info_headers(uid: str, cookie: str) -> dict[str, str]:
     if is_os_uid(uid):
         return _sign_os_headers(cookie)
-    return {**_headers(cookie), "x-rpc-signgame": "hk4e"}
+    return {
+        **_headers(cookie),
+        "x-rpc-signgame": "hk4e",
+        "Origin": "https://act.mihoyo.com",
+        "Referer": "https://act.mihoyo.com/",
+    }
