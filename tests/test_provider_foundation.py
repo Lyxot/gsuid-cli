@@ -489,9 +489,10 @@ def test_qrcode_complete_exchanges_tokens() -> None:
             {
                 "retcode": 0,
                 "message": "OK",
-                "data": {"cookie_token": "cookie-secret"},
+                "data": {"token": {"token": "cookie-secret"}},
             }
         ),
+        _json_response({"retcode": -100, "message": "ltoken unavailable"}),
     ]
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -520,9 +521,11 @@ def test_qrcode_complete_exchanges_tokens() -> None:
     assert result.data["stoken"] == "stuid=123456;stoken=stoken-secret;mid=mid-secret"
     assert [request.url.path for request in requests] == [
         "/account/ma-cn-passport/app/queryQRLoginStatus",
-        "/account/auth/api/getCookieAccountInfoBySToken",
+        "/account/ma-cn-session/app/exchange",
+        "/account/ma-cn-session/app/exchange",
     ]
-    assert requests[1].url.params["mid"] == "mid-secret"
+    assert json.loads(requests[1].content)["mid"] == "mid-secret"
+    assert json.loads(requests[2].content)["dst_token_type"] == 2
 
 
 def test_cookie_refresh_exchanges_stoken_for_cookie() -> None:
@@ -530,11 +533,19 @@ def test_cookie_refresh_exchanges_stoken_for_cookie() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
+        body = json.loads(request.content)
         return _json_response(
             {
                 "retcode": 0,
                 "message": "OK",
-                "data": {"cookie_token": "fresh-cookie"},
+                "data": {
+                    "token": {
+                        "token": "v2_fresh-cookie=.CAE="
+                        if body["dst_token_type"] == 4
+                        else "v2_fresh-ltoken=.CAE="
+                    },
+                    "user_info": {"aid": "123456", "mid": "resolved-mid"},
+                },
             }
         )
 
@@ -555,12 +566,124 @@ def test_cookie_refresh_exchanges_stoken_for_cookie() -> None:
     )
 
     assert result.data["validity_status"] == "refreshed"
-    assert result.data["cookie"] == "account_id=123456;cookie_token=fresh-cookie"
+    assert result.data["cookie"] == (
+        "account_id=123456;cookie_token=v2_fresh-cookie=.CAE=;account_id_v2=123456;"
+        "cookie_token_v2=v2_fresh-cookie=.CAE=;account_mid_v2=resolved-mid;ltuid=123456;"
+        "ltoken=v2_fresh-ltoken=.CAE=;ltuid_v2=123456;ltoken_v2=v2_fresh-ltoken=.CAE=;"
+        "ltmid_v2=resolved-mid"
+    )
     assert result.data["redacted"] != result.data["cookie"]
-    assert requests[0].url.params["stoken"] == "stoken-secret"
-    assert requests[0].url.params["uid"] == "123456"
-    assert requests[0].url.params["mid"] == "mid-secret"
-    assert requests[0].headers["cookie"] == "stuid=123456;stoken=stoken-secret;mid=mid-secret"
+    assert len(requests) == 2
+    assert json.loads(requests[0].content) == {
+        "src_token": {"token": "stoken-secret", "token_type": 1},
+        "mid": "mid-secret",
+        "dst_token_type": 4,
+    }
+    assert json.loads(requests[1].content)["mid"] == "resolved-mid"
+    assert json.loads(requests[1].content)["dst_token_type"] == 2
+    for request in requests:
+        assert request.method == "POST"
+        assert request.url.path == "/account/ma-cn-session/app/exchange"
+        assert not request.url.query
+        assert request.headers["x-rpc-app_id"] == "bll8iq97cem8"
+        assert request.headers["x-rpc-client_type"] == "2"
+        assert request.headers["user-agent"] == "okhttp/4.9.3"
+        assert request.headers["ds"].count(",") == 2
+    assert requests[0].headers["x-rpc-device_id"] == requests[1].headers["x-rpc-device_id"]
+    assert requests[0].headers["x-rpc-device_fp"] == requests[1].headers["x-rpc-device_fp"]
+
+
+@pytest.mark.parametrize("mid_key", ["stmid_v2", "stmid", "account_mid_v2", "ltmid_v2"])
+def test_cookie_refresh_accepts_v2_identity_aliases(mid_key) -> None:
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return _json_response({"retcode": 0, "data": {"token": {"token": "v2_fresh"}}})
+
+    provider = MysProvider(
+        HttpClient(timeout=1, cache_policy="off", transport=httpx.MockTransport(handler))
+    )
+    result = provider.refresh_cookie_from_stoken(
+        uid="100000001",
+        stoken_cookie=f"account_id_v2=123;stoken_v2=v2_secret;{mid_key}=mid",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="test",
+    )
+    assert "account_id_v2=123" in result.data["cookie"]
+    assert json.loads(requests[0].content)["mid"] == "mid"
+
+
+def test_cookie_refresh_legacy_without_mid_uses_get() -> None:
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return _json_response({"retcode": 0, "data": {"cookie_token": "legacy-cookie"}})
+
+    provider = MysProvider(
+        HttpClient(timeout=1, cache_policy="off", transport=httpx.MockTransport(handler))
+    )
+    result = provider.refresh_cookie_from_stoken(
+        uid="100000001",
+        stoken_cookie="stuid=123;stoken=legacy",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="test",
+    )
+    assert result.data["cookie"] == "account_id=123;cookie_token=legacy-cookie"
+    assert len(requests) == 1
+    assert requests[0].method == "GET"
+    assert requests[0].url.path == "/account/auth/api/getCookieAccountInfoBySToken"
+    assert dict(requests[0].url.params) == {"stoken": "legacy", "uid": "123"}
+
+
+def test_cookie_refresh_keeps_cookie_when_optional_ltoken_times_out() -> None:
+    def handler(request):
+        if json.loads(request.content)["dst_token_type"] == 2:
+            raise httpx.ReadTimeout("ltoken unavailable", request=request)
+        return _json_response({"retcode": 0, "data": {"token": {"token": "v2_fresh"}}})
+
+    provider = MysProvider(
+        HttpClient(timeout=1, cache_policy="off", transport=httpx.MockTransport(handler))
+    )
+    result = provider.refresh_cookie_from_stoken(
+        uid="100000001",
+        stoken_cookie="stuid=123;stoken=v2_secret;mid=mid",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="test",
+    )
+    assert result.data["validity_status"] == "refreshed"
+    assert result.data["cookie"] == (
+        "account_id=123;cookie_token=v2_fresh;account_id_v2=123;"
+        "cookie_token_v2=v2_fresh;account_mid_v2=mid"
+    )
+
+
+@pytest.mark.parametrize(
+    "payload,code",
+    [
+        ({"retcode": -100}, "AUTH_EXPIRED"),
+        ({"retcode": 0, "data": {"token": {}}}, "UPSTREAM_INVALID_RESPONSE"),
+        (
+            {"retcode": 0, "data": {"token": {"token": {"bad": "value"}}}},
+            "UPSTREAM_INVALID_RESPONSE",
+        ),
+    ],
+)
+def test_cookie_exchange_rejects_invalid_credentials(payload, code) -> None:
+    provider = MysProvider(_client(_json_response(payload)))
+    with pytest.raises(CliError) as exc:
+        provider.refresh_cookie_from_stoken(
+            uid="100000001",
+            stoken_cookie="stuid=123;stoken=v2_secret;mid=mid",
+            region="cn",
+            credential_source="keyring",
+            storage_backend="test",
+        )
+    assert exc.value.code == code
 
 
 def test_qrcode_complete_requires_confirmed_status() -> None:

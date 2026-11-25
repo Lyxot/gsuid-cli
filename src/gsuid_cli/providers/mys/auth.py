@@ -69,7 +69,15 @@ def _account_id_from_cookie(cookie: str) -> str | None:
     except CookieError:
         return None
 
-    for key in ("account_id", "ltuid", "ltuid_v2", "stuid", "login_uid"):
+    for key in (
+        "account_id",
+        "account_id_v2",
+        "ltuid",
+        "ltuid_v2",
+        "stuid",
+        "stuid_v2",
+        "login_uid",
+    ):
         morsel = parsed.get(key)
         if morsel and morsel.value:
             return morsel.value

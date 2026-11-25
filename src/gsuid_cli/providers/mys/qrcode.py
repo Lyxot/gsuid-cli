@@ -14,10 +14,12 @@ from gsuid_cli.core.http import raise_for_retcode
 from gsuid_cli.core.models import CommandResult
 from gsuid_cli.core.region import ensure_supported_region
 from gsuid_cli.core.secrets import redact_secret
-from gsuid_cli.providers.mys.auth import _headers, _ticket_from_url
+from gsuid_cli.providers.mys.auth import _generate_seed, _headers, _passport_ds, _ticket_from_url
 from gsuid_cli.providers.mys.constants import (
+    APP_VERSION,
     CHECK_QRCODE_HYP_PATH,
     CREATE_QRCODE_HYP_PATH,
+    EXCHANGE_TOKEN_PATH,
     GET_COOKIE_TOKEN_BY_STOKEN_PATH,
     PASSPORT_BASE_CN,
     PROVIDER,
@@ -29,12 +31,14 @@ _ACCOUNT_ID_KEYS = (
     "login_uid",
     "login_uid_v2",
     "account_id",
+    "account_id_v2",
     "stuid",
     "stuid_v2",
     "ltuid",
     "ltuid_v2",
 )
 _STOKEN_KEYS = ("stoken", "stoken_v2")
+_MID_KEYS = ("mid", "stmid_v2", "stmid", "account_mid_v2", "ltmid_v2")
 _HYP_QRCODE_APP_ID = "2"
 _HYP_QRCODE_RPC_APP_ID = "ddxf5dufpuyo"
 _HYP_QRCODE_VERSION = "1.3.3.182"
@@ -173,7 +177,7 @@ class MysQrcodeMixin:
                 {"provider": PROVIDER, "category": "auth.qrcode.complete"},
                 source=cookie_source,
             )
-        cookie = f"account_id={stuid};cookie_token={cookie_token}"
+        cookie = _account_token_cookie(cookie_data, stuid)
 
         return CommandResult(
             data={
@@ -234,7 +238,7 @@ class MysQrcodeMixin:
                 {"provider": PROVIDER, "category": "auth.cookie.refresh"},
                 source=cookie_source,
             )
-        cookie = f"account_id={account_id};cookie_token={cookie_token}"
+        cookie = _account_token_cookie(cookie_data, account_id)
         return CommandResult(
             data={
                 "uid": uid,
@@ -308,17 +312,18 @@ class MysQrcodeMixin:
         region: str,
         category: str = "auth.qrcode.cookie",
     ) -> tuple[dict[str, object], dict[str, object]]:
-        params = {"stoken": stoken, "uid": account_id}
         mid = _cookie_value(full_cookie, "mid")
         if mid:
-            params["mid"] = mid
+            return self._exchange_account_tokens(
+                stoken=stoken, account_id=account_id, mid=mid, region=region, category=category
+            )
         response = self.http.request_json(
             "GET",
             f"{PASSPORT_BASE_CN}{GET_COOKIE_TOKEN_BY_STOKEN_PATH}",
             provider=PROVIDER,
             region=region,
             category=category,
-            params=params,
+            params={"stoken": stoken, "uid": account_id},
             headers={**_headers(full_cookie), "Cookie": full_cookie},
         )
         raise_for_retcode(
@@ -333,6 +338,85 @@ class MysQrcodeMixin:
             _payload_data(response.payload, category, response.source),
             response.source,
         )
+
+    def _exchange_account_tokens(
+        self, *, stoken: str, account_id: str, mid: str, region: str, category: str
+    ) -> tuple[dict[str, object], dict[str, object]]:
+        device_id = _generate_seed(16)
+        device_fp = _generate_seed(13)
+
+        def exchange(token_type: int, token_mid: str):
+            body = {
+                "src_token": {"token": stoken, "token_type": 1},
+                "mid": token_mid,
+                "dst_token_type": token_type,
+            }
+            return self.http.request_json(
+                "POST",
+                f"{PASSPORT_BASE_CN}{EXCHANGE_TOKEN_PATH}",
+                provider=PROVIDER,
+                region=region,
+                category=category,
+                json_body=body,
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "x-rpc-app_id": "bll8iq97cem8",
+                    "x-rpc-client_type": "2",
+                    "x-rpc-device_id": device_id,
+                    "x-rpc-device_fp": device_fp,
+                    "x-rpc-device_name": "OnePlus%20PHK110",
+                    "x-rpc-device_model": "PHK110",
+                    "x-rpc-sys_version": "16",
+                    "x-rpc-game_biz": "bbs_cn",
+                    "x-rpc-app_version": APP_VERSION,
+                    "x-rpc-sdk_version": "2.44.0",
+                    "x-rpc-lifecycle_id": str(uuid.uuid4()),
+                    "x-rpc-account_version": "2.44.0",
+                    "DS": _passport_ds(body=body),
+                    "User-Agent": "okhttp/4.9.3",
+                },
+            )
+
+        response = exchange(4, mid)
+        raise_for_retcode(
+            response.payload,
+            provider=PROVIDER,
+            region=region,
+            category=category,
+            source=response.source,
+            debug=self.http.debug,
+        )
+        data = _payload_data(response.payload, category, response.source)
+        token = data.get("token")
+        cookie_token = token.get("token") if isinstance(token, dict) else None
+        cookie_token = cookie_token if isinstance(cookie_token, str) else ""
+        if not cookie_token:
+            return {}, response.source
+        user = data.get("user_info")
+        if isinstance(user, dict):
+            account_id = str(user.get("aid") or account_id)
+            mid = str(user.get("mid") or mid)
+        cookies = {"account_id": account_id, "cookie_token": cookie_token}
+        if cookie_token.startswith("v2_"):
+            cookies.update(
+                account_id_v2=account_id, cookie_token_v2=cookie_token, account_mid_v2=mid
+            )
+
+        try:
+            lt_payload = exchange(2, mid).payload
+        except CliError:
+            lt_payload = {}
+        lt_data = lt_payload.get("data")
+        lt_token = lt_data.get("token") if isinstance(lt_data, dict) else None
+        ltoken = lt_token.get("token") if isinstance(lt_token, dict) else None
+        if lt_payload.get("retcode") not in (0, "0") or not isinstance(ltoken, str):
+            ltoken = ""
+        if ltoken:
+            cookies.update(ltuid=account_id, ltoken=ltoken)
+            if ltoken.startswith("v2_"):
+                cookies.update(ltuid_v2=account_id, ltoken_v2=ltoken, ltmid_v2=mid)
+        return {"cookie_token": cookie_token, "cookies": cookies}, response.source
 
 
 def _random_hyp_device_id() -> str:
@@ -391,7 +475,7 @@ def _stoken_cookie_parts(stoken_cookie: str) -> tuple[str, str, str]:
     stoken = _first_cookie_value(parsed, _STOKEN_KEYS)
     if not account_id or not stoken:
         raise _invalid_stoken_cookie()
-    mid = _first_cookie_value(parsed, ("mid",))
+    mid = _first_cookie_value(parsed, _MID_KEYS)
     if stoken.startswith("v2_") and not mid:
         raise CliError(
             "INVALID_ARGUMENT",
@@ -411,6 +495,13 @@ def _first_cookie_value(parsed: SimpleCookie, keys: tuple[str, ...]) -> str:
         if morsel and morsel.value:
             return morsel.value
     return ""
+
+
+def _account_token_cookie(data: dict[str, object], account_id: str) -> str:
+    cookies = data.get("cookies")
+    if isinstance(cookies, dict):
+        return ";".join(f"{key}={value}" for key, value in cookies.items() if value)
+    return f"account_id={account_id};cookie_token={data['cookie_token']}"
 
 
 def _invalid_stoken_cookie() -> CliError:
