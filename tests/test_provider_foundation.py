@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 
@@ -794,6 +795,118 @@ def test_device_set_generates_fp_from_app_payload() -> None:
     assert requests[1].headers["x-rpc-device_fp"] == "generated-fp"
     assert result.data["device_fp"] == "generated-fp"
     assert result.data["generated_fp"] is True
+
+
+@pytest.mark.parametrize(
+    "android,sdk",
+    [
+        ("16", "36"),
+        ("15", "35"),
+        ("14", "34"),
+        ("13", "33"),
+        ("12L", "32"),
+        ("12", "31"),
+        ("11", "30"),
+        ("10", "29"),
+        ("99", "34"),
+    ],
+)
+def test_device_set_matches_android_version_and_signature(android, sdk) -> None:
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        data = {"device_fp": "generated-fp"} if len(requests) == 1 else {}
+        return _json_response({"retcode": 0, "data": data})
+
+    provider = MysProvider(
+        HttpClient(timeout=1, cache_policy="off", transport=httpx.MockTransport(handler))
+    )
+    provider.device_login(
+        uid="100000001",
+        cookie="stuid=123;stoken=v2_secret;mid=mid",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="test",
+        device_payload={
+            "device_id": "preserved-id",
+            "deviceModel": "TestModel",
+            "deviceProduct": "product",
+            "deviceName": "device",
+            "deviceBoard": "board",
+            "oaid": "oaid",
+            "deviceFingerprint": f"TestBrand/TestModel/TestDev:{android}/build",
+        },
+    )
+    fp_body = json.loads(requests[0].content)
+    ext = json.loads(fp_body["ext_fields"])
+    assert fp_body["bbs_device_id"] == "preserved-id"
+    assert ext["osVersion"] == android
+    assert ext["sdkVersion"] == sdk
+    assert ext["display"] == f"TestModel_{android}.0.0.810(CN01)"
+    assert len(requests) == 3
+    for request in requests[1:]:
+        assert json.loads(request.content)["os_version"] == sdk
+        assert request.headers["cookie"] == "stuid=123;stoken=v2_secret;mid=mid"
+        assert request.headers["x-rpc-device_id"] == "preserved-id"
+        assert request.headers["x-rpc-device_fp"] == "generated-fp"
+        assert request.headers["x-rpc-client_type"] == "2"
+        assert request.headers["x-rpc-sys_version"] == android
+        assert request.headers["user-agent"] == "okhttp/4.9.3"
+        timestamp, nonce, digest = request.headers["ds"].split(",")
+        assert (
+            digest
+            == hashlib.md5(
+                f"salt=lX8m5VO5at5JG7hR8hzqFwzyL5aB1tYo&t={timestamp}&r={nonce}".encode()
+            ).hexdigest()
+        )
+
+
+def test_device_set_accepts_aliases_and_uses_default_device() -> None:
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return _json_response({"retcode": 0, "data": {}})
+
+    provider = MysProvider(
+        HttpClient(timeout=1, cache_policy="off", transport=httpx.MockTransport(handler))
+    )
+    result = provider.device_login(
+        uid="100000001",
+        cookie="stuid=1;stoken=secret",
+        region="cn",
+        credential_source="keyring",
+        storage_backend="test",
+        device_payload={"fp": " ", "device_fp": "alias-fp", "device_id": " ", "deviceId": "id"},
+    )
+    assert result.data["device_fp"] == "alias-fp"
+    assert result.data["generated_fp"] is False
+    assert requests[0].headers["x-rpc-device_name"] == "OnePlus PHK110"
+    assert json.loads(requests[0].content)["os_version"] == "34"
+
+
+def test_device_set_stops_before_save_on_login_failure() -> None:
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return _json_response({"retcode": -100})
+
+    provider = MysProvider(
+        HttpClient(timeout=1, cache_policy="off", transport=httpx.MockTransport(handler))
+    )
+    with pytest.raises(CliError) as exc:
+        provider.device_login(
+            uid="100000001",
+            cookie="stuid=1;stoken=secret",
+            region="cn",
+            credential_source="keyring",
+            storage_backend="test",
+            device_payload={"fp": "fp", "device_id": "id"},
+        )
+    assert exc.value.code == "AUTH_EXPIRED"
+    assert len(requests) == 1
 
 
 @pytest.mark.skipif(

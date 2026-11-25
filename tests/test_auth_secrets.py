@@ -284,6 +284,7 @@ def test_device_set_binds_device_without_printing_raw_values(monkeypatch, tmp_pa
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _device_provider())
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+    SecretStore().set_secret("stoken", "100000001", "stuid=1;stoken=stoken-secret;mid=mid")
 
     code, payload = _run_json(
         [
@@ -313,6 +314,7 @@ def test_device_set_test_delete_lifecycle(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GSUID_HOME", str(tmp_path / "home"))
     monkeypatch.setattr("gsuid_cli.commands.auth.provider_for_region", _device_provider())
     SecretStore().set_secret("cookie", "100000001", "account_id=1;cookie_token=secret")
+    SecretStore().set_secret("stoken", "100000001", "stuid=1;stoken=stoken-secret;mid=mid")
     payload = json.dumps(
         {
             "fp": "fp-secret",
@@ -798,7 +800,7 @@ def _device_provider():
             device_payload: dict[str, object],
         ) -> CommandResult:
             assert uid == "100000001"
-            assert cookie == "account_id=1;cookie_token=secret"
+            assert cookie == "stuid=1;stoken=stoken-secret;mid=mid"
             assert device_payload["fp"] == "fp-secret"
             return CommandResult(
                 data={

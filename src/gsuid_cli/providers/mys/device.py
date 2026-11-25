@@ -14,10 +14,9 @@ from gsuid_cli.core.secrets import redact_secret
 from gsuid_cli.core.state import state_db
 from gsuid_cli.providers.mys.auth import (
     _account_id_from_cookie,
+    _bbs_ds,
     _fp_headers,
     _generate_seed,
-    _headers,
-    _passport_ds,
 )
 from gsuid_cli.providers.mys.constants import (
     APP_VERSION,
@@ -45,7 +44,6 @@ class MysDeviceMixin:
         body = _device_login_body(device["device_id"], device["device_info"])
         headers = _device_login_headers(
             cookie=cookie,
-            body=body,
             device_id=device["device_id"],
             device_fp=device["device_fp"],
             device_info=device["device_info"],
@@ -148,18 +146,21 @@ class MysDeviceMixin:
         device_id = _device_payload_value(payload, "device_id") or _device_payload_value(
             payload, "deviceId"
         )
-        device_fp = _device_payload_value(payload, "fp")
+        device_fp = _device_payload_value(payload, "fp") or _device_payload_value(
+            payload, "device_fp"
+        )
         if device_id and device_fp:
             return {
                 "device_id": device_id,
                 "device_fp": device_fp,
                 "device_info": _device_payload_value(payload, "device_info")
                 or _device_payload_value(payload, "deviceInfo")
-                or "Unknown/Unknown/Unknown/Unknown",
+                or _device_payload_value(payload, "deviceFingerprint")
+                or "OnePlus/PHK110/OP5913L1:14/SKQ1.221119.001",
                 "generated_fp": False,
             }
 
-        device_id = str(uuid.uuid4()).lower()
+        device_id = device_id or str(uuid.uuid4()).lower()
         seed_id = str(uuid.uuid4()).lower()
         seed_time = str(int(time.time() * 1000))
         device_info = _required_device_payload(payload, "deviceFingerprint")
@@ -258,12 +259,12 @@ def _required_device_payload(payload: dict[str, object], key: str) -> str:
 
 
 def _device_login_body(device_id: object, device_info: object) -> dict[str, object]:
-    brand, model_name = _device_info_parts(str(device_info))
+    brand, model_name, sys_version = _device_info_parts(str(device_info))
     return {
         "app_version": APP_VERSION,
         "device_id": str(device_id),
         "device_name": f"{brand}{model_name}",
-        "os_version": "33",
+        "os_version": _android_sdk(sys_version),
         "platform": "Android",
         "registration_id": _generate_seed(19),
     }
@@ -272,27 +273,33 @@ def _device_login_body(device_id: object, device_info: object) -> dict[str, obje
 def _device_login_headers(
     *,
     cookie: str,
-    body: dict[str, object],
     device_id: object,
     device_fp: object,
     device_info: object,
 ) -> dict[str, str]:
-    brand, model_name = _device_info_parts(str(device_info))
+    brand, model_name, sys_version = _device_info_parts(str(device_info))
     return {
-        **_headers(cookie),
+        "Cookie": cookie,
+        "x-rpc-client_type": "2",
+        "x-rpc-app_version": APP_VERSION,
+        "x-rpc-sys_version": sys_version,
+        "x-rpc-channel": "miyousheluodi",
         "x-rpc-device_id": str(device_id),
         "x-rpc-device_fp": str(device_fp),
         "x-rpc-device_name": f"{brand} {model_name}",
         "x-rpc-device_model": model_name,
+        "x-rpc-h265_supported": "1",
+        "x-rpc-verify_key": "bll8iq97cem8",
         "x-rpc-csm_source": "myself",
         "Referer": "https://app.mihoyo.com",
         "Host": "bbs-api.miyoushe.com",
-        "DS": _passport_ds(body=body),
+        "User-Agent": "okhttp/4.9.3",
+        "DS": _bbs_ds(),
     }
 
 
 def _device_info_summary(device_info: object) -> dict[str, object]:
-    brand, model_name = _device_info_parts(str(device_info))
+    brand, model_name, _ = _device_info_parts(str(device_info))
     return {
         "brand": brand,
         "model": model_name,
@@ -300,11 +307,27 @@ def _device_info_summary(device_info: object) -> dict[str, object]:
     }
 
 
-def _device_info_parts(device_info: str) -> tuple[str, str]:
-    parts = [part.strip() for part in device_info.split("/") if part.strip()]
-    brand = parts[0] if parts else "Unknown"
-    model_name = parts[1] if len(parts) > 1 else brand
-    return brand, model_name
+def _device_info_parts(device_info: str) -> tuple[str, str, str]:
+    parts = [part.strip() for part in device_info.split("/")]
+    brand = parts[0] if parts[0] else "OnePlus"
+    model_name = parts[1] if len(parts) > 1 and parts[1] else "PHK110"
+    sys_version = "14"
+    if len(parts) > 2 and ":" in parts[2]:
+        sys_version = parts[2].split(":", 1)[1].strip() or sys_version
+    return brand, model_name, sys_version
+
+
+def _android_sdk(sys_version: str) -> str:
+    return {
+        "16": "36",
+        "15": "35",
+        "14": "34",
+        "13": "33",
+        "12L": "32",
+        "12": "31",
+        "11": "30",
+        "10": "29",
+    }.get(sys_version, "34")
 
 
 def _device_fp_body(
@@ -322,7 +345,8 @@ def _device_fp_body(
     ),
 ) -> dict[str, object]:
     # Ported from gsuid_core.utils.api.mys.base_request.generate_fake_fp.
-    device_brand = device_info.split("/")[0]
+    device_brand, parsed_model, sys_version = _device_info_parts(device_info)
+    model_name = model_name or parsed_model
     random_data = random.randint(400000, 600000)
     random_data2 = random.randint(150000, 300000)
     now_ms = int(time.time() * 1000)
@@ -352,7 +376,7 @@ def _device_fp_body(
         "deviceInfo": device_info,
         "vaid": _generate_id(),
         "buildType": "user",
-        "sdkVersion": "34",
+        "sdkVersion": _android_sdk(sys_version),
         "ui_mode": "UI_MODE_TYPE_NORMAL",
         "isMockLocation": 0,
         "cpuType": "arm64-v8a",
@@ -362,7 +386,7 @@ def _device_fp_body(
         "manufacturer": device_brand,
         "emulatorStatus": 0,
         "appMemory": "512",
-        "osVersion": "14",
+        "osVersion": sys_version,
         "vendor": "ChinaUnicom",
         "accelerometer": "-1.3004991x6.38764x7.19103",
         "sdRemain": random_data2,
@@ -373,7 +397,7 @@ def _device_fp_body(
         "debugStatus": 1,
         "ramCapacity": str(random_data),
         "magnetometer": "27.1084x-48.5804x-24.8758",
-        "display": f"{model_name}_14.0.0.810(CN01)",
+        "display": f"{model_name}_{sys_version}.0.0.810(CN01)",
         "appInstallTimeDiff": str(now_ms),
         "packageVersion": "2.20.2",
         "gyroscope": "-0.02543317x0.005725792x0.003195791",
