@@ -16,7 +16,7 @@
 | `auth.cookie.set` | `keyring` | `data, text, all` | 将 Cookie 存储在操作系统凭据管理器中。 |
 | `auth.cookie.test` | `cookie` | `data, text, all` | 在国服数据源处验证 Cookie 是否可用。 |
 | `auth.device.delete` | `none` | `data, text, all` | 删除本地米游社设备元数据。 |
-| `auth.device.set` | `cookie` | `data, text, all` | 绑定并存储米游社设备元数据。 |
+| `auth.device.set` | `stoken` | `data, text, all` | 绑定并存储米游社设备元数据。 |
 | `auth.device.test` | `device` | `data, text, all` | 检查本地米游社设备元数据可用性。 |
 | `auth.gacha-url.delete` | `keyring` | `data, text, all` | 从操作系统凭据管理器中删除已存储的祈愿 URL。 |
 | `auth.gacha-url.set` | `keyring` | `data, text, all` | 将祈愿 URL 存储在操作系统凭据管理器中。 |

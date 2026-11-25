@@ -132,7 +132,7 @@ CAPABILITIES = [
     {
         "command": "auth.device.set",
         "description": _t("gsuid.commands.auth.129_23.1da93d45"),
-        "auth": "cookie",
+        "auth": "stoken",
         "regions": ["cn"],
         "render": ["data", "text", "all"],
     },
@@ -600,7 +600,7 @@ def _register_device(
     set_parser.set_defaults(
         handler=device_set_command,
         command_name="auth.device.set",
-        credential_kind="cookie",
+        credential_kind="stoken",
     )
 
     test = actions.add_parser("test", help=_HELPS["auth.device.test"])

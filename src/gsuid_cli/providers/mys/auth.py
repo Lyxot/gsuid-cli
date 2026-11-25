@@ -69,7 +69,15 @@ def _account_id_from_cookie(cookie: str) -> str | None:
     except CookieError:
         return None
 
-    for key in ("account_id", "ltuid", "ltuid_v2", "stuid", "login_uid"):
+    for key in (
+        "account_id",
+        "account_id_v2",
+        "ltuid",
+        "ltuid_v2",
+        "stuid",
+        "stuid_v2",
+        "login_uid",
+    ):
         morsel = parsed.get(key)
         if morsel and morsel.value:
             return morsel.value
@@ -154,6 +162,9 @@ def _sign_headers(cookie: str) -> dict[str, str]:
         "x-rpc-signgame": "hk4e",
         "x-rpc-device_id": uuid.uuid4().hex,
         "x-rpc-client_type": "5",
+        "x-rpc-platform": "2",
+        "Origin": "https://act.mihoyo.com",
+        "Referer": "https://act.mihoyo.com/",
     }
 
 
